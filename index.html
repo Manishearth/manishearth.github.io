@@ -10,8 +10,8 @@
 
   
   <meta name="description" content="Yesterday I was working on a small feature
-for Rust, and came across a situation which really showcased Rust&rsquo;s
-awesomeness. I thought I&rsquo;d &hellip;">
+for the Rust compiler, and came across a situation which really showcased Rust&rsquo;s
+awesomeness as a &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -102,27 +102,32 @@ awesomeness. I thought I&rsquo;d &hellip;">
 
 
   <div class="entry-content"><p>Yesterday I was working on a <a href="https://github.com/rust-lang/rust/pull/25027">small feature</a>
-for Rust, and came across a situation which really showcased Rust&rsquo;s
-awesomeness. I thought I&rsquo;d write about it to</p>
+for the Rust compiler, and came across a situation which really showcased Rust&rsquo;s
+awesomeness as a language.</p>
 
-<p>What I was trying to do was give the auto-derive API access to a set of &ldquo;attributes&rdquo; that were on
-the item being expanded. What exactly isn&rsquo;t really important, but basically I needed to just add a
-field with a list of attributes that&rsquo;s the same as the original attribute list (which was <a href="http://doc.rust-lang.org/std/vec/struct.Vec.html">a heap-allocated
-vector</a>).</p>
+<p>There was a struct which was exposed to an API,
+and I wished to give it access to a list of things known as &ldquo;attributes&rdquo;, where the list was <a href="http://doc.rust-lang.org/std/vec/struct.Vec.html">a heap-allocated
+vector</a>.</p>
 
-<p>Sounds straightforward, right? In a language like C++, it would be, because there&rsquo;s only once choice; that is
-to clone the vector (i.e. make a copy of the contents) . In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
+<p>Now, I have two ways of actually giving the struct access to a vector. I can either clone it (i.e. make a copy of its contents),
+or use a reference (pointer) to it or its contents.</p>
+
+<p>In a language like C++ there&rsquo;s only once choice in this situation; that is
+to clone the vector. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn&rsquo;t deallocated by the time I&rsquo;m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
-capacity it will be reallocated, invalidating any other pointers to it). For a smaller codebase this might be possible,
-but in this specific case it could have taken me a while to become sure of this. The code was related to the &ldquo;expansion&rdquo;
-portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get moved around, so it is reasonable
-to assume that it might not be possible to safely use it. I would have had to find out where the vector is originally
-stored; all the entry points for the code I was modifying, and make sure it isn&rsquo;t being mutated (not as hard in Rust, but I would
+capacity it will be reallocated, invalidating any other pointers to it).</p>
+
+<p>For a smaller codebase this might be possible, but in this specific case it could have taken me a while to become sure of this.
+The code was related to the &ldquo;expansion&rdquo; portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get
+moved around, so it is reasonable to assume that I might not be possible to safely use it.
+I would have had to find out where the vector is originally stored; all the entry points for the code I was
+modifying, and make sure it isn&rsquo;t being mutated (not as hard in Rust, but I would
 still need to muck around a large codebase). This is a task which I would not even consider trying in C++.</p>
 
 <p>However, I had another option here, because this was Rust. I could store a reference to the contents of the vector,
-precisely, a <a href="http://doc.rust-lang.org/std/primitive.slice.html">slice</a>.
-Whilst in C++ I would have to manually go through a lot of code to be sure of safety
+precisely, a <a href="http://doc.rust-lang.org/std/primitive.slice.html">slice</a>.</p>
+
+<p>Whilst in C++ I would have to manually go through a lot of code to be sure of safety
 (and even after all that be left with code that would be brittle to changes elsewhere
 the codebase), in Rust the compiler can do this for me!</p>
 
@@ -154,8 +159,9 @@ If I construct this struct with slices from different scopes, its type will be d
 and quite often they get elided away, so one doesn&rsquo;t need to specify them that much (aside from struct/enum definitions). You can find more information <a href="http://doc.rust-lang.org/nightly/book/ownership.html#lifetimes">in the Rust book</a></p>
 
 <p>I then updated code everywhere to pass the attributes from <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1440">their source</a>
-to <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1155">their destination</a> through the chained methods.
-An important thing to note here is that none of the lifetime specifiers you see now were added when I did this. For example, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1410">the return value
+to <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1155">their destination</a> through the chained methods.</p>
+
+<p>An important thing to note here is that none of the lifetime specifiers you see now in the commit were added when I did this. For example, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1410">the return value
 of <code>create_struct_pattern</code></a> was
 <code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)</code> at this point, not <code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)</code>.
 You can ignore the complicated types being passed around, for now just pretend that a slice of attributes was returned.</p>
@@ -272,8 +278,14 @@ have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, 
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>Again, I didn&rsquo;t need to think this out much &mdash; I followed the suggestion given to me by the compiler (which output a sample function signature)
-and moved on. I&rsquo;m only thinking it through now for this blog post.</p>
+<p>Again, I didn&rsquo;t need to think this out much (I&rsquo;m only thinking it through now for this blog post). I followed the suggestion given to me by the compiler:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
+</span><span class='line'>help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern(&amp;self, cx: &amp;mut ExtCtxt, enum_ident: ast::Ident, variant: &amp;&#39;a ast::Variant, prefix: &amp;str, mutbl: ast::Mutability) -&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;&#39;a [ast::Attribute])&gt;)
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>There were a couple of similar errors elsewhere that were caused by tying these two lifetimes together. Since these methods were chained, updating the lifetimes of a child method
 would mean that I would have to now update the parent method which passes its arguments down to the children and returns a modification of its return value (and thus must now impose the
