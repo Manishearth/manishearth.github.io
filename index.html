@@ -119,13 +119,14 @@ capacity it will be reallocated, invalidating any other pointers to it).</p>
 
 <p>For a smaller codebase this might be possible, but in this specific case it could have taken me a while to become sure of this.
 The code was related to the &ldquo;expansion&rdquo; portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get
-moved around, so it is reasonable to assume that I might not be possible to safely use it.
+moved around, so it is reasonable to assume that it might not be possible to safely use it.
 I would have had to find out where the vector is originally stored; all the entry points for the code I was
 modifying, and make sure it isn&rsquo;t being mutated (not as hard in Rust, but I would
 still need to muck around a large codebase). This is a task which I would not even consider trying in C++.</p>
 
-<p>However, I had another option here, because this was Rust. I could store a reference to the contents of the vector,
-precisely, a <a href="http://doc.rust-lang.org/std/primitive.slice.html">slice</a>.</p>
+<p>However, I had another option here, because this was Rust. However, in Rust I can store a reference to the contents of the vector
+without fear of invalidation, since the compiler will prevent me from using the vector in a way that could cause unsafety.
+Such a reference is known as a <a href="http://doc.rust-lang.org/std/primitive.slice.html">slice</a>.</p>
 
 <p>Whilst in C++ I would have to manually go through a lot of code to be sure of safety
 (and even after all that be left with code that would be brittle to changes elsewhere
