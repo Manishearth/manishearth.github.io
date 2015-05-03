@@ -148,7 +148,7 @@ by very few.</p>
 <p>For those of you new to Rust, a lifetime is part of the type of a reference. It&rsquo;s related to the scope of the reference, and generally can be treated as
 a generic parameter. So, for example, here, I have a <code>FieldInfo</code> with a lifetime parameter of <code>'a</code> where <code>'a</code> is the lifetime of the inner slice of attributes.
 If I construct this struct with slices from different scopes, its type will be different each time. Lifetimes can get automatically cast depending on their context however,
-and quite often they get elided away, so one doesn&rsquo;t need to specify them that much (aside from struct/enum definitions).</p>
+and quite often they get elided away, so one doesn&rsquo;t need to specify them that much (aside from struct/enum definitions). You can find more information <a href="http://doc.rust-lang.org/nightly/book/ownership.html#lifetimes">in the Rust book</a></p>
 
 <p>I then updated code everywhere to pass the attributes from <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1440">their source</a>
 to <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1155">their destination</a> through the chained methods.
@@ -161,20 +161,116 @@ You can ignore the complicated types being passed around, for now just pretend t
 I had forgotten lifetime specifiers in places where they were important, and still wasn&rsquo;t sure if storing a reference would in fact be possible in the first place.
 However, the compiler was smart enough to figure things out for me. It would tell me to add lifetime specifiers, and I would add them.</p>
 
-<p>First, the compiler asked me to add <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R297">a lifetime to the <code>FieldInfo</code> parts of <code>SubstructureFields</code></a>. This needed to happen because elision doesn&rsquo;t work for structs and enums,
+<p>First, the compiler asked me to add <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R297">a lifetime to the <code>FieldInfo</code> parts of <code>SubstructureFields</code></a>. So, the following:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">Struct</span><span class="p">(</span><span class="n">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">EnumMatching</span><span class="p">(</span><span class="n">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">,</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
+</span><span class='line'>    <span class="c1">// ...</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>became</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">Struct</span><span class="p">(</span><span class="n">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">EnumMatching</span><span class="p">(</span><span class="n">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">,</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
+</span><span class='line'>    <span class="c1">// ...</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This needed to happen because elision doesn&rsquo;t work for structs and enums,
 and besides, the compiler would need to know if the <code>&amp;ast::Variant</code> was supposed to be the same lifetime as the parameter of the <code>FieldInfo</code>s. I decided
 to just use the existing <code>'a</code> parameter, which meant that yes, the <code>&amp;ast::Variant</code> was supposed to live just as long. I could also have opted to give the <code>FieldInfo</code>s
 a different lifetime by adding a <code>'b</code> parameter, but I guessed that it would work this way too (knowing the origin of the fieldinfo and variant, and that implicit lifetime casting would
 fix most issues that cropped up). I didn&rsquo;t need to think this out much, though &mdash; the compiler gave me a suggestion and I could simply copy it.</p>
 
 <p>The next error was in <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1463"><code>create_enum_variant_pattern()</code></a>
-and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1404"><code>create_struct_pattern()</code></a> as well as some other places.
-Over here, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code>StructDef</code> reference and returning it. What if the <code>StructDef</code> doesn&rsquo;t live long enough?
+and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1404"><code>create_struct_pattern()</code></a> as well as some other places.</p>
+
+<p>Here, the method had a signature of</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">create_enum_variant_pattern</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">cx</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">ExtCtxt</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">enum_ident</span><span class="o">:</span> <span class="n">ast</span><span class="o">::</span><span class="n">Ident</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">variant</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">prefix</span><span class="o">:</span> <span class="o">&amp;</span><span class="kt">str</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">mutbl</span><span class="o">:</span> <span class="n">ast</span><span class="o">::</span><span class="n">Mutability</span><span class="p">)</span>
+</span><span class='line'><span class="o">-&gt;</span> <span class="p">(</span><span class="n">P</span><span class="o">&lt;</span><span class="n">ast</span><span class="o">::</span><span class="n">Pat</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Span</span><span class="p">,</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Ident</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">ast</span><span class="o">::</span><span class="n">Attribute</span><span class="p">])</span><span class="o">&gt;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and I changed it to</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">create_enum_variant_pattern</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">cx</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">ExtCtxt</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">enum_ident</span><span class="o">:</span> <span class="n">ast</span><span class="o">::</span><span class="n">Ident</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">variant</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">prefix</span><span class="o">:</span> <span class="o">&amp;</span><span class="kt">str</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">mutbl</span><span class="o">:</span> <span class="n">ast</span><span class="o">::</span><span class="n">Mutability</span><span class="p">)</span>
+</span><span class='line'><span class="o">-&gt;</span> <span class="p">(</span><span class="n">P</span><span class="o">&lt;</span><span class="n">ast</span><span class="o">::</span><span class="n">Pat</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Span</span><span class="p">,</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Ident</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="p">[</span><span class="n">ast</span><span class="o">::</span><span class="n">Attribute</span><span class="p">])</span><span class="o">&gt;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code>StructDef</code> reference and returning it. What if the <code>StructDef</code> doesn&rsquo;t live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there&rsquo;s no single way to make the fix.
 In this case, the compiler suggested I add a <code>'a</code> to <code>&amp;StructDef</code> and the returned <code>&amp;[Attribute]</code>, and I did so. The <code>'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code>self</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. This meant that the returned attribute of the function will
-have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place.</p>
+have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
 
-<p>Again, I didn&rsquo;t need to think this out much &mdash; I followed the suggestion given to me by the compiler and moved on. I&rsquo;m only thinking it through now for this blog post.</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">variant</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">ast</span><span class="o">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// do stuff</span>
+</span><span class='line'>    <span class="c1">// return variant.attributes</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and changed it to</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// we are sure that the returned slice cannot outlive the variant argument</span>
+</span><span class='line'><span class="k">fn</span> <span class="n">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">variant</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">ast</span><span class="o">::</span><span class="n">Variant</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="p">[</span><span class="n">ast</span><span class="o">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// do stuff</span>
+</span><span class='line'>    <span class="c1">// return variant.attributes</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Again, I didn&rsquo;t need to think this out much &mdash; I followed the suggestion given to me by the compiler (which output a sample function signature)
+and moved on. I&rsquo;m only thinking it through now for this blog post.</p>
 
 <p>There were a couple of similar errors elsewhere that were caused by tying these two lifetimes together. Since these methods were chained, updating the lifetimes of a child method
 would mean that I would have to now update the parent method which passes its arguments down to the children and returns a modification of its return value (and thus must now impose the
@@ -264,7 +360,7 @@ and occasionally to the <a href="http://github.com/rust-lang/rust">Rust programm
 </div>
 </section>
 <section>
-<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="http://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
 </section><section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
