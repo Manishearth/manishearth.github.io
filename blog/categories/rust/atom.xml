@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2015-05-03T14:18:08+05:30</updated>
+  <updated>2015-05-03T14:24:06+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -31,7 +31,7 @@ or use a reference (pointer) to it or its contents.</p>
 <p>In a language like C++ there&rsquo;s only once choice in this situation; that is
 to clone the vector<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn&rsquo;t deallocated by the time I&rsquo;m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
-capacity it will be reallocated, invalidating any other pointers to it).</p>
+capacity it will be reallocated, invalidating any other pointers to its contents).</p>
 
 <p>For a smaller codebase this might be possible, but in this specific case it could have taken me a while to become sure of this.
 The code was related to the &ldquo;expansion&rdquo; portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get
@@ -176,7 +176,7 @@ with much cognitive overhead; I could just follow the compiler and it fixed ever
 <hr/>
 <ol>
 <li id="fn:1">
-<p>Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn&rsquo;t prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn&rsquo;t want to take.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn&rsquo;t prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn&rsquo;t want to take. Additionally, whilst a shared pointer to the vector itself is immune to the issue of the vector being moved, since this was an API, someone consuming the API might take a reference of an attribute and hold on to it long enough for it to become invalidated. This is something we can&rsquo;t have either &ndash; an API consumer should not have to worry about where the pointers will invalidate.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
 <p>Note: This is not the lifetime of the reference <code>&amp;self</code>, which is the lifetime of the pointer (<code>&amp;'b self</code>), but the lifetime parameter of <code>self</code>, a <code>TraitDef&lt;'a&gt;</code>, which has a lifetime parameter for its child fields.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
