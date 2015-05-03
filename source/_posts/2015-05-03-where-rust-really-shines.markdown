@@ -18,9 +18,9 @@ Now, I have two ways of actually giving the struct access to a vector. I can eit
 or use a reference (pointer) to it or its contents.
 
 In a language like C++ there's only once choice in this situation; that is
-to clone the vector. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
+to clone the vector[^1]. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn't deallocated by the time I'm done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
-capacity it will be reallocated, invalidating any other pointers to it).
+capacity it will be reallocated, invalidating any other pointers to its contents).
 
 For a smaller codebase this might be possible, but in this specific case it could have taken me a while to become sure of this.
 The code was related to the "expansion" portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get
@@ -129,7 +129,7 @@ fn create_enum_variant_pattern(&self,
 
 In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary `StructDef` reference and returning it. What if the `StructDef` doesn't live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there's no single way to make the fix.
-In this case, the compiler suggested I add a `'a` to `&StructDef` and the returned `&[Attribute]`, and I did so. The `'a` lifetime was declared at [the top of the impl](https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379), so it was the lifetime parameter of `self`[^1]. This meant that the returned attribute of the function will
+In this case, the compiler suggested I add a `'a` to `&StructDef` and the returned `&[Attribute]`, and I did so. The `'a` lifetime was declared at [the top of the impl](https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379), so it was the lifetime parameter of `self`[^2]. This meant that the returned attribute of the function will
 have a lifetime tied to `self` and the input `StructDef`, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:
 
 ```rust
@@ -173,7 +173,7 @@ And this is one place Rust really shines. It lets you do optimizations which you
 would probably be to just clone and move on, most Rust programmers would think of using slices as the default, and not even consider it an "optimization". And again, this wasn't
 with much cognitive overhead; I could just follow the compiler and it fixed everything for me.
 
-
-[^1]: Note: This is not the lifetime of the reference `&self`, which is the lifetime of the pointer (`&'b self`), but the lifetime parameter of `self`, a `TraitDef<'a>`, which has a lifetime parameter for its child fields.
+[^1]: Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn't prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn't want to take. Additionally, whilst a shared pointer to the vector itself is immune to the issue of the vector being moved, since this was an API, someone consuming the API might take a reference of an attribute and hold on to it long enough for it to become invalidated. This is something we can't have either -- an API consumer should not have to worry about where the pointers will invalidate.
+[^2]: Note: This is not the lifetime of the reference `&self`, which is the lifetime of the pointer (`&'b self`), but the lifetime parameter of `self`, a `TraitDef<'a>`, which has a lifetime parameter for its child fields.
 
 
