@@ -27,7 +27,8 @@ The code was related to the "expansion" portion of compilation, where the AST is
 moved around, so it is reasonable to assume that it might not be possible to safely use it.
 I would have had to find out where the vector is originally stored; all the entry points for the code I was
 modifying, and make sure it isn't being mutated (not as hard in Rust, but I would
-still need to muck around a large codebase). This is a task which I would not even consider trying in C++.
+still need to muck around a large codebase). And then I would have to somehow make sure that nobody tries to mutate it
+in the future. This is a task which I would not even consider trying in C++.
 
 However, I had another option here, because this was Rust. However, in Rust I can store a reference to the contents of the vector
 without fear of invalidation, since the compiler will prevent me from using the vector in a way that could cause unsafety. 
