@@ -110,4 +110,94 @@ I also find it to be a bit of a cop-out, for reasons which I will explain below.
 this post in the first place; a better idea of the answer to The Question should be available for those who want
 to dig deeper.
 
- 
+Iterator invalidation involves using tools like iterators whilst modifying the underlying dataset somehow.
+
+For example,
+
+
+```rust
+
+let buf = vec![1,2,3,4];
+
+for i in &buf {
+    buf.push(i);
+}
+```
+
+Firstly, this will loop infinitely (if it compiled, which it doesn't, because Rust prevents this). The
+equivalent C++ example would be [this one][stackoverflow-iter], which I [use][slides-iter] at every opportunity.
+
+What's happening in both code snippets is that the iterator is really just a pointer to the vector and an index.
+It doesn't contain a snapshot of the original vector; so pushing to the original vector will make the iterator iterate for
+longer. Pushing once per iteration will obviously make it iterate forever.
+
+The infinite loop isn't even the real problem here. The real problem is that after a while, we could get a segmentation fault.
+Internally, vectors have a certain amount of allocated space to work with. If the vector is grown past this space,
+a new, larger allocation may need to be done (freeing the old one), since vectors must use contiguous memory.
+
+This means that when the vector overflows its capacity, it will reallocate, invalidating the reference stored in the
+iterator, and causing use-after-free.
+
+Of course, there is a trivial solution in this case &mdash; store a reference to the `Vec`/`vector` object inside
+the iterator instead of just the pointer to the vector on the heap. This leads to some extra indrection or a larger
+stack size for the iterator (depending on how you implement it), but overall will prevent the memory unsafety.
+
+
+This would still cause problems with more comple situations involving multidimensional vectors, however.
+
+
+
+
+[stackoverflow-iter]: http://stackoverflow.com/questions/5638323/modifying-a-data-structure-while-iterating-over-it
+[slides-iter]: http://manishearth.github.io/Presentations/Rust/#/1/2
+
+
+## The "it's effectively threaded" issue
+
+> Aliasing with mutability in a sufficiently complex, single-threaded program is effectively the same thing as
+> accessing data shared across multiple threads without a lock
+
+(The above is my paraphrasing of someone else's quote; but I can't find the original or remember who made it)
+
+Let's step back a bit and figure out why we need locks in multithreaded programs. The way caches and memory work;
+we'll never need to worry about two processes writing to the same memory location simultaneously and coming up with
+a hybrid value, or a read happening halfway through a write.
+
+What we do need to worry about is the rug being pulled out underneath our feet. A bunch of related reads/writes
+would have been written with some invariants in mind, and arbitrary reads/writes possibly happening between them
+would invalidate those invariants. For example, a bit of code might first read the length of a vector, and then go ahead
+and iterate through it with a regular for loop bounded on the length.
+The invariant assumed here is the length of the vector. If `pop()` was called on the vector in some other thread, this invariant could be
+invalidated after the read to `length` but before the reads elsewhere, possibly causing a segfault or use-after-free in the last iteration.
+
+However, we can have a situation similar to this (in spirit) in single threaded code. Consider the following:
+
+
+```rust
+let x = some_big_thing();
+let len = x.some_vec.len();
+for i in 0..len {
+    x.do_something_complicated(x.some_vec[i]);
+}
+```
+
+We have the same invariant here; but can we be sure that `x.do_something_complicated()` doesn't modify `x.some_vec` for
+some reason? In a complicated codebase, where `do_something_complicated()` itself calls a lot of other functions which may
+also modify `x`, this can be hard to audit.
+
+Of course, the above example is a simplification and contrived; but it doesn't seem unreasonable to assume that such
+bugs can happen in large codebases &mdash; where many methods being called have side effects which may not always be evident.
+
+Which means that in large codebases we have almost the same problem as threaded ones. It's very hard to maintain invariants
+when one is not completely sure of what each line of code is doing. It's possible to become sure of this by reading through the code
+(which takes a while), but further modifications may also have to do the same. It's impractical to do this all the time and eventually
+bugs will start cropping up.
+
+
+On the other hand, having a static guarantee that this can't happen is great. And when the code is too convoluted for
+a static guarantee (or you just want to avoid the borrow checker), a single-threaded RWlock-esque type called [RefCell][refcell]
+is available in rust. (It provides internal mutability, but in this context one can consider it to be a dynamically checked
+version of the borrow checker)
+
+[refcell]: https://doc.rust-lang.org/core/cell/struct.RefCell.html
+
