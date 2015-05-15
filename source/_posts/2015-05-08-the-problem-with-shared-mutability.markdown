@@ -152,7 +152,7 @@ This would still cause problems with more comple situations involving multidimen
 [slides-iter]: http://manishearth.github.io/Presentations/Rust/#/1/2
 
 
-## The "it's effectively threaded" issue
+## "It's effectively threaded"
 
 > Aliasing with mutability in a sufficiently complex, single-threaded program is effectively the same thing as
 > accessing data shared across multiple threads without a lock
@@ -199,5 +199,9 @@ a static guarantee (or you just want to avoid the borrow checker), a single-thre
 is available in rust. (It provides internal mutability, but in this context one can consider it to be a dynamically checked
 version of the borrow checker)
 
+This sort of bug is a good source of reentrancy problems too.
+
 [refcell]: https://doc.rust-lang.org/core/cell/struct.RefCell.html
+
+## Shared mutability is hard to reason about
 
