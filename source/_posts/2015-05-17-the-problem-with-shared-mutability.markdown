@@ -286,3 +286,5 @@ rarer in languages with a GC, so you might be able to avoid it altogether withou
 also okay to use runtime checks and asserts to maintain your invariants; performance isn't everything.
 
 But this _is_ an issue in programming; and make sure you think of it when designing your code.
+
+<small>Discuss: [HN](https://news.ycombinator.com/item?id=9560021), [Reddit](http://www.reddit.com/r/rust/comments/369fyg/the_problem_with_singlethreaded_shared_mutability/)</small>
