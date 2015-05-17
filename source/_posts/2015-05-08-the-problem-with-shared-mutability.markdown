@@ -6,15 +6,15 @@ comments: true
 categories: 
 ---
 
-This is a post that I've been meaning to write for a while now; and the impending release of Rust 1.0 gives
+This is a post that I've been meaning to write for a while now; and the release of Rust 1.0 gives
 me the perfect impetus to go ahead and do it.
 
 Whilst this post discusses a choice made in the design of Rust; and uses examples in Rust; the principles discussed
-here apply to other languages to the most part. I'll also try to make the post easy to understand for those without
+here apply to other languages for the most part. I'll also try to make the post easy to understand for those without
 a Rust background; please let me know if some code or terminology needs to be explained.
 
 
-Okay, let's get to it. What I'm going to discuss here is the choice made in Rust to disallow having multiple mutable aliases
+What I'm going to discuss here is the choice made in Rust to disallow having multiple mutable aliases
 to the same data (or a mutable alias when there are active immutable aliases),
 **even from the same thread**. In essence, it disallows one from doing things like:
 
@@ -95,11 +95,11 @@ Here, we invalidated the `insides` reference because setting `x` to `Int(1)` mea
 However, `insides` is still a reference to a `String`, and the generated assembly would try to dereference the memory location where
 the pointer to the allocated string _was_, and probably end up trying to dereference `1` or some nearby data instead, and cause a segfault.
 
-Okay, so far so good. We know that for Rust-style enums to work safely in Rust, we need the RWLock pattern. But can we get more? Not many
-languages have such enums, so this shouldn't really be a problem for them.
+Okay, so far so good. We know that for Rust-style enums to work safely in Rust, we need the RWLock pattern. But are there any other
+reasons we need the RWLock pattern? Not many languages have such enums, so this shouldn't really be a problem for them.
 
 [book-enums]: http://doc.rust-lang.org/nightly/book/enums.html
-[^1]: Note: `Str` and `Null` are variant names which I chose; they are not keywords. Additionally, I'm using "associated foo" loosely here; Rust *does* have a distinct concept of "associated data" but it's not relevant to this post.
+[^1]: Note: `Str` and `Int` are variant names which I chose; they are not keywords. Additionally, I'm using "associated foo" loosely here; Rust *does* have a distinct concept of "associated data" but it's not relevant to this post.
 
 
 ## Iterator invalidation
@@ -196,12 +196,93 @@ bugs will start cropping up.
 
 On the other hand, having a static guarantee that this can't happen is great. And when the code is too convoluted for
 a static guarantee (or you just want to avoid the borrow checker), a single-threaded RWlock-esque type called [RefCell][refcell]
-is available in rust. (It provides internal mutability, but in this context one can consider it to be a dynamically checked
-version of the borrow checker)
+is available in Rust. It's a type providing interior mutability and behaves like a runtime version of the borrow checker.
+Similar wrappers can be written in other languages.
 
 This sort of bug is a good source of reentrancy problems too.
 
+
+
+
 [refcell]: https://doc.rust-lang.org/core/cell/struct.RefCell.html
 
-## Shared mutability is hard to reason about
+## Safe abstractions
 
+In particular, the issue in the previous section makes it hard to write safe abstractions, especially with generic code.
+While this problem is clearer in the case of Rust (where abstractions are expected to be safe and preferably low-cost),
+this isn't unique to any language.
+
+Every method you expose has a contract that is expected to be followed. Many times, a contract is handled by type safety itself,
+or you may have some error-based model to throw out uncontractual data (for example, division by zero).
+
+But, as an API (can be either internal or exposed) gets more complicated, so does the contract. It's not always possible to verify that the contract is being violated
+at runtime either, for example many cases of iterator invalidation are hard to prevent in nontrivial code even with asserts.
+
+It's easy to create a method and add documentation "the first two arguments should not point to the same memory".
+But if this method is used by other methods, the contract can change to much more complicated things that are harder to express
+or check. When generics get involved, it only gets worse; you sometimes have no way of forcing that there are no shared mutable aliases,
+or of expressing what isn't allowed in the documentation. Nor will it be easy for an API consumer to enforce this.
+
+This makes it harder and harder to write safe, generic abstractions. Such abstractions rely on invariants, and these invariants can often
+be broken by the problems in the previous section. It's not always easy to enforce these invariants, and such abstractions will either
+be misused or not written in the first place, opting for a heavier option. Generally one sees that such abstractions or patterns are avoided
+altogether, even though they may provide a performance boost, because they are risky and hard to maintain. Even if the present version of
+the code is correct, someone may change something in the future breaking the invariants again.
+
+[My previous post](http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines/) outlines a situation where Rust was able to choose
+the lighter path in a situation where getting the same guarantees would be hard in C++.
+
+Note that this is a wider problem than just with mutable aliasing. Rust has this problem too, but not when it comes to mutable aliasing.
+Mutable aliasing is important to fix, however because we can make a lot of assumptions about our program when there are no mutable aliases.
+Namely, by looking at a line of code we can know what happened wrt the locals. If there is the possibility of mutable aliasing out there; there's the
+possibility that other locals were modified too. A very simple example is:
+
+```rust
+fn look_ma_no_temp_var_l33t_interview_swap(&mut x, &mut y) {
+    *x = *x + *y;
+    *y = *x - *y;
+    *x = *x - *y;
+}
+// or
+fn look_ma_no_temp_var_rockstar_interview_swap(&mut x, &mut y) {
+    *x = *x ^ *y;
+    *y = *x ^ *y;
+    *x = *x ^ *y;
+}
+```
+
+In both cases, when the two references are the same[^2], instead of swapping, the two variables get set to zero.
+A user (internal to your library, or an API consumer) would expect `swap()` to not change anything when fed equal
+references, but this is doing something totally different. This assumption could get used in a program; for example instead
+of skipping the passes in an array sort where the slot is being compared with itself, one might just go ahead with it
+because `swap()` won't change anything there anyway; but it does, and suddenly your sort function fills everything with
+zeroes. This could be solved by documenting the precondition and using asserts, but the documentation gets harder and harder
+as `swap()` is used in the guts of other methods.
+
+Of course, the example above was contrived. It's well known that those `swap()` implementations have that precondition,
+and shouldn't be used in such cases. Also, in most swap algorithms it's trivial to ignore cases when you're comparing
+an element with itself, generally done by bounds checking.
+
+But the example is a simplified sketch of the problem at hand.
+
+In Rust, since this is statically checked, one doesn't worry much about these problems, and
+robust APIs can be designed since knowing when something won't be mutated can help simplify
+invariants.
+
+[^2]: Note that this isn't possible in Rust due to the borrow checker.
+
+## Wrapping up
+
+
+Aliasing that doesn't fit the RWLock pattern is dangerous. If you're using a language like
+Rust, you don't need to worry. If you're using a language like C++, it can cause memory unsafety,
+so be very careful. If you're using a language like Java or Go, while it can't cause memory unsafety,
+it will cause problems in complex bits of code.
+
+
+This doesn't mean that this problem should force you to switch to Rust, either. If you feel that you
+can avoid writing APIs where this happens, that is a valid way to go around it. This problem is much
+rarer in languages with a GC, so you might be able to avoid it altogether without much effort. It's
+also okay to use runtime checks and asserts to maintain your invariants; performance isn't everything.
+
+But this _is_ an issue in programming; and make sure you think of it when designing your code.
