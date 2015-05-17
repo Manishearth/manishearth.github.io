@@ -199,12 +199,17 @@ a static guarantee (or you just want to avoid the borrow checker), a single-thre
 is available in Rust. It's a type providing interior mutability and behaves like a runtime version of the borrow checker.
 Similar wrappers can be written in other languages.
 
+Edit: In case of many primitives like simple integers, the problems with shared mutability turn out to not be a major issue.
+For these, we have a type called [Cell][cell] which lets these be mutated and shared simultaenously. This works on all `Copy`
+types; i.e. types which only need to be copied on the stack to be copied. (Unlike types involving pointers or other indirection)
+
 This sort of bug is a good source of reentrancy problems too.
 
 
 
 
 [refcell]: https://doc.rust-lang.org/core/cell/struct.RefCell.html
+[cell]: http://doc.rust-lang.org/nightly/std/cell/struct.Cell.html
 
 ## Safe abstractions
 
