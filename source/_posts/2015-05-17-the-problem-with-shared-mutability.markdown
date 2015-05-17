@@ -3,7 +3,7 @@ layout: post
 title: "The problem with single-threaded shared mutability"
 date: 2015-05-17 16:56:59 +0530
 comments: true
-categories: 
+categories: rust mozilla programming
 ---
 
 This is a post that I've been meaning to write for a while now; and the release of Rust 1.0 gives
