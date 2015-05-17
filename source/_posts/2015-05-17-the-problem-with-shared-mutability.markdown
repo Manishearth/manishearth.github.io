@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "The problem with single-threaded shared mutability"
-date: 2015-05-08 16:56:59 +0530
+date: 2015-05-17 16:56:59 +0530
 comments: true
 categories: 
 ---
