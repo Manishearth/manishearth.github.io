@@ -139,7 +139,7 @@ This means that when the vector overflows its capacity, it will reallocate, inva
 iterator, and causing use-after-free.
 
 Of course, there is a trivial solution in this case &mdash; store a reference to the `Vec`/`vector` object inside
-the iterator instead of just the pointer to the vector on the heap. This leads to some extra indrection or a larger
+the iterator instead of just the pointer to the vector on the heap. This leads to some extra indirection or a larger
 stack size for the iterator (depending on how you implement it), but overall will prevent the memory unsafety.
 
 
