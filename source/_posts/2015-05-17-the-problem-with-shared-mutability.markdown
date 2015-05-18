@@ -238,7 +238,7 @@ the code is correct, someone may change something in the future breaking the inv
 the lighter path in a situation where getting the same guarantees would be hard in C++.
 
 Note that this is a wider problem than just with mutable aliasing. Rust has this problem too, but not when it comes to mutable aliasing.
-Mutable aliasing is important to fix, however because we can make a lot of assumptions about our program when there are no mutable aliases.
+Mutable aliasing is important to fix however, because we can make a lot of assumptions about our program when there are no mutable aliases.
 Namely, by looking at a line of code we can know what happened wrt the locals. If there is the possibility of mutable aliasing out there; there's the
 possibility that other locals were modified too. A very simple example is:
 
