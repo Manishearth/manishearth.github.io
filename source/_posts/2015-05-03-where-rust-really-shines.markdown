@@ -30,7 +30,7 @@ modifying, and make sure it isn't being mutated (not as hard in Rust, but I woul
 still need to muck around a large codebase). And then I would have to somehow make sure that nobody tries to mutate it
 in the future. This is a task which I would not even consider trying in C++.
 
-However, I had another option here, because this was Rust. However, in Rust I can store a reference to the contents of the vector
+However, I had another option here, because this was Rust. In Rust I can store a reference to the contents of the vector
 without fear of invalidation, since the compiler will prevent me from using the vector in a way that could cause unsafety. 
 Such a reference is known as a [slice](http://doc.rust-lang.org/std/primitive.slice.html).
 
