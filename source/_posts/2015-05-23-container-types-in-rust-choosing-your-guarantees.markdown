@@ -17,12 +17,14 @@ to give a thorough explanation of what they do and when they should be used.
 
 I'm assuming the reader knows about [ownership][ownership] and [borrowing][borrowing] in Rust.
 Nevertheless, I will attempt to keep the majority of this post accessible to those not yet familiar with these
-concepts.
+concepts. Aside from the two links into the book above, [these][skylight-own] [two][arthur-borrow] blog posts cover
+the topic in depth.
 
 [post-prev]: http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/
 [ownership]: http://doc.rust-lang.org/book/ownership.html
 [borrowing]: http://doc.rust-lang.org/book/references-and-borrowing.html
-
+[skylight-own]: http://blog.skylight.io/rust-means-never-having-to-close-a-socket/
+[arthur-borrow]: http://arthurtw.github.io/2014/11/30/rust-borrow-lifetimes.html
 
 [^1]: I'm not sure if this is the technical term for them, but I'll be calling them that throughout this post.
 
@@ -39,7 +41,7 @@ let y = x;
 // x no longer accessible here
 ```
 
-Here, the box was [moved][move-semantics] into `y`. As `x` no longer owns it,
+Here, the box was _moved_ into `y`. As `x` no longer owns it,
 the compiler will no longer allow the programmer to use `x` after this.
 
 This abstraction is a low cost abstraction for dynamic allocation. If you want
@@ -48,8 +50,6 @@ is ideal. Note that you will only be allowed to share borrowed references to thi
 the regular borrowing rules, checked at compile time.
 
 
-
-[move-semantics]: http://doc.rust-lang.org/book/move-semantics.html
 
 #### Interlude: `Copy`
 
@@ -96,7 +96,7 @@ These are useful when building safe, low cost abstractions like `Vec<T>`, but sh
 This is the first container we will cover that has a runtime cost.
 
 
-`Rc<T>` is a reference counted pointer. In other words, this lets us have multiple "owning" pointers
+[`Rc<T>`][rc] is a reference counted pointer. In other words, this lets us have multiple "owning" pointers
 to the same data, and the data will be freed (destructors will be run) when all pointers are out of scope.
 
 Internally, it contains a shared "reference count", which is incremented each time the `Rc` is cloned, and decremented
@@ -114,6 +114,19 @@ to `&T` when `&T` is either impossible to statically check for correctness, or c
 the programmer does not wish to spend the development cost of working with.
 
 This pointer is _not_ thread safe, and Rust will not let it be sent or shared with other threads. This lets
-the programmer avoid the cost of atomics in situations where they are unnecessary.
+one avoid the cost of atomics in situations where they are unnecessary.
 
-[gc]: http://github.com/manishearth/rust-gc
+[rc]: http://doc.rust-lang.org/std/rc/struct.Rc.html
+[gc]: http://github.com/Manishearth/rust-gc
+
+# Cell types
+
+"Cells" provide interior mutability. In other words, they contain data which can be manipulated even
+if the type cannot be obtained in a mutable form (for example, when it is behind an `&`-ptr or `Rc<T>`).
+
+[The documentation for the `cell` module has a pretty good explanation for these][cell].
+
+In general, they 
+
+
+[cell-mod]: http://doc.rust-lang.org/doc/std/cell/
