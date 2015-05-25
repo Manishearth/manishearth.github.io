@@ -124,9 +124,266 @@ one avoid the cost of atomics in situations where they are unnecessary.
 "Cells" provide interior mutability. In other words, they contain data which can be manipulated even
 if the type cannot be obtained in a mutable form (for example, when it is behind an `&`-ptr or `Rc<T>`).
 
-[The documentation for the `cell` module has a pretty good explanation for these][cell].
+[The documentation for the `cell` module has a pretty good explanation for these][cell-mod].
 
-In general, they 
+These types are _generally_ found in struct fields, but they may be found elsewhere too.
+
+## [`Cell<T>`][cell]
+
+`Cell<T>` is a type that provides zero-cost interior mutability, but only for `Copy` types.
+Since the compiler knows that all the data owned by the contained value is on the stack, there's
+no worry of leaking any data behind references (or worse!) by simply replacing the data.
+
+It is still possible to violate your own invariants using this container, so be careful when
+using it. If a field is wrapped in `Cell`, it's a nice indicator that the chunk of data is mutable
+and may not stay the same between the time you first read it and when you intend to use it.
+
+This is useful for mutating primitives and other `Copy` types when there is no easy way of
+doing it in line with the static rules of `&` and `&mut`.
+
+
+```rust
+let x = Cell::new(1);
+let y = &x;
+let z = &x;
+x.set(2);
+y.set(3);
+z.set(4);
+println!("{}", x.get());
+```
+
+Note that here we were able to mutate the same value from various immutable references.
+
+
+This has the same runtime cost as the following:
+
+
+```rust
+let mut x = 1;
+let y = &mut x;
+let z = &mut x;
+x = 2;
+*y = 3;
+*z = 4;
+println!("{}", x;
+```
+
+but it has the added benefit of actually compiling successfully.
+
+
+## [`RefCell<T>`][refcell]
+
+`RefCell<T>` also provides interior mutability, but isn't restricted to `Copy` types.
+
+Instead, it has a runtime cost. `RefCell<T>` enforces the RWLock pattern at runtime (it's like a single-threaded mutex),
+unlike `&T`/`&mut T` which do so at compile time. This is done by the `borrow()` and
+`borrow_mut()` functions, which modify an internal reference count and return smart pointers
+which can be dereferenced immutably and mutably respectively. The refcount is restored
+when the smart pointers go out of scope. With this system, we can dynamically ensure that
+there are never any other borrows active when a mutable borrow is active. If the programmer
+attempts to make such a borrow, the thread will panic.
+
+
+```rust
+let x = RefCell::new(vec![1,2,3,4]);
+{
+    println!("{:?}", *x.borrow())
+}
+
+{
+    let ref = x.borrow_mut();
+    ref.push(1);
+}
+
+```
+
+Similar to `Cell`, this is mainly useful for situations where it's hard or impossible to satisfy the
+borrow checker. Generally one knows that such mutations won't happen in a nested form, but it's good
+to check.
+
+For large, complicated programs, it becomes useful to put some things in `RefCell`s to
+make things simpler. For example, a lot of the maps in [the `ctxt` struct][ctxt] in the rust compiler
+internals are inside this container. These are only modified once (during creation, which is not
+right after initialization) or a couple of times in well-separated places. However, since this struct is
+pervasively used everywhere, juggling mutable and immutable pointers would be hard (perhaps impossible)
+and probably form a soup of `&`-ptrs which would be hard to extend. On the other hand, the `RefCell`
+provides a cheap (not zero-cost) way of safely accessing these. In the future, if someone adds some code
+that attempts to modify the cell when it's already borrowed, it will cause a (usually deterministic) panic
+which can be traced back to the offending borrow.
+
+Similarly, in Servo's DOM we have a lot of mutation, most of which is local to a DOM type, but
+some of which crisscrosses the DOM and modifies various things. Using `RefCell` and `Cell` to guard
+all mutation lets us avoid worrying about mutability everywhere, and it simultaneously
+highlights the places where mutation is _actually_ happening.
+
+Note that `RefCell` should be avoided if a mostly simple solution is possible with `&` pointers.
 
 
 [cell-mod]: http://doc.rust-lang.org/doc/std/cell/
+[cell]: http://doc.rust-lang.org/doc/std/cell/struct.Cell.html
+[refcell]: http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html
+[ctxt]: http://doc.rust-lang.org/rustc/middle/ty/struct.ctxt.html
+
+# Synchronous types
+
+Many of the types above cannot be used in a threadsafe manner. Particularly, `Rc<T>` and `RefCell<T>`,
+which both use non-atomic ref counts, cannot be used this way. This makes them cheaper to use, but one
+needs thread safe versions of these too. They exist, in the form of `Arc<T>` and `Mutex<T>`/`RWLock<T>`
+
+Note that the non-threadsafe types _cannot_ be sent between threads, and this is checked at compile time.
+I'll touch on how this is done later in this post.
+
+There are many useful containers for concurrent programming in the [sync][sync] module, but I'm only going to cover
+the major ones.
+
+[sync]: https://doc.rust-lang.org/nightly/std/sync/index.html
+
+## [`Arc<T>`][arc]
+
+This is just a version of `Rc<T>` that uses an atomic reference count (hence, "Arc"). This can be sent
+freely between threads.
+
+
+This has the added cost of using atomics for changing the refcount (which will happen whenever it is cloned
+or goes out of scope), and it provides the guarantee that the destructor for the internal data
+will be run when the last `Arc` goes out of scope (barring any cycles). When sharing data from an `Arc` in
+a single thread, it is preferable to share `&` pointers whenever possible.
+
+
+C++'s `shared_ptr` is similar to `Arc`, however in C++s case the inner data is always mutable. For semantics
+similar to that from C++, we should use `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or `Arc<UnsafeCell<T>>` (`UnsafeCell<T>`
+is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires `unsafe` blocks).
+The last one should only be used if one is certain that the usage won't cause any memory safety. Remember that
+writing to a struct is not an atomic operation, and many functions like `vec.push()` can reallocate internally
+and cause unsafe behavior (so even monotonicity may not be enough to justify `UnsafeCell`)
+
+[arc]: https://doc.rust-lang.org/std/sync/struct.Arc.html
+
+## [`Mutex<T>`][mutex] and [`RwLock<T>`][rwlock]
+
+These provide mutual-exclusion via RAII guards. For both of these, the
+mutex is opaque until one calls `lock()` on it, at which point the thread will
+block until a lock can be acquired, and then a guard will be returned. This guard
+can be used to access the inner data (mutably), and the lock will be released when the
+guard goes out of scope.
+
+
+```rust
+{
+    let guard = mutex.lock();
+    // guard dereferences mutably to the inner type
+    *guard += 1;
+} // lock released when destructor runs
+```
+
+
+`RwLock` has the added benefit of being efficient for multiple reads. It is always
+safe to have multiple readers to shared data as long as there are no writers; and `RwLock`
+lets readers acquire a "read lock". Such locks can be acquired concurrently and are kept track of
+via a reference count. Writers must obtain a "write lock" which can only be obtained when all readers
+have gone out of scope.
+
+Both of these provide safe shared mutability across threads, but are costly, similar to `Arc`. There also
+is the danger of deadlocks, which Rust does not try to prevent. Some level of protocol safety can be obtained via
+the type system, however. An example  of this is [rust-sessions][sessions], an experimental library which uses session
+types for protocol safety.
+
+
+
+[rwlock]: https://doc.rust-lang.org/std/sync/struct.RwLock.html
+[mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
+[sessions]: https://github.com/Munksgaard/rust-sessions
+
+# Bonus section: [`Send`][send] and [`Sync`][sync]
+
+See also: [Huon's blog post on the same topic][huon-send]
+
+_In every talk I have given till now, the question "how does Rust achieve thread safety?"
+has invariably come up. I usually just give an overview, but here I thought I would be
+able to dive a bit deeper since it ties together many things introduced in this post._
+
+Similar to `Copy`, two more "marker" traits exist in the standard library. These
+help segregate thread safe data structures from the rest.
+
+These are auto-implemented using a feature called "opt in builtin traits". So,
+for example, if struct `Foo` is `Sync`, all structs containing `Foo` will
+also be `Sync`, unless we explicitly opt out using `impl !Sync for Bar {}`.
+
+This means that, for example, a `Sender` for a `Send` type is itself `Send`,
+but a `Sender` for a non-`Send` type will not be `Send`. This pattern is quite powerful;
+it lets one use channels with non-threadsafe data in a single-threaded context without
+requiring a separate "single threaded" channel abstraction.
+
+At the same time, structs like `Rc` and `RefCell` which contain `Send`/`Sync` fields
+have explicitly opted out of one or more of these because the invariants they rely on do not
+hold in threaded situations.
+
+
+These two have slightly differing meanings, but are very intertwined.
+
+`Send` types can be moved between threads without an issue. Most objects
+which completely own their contained data qualify here. Notably, `Rc` doesn't
+(since it is shared ownership). Another exception is [LocalKey][localkey], which
+_does_ own its data but isn't valid from other threads.
+
+Even though types like `RefCell` use non atomic reference counting, it can be sent safely
+between threads because this is a transfer of ownership. Sending a `RefCell` to another thread
+will be a move and will make it unusable from the original thread; so this is fine.
+
+`Sync`, on the other hand, is about synchronous access. It answers the question: "if
+multiple threads were all trying to access this data, would it be safe?". Types like
+`Mutex` and other lock/atomic based types implement this, along with primitive types.
+Things containing pointers generally are not `Sync`.
+
+`Sync` is sort of a crutch to `Send`, it helps make other types `Send` when sharing is
+involved. For example, `&T` and `Arc<T>` are only `Send` when the inner data is `Sync` (and 
+additionally `Send` in the case of `Arc<T>`).
+
+Putting this all together, the gatekeeper for all this is [`thread::spawn()`][spawn]. It has the signature
+
+```rust
+pub fn spawn<F, T>(f: F) -> JoinHandle<T> where F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+```
+
+Admittedly, this is confusing, partially because it's allowed to return a value (and it returns a handle from which we can block on a thread join).
+
+We can simplify this:
+
+```rust
+pub fn spawn<F>(f: F) where F: FnOnce(), F: Send + 'static
+```
+
+which can be called like:
+
+```rust
+let mut x = vec![1,2,3,4];
+
+// `move` instructs the closure to move out of its environment
+thread::spawn(move || {
+   x.push(1);
+
+});
+
+// x is not accessible here
+
+```
+
+In words, `spawn()` will take a callable (usually a closure) that will be called once, and contains
+data which is `Send` and `'static`. `'static` just means that there is no borrowed
+data contained in the closure.
+
+
+There is also a way to utilize the `Send`-ness of `&T`, namely [`thread::scoped`][scoped]. This function
+does not have the `'static` bound, but it instead has an RAII guard which forces a join before the borrow ends. This
+allows for easy fork-join parallelism without necessarily needing a `Mutex`.
+Sadly, there [are][peaches] [problems][more-peaches] which crop up when this interacts with `Rc` cycles, so the API
+is currently unstable and will be redesigned.
+
+[send]: http://doc.rust-lang.org/std/marker/trait.Send.html
+[sync]: http://doc.rust-lang.org/std/marker/trait.Sync.html
+[huon-send]: http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/
+[localkey]: https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html
+[spawn]: http://doc.rust-lang.org/std/thread/fn.spawn.html
+[scoped]: http://doc.rust-lang.org/std/thread/fn.scoped.html
+[peaches]: http://cglab.ca/~abeinges/blah/everyone-peaches/
+[more-peaches]: http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/
