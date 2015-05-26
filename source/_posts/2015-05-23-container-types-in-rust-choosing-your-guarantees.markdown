@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Container types in Rust: Choosing your guarantees"
+title: "Wrapper types in Rust: Choosing your guarantees"
 date: 2015-05-23 20:29:59 +0530
 comments: true
 categories: [Rust, Mozilla, Programming]
@@ -12,7 +12,7 @@ depending on the abstractions used.
 
 It occurred to me that there are many such abstractions in Rust, each with their unique guarantees.
 The programmer once again has the choice between runtime and compile time enforcement. It occurred
-to me that this plethora of "container types"[^1] could be daunting to newcomers; in this post I intend
+to me that this plethora of "wrapper types"[^1] could be daunting to newcomers; in this post I intend
 to give a thorough explanation of what some prominent ones do and when they should be used.
 
 I'm assuming the reader knows about [ownership][ownership] and [borrowing][borrowing] in Rust.
@@ -32,7 +32,7 @@ the topic in depth.
 
 ## `Box<T>`
 
-`Box<T>` is an "owned pointer". While it can hand out borrowed references to the data, it is the only
+[`Box<T>`][box] is an "owned pointer". While it can hand out borrowed references to the data, it is the only
 owner of the data. In particular, when something like the following occurs:
 
 ```rust
@@ -49,7 +49,7 @@ to allocate some memory on the heap and safely pass a pointer to that memory aro
 is ideal. Note that you will only be allowed to share borrowed references to this by
 the regular borrowing rules, checked at compile time.
 
-
+[box]: http://doc.rust-lang.org/std/boxed/struct.Box.html
 
 #### Interlude: `Copy`
 
@@ -97,7 +97,7 @@ These are useful when building safe, low cost abstractions like `Vec<T>`, but sh
 
 ## `Rc<T>`
 
-This is the first container we will cover that has a runtime cost.
+This is the first wrapper we will cover that has a runtime cost.
 
 
 [`Rc<T>`][rc] is a reference counted pointer. In other words, this lets us have multiple "owning" pointers
@@ -155,13 +155,13 @@ if the type cannot be obtained in a mutable form (for example, when it is behind
 
 These types are _generally_ found in struct fields, but they may be found elsewhere too.
 
-## [`Cell<T>`][cell]
+## `Cell<T>`
 
-`Cell<T>` is a type that provides zero-cost interior mutability, but only for `Copy` types.
+[`Cell<T>`][cell] is a type that provides zero-cost interior mutability, but only for `Copy` types.
 Since the compiler knows that all the data owned by the contained value is on the stack, there's
 no worry of leaking any data behind references (or worse!) by simply replacing the data.
 
-It is still possible to violate your own invariants using this container, so be careful when
+It is still possible to violate your own invariants using this wrapper, so be careful when
 using it. If a field is wrapped in `Cell`, it's a nice indicator that the chunk of data is mutable
 and may not stay the same between the time you first read it and when you intend to use it.
 
@@ -206,6 +206,21 @@ so if one's invariants depend on data stored within `Cell`, one should be carefu
 This is useful for mutating primitives and other `Copy` types when there is no easy way of
 doing it in line with the static rules of `&` and `&mut`.
 
+[Gábor Lehel][glaebhoerl] summed up the guarantees provided by `Cell` in a rather succinct manner:
+
+> The basic guarantee we need to ensure is that interior references can't be invalidated (left dangling)
+> by mutation of the outer structure. (Think about references to the interiors of types like `Option`,
+> `Box`, `Vec`, etc.) `&`, `&mut`, and Cell each make a different tradeoff here.
+> `&` allows shared interior references but forbids mutation;
+> `&mut` allows mutation xor interior references but not sharing;
+> `Cell` allows shared mutability but not interior references.
+
+[because `Cell` operates by copying, it can't create interior references]
+
+[This comment by Eddy also touches on the guarantees of `Cell` and the alternatives][eddyb]
+
+[glaebhoerl]: http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crljbqr
+[eddyb]: https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h
 #### Cost
 
 There is no runtime cost to using `Cell<T>`, however if one is using it
@@ -213,9 +228,9 @@ to wrap larger (`Copy`) structs, it might be worthwhile to instead wrap individu
 fields in `Cell<T>` since each write is a full copy of the struct.
 
 
-## [`RefCell<T>`][refcell]
+## `RefCell<T>`
 
-`RefCell<T>` also provides interior mutability, but isn't restricted to `Copy` types.
+[`RefCell<T>`][refcell] also provides interior mutability, but isn't restricted to `Copy` types.
 
 Instead, it has a runtime cost. `RefCell<T>` enforces the RWLock pattern at runtime (it's like a single-threaded mutex),
 unlike `&T`/`&mut T` which do so at compile time. This is done by the `borrow()` and
@@ -245,7 +260,7 @@ to check.
 
 For large, complicated programs, it becomes useful to put some things in `RefCell`s to
 make things simpler. For example, a lot of the maps in [the `ctxt` struct][ctxt] in the rust compiler
-internals are inside this container. These are only modified once (during creation, which is not
+internals are inside this wrapper. These are only modified once (during creation, which is not
 right after initialization) or a couple of times in well-separated places. However, since this struct is
 pervasively used everywhere, juggling mutable and immutable pointers would be hard (perhaps impossible)
 and probably form a soup of `&`-ptrs which would be hard to extend. On the other hand, the `RefCell`
@@ -287,14 +302,14 @@ needs thread safe versions of these too. They exist, in the form of `Arc<T>` and
 Note that the non-threadsafe types _cannot_ be sent between threads, and this is checked at compile time.
 I'll touch on how this is done in a later blog post.
 
-There are many useful containers for concurrent programming in the [sync][sync] module, but I'm only going to cover
+There are many useful wrappers for concurrent programming in the [sync][sync] module, but I'm only going to cover
 the major ones.
 
 [sync]: https://doc.rust-lang.org/nightly/std/sync/index.html
 
-## [`Arc<T>`][arc]
+## `Arc<T>`
 
-This is just a version of `Rc<T>` that uses an atomic reference count (hence, "Arc"). This can be sent
+[`Arc<T>`][arc] is just a version of `Rc<T>` that uses an atomic reference count (hence, "Arc"). This can be sent
 freely between threads.
 
 
@@ -320,9 +335,9 @@ a single thread, it is preferable to share `&` pointers whenever possible.
 
 [arc]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 
-## [`Mutex<T>`][mutex] and [`RwLock<T>`][rwlock]
+## `Mutex<T>` and `RwLock<T>`
 
-These provide mutual-exclusion via RAII guards. For both of these, the
+[`Mutex<T>`][mutex] and [`RwLock<T>`][rwlock] provide mutual-exclusion via RAII guards. For both of these, the
 mutex is opaque until one calls `lock()` on it, at which point the thread will
 block until a lock can be acquired, and then a guard will be returned. This guard
 can be used to access the inner data (mutably), and the lock will be released when the
