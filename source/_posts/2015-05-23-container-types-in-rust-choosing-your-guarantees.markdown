@@ -13,7 +13,7 @@ depending on the abstractions used.
 It occurred to me that there are many such abstractions in Rust, each with their unique guarantees.
 The programmer once again has the choice between runtime and compile time enforcement. It occurred
 to me that this plethora of "container types"[^1] could be daunting to newcomers; in this post I intend
-to give a thorough explanation of what they do and when they should be used.
+to give a thorough explanation of what some prominent ones do and when they should be used.
 
 I'm assuming the reader knows about [ownership][ownership] and [borrowing][borrowing] in Rust.
 Nevertheless, I will attempt to keep the majority of this post accessible to those not yet familiar with these
@@ -56,9 +56,10 @@ the regular borrowing rules, checked at compile time.
 Move semantics are not special to `Box<T>`; it is a feature of all types which are not `Copy`.
 
 A `Copy` type is one where all the data it logically encompasses (usually, owns) is part of its stack
-representation (so a `memcpy` is enough to copy the data).
+representation[^2].
 Most types containing pointers to other data are not `Copy`, since there is additional data
-elsewhere, and simply copying the stack representation.
+elsewhere, and simply copying the stack representation may accidentally share ownership of that data
+in an unsafe manner.
 
 Types like `Vec<T>` and `String` which also have data on the heap are also not `Copy`. Types
 like the integer/boolean types are `Copy`
@@ -73,7 +74,9 @@ but a copy of the second only needs a copy of the reference.
 Practically speaking, a type can be `Copy` if a copy of its stack representation doesn't violate
 memory safety.
 
-## `&T` and `&mut T`
+[^2]: By "stack representation" I mean the data on the stack when a value of this type is held on the stack. For example, a `Vec<T>` has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the `Vec`. Looking at this a different way, a type is `Copy` if a `memcopy` of the data copies all the data owned by it.
+
+## `&T` and `&mut T` 
 
 These are immutable and mutable references respectively. They follow the "read-write lock" pattern
 described in my [previous post][post-prev], such that one may either have only one mutable reference
@@ -105,8 +108,12 @@ for shared data.
 
 The internal data here is immutable, and if a cycle of references is created, the data will be leaked. If we want
 data that doesn't leak when there are cycles, we need a _garbage collector_. I do not know of any existing GCs in Rust,
-but [I am working on one with Michael Layzell][gc].
+but [I am working on one with Michael Layzell][gc] and there's [another cycle collecting one][cc] being written by Nick
+Fitzgerald.
 
+#### Guarantees
+
+The main guarantee provided here is that the data will not be destroyed until all references to it are out of scope.
 
 This should be used when you wish to dynamically allocate and share some data (read-only) between various portions
 of your program, where it is not certain which portion will finish using the pointer last. It's a viable alternative
@@ -116,8 +123,27 @@ the programmer does not wish to spend the development cost of working with.
 This pointer is _not_ thread safe, and Rust will not let it be sent or shared with other threads. This lets
 one avoid the cost of atomics in situations where they are unnecessary.
 
+
+There is a sister smart pointer to this one, `Weak<T>`. This is a non-owning, but also non-borrowed, smart pointer.
+It is also similar to `&T`, but it is not restricted in lifetime &mdash; a `Weak<T>` can be held on to forever. However,
+it is possible that an attempt to access the inner data may fail and return `None`, since this can outlive the owned
+`Rc`s. This is useful for when one wants cyclic data structures and other things.
+
+#### Cost
+
+As far as memory goes, `Rc<T>` is a single allocation, though it will allocate two extra words as compared to
+a regular `Box<T>` (for "strong" and "weak" refcounts).
+
+`Rc<T>` has the computational cost of incrementing/decrementing the refcount whenever it is cloned or goes out of
+scope respectively. Note that a clone will not do a deep copy, rather it will simply increment the inner reference count
+and return a copy of the `Rc<T>`
+
+
+
+
 [rc]: http://doc.rust-lang.org/std/rc/struct.Rc.html
 [gc]: http://github.com/Manishearth/rust-gc
+[cc]: https://github.com/fitzgen/rajan-bacon-cc
 
 # Cell types
 
@@ -138,8 +164,6 @@ It is still possible to violate your own invariants using this container, so be 
 using it. If a field is wrapped in `Cell`, it's a nice indicator that the chunk of data is mutable
 and may not stay the same between the time you first read it and when you intend to use it.
 
-This is useful for mutating primitives and other `Copy` types when there is no easy way of
-doing it in line with the static rules of `&` and `&mut`.
 
 
 ```rust
@@ -169,6 +193,23 @@ println!("{}", x;
 ```
 
 but it has the added benefit of actually compiling successfully.
+
+
+#### Guarantees
+
+This relaxes the "no aliasing with mutability" restriction in places where it's
+unnecessary. However, this also relaxes the guarantees that the restriction provides;
+so if one's invariants depend on data stored within `Cell`, one should be careful.
+
+
+This is useful for mutating primitives and other `Copy` types when there is no easy way of
+doing it in line with the static rules of `&` and `&mut`.
+
+#### Cost
+
+There is no runtime cost to using `Cell<T>`, however if one is using it
+to wrap larger (`Copy`) structs, it might be worthwhile to instead wrap individual
+fields in `Cell<T>` since each write is a full copy of the struct.
 
 
 ## [`RefCell<T>`][refcell]
@@ -219,6 +260,18 @@ highlights the places where mutation is _actually_ happening.
 Note that `RefCell` should be avoided if a mostly simple solution is possible with `&` pointers.
 
 
+#### Guarantees
+
+`RefCell` relaxes the _static_ restrictions preventing aliased mutation, and
+replaces them with _dynamic_ ones. As such the guarantees have not changed.
+
+#### Cost
+
+`RefCell` does not allocate, but it contains an additional "borrow state"
+indicator (one word in size) along with the data.
+
+At runtime each borrow causes a modification/check of the refcount.
+
 [cell-mod]: http://doc.rust-lang.org/doc/std/cell/
 [cell]: http://doc.rust-lang.org/doc/std/cell/struct.Cell.html
 [refcell]: http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html
@@ -231,7 +284,7 @@ which both use non-atomic ref counts, cannot be used this way. This makes them c
 needs thread safe versions of these too. They exist, in the form of `Arc<T>` and `Mutex<T>`/`RWLock<T>`
 
 Note that the non-threadsafe types _cannot_ be sent between threads, and this is checked at compile time.
-I'll touch on how this is done later in this post.
+I'll touch on how this is done in a later blog post.
 
 There are many useful containers for concurrent programming in the [sync][sync] module, but I'm only going to cover
 the major ones.
@@ -244,10 +297,6 @@ This is just a version of `Rc<T>` that uses an atomic reference count (hence, "A
 freely between threads.
 
 
-This has the added cost of using atomics for changing the refcount (which will happen whenever it is cloned
-or goes out of scope), and it provides the guarantee that the destructor for the internal data
-will be run when the last `Arc` goes out of scope (barring any cycles). When sharing data from an `Arc` in
-a single thread, it is preferable to share `&` pointers whenever possible.
 
 
 C++'s `shared_ptr` is similar to `Arc`, however in C++s case the inner data is always mutable. For semantics
@@ -256,6 +305,17 @@ is a cell type that can be used to hold any data and has no runtime cost, but ac
 The last one should only be used if one is certain that the usage won't cause any memory safety. Remember that
 writing to a struct is not an atomic operation, and many functions like `vec.push()` can reallocate internally
 and cause unsafe behavior (so even monotonicity may not be enough to justify `UnsafeCell`)
+
+
+#### Guarantees
+
+Like `Rc`, this provides the (thread safe) guarantee that the destructor for the internal data
+will be run when the last `Arc` goes out of scope (barring any cycles).
+
+#### Cost
+This has the added cost of using atomics for changing the refcount (which will happen whenever it is cloned
+or goes out of scope). When sharing data from an `Arc` in
+a single thread, it is preferable to share `&` pointers whenever possible.
 
 [arc]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 
@@ -283,16 +343,65 @@ lets readers acquire a "read lock". Such locks can be acquired concurrently and 
 via a reference count. Writers must obtain a "write lock" which can only be obtained when all readers
 have gone out of scope.
 
-Both of these provide safe shared mutability across threads, but are costly, similar to `Arc`. There also
-is the danger of deadlocks, which Rust does not try to prevent. Some level of protocol safety can be obtained via
-the type system, however. An example  of this is [rust-sessions][sessions], an experimental library which uses session
+
+#### Guarantees
+Both of these provide safe shared mutability across threads, however they are prone to deadlocks.
+Some level of additional protocol safety can be obtained via the type system. An example 
+of this is [rust-sessions][sessions], an experimental library which uses session
 types for protocol safety.
+
+#### Costs
+
+These use internal atomic-like types to maintain the locks, and these are similar pretty
+costly (they can block all memory reads across processors till they're done). Waiting on these locks
+can also be slow when there's a lot of concurrent access happening.
 
 
 
 [rwlock]: https://doc.rust-lang.org/std/sync/struct.RwLock.html
 [mutex]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
 [sessions]: https://github.com/Munksgaard/rust-sessions
+
+# Composition
+
+
+A common gripe when reading Rust code is with stuff like `Rc<RefCell<Vec<T>>>` and more complicated
+compositions of such types.
+
+Usually, it's a case of composing together the guarantees that one needs, without paying for stuff that is
+unnecessary.
+
+For example, `Rc<RefCell<T>>` is one such composition. `Rc` itself can't be dereferenced mutably;
+because `Rc` provides sharing and shared mutability isn't good, so we put `RefCell` inside to get
+dynamically verified shared mutability. Now we have shared mutable data, but it's shared in a way
+that there can only be one mutator (and no readers) or multiple readers.
+
+Now, we can take this a step further, and have `Rc<RefCell<Vec<T>>>` or `Rc<Vec<RefCell<T>>>`.
+These are both shareable, mutable vectors, but they're not the same.
+
+With the former, the `RefCell` is wrapping the `Vec`, so the `Vec` in its entirety is mutable.
+At the same time, there can only be one mutable borrow of the whole `Vec` at a given time. This
+means that your code cannot simultaneously work on different elements of the vector from different
+`Rc` handles. However, we are able to push and pop from the `Vec` at will. This is similar to an `&mut Vec<T>`
+with the borrow checking done at runtime.
+
+
+With the latter, the borrowing is of individual elements, but the overall vector is immutable.
+Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
+This is similar to an `&mut [T]`[^3], but, again, the borrow checking is at runtime.
+
+In concurrent programs, we have a similar situation with `Arc<Mutex<T>>`, which provides shared
+mutability and ownership.
+
+When reading code that uses these, go in step by step and look at the guarantees/costs provided.
+
+When choosing a composed type, we must do the reverse; figure out which guarantees we want, and at which
+point of the composition we need them. For example, if there is a choice between `Vec<RefCell<T>>` and `RefCell<Vec<T>>`,
+we should figure out the tradeoffs as done above and pick one.
+
+[^3]: `&[T]` and `&mut [T]` are _slices_; they consist of a pointer and a length and can refer to a portion of a vector or array. `&mut [T]` can have its elements mutated, however its length cannot be touched.
+
+# Note: The following section is going to be its own blog post after being expanded a bit
 
 # Bonus section: [`Send`][send] and [`Sync`][sync]
 
