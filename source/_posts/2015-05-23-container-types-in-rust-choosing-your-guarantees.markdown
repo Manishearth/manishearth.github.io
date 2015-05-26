@@ -68,7 +68,8 @@ to further data, they do not "own" that data. Whereas `Box<T>` can be thought of
 "some data which happens to be dynamically allocated", `&T` is thought of as "a borrowing reference
 to some data". Even though both are pointers, only the first is considered to be "data". Hence,
 a copy of the first should involve a copy of the data (which is not part of its stack representation),
-but a copy of the second only needs a copy of the reference.
+but a copy of the second only needs a copy of the reference. `&mut T` is not `Copy` because mutable aliases
+cannot be shared, and `&mut T` "owns" the data it points to somewhat since it can mutate.
 
 Practically speaking, a type can be `Copy` if a copy of its stack representation doesn't violate
 memory safety.
