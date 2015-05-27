@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mozilla | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/mozilla/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2015-05-27T23:11:36+05:30</updated>
+  <updated>2015-05-28T00:40:14+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -284,7 +284,7 @@ the major ones.</p>
 freely between threads.</p>
 
 <p>C++&rsquo;s <code>shared_ptr</code> is similar to <code>Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code>Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> (<code>UnsafeCell&lt;T&gt;</code>
+similar to that from C++, we should use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code>Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> (<code>UnsafeCell&lt;T&gt;</code>
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code>unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won&rsquo;t cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like <code>vec.push()</code> can reallocate internally
@@ -359,7 +359,7 @@ with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code>&amp;mut [T]</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code>&amp;mut [T]</code><sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but, again, the borrow checking is at runtime.</p>
 
 <p>In concurrent programs, we have a similar situation with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
@@ -379,7 +379,9 @@ we should figure out the tradeoffs as done above and pick one.</p>
 <li id="fn:2">
 <p>By &ldquo;stack representation&rdquo; I mean the data on the stack when a value of this type is held on the stack. For example, a <code>Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code>Vec</code>. Looking at this a different way, a type is <code>Copy</code> if a <code>memcopy</code> of the data copies all the data owned by it.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p><code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won&rsquo;t compile since <code>UnsafeCell&lt;T&gt;</code> isn&rsquo;t <code>Send</code> or <code>Sync</code>, but we can wrap it in a type and implement <code>Send</code>/<code>Sync</code> for it manually to get <code>Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code>Wrapper</code> is <code>struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
