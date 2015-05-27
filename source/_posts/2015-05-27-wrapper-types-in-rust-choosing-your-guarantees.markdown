@@ -319,12 +319,14 @@ freely between threads.
 
 
 C++'s `shared_ptr` is similar to `Arc`, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or `Arc<UnsafeCell<T>>` (`UnsafeCell<T>`
+similar to that from C++, we should use `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or `Arc<UnsafeCell<T>>`[^4] (`UnsafeCell<T>`
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires `unsafe` blocks).
 The last one should only be used if one is certain that the usage won't cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like `vec.push()` can reallocate internally
 and cause unsafe behavior (so even monotonicity may not be enough to justify `UnsafeCell`)
 
+
+[^4]: `Arc<UnsafeCell<T>>` actually won't compile since `UnsafeCell<T>` isn't `Send` or `Sync`, but we can wrap it in a type and implement `Send`/`Sync` for it manually to get `Arc<Wrapper<T>>` where `Wrapper` is `struct Wrapper<T>(UnsafeCell<T>)`.
 
 #### Guarantees
 
