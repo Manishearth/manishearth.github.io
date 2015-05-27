@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Wrapper types in Rust: Choosing your guarantees"
-date: 2015-05-27 20:29:59 +0530
+date: 2015-05-23 20:29:59 +0530
 comments: true
 categories: [Rust, Mozilla, Programming]
 ---
@@ -42,10 +42,7 @@ let y = x;
 ```
 
 Here, the box was _moved_ into `y`. As `x` no longer owns it,
-the compiler will no longer allow the programmer to use `x` after this. A box
-can similarly be moved _out_ of a function by returning, and when a
-box (one which hasn't been moved) goes out of scope, destructors are run, deallocating
-the inner data.
+the compiler will no longer allow the programmer to use `x` after this.
 
 This abstraction is a low cost abstraction for dynamic allocation. If you want
 to allocate some memory on the heap and safely pass a pointer to that memory around, this
