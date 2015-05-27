@@ -318,7 +318,7 @@ freely between threads.
 C++'s `shared_ptr` is similar to `Arc`, however in C++s case the inner data is always mutable. For semantics
 similar to that from C++, we should use `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or `Arc<UnsafeCell<T>>` (`UnsafeCell<T>`
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires `unsafe` blocks).
-The last one should only be used if one is certain that the usage won't cause any memory safety. Remember that
+The last one should only be used if one is certain that the usage won't cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like `vec.push()` can reallocate internally
 and cause unsafe behavior (so even monotonicity may not be enough to justify `UnsafeCell`)
 
@@ -417,98 +417,4 @@ we should figure out the tradeoffs as done above and pick one.
 
 [^3]: `&[T]` and `&mut [T]` are _slices_; they consist of a pointer and a length and can refer to a portion of a vector or array. `&mut [T]` can have its elements mutated, however its length cannot be touched.
 
-# Note: The following section is going to be its own blog post after being expanded a bit
 
-# Bonus section: [`Send`][send] and [`Sync`][sync]
-
-See also: [Huon's blog post on the same topic][huon-send]
-
-_In every talk I have given till now, the question "how does Rust achieve thread safety?"
-has invariably come up. I usually just give an overview, but here I thought I would be
-able to dive a bit deeper since it ties together many things introduced in this post._
-
-Similar to `Copy`, two more "marker" traits exist in the standard library. These
-help segregate thread safe data structures from the rest.
-
-These are auto-implemented using a feature called "opt in builtin traits". So,
-for example, if struct `Foo` is `Sync`, all structs containing `Foo` will
-also be `Sync`, unless we explicitly opt out using `impl !Sync for Bar {}`.
-
-This means that, for example, a `Sender` for a `Send` type is itself `Send`,
-but a `Sender` for a non-`Send` type will not be `Send`. This pattern is quite powerful;
-it lets one use channels with non-threadsafe data in a single-threaded context without
-requiring a separate "single threaded" channel abstraction.
-
-At the same time, structs like `Rc` and `RefCell` which contain `Send`/`Sync` fields
-have explicitly opted out of one or more of these because the invariants they rely on do not
-hold in threaded situations.
-
-
-These two have slightly differing meanings, but are very intertwined.
-
-`Send` types can be moved between threads without an issue. Most objects
-which completely own their contained data qualify here. Notably, `Rc` doesn't
-(since it is shared ownership). Another exception is [LocalKey][localkey], which
-_does_ own its data but isn't valid from other threads.
-
-Even though types like `RefCell` use non atomic reference counting, it can be sent safely
-between threads because this is a transfer of ownership. Sending a `RefCell` to another thread
-will be a move and will make it unusable from the original thread; so this is fine.
-
-`Sync`, on the other hand, is about synchronous access. It answers the question: "if
-multiple threads were all trying to access this data, would it be safe?". Types like
-`Mutex` and other lock/atomic based types implement this, along with primitive types.
-Things containing pointers generally are not `Sync`.
-
-`Sync` is sort of a crutch to `Send`, it helps make other types `Send` when sharing is
-involved. For example, `&T` and `Arc<T>` are only `Send` when the inner data is `Sync` (and 
-additionally `Send` in the case of `Arc<T>`).
-
-Putting this all together, the gatekeeper for all this is [`thread::spawn()`][spawn]. It has the signature
-
-```rust
-pub fn spawn<F, T>(f: F) -> JoinHandle<T> where F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
-```
-
-Admittedly, this is confusing, partially because it's allowed to return a value (and it returns a handle from which we can block on a thread join).
-
-We can simplify this:
-
-```rust
-pub fn spawn<F>(f: F) where F: FnOnce(), F: Send + 'static
-```
-
-which can be called like:
-
-```rust
-let mut x = vec![1,2,3,4];
-
-// `move` instructs the closure to move out of its environment
-thread::spawn(move || {
-   x.push(1);
-
-});
-
-// x is not accessible here
-
-```
-
-In words, `spawn()` will take a callable (usually a closure) that will be called once, and contains
-data which is `Send` and `'static`. `'static` just means that there is no borrowed
-data contained in the closure.
-
-
-There is also a way to utilize the `Send`-ness of `&T`, namely [`thread::scoped`][scoped]. This function
-does not have the `'static` bound, but it instead has an RAII guard which forces a join before the borrow ends. This
-allows for easy fork-join parallelism without necessarily needing a `Mutex`.
-Sadly, there [are][peaches] [problems][more-peaches] which crop up when this interacts with `Rc` cycles, so the API
-is currently unstable and will be redesigned.
-
-[send]: http://doc.rust-lang.org/std/marker/trait.Send.html
-[sync]: http://doc.rust-lang.org/std/marker/trait.Sync.html
-[huon-send]: http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/
-[localkey]: https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html
-[spawn]: http://doc.rust-lang.org/std/thread/fn.spawn.html
-[scoped]: http://doc.rust-lang.org/std/thread/fn.scoped.html
-[peaches]: http://cglab.ca/~abeinges/blah/everyone-peaches/
-[more-peaches]: http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/
