@@ -418,6 +418,9 @@ When choosing a composed type, we must do the reverse; figure out which guarante
 point of the composition we need them. For example, if there is a choice between `Vec<RefCell<T>>` and `RefCell<Vec<T>>`,
 we should figure out the tradeoffs as done above and pick one.
 
+
+<small>Discuss: [HN](https://news.ycombinator.com/item?id=9613016), [Reddit](http://www.reddit.com/r/rust/comments/37hg1y/wrapper_types_in_rust_choosing_your_guarantees/)</small>
+
 [^3]: `&[T]` and `&mut [T]` are _slices_; they consist of a pointer and a length and can refer to a portion of a vector or array. `&mut [T]` can have its elements mutated, however its length cannot be touched.
 
 
