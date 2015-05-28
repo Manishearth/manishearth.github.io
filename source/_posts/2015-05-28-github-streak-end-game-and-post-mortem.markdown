@@ -14,7 +14,7 @@ The GitHub streak has since gone on for more than 500 days[^1], and has been a r
 Yesterday; I noticed something. I had reached end-game with this exercise. The streak is something I don't think about anymore,
 and I don't make any efforts to keep it going. It just ... happens. My involvement in open source has reached a level where
 I don't need to consciously try contributing daily; I have enough interests/responsibilities that the streak is a side effect. This is despite
-my current intern being at a place where the code I'm working on is not hosted on GitHub (unlike last year). If the streak breaks, I won't
+my current internship being at a place where the code I'm working on is not hosted on GitHub (unlike last year). If the streak breaks, I won't
 particularly care; and I _haven't_ been caring for a while now.
 
 

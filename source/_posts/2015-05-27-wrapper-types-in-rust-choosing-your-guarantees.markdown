@@ -251,8 +251,8 @@ let x = RefCell::new(vec![1,2,3,4]);
 }
 
 {
-    let ref = x.borrow_mut();
-    ref.push(1);
+    let my_ref = x.borrow_mut();
+    my_ref.push(1);
 }
 
 ```
