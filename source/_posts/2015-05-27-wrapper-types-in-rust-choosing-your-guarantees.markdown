@@ -32,7 +32,7 @@ the topic in depth.
 
 ## `Box<T>`
 
-[`Box<T>`][box] is an "owned pointer". While it can hand out borrowed references to the data, it is the only
+[`Box<T>`][box] is an "owned pointer" or a "box". While it can hand out borrowed references to the data, it is the only
 owner of the data. In particular, when something like the following occurs:
 
 ```rust
@@ -56,7 +56,7 @@ the regular borrowing rules, checked at compile time.
 
 #### Interlude: `Copy`
 
-Move semantics are not special to `Box<T>`; it is a feature of all types which are not `Copy`.
+Move/ownership semantics are not special to `Box<T>`; it is a feature of all types which are not `Copy`.
 
 A `Copy` type is one where all the data it logically encompasses (usually, owns) is part of its stack
 representation[^2].
