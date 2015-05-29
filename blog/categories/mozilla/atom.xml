@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mozilla | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/mozilla/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2015-05-30T04:50:28+05:30</updated>
+  <updated>2015-05-30T04:57:07+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -29,6 +29,11 @@ in the standard library, and the ones relevant to this discussion are <a href="h
 I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>,
 since I&rsquo;ll be using them as examples throughout this post; but the concepts explained here are largely independent.</p>
 
+<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread dangling pointers.
+Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which utilize the type system to provide
+some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-sessions</a> attempts to
+provide protocol safety using session types.</p>
+
 <p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So,
 for example, if struct <code>Foo</code> is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, all structs containing <code>Foo</code> will
 also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we explicitly opt out using <code>impl !Sync for Bar {}</code>. Similarly,
@@ -43,6 +48,10 @@ requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
 <p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields
 have explicitly opted out of one or more of these because the invariants they rely on do not
 hold in threaded situations.</p>
+
+<p>It&rsquo;s actually possible to design your own library with comparable thread safety guarantees outside
+of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
+treatment is not necessary for their working. Any two opt-in builtin traits could be used here.</p>
 
 <p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
 
@@ -117,8 +126,8 @@ capturing data of the correct type will satisfy the <code>F: Send+'static</code>
 <li><code>&amp;T</code> isn&rsquo;t allowed because it&rsquo;s not <code>'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
 <li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, so it isn&rsquo;t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
 <li><code>Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> if the inner type is); we can&rsquo;t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> doesn&rsquo;t provide this by default.</li>
-<li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two.</li>
-<li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed. The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code>, and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it&rsquo;s only being accessed by one thread at a time (slightly more complex in the case of [<code>RwLock</code>][rwlock]), so it doesn&rsquo;t need to know about the threads involved.</li>
+<li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
+<li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed. The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code>, and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it&rsquo;s only being accessed by one thread at a time (slightly more complex in the case of [<code>RwLock</code>][rwlock]), so it doesn&rsquo;t need to know about the threads involved. There can&rsquo;t be data races when <code>Sync</code> types like these are involved.</li>
 </ul>
 
 
@@ -133,6 +142,8 @@ allows for easy fork-join parallelism without necessarily needing a <a href="htt
 Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> cycles, so the API
 is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code>Send</code>/<code>Sync</code>,
 rather it is a perfect storm of small design inconsistencies in the libraries.</p>
+
+<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9628131">HN</a>, <a href="https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/">Reddit</a></small></p>
 <div class="footnotes">
 <hr/>
 <ol>
