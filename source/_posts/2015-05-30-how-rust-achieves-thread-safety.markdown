@@ -23,6 +23,11 @@ in the standard library, and the ones relevant to this discussion are [`Send`][s
 I recommend reading that post if you're not familiar with Rust wrapper types like [`RefCell`][refcell] and [`Rc`][rc],
 since I'll be using them as examples throughout this post; but the concepts explained here are largely independent.
 
+For the purposes of this post, I'll restrict thread safety to mean no data races or cross-thread dangling pointers.
+Rust doesn't aim to solve race conditions. However, there are projects which utilize the type system to provide
+some form of extra safety, for example [rust-sessions](https://github.com/Munksgaard/rust-sessions) attempts to
+provide protocol safety using session types.
+
 These traits are auto-implemented using a feature called "opt in builtin traits". So,
 for example, if struct `Foo` is [`Sync`][sync], all structs containing `Foo` will
 also be [`Sync`][sync], unless we explicitly opt out using `impl !Sync for Bar {}`. Similarly,
@@ -37,6 +42,10 @@ requiring a separate "single threaded" channel abstraction.
 At the same time, structs like [`Rc`][rc] and [`RefCell`][refcell] which contain [`Send`][send]/[`Sync`][sync] fields
 have explicitly opted out of one or more of these because the invariants they rely on do not
 hold in threaded situations.
+
+It's actually possible to design your own library with comparable thread safety guarantees outside
+of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
+treatment is not necessary for their working. Any two opt-in builtin traits could be used here.
 
 [post-prev]: http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/
 [send]: http://doc.rust-lang.org/std/marker/trait.Send.html
@@ -125,8 +134,8 @@ Some examples of things that are allowed and not allowed by this function (for t
  - `&T` isn't allowed because it's not `'static`. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.
  - [`Rc<T>`][rc] isn't [`Send`][send], so it isn't allowed. We could have some other [`Rc<T>`][rc]s hanging around, and end up with a data race on the refcount.
  - `Arc<Vec<u32>>` is allowed ([`Vec<T>`][vec] is [`Send`][send] and [`Sync`][sync] if the inner type is); we can't cause a safety violation here. Iterator invalidation requires mutation, and [`Arc<T>`][arc] doesn't provide this by default.
- - `Arc<Cell<T>>` isn't allowed. [`Cell<T>`][cell] provides copying-based internal mutability, and isn't [`Sync`][sync] (so the `Arc<Cell<T>>` isn't [`Send`][send]). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two.
- - `Arc<Mutex<T>>` or `Arc<RwLock<T>>` are allowed. The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are [`Sync`][sync] regardless of the inner `T`, and [`Sync`][sync] types can be shared safely with wrappers like [`Arc`][arc]. From the point of view of the inner type, it's only being accessed by one thread at a time (slightly more complex in the case of [`RwLock`][rwlock]), so it doesn't need to know about the threads involved.
+ - `Arc<Cell<T>>` isn't allowed. [`Cell<T>`][cell] provides copying-based internal mutability, and isn't [`Sync`][sync] (so the `Arc<Cell<T>>` isn't [`Send`][send]). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race. 
+ - `Arc<Mutex<T>>` or `Arc<RwLock<T>>` are allowed. The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are [`Sync`][sync] regardless of the inner `T`, and [`Sync`][sync] types can be shared safely with wrappers like [`Arc`][arc]. From the point of view of the inner type, it's only being accessed by one thread at a time (slightly more complex in the case of [`RwLock`][rwlock]), so it doesn't need to know about the threads involved. There can't be data races when `Sync` types like these are involved.
 
 
 As mentioned before, you can in fact create a [`Sender`][sender]/[`Receiver`][receiver] pair of non-`Send` objects. This sounds a bit
@@ -141,6 +150,9 @@ allows for easy fork-join parallelism without necessarily needing a [`Mutex`][mu
 Sadly, there [are][peaches] [problems][more-peaches] which crop up when this interacts with [`Rc`][rc] cycles, so the API
 is currently unstable and will be redesigned. This is not a problem with the language design or the design of `Send`/`Sync`,
 rather it is a perfect storm of small design inconsistencies in the libraries.
+
+
+<small>Discuss: [HN](https://news.ycombinator.com/item?id=9628131), [Reddit](https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/)</small>
 
 [spawn]: http://doc.rust-lang.org/std/thread/fn.spawn.html
 [huon-closure]: http://huonw.github.io/blog/2015/05/finding-closure-in-rust/
