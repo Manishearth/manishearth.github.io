@@ -130,7 +130,7 @@ capturing data of the correct type will satisfy the `F: Send+'static` bound.
 Some examples of things that are allowed and not allowed by this function (for the type of `x`):
 
 
- - [`Vec<T>`][vec], [`Box<T>`][box] are allowed because they are [`Send`][send] and `'static`
+ - [`Vec<T>`][vec], [`Box<T>`][box] are allowed because they are [`Send`][send] and `'static` (when the inner type is of the same kind)
  - `&T` isn't allowed because it's not `'static`. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.
  - [`Rc<T>`][rc] isn't [`Send`][send], so it isn't allowed. We could have some other [`Rc<T>`][rc]s hanging around, and end up with a data race on the refcount.
  - `Arc<Vec<u32>>` is allowed ([`Vec<T>`][vec] is [`Send`][send] and [`Sync`][sync] if the inner type is); we can't cause a safety violation here. Iterator invalidation requires mutation, and [`Arc<T>`][arc] doesn't provide this by default.
@@ -168,5 +168,5 @@ rather it is a perfect storm of small design inconsistencies in the libraries.
 [sender]: http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html
 [receiver]: http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html
 [mutex]: http://doc.rust-lang.org/std/sync/struct.Mutex.html
-[mutex]: http://doc.rust-lang.org/std/sync/struct.RwLock.html
+[rwlock]: http://doc.rust-lang.org/std/sync/struct.RwLock.html
 [box]: http://doc.rust-lang.org/std/boxed/struct.Box.html
