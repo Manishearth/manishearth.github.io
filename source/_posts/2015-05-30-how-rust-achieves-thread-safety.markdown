@@ -75,8 +75,8 @@ multiple threads were all trying to access this data, would it be safe?". Types 
 Things containing pointers generally are not [`Sync`][sync].
 
 `Sync` is sort of a crutch to `Send`; it helps make other types [`Send`][send] when sharing is
-involved. For example, `&T` and [`Arc<T>`][arc] are only [`Send`][send] when the inner data is [`Sync`][sync] (and 
-additionally [`Send`][send] in the case of [`Arc<T>`][arc]). In words, stuff that has shared/borrowed ownership can be sent
+involved. For example, `&T` and [`Arc<T>`][arc] are only [`Send`][send] when the inner data is [`Sync`][sync] (there's an additional
+[`Send`][send] bound in the case of [`Arc<T>`][arc]). In words, stuff that has shared/borrowed ownership can be sent
 to another thread if the shared/borrowed data is synchronous-safe.
 
 [`RefCell`][refcell], while [`Send`][send], is not [`Sync`][sync] because of the non atomic reference counting.
