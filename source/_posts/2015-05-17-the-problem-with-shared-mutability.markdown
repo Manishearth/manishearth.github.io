@@ -143,7 +143,7 @@ the iterator instead of just the pointer to the vector on the heap. This leads t
 stack size for the iterator (depending on how you implement it), but overall will prevent the memory unsafety.
 
 
-This would still cause problems with more comple situations involving multidimensional vectors, however.
+This would still cause problems with more complex situations involving multidimensional vectors, however.
 
 
 
