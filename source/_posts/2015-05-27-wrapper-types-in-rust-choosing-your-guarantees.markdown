@@ -222,7 +222,7 @@ doing it in line with the static rules of `&` and `&mut`.
 
 [This comment by Eddy also touches on the guarantees of `Cell` and the alternatives][eddyb]
 
-[glaebhoerl]: http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crljbqr
+[glaebhoerl]: http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crlfl74
 [eddyb]: https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h
 #### Cost
 
