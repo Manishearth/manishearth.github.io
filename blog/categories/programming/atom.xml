@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2015-06-06T09:35:33+05:30</updated>
+  <updated>2015-06-26T16:58:24+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,325 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Adventures in Systems Programming: C++ Local Statics]]></title>
+    <link href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
+    <updated>2015-06-26T15:32:06+05:30</updated>
+    <id>http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
+    <content type="html"><![CDATA[<p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
+feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
+what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Conversely, it&rsquo;s
+important to know how your tools work more than ever in systems programming. So when I see a
+language feature I&rsquo;m not familiar with, I&rsquo;m interested in finding out how it works under the hood.</p>
+
+<p>I&rsquo;m not a C++ expert. I can work on C++ codebases, but I&rsquo;m not anywhere near knowing all of the
+features and nuances of C++. However, I am pretty good at Rust and understand a decent portion of
+the compiler internals. This gives me a great perspective &mdash; I&rsquo;ve not yet internalized most C++
+features to take them for granted, and I&rsquo;m well equipped to investigate these features.</p>
+
+<p>Today I came across some C++ code similar to the following<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
+
+<pre><code class="cpp">void foo() {
+    static SomeType bar = Env()-&gt;someMethod();
+    static OtherType baz = Env()-&gt;otherMethod(bar);
+}
+</code></pre>
+
+<p>This code piqued my interest. Specifically, the local <code>static</code> stuff. I knew that when you have a
+static like</p>
+
+<pre><code>static int FOO = 1;
+</code></pre>
+
+<p>the <code>1</code> is stored somewhere in the <code>.data</code> section of the program. This is easily verified with <code>gdb</code>:</p>
+
+<pre><code class="cpp">static int THING = 0xAAAA;
+
+int main() {
+ return 1;
+}
+</code></pre>
+
+<pre><code class="text">$ g++ test.cpp -g
+$ gdb a.out
+(gdb) info addr THING
+Symbol "THING" is static storage at address 0x601038.
+(gdb) info symbol 0x601038
+THING in section .data
+</code></pre>
+
+<p>This is basically a part of the compiled program as it is loaded into memory.</p>
+
+<p>Similarly, when you have a <code>static</code> that is initialized with a function, it&rsquo;s stored in the <code>.bss</code>
+section, and initialized before <code>main()</code>. Again, easily verified:</p>
+
+<pre><code class="cpp">#include&lt;iostream&gt;
+using namespace std;
+
+int bar() {
+ cout&lt;&lt;"bar called\n";
+ return 0xFAFAFA;
+}
+
+static int THING = bar();
+
+int main() {
+ cout&lt;&lt;"main called\n";
+ return 0;
+}
+</code></pre>
+
+<pre><code class="text">$ ./a.out 
+bar called
+main called
+$ gdb a.out
+(gdb) info addr THING
+Symbol "THING" is static storage at address 0x601198.
+(gdb) info symbol 0x601198
+THING in section .bss
+</code></pre>
+
+<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code>.</p>
+
+<p>So far so good.</p>
+
+<p>Now back to the original snippet:</p>
+
+<pre><code class="cpp">void foo() {
+    static SomeType bar = Env()-&gt;someMethod();
+    static OtherType baz = Env()-&gt;otherMethod(bar);
+}
+</code></pre>
+
+<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It&rsquo;s
+not much different from <code>static THING = bar()</code> aside from the fact that it isn&rsquo;t a global
+identifier.</p>
+
+<p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
+that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
+called <sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+
+<p>Instead, these are statics which are initialized the first time the function is called.</p>
+
+<pre><code class="cpp">#include&lt;iostream&gt;
+using namespace std;
+
+int bar() {
+ cout&lt;&lt;"bar called\n";
+ return 0xFAFAFA;
+}
+
+void foo() {
+ cout&lt;&lt;"foo called\n";
+ static int i = bar();
+ cout&lt;&lt;"Static is:"&lt;&lt; i&lt;&lt;"\n";
+}
+
+int main() {
+ cout&lt;&lt;"main called\n";
+ foo();
+ foo();
+ foo();
+ return 0;
+}
+</code></pre>
+
+<pre><code class="text">$ g++ test.cpp
+$ ./a.out
+main called
+foo called
+bar called
+Static is:16448250
+foo called
+Static is:16448250
+foo called
+Static is:16448250
+</code></pre>
+
+<p>Wait, &ldquo;the first time the function is called&rdquo;? <em>Alarm bells go off&hellip;</em> Surely there&rsquo;s some cost to that! Let&rsquo;s investigate.</p>
+
+<pre><code class="text">$ gdb a.out
+(gdb) disas bar
+   // snip
+   0x0000000000400c72 &lt;+15&gt;:    test   %al,%al
+   0x0000000000400c74 &lt;+17&gt;:    jne    0x400ca4 &lt;_Z3foov+65&gt;
+   0x0000000000400c76 &lt;+19&gt;:    mov    $0x6021f8,%edi
+   0x0000000000400c7b &lt;+24&gt;:    callq  0x400a00 &lt;__cxa_guard_acquire@plt&gt;
+   0x0000000000400c80 &lt;+29&gt;:    test   %eax,%eax
+   0x0000000000400c82 &lt;+31&gt;:    setne  %al
+   0x0000000000400c85 &lt;+34&gt;:    test   %al,%al
+   0x0000000000400c87 &lt;+36&gt;:    je     0x400ca4 &lt;_Z3foov+65&gt;
+   0x0000000000400c89 &lt;+38&gt;:    mov    $0x0,%r12d
+   0x0000000000400c8f &lt;+44&gt;:    callq  0x400c06 &lt;_Z3barv&gt;
+   0x0000000000400c94 &lt;+49&gt;:    mov    %eax,0x201566(%rip)        # 0x602200 &lt;_ZZ3foovE1i&gt;
+   0x0000000000400c9a &lt;+55&gt;:    mov    $0x6021f8,%edi
+   0x0000000000400c9f &lt;+60&gt;:    callq  0x400a80 &lt;__cxa_guard_release@plt&gt;
+   0x0000000000400ca4 &lt;+65&gt;:    mov    0x201556(%rip),%eax        # 0x602200 &lt;_ZZ3foovE1i&gt;
+   0x0000000000400caa &lt;+71&gt;:    mov    %eax,%esi
+   0x0000000000400cac &lt;+73&gt;:    mov    $0x6020c0,%edi
+   // snip
+</code></pre>
+
+<p>The instruction at <code>+44</code> calls <code>bar()</code>, and it seems to be surrounded by calls to some <code>__cxa_guard</code>
+functions.</p>
+
+<p>We can take a naïve guess at what this does: It probably just sets a hidden static flag on
+initialization which ensures that it only runs once.</p>
+
+<p>Of course, the actual solution isn&rsquo;t as simple. It needs to avoid data races, handle errors, and
+somehow take care of recursive initialization.</p>
+
+<p>Let&rsquo;s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
+<code>__cxa_guard</code>.</p>
+
+<p>Both of them show us the generated code for initializing things like local statics:</p>
+
+<pre><code class="cpp">  if (obj_guard.first_byte == 0) {
+    if ( __cxa_guard_acquire (&amp;obj_guard) ) {
+      try {
+      // ... initialize the object ...;
+      } catch (...) {
+        __cxa_guard_abort (&amp;obj_guard);
+        throw;
+      }
+      // ... queue object destructor with __cxa_atexit() ...;
+      __cxa_guard_release (&amp;obj_guard);
+    }
+  }
+</code></pre>
+
+<p>Here, <code>obj_guard</code> is our &ldquo;hidden static flag&rdquo;, with some other extra data.</p>
+
+<p><code>__cxa_guard_acquire</code> and <code>__cxa_guard_release</code> acquire and release a lock to prevent recursive
+initialization. So this program will crash:</p>
+
+<pre><code class="cpp">#include&lt;iostream&gt;
+using namespace std;
+
+void foo(bool recur);
+
+int bar(bool recur) {
+ cout&lt;&lt;"bar called\n";
+ if(recur) {
+    foo(false);
+ }
+ return 0xFAFAFA;
+}
+
+void foo(bool recur) {
+ cout&lt;&lt;"foo called\n";
+ static int i = bar(recur);
+ cout&lt;&lt;"Static is:"&lt;&lt; i&lt;&lt;"\n";
+}
+
+
+
+int main() {
+ foo(true);
+ return 0;
+}
+</code></pre>
+
+<pre><code class="text">$ g++ test.cpp
+$ ./a.out 
+foo called
+bar called
+foo called
+terminate called after throwing an instance of '__gnu_cxx::recursive_init_error'
+  what():  std::exception
+Aborted (core dumped)
+</code></pre>
+
+<p>Over here, to initialize <code>i</code>, <code>bar()</code> needs to be called, but <code>bar()</code> calls <code>foo()</code> which needs <code>i</code>
+to be initialized, which again will call <code>bar()</code> (though this time it won&rsquo;t recurse). If <code>i</code> wasn&rsquo;t
+<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it&rsquo;s unclear as
+to which value should be used.</p>
+
+<p>The implementation is pretty interesting. Before looking at the code my quick guess was that the
+following would happen for local statics:</p>
+
+<ul>
+<li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
+&ldquo;uninitialized&rdquo;, &ldquo;initializing&rdquo;, and &ldquo;initialized&rdquo;. Alternatively, use an atomic state indicator.</li>
+<li>When we try to initialize for the first time, the mutex is locked, the flag is set
+to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, and the flag is set to &ldquo;initialized&rdquo;.</li>
+<li>If when acquiring the mutex, the value is &ldquo;initialized&rdquo;, don&rsquo;t initialize again</li>
+<li>If when acquiring the mutex, the value is &ldquo;initializing&rdquo;, throw some exception</li>
+</ul>
+
+
+<p> (We need the tristate flag because without it recursion would cause deadlocks)</p>
+
+<p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
+<a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
+uses per-static atomics which indicate various states. However, it does not throw an exception when
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. This is okay because the C++
+spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
+
+<blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
+behavior is undefined.</p></blockquote>
+
+<p>However, the implementations in <a href="https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc">gcc/libstdc++</a> (also <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">this version</a> of
+<code>libcppabi</code> from Apple, which is a bit more readable) do something different. They use a global
+recursive mutex to handle reentrancy. Recursive mutexes basically can be locked multiple times by a
+single thread, but cannot be locked by another thread till the locking thread unlocks them the same
+number of times. This means that recursion/reentrancy won&rsquo;t cause deadlocks, but we still have one-
+thread-at-a-time access. What these implementations do is:</p>
+
+<ul>
+<li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
+and one which indicates that the static is being initialized (&ldquo;in use&rdquo;)</li>
+<li>If the object is initialized, do nothing (this doesn&rsquo;t use mutexes and is cheap).
+This isn&rsquo;t exactly part of the implementation in the library, but is part of the generated code.</li>
+<li>If it isn&rsquo;t initialized, acquire the global recursive lock</li>
+<li>If the object is initialized by the time the lock was acquired, unlock and return</li>
+<li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
+&ldquo;in use&rdquo;, throw an exception.</li>
+<li>If it wasn&rsquo;t, mark the second flag of the static&rsquo;s guard object as being &ldquo;in use&rdquo;</li>
+<li>Call the initialization function, bubble errors</li>
+<li>Unlock the global mutex</li>
+<li>Mark the second flag as &ldquo;not in use&rdquo;</li>
+</ul>
+
+
+<p>At any one time, only one thread will be in the process of running initialization routines, due to
+the global recursive mutex. Since the mutex is recursive, a function (eg <code>bar()</code>) used for
+initializing local statics may itself use (different) local statics. Due to the &ldquo;in use&rdquo; flag, the
+initialization of a local static may not recursively call its parent function without causing an
+error.</p>
+
+<p>This doesn&rsquo;t need per-static atomics, and doesn&rsquo;t deadlock, however it has the cost of a global
+mutex which is called at most once per local static. In a highly threaded situation with lots of
+such statics, one might want to reevaluate directly using local statics.</p>
+
+<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM&rsquo;s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
+mutex it uses a regular mutex (on non-ARM Apple systems) which is unlocked before
+<code>__cxa_guard_acquire</code> exits and tests for reentrancy by noting the thread ID in the guard object
+instead of the &ldquo;in use&rdquo; flag. Condvars are used for waiting for a thread to stop using an object. On
+other platforms, it seems to deadlock, though I&rsquo;m not sure.</p>
+
+<p>So here we have a rather innocent-looking feature that has some hidden costs and pitfalls. But now I
+can look at a line of code where this feature is being used, and have a good idea of what&rsquo;s
+happening there. One step closer to being a better systems programmer!</p>
+
+<p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Emphasis on <em>relatively</em>. This article will show that it&rsquo;s definitely not &ldquo;easy&rdquo; all the time.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[How Rust Achieves Thread Safety]]></title>
@@ -844,179 +1163,6 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
 <p>Note: <code>Str</code> and <code>Int</code> are variant names which I chose; they are not keywords. Additionally, I&rsquo;m using &ldquo;associated foo&rdquo; loosely here; Rust <em>does</em> have a distinct concept of &ldquo;associated data&rdquo; but it&rsquo;s not relevant to this post.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
 <p>Note that this isn&rsquo;t possible in Rust due to the borrow checker.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Where Rust Really Shines]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines/"/>
-    <updated>2015-05-03T03:49:49+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines</id>
-    <content type="html"><![CDATA[<p>Yesterday I was working on a <a href="https://github.com/rust-lang/rust/pull/25027">small feature</a>
-for the Rust compiler, and came across a situation which really showcased Rust&rsquo;s
-awesomeness as a language.</p>
-
-<p>There was a struct which was exposed to an API,
-and I wished to give it access to a list of things known as &ldquo;attributes&rdquo;, where the list was <a href="http://doc.rust-lang.org/std/vec/struct.Vec.html">a heap-allocated vector</a>.</p>
-
-<p>Now, I have two ways of actually giving the struct access to a vector. I can either clone it (i.e. make a copy of its contents),
-or use a reference (pointer) to it or its contents.</p>
-
-<p>In a language like C++ there&rsquo;s only once choice in this situation; that is
-to clone the vector<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
-isn&rsquo;t deallocated by the time I&rsquo;m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
-capacity it will be reallocated, invalidating any other pointers to its contents).</p>
-
-<p>For a smaller codebase this might be possible, but in this specific case it could have taken me a while to become sure of this.
-The code was related to the &ldquo;expansion&rdquo; portion of compilation, where the AST is expanded to a bigger AST. A lot of things change and get
-moved around, so it is reasonable to assume that it might not be possible to safely use it.
-I would have had to find out where the vector is originally stored; all the entry points for the code I was
-modifying, and make sure it isn&rsquo;t being mutated (not as hard in Rust, but I would
-still need to muck around a large codebase). And then I would have to somehow make sure that nobody tries to mutate it
-in the future. This is a task which I would not even consider trying in C++.</p>
-
-<p>However, I had another option here, because this was Rust. In Rust I can store a reference to the contents of the vector
-without fear of invalidation, since the compiler will prevent me from using the vector in a way that could cause unsafety.
-Such a reference is known as a <a href="http://doc.rust-lang.org/std/primitive.slice.html">slice</a>.</p>
-
-<p>Whilst in C++ I would have to manually go through a lot of code to be sure of safety
-(and even after all that be left with code that would be brittle to changes elsewhere
-the codebase), in Rust the compiler can do this for me!</p>
-
-<p>Being able to do this was important
-&mdash; this code is called quite often for a regular compile, and all those
-extra allocations could be heavy, especially given that this was a feature that would be used
-by very few.</p>
-
-<p>So first I started off by adding a field to the <code>FieldInfo</code> struct which was a <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R285">slice of attributes</a>. Notice that I added a lifetime specifier, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R273">the <code>'a</code></a> to the struct definition.</p>
-
-<pre><code class="rust">/// Summary of the relevant parts of a struct/enum field.
-pub struct FieldInfo&lt;'a&gt; {
-    /// ...
-    /// The attributes on the field
-    pub attrs: &amp;'a [ast::Attribute],
-}
-</code></pre>
-
-<p>For those of you new to Rust, a lifetime is part of the type of a reference. It&rsquo;s related to the scope of the reference, and generally can be treated as
-a generic parameter. So, for example, here, I have a <code>FieldInfo</code> with a lifetime parameter of <code>'a</code> where <code>'a</code> is the lifetime of the inner slice of attributes.
-If I construct this struct with slices from different scopes, its type will be different each time. Lifetimes can get automatically cast depending on their context however,
-and quite often they get elided away, so one doesn&rsquo;t need to specify them that much (aside from struct/enum definitions). You can find more information <a href="http://doc.rust-lang.org/nightly/book/ownership.html#lifetimes">in the Rust book</a></p>
-
-<p>I then updated code everywhere to pass the attributes from <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1440">their source</a>
-to <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1155">their destination</a> through the chained methods.</p>
-
-<p>An important thing to note here is that none of the lifetime specifiers you see now in the commit were added when I did this. For example, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1410">the return value
-of <code>create_struct_pattern</code></a> was
-<code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)</code> at this point, not <code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)</code>.
-You can ignore the complicated types being passed around, for now just pretend that a slice of attributes was returned.</p>
-
-<p>Now comes the magic. After these small changes necessary for the feature, I basically let the compiler do the rest of the work. See, at this point the code was wrong.
-I had forgotten lifetime specifiers in places where they were important, and still wasn&rsquo;t sure if storing a reference would in fact be possible in the first place.
-However, the compiler was smart enough to figure things out for me. It would tell me to add lifetime specifiers, and I would add them.</p>
-
-<p>First, the compiler asked me to add <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R297">a lifetime to the <code>FieldInfo</code> parts of <code>SubstructureFields</code></a>. So, the following:</p>
-
-<pre><code class="rust">pub enum SubstructureFields&lt;'a&gt; {
-    Struct(Vec&lt;FieldInfo&gt;),
-    EnumMatching(usize, &amp;'a ast::Variant, Vec&lt;FieldInfo&gt;),
-    // ...
-}
-</code></pre>
-
-<p>became</p>
-
-<pre><code class="rust">pub enum SubstructureFields&lt;'a&gt; {
-    Struct(Vec&lt;FieldInfo&lt;'a&gt;&gt;),
-    EnumMatching(usize, &amp;'a ast::Variant, Vec&lt;FieldInfo&lt;'a&gt;&gt;),
-    // ...
-}
-</code></pre>
-
-<p>This needed to happen because elision doesn&rsquo;t work for structs and enums,
-and besides, the compiler would need to know if the <code>&amp;ast::Variant</code> was supposed to be the same lifetime as the parameter of the <code>FieldInfo</code>s. I decided
-to just use the existing <code>'a</code> parameter, which meant that yes, the <code>&amp;ast::Variant</code> was supposed to live just as long. I could also have opted to give the <code>FieldInfo</code>s
-a different lifetime by adding a <code>'b</code> parameter, but I guessed that it would work this way too (knowing the origin of the fieldinfo and variant, and that implicit lifetime casting would
-fix most issues that cropped up). I didn&rsquo;t need to think this out much, though &mdash; the compiler gave me a suggestion and I could simply copy it.</p>
-
-<p>The next error was in <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1463"><code>create_enum_variant_pattern()</code></a>
-and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1404"><code>create_struct_pattern()</code></a> as well as some other places.</p>
-
-<p>Here, the method had a signature of</p>
-
-<pre><code class="rust">
-fn create_enum_variant_pattern(&amp;self,
-                               cx: &amp;mut ExtCtxt,
-                               enum_ident: ast::Ident,
-                               variant: &amp;ast::Variant,
-                               prefix: &amp;str,
-                               mutbl: ast::Mutability)
--&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)
-</code></pre>
-
-<p>and I changed it to</p>
-
-<pre><code class="rust">
-fn create_enum_variant_pattern(&amp;self,
-                               cx: &amp;mut ExtCtxt,
-                               enum_ident: ast::Ident,
-                               variant: &amp;'a ast::Variant,
-                               prefix: &amp;str,
-                               mutbl: ast::Mutability)
--&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
-</code></pre>
-
-<p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code>StructDef</code> reference and returning it. What if the <code>StructDef</code> doesn&rsquo;t live long enough?
-Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there&rsquo;s no single way to make the fix.
-In this case, the compiler suggested I add a <code>'a</code> to <code>&amp;StructDef</code> and the returned <code>&amp;[Attribute]</code>, and I did so. The <code>'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code>self</code><sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. This meant that the returned attribute of the function will
-have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
-
-<pre><code class="rust">fn minicreate(&amp;self, variant: &amp;ast::Variant) -&gt; &amp;[ast::Attribute] {
-    // do stuff
-    // return variant.attributes
-}
-</code></pre>
-
-<p>and changed it to</p>
-
-<pre><code class="rust">// we are sure that the returned slice cannot outlive the variant argument
-fn minicreate(&amp;self, variant: &amp;'a ast::Variant) -&gt; &amp;'a [ast::Attribute] {
-    // do stuff
-    // return variant.attributes
-}
-</code></pre>
-
-<p>Again, I didn&rsquo;t need to think this out much (I&rsquo;m only thinking it through now for this blog post). I followed the suggestion given to me by the compiler:</p>
-
-<pre><code class="text">error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
-help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern(&amp;self, cx: &amp;mut ExtCtxt, enum_ident: ast::Ident, variant: &amp;'a ast::Variant, prefix: &amp;str, mutbl: ast::Mutability) -&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
-</code></pre>
-
-<p>There were a couple of similar errors elsewhere that were caused by tying these two lifetimes together. Since these methods were chained, updating the lifetimes of a child method
-would mean that I would have to now update the parent method which passes its arguments down to the children and returns a modification of its return value (and thus must now impose the
-same restrictions on its own signature). All of this was done by just listening to the suggestions of the compiler (which all contain a function signature to try out). In <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R890">some cases</a> I introduced a <code>'b</code> lifetime, because tying it to <code>'a</code>
-(the self lifetime parameter) was possibly too restrictive. All of this at the suggestion of the compiler.</p>
-
-<p>While this all seems long and complicated, in reality it wasn&rsquo;t. I simply added the field to the initial struct, tried compiling a couple of times to figure out which code needed updating
-to pass around the attributes, and then went through 3-4 more compilation attempts to fix the lifetimes. It didn&rsquo;t take long, and I didn&rsquo;t need to put much mental effort into it. I just
-listened to the compiler, and it worked.</p>
-
-<p>And now I trust completely that that code will not cause any segfaults due to attempted access of a destroyed or moved vector. And this is despite the fact that I <em>still</em> don&rsquo;t know
-where that particular vector is modified or destroyed &mdash; I didn&rsquo;t explore that far because I didn&rsquo;t need to! (or want to :P)</p>
-
-<p>And this is one place Rust really shines. It lets you do optimizations which you wouldn&rsquo;t dream of doing in C++. In fact, while the C++ way of looking at this problem
-would probably be to just clone and move on, most Rust programmers would think of using slices as the default, and not even consider it an &ldquo;optimization&rdquo;. And again, this wasn&rsquo;t
-with much cognitive overhead; I could just follow the compiler and it fixed everything for me.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn&rsquo;t prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn&rsquo;t want to take. Additionally, whilst a shared pointer to the vector itself is immune to the issue of the vector being moved, since this was an API, someone consuming the API might take a reference of an attribute and hold on to it long enough for it to become invalidated. This is something we can&rsquo;t have either &ndash; an API consumer should not have to worry about where the pointers will invalidate.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Note: This is not the lifetime of the reference <code>&amp;self</code>, which is the lifetime of the pointer (<code>&amp;'b self</code>), but the lifetime parameter of <code>self</code>, a <code>TraitDef&lt;'a&gt;</code>, which has a lifetime parameter for its child fields.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
