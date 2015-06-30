@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Systems | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/systems/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2015-06-26T16:58:24+05:30</updated>
+  <updated>2015-06-30T19:10:14+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -91,7 +91,7 @@ Symbol "THING" is static storage at address 0x601198.
 THING in section .bss
 </code></pre>
 
-<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code>.</p>
+<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
 
 <p>So far so good.</p>
 
@@ -109,7 +109,7 @@ identifier.</p>
 
 <p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
 that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
-called <sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+called <sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
 
 <p>Instead, these are statics which are initialized the first time the function is called.</p>
 
@@ -265,7 +265,7 @@ to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, 
 <p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
 <a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
 uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. This is okay because the C++
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. This is okay because the C++
 spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
 
 <blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
@@ -323,9 +323,11 @@ happening there. One step closer to being a better systems programmer!</p>
 <li id="fn:2">
 <p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>Unless it has a constructor or otherwise isn&rsquo;t made out of trivially constructible types; in this case it is treated similar to the previous case.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
-<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
