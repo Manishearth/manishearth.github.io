@@ -96,7 +96,10 @@ Symbol "THING" is static storage at address 0x601198.
 THING in section .bss
 ```
 
-We can also leave statics uninitialized (`static int THING;`) and they will be placed in `.bss`.
+We can also leave statics uninitialized (`static int THING;`) and they will be placed in `.bss`[^8].
+
+
+ [^8]: Unless it has a constructor or otherwise isn't made out of trivially constructible types; in this case it is treated similar to the previous case.
 
 So far so good.
 
