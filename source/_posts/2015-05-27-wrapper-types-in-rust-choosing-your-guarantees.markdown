@@ -6,6 +6,10 @@ comments: true
 categories: [Rust, Mozilla, Programming]
 ---
 
+_This post is now [a part of the official rust book][trpl]_
+
+[trpl]: http://doc.rust-lang.org/nightly/book/choosing-your-guarantees.html
+
 In my [previous post][post-prev] I talked a bit about why the RWlock pattern is important for
 accessing data, which is why Rust enforces this pattern either at compile time or runtime
 depending on the abstractions used.
