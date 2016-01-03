@@ -119,7 +119,7 @@ and I changed it to
 
 ```rust
 
-fn create_enum_variant_pattern(&self,
+fn create_enum_variant_pattern<'a>(&self,
                                cx: &mut ExtCtxt,
                                enum_ident: ast::Ident,
                                variant: &'a ast::Variant,
@@ -144,7 +144,7 @@ and changed it to
 
 ```rust
 // we are sure that the returned slice cannot outlive the variant argument
-fn minicreate(&self, variant: &'a ast::Variant) -> &'a [ast::Attribute] {
+fn minicreate<'a>(&self, variant: &'a ast::Variant) -> &'a [ast::Attribute] {
     // do stuff
     // return variant.attributes
 }
@@ -154,7 +154,7 @@ Again, I didn't need to think this out much (I'm only thinking it through now fo
 
 ```text
 error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
-help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern(&self, cx: &mut ExtCtxt, enum_ident: ast::Ident, variant: &'a ast::Variant, prefix: &str, mutbl: ast::Mutability) -> (P<ast::Pat>, Vec<(Span, Option<Ident>, P<Expr>, &'a [ast::Attribute])>)
+help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern<'a>(&self, cx: &mut ExtCtxt, enum_ident: ast::Ident, variant: &'a ast::Variant, prefix: &str, mutbl: ast::Mutability) -> (P<ast::Pat>, Vec<(Span, Option<Ident>, P<Expr>, &'a [ast::Attribute])>)
 
 ```
 
