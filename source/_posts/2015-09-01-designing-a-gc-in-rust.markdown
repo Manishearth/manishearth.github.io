@@ -387,3 +387,6 @@ a design that works! I'm also quite happy at how well Rust helped in making a sa
 
 I encourage everyone to try it out and/or find holes in our design. Contributions of all kind
 welcome, we'd especially love performance improvements and testcases.
+
+
+<small>Discuss: [HN](https://news.ycombinator.com/item?id=10148471), [Reddit](https://www.reddit.com/r/rust/comments/3j4bx2/designing_a_gc_in_rust/)</small>
