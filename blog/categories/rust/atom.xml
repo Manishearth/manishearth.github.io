@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2016-01-03T18:55:17+05:30</updated>
+  <updated>2016-01-03T21:30:14+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -1267,7 +1267,7 @@ fn create_enum_variant_pattern(&amp;self,
 <p>and I changed it to</p>
 
 <pre><code class="rust">
-fn create_enum_variant_pattern(&amp;self,
+fn create_enum_variant_pattern&lt;'a&gt;(&amp;self,
                                cx: &amp;mut ExtCtxt,
                                enum_ident: ast::Ident,
                                variant: &amp;'a ast::Variant,
@@ -1290,7 +1290,7 @@ have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, 
 <p>and changed it to</p>
 
 <pre><code class="rust">// we are sure that the returned slice cannot outlive the variant argument
-fn minicreate(&amp;self, variant: &amp;'a ast::Variant) -&gt; &amp;'a [ast::Attribute] {
+fn minicreate&lt;'a&gt;(&amp;self, variant: &amp;'a ast::Variant) -&gt; &amp;'a [ast::Attribute] {
     // do stuff
     // return variant.attributes
 }
@@ -1299,7 +1299,7 @@ fn minicreate(&amp;self, variant: &amp;'a ast::Variant) -&gt; &amp;'a [ast::Attr
 <p>Again, I didn&rsquo;t need to think this out much (I&rsquo;m only thinking it through now for this blog post). I followed the suggestion given to me by the compiler:</p>
 
 <pre><code class="text">error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
-help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern(&amp;self, cx: &amp;mut ExtCtxt, enum_ident: ast::Ident, variant: &amp;'a ast::Variant, prefix: &amp;str, mutbl: ast::Mutability) -&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
+help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern&lt;'a&gt;(&amp;self, cx: &amp;mut ExtCtxt, enum_ident: ast::Ident, variant: &amp;'a ast::Variant, prefix: &amp;str, mutbl: ast::Mutability) -&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
 </code></pre>
 
 <p>There were a couple of similar errors elsewhere that were caused by tying these two lifetimes together. Since these methods were chained, updating the lifetimes of a child method
