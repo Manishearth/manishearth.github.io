@@ -199,5 +199,7 @@ Mentoring, while a lot of work, is an insanely rewarding experience, and I hope 
 
 _Thanks to Josh Matthews, James Graham, Emily Dunham, and Joel Maher for feedback on drafts of this post_
 
+<small>discuss: [HN](https://news.ycombinator.com/item?id=10836345)</small>
+
  [clippy]: https://github.com/Manishearth/rust-clippy/
  [rust-discuss-mentor]: https://users.rust-lang.org/t/mentoring-newcomers-to-the-rust-ecosystem/3088
