@@ -1,10 +1,9 @@
 ---
 layout: post
-title: "Exploring Zero-Knowledge Proofs"
-date: 2016-03-03 01:40:50 +0530
+title: "Exploring Zero-Knowledge proofs"
+date: 2016-03-05 01:46:01 +0530
 comments: true
-categories: programming cryptography math
-math: true
+categories: 
 ---
 
 So recently I read [this article][bitcoin-article] about how the Bitcoin community had executed
