@@ -3,6 +3,7 @@ layout: post
 title: "Exploring Zero-Knowledge proofs"
 date: 2016-03-05 01:46:01 +0530
 comments: true
+math: true
 categories: 
 ---
 
@@ -17,7 +18,7 @@ improve my own understanding.
 
 I intend this article to be read by people with a programming or mathematical background[^1],
 who have some understanding of what logic gates are. Please let me know if you feel that something
-is inadequatly (or wrongly) explained.
+is inadequately (or wrongly) explained.
 
 
  [bitcoin-article]: https://bitcoincore.org/en/2016/02/26/zero-knowledge-contingent-payments-announcement/
@@ -50,7 +51,7 @@ has a key to a particular door.
 
 For proving more complicated problems, we have to digress into some basic crypto first
 
-[^2]: Actually, you still need a trusted third party to make the money-swap work, but it can be done in a way that the National Secrets Sudoku Solution isn't actually shared with the third party. The Bitcoin article linked above describes a way to do away with a trusted third party, instead replacing it with the implicitly trusted Bitcoin network.
+[^2]: Actually, you still need a trusted third party to make the money-swap work, but it can be done in a way that the National Secrets Sudoku Solution isn't actually shared with the third party. The Bitcoin article linked above describes a way to do away with a trusted third party, instead replacing it with the implicitly trusted Bitcoin network. We'll discuss this further at the end of the post.
 
 
  [wiki-zkp]: https://en.wikipedia.org/wiki/Zero-knowledge_proof#Abstract_example
@@ -135,7 +136,7 @@ No, not that kind, Alice. The _other_ graph.
 
 {% img /images/dotgen/graph-uncolored.dot.png %}
 
-She wants it colored such that no two adjacent nodes share a color. This is an NP-hard problem (so
+She wants it colored such that no two adjacent nodes share a color. This is an NP-complete problem (so
 it can take up a lot of computational resources to solve). Of course, _this_ graph is small and easy
 to color, but that's just for the sake of this blog post.
 
@@ -218,7 +219,7 @@ calculating some hashes.
 <br>
 
 (The hashes here are calculated using SHA-1 for the hashing algorithm. It's not considered very
-secure anymore, but the secure ones all output huge hashes which don't fit on the page)
+secure anymore, but the secure ones all output huge hashes which spill over the page)
 
 Bob sends the public part of the table (the node-hash mapping) to Alice. Alice asks for nodes 1 and
 2, and Bob reveals the entire table entry for those two nodes (including the nonce).
@@ -267,8 +268,6 @@ indicating whether or not the input is a solution. This algorithm, however, can 
 with arbitrarily large outputs.
 
 
-{% img /images/post/and-and.png 200 %}
-
 Alice and Bob do this decomposition. The also agree on a numbering of the AND gates. Let's say
 that there are N AND gates. We're mostly going to ignore the NOT gates for the purpose of this
 article -- they're there, but they aren't modified or anything.
@@ -278,10 +277,18 @@ article -- they're there, but they aren't modified or anything.
 Now, Bob creates 4*N _encrypted AND gates_. This is an AND gate, but with the
 inputs and outputs all muddled up.
 
+
+This is a regular AND gate:
+
+
+{% img /images/post/and-and.png 200 %}
+
 This is an encrypted AND gate:
 
 
 {% img /images/post/and-and.png 200 %}
+
+(yes, it can be identical to an AND gate)
 
 So is this:
 
@@ -391,7 +398,7 @@ used to shuffle the gates. Both Alice and Bob can calculate this shuffling.
 This post-shuffle ordering is used after this point. The hash-shuffle is important here because it
 adds a layer of tamper protection. If Bob wishes to tamper with the, say 4th gate post-shuffle, Bob
 would have to create a bad gate before making the commitments; this changes the commitments, and
-thus the shuffle order, and hus tampered gate will not end up being the 4th gate. Basically, it's
+thus the shuffle order, and so the tampered gate will not end up being the 4th gate. Basically, it's
 hard to control where the tampered gate will end up.
 
 Now, out of the 4N  gates, Bob takes the last 2N, and reveals everything about them: Their
@@ -404,7 +411,7 @@ encryption keys. All commitments must match up.
 
 ### Double trouble!
 
-Now, Bob duplicates the AND-and-NOT-gate based circuit. Now he has two identical circuits which take
+Bob duplicates the AND-and-NOT-gate based circuit. He now has two identical circuits which take
 the same inputs, and have one output each. In itself this is pretty useless; this circuit is
 obviously redundant. However, in the context of encrypted gates, this redundancy becomes useful.
 
@@ -413,8 +420,8 @@ encrypted gates and the predecided numbering[^9] of the AND gates in the circuit
 necessary adaptation gates (i.e. an XOR operation with the relevant adaptation key) between
 encrypted AND gates to make the circuit work. Note that each "half" of the circuit has a different
 set of encrypted gates, and thus a different encryption key for each input. There are NOT gates here
-too (from the original circuit); they stay in place (the adaptation gate can go on either side of
-them) with no modifications or encryption.
+too (from the original circuit, which was made of ANDs and NOTs); they stay in place (the adaptation
+gate can go on either side of them) with no modifications or encryption.
 
  [^9]: You can actually add another fudge factor here by making Alice decide the gate numbering after having received gate commitments. If N isn't that large, there's still a small chance Bob can fake the output by permuting the original gates (and twiddling the nonces) until the tampered gates fall into the right spot. This removes that possibility to a reasonably high level of certainty, which can be strengthened by going through the whole procedure multiple times.
 
@@ -466,9 +473,9 @@ The probability of Bob being able to execute a succesful tamper can be adjusted 
 number of revealed gates, and increasing the duplication of the circuit. There is also the
 aforementioned fudge factor that can be introduced by having Alice choose where each encrypted gate
 should go after Bob has already provided commitments, and finally the procedure can be repeated as
-many times as necessary with a fresh set of encrypted gates to increase certainty. Unlike the graph-
+many times as necessary with a fresh set of encrypted gates to increase certainty. Unlike the graph
 coloring algorithm (where the uncertainty in a single run was large -- if Bob has a couple of wrong
-edges there's relatively less chance he'll get caught); here in a single run it is Bob who has a
+edges there's relatively small chance he'll get caught); here in a single run it is Bob who has a
 massive disadvantage, since he must tamper with _exactly_ the right gates, and there's very little
 chance that his tampered gates will fall in the right place based on Alice's chosen ordering.
 Additionally, tampering with the gates in the first place is hard, since you need to avoid having
@@ -485,7 +492,7 @@ this program has no loops.
 
 Looking at it closely, any encrypted history of execution can be changed to a different encrypted
 history of execution for the same nonencrypted execution by adding NOT gates wherever they don't
-match, and then absorbing the NOT gates into the input or output keys (by NOTing them) of the
+match, and then absorbing these NOT gates into the input or output keys (by NOTing them) of the
 adjacent encrypted AND gates. This means that without knowing the details of the encrypted gates,
 all histories of execution are equally possible for a given actual execution[^10]. Therefore,
 knowing only a history of execution does not provide you further information about the actual
