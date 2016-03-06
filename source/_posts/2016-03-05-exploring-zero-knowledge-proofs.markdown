@@ -571,4 +571,4 @@ I believe the proof of concept executed in Greg's post did this, but I'm not sur
  [challenge-accepted]: https://en.bitcoin.it/wiki/Script#Standard_Transaction_to_Bitcoin_address_.28pay-to-pubkey-hash.29
  [^11]: She should probably also add a clause that requires Bob's private key to sign something, so that someone else can't copy the answer from Bob's transaction and steal the money. Additional work can be done to make it so that if the transaction goes unclaimed, Alice can reclaim the money.
 
-
+_Thanks to Shantanu Thakoor, eternaleye, and ebfull for feedback on drafts of this post_
