@@ -309,6 +309,7 @@ inverted).
 {% img /images/post/and-encr-xor.png 500 %}
 
 
+
 A regular AND gate has a truth table as follows:
 
 Input 1 | Input 2 | Output
@@ -343,6 +344,19 @@ an input before piping it through this gate, we just XOR it with the relevant in
 to decrypt the output, we again XOR it with the output key. The XOR gates being applied will just
 cancel out with the internal encryption gates. In other words, encryption and decryption are done
 with the same operation!
+
+
+To recap, the dotted box below is an encrypted AND gate. An encrypted input enters from the left,
+and is decrypted by the internal XOR gate to obtain the actual input, which is piped through the AND
+gate. To encrypt an input so that it can be passed into this gate, one uses the same key with an XOR
+(not shown in the diagram). Similarly, the actual output of the AND gate exits on the right, and is
+encrypted by the XOR gate at the output to get the "encrypted output" (the wire that extends out of
+the box). To decrypt this, one must apply the same XOR operation to the encrypted output to recover
+the actual output of the gate.
+
+{% img /images/post/and-encr-xor.png 500 %}
+
+
 {% endmathy %}
 
 ### Creating adaptation keys and commitments

@@ -222,7 +222,16 @@ doing it in line with the static rules of `&` and `&mut`.
 > `&mut` allows mutation xor interior references but not sharing;
 > `Cell` allows shared mutability but not interior references.
 
-[because `Cell` operates by copying, it can't create interior references]
+Ultimately, while shared mutability can cause many logical errors (as outlined in [my previous post
+][post-prev]), it can only cause memory safety errors when coupled with "interior references". This
+is for types who have an "interior" whose type/size can itself be changed. One example of this is a
+Rust enum; where by changing the variant you can change what type is contained. If you have an alias
+to the inner type whilst the variant is changed, pointers within that alias may be invalidated.
+Similarly, if you change the length of a vector while you have an alias to one of its elements, that
+alias may be invalidated.
+
+Since `Cell` doesn't allow references to the insides of a type (you can only copy out and copy back
+in), enums and structs alike are safe to be aliased mutably within this.
 
 [This comment by Eddy also touches on the guarantees of `Cell` and the alternatives][eddyb]
 
@@ -327,10 +336,11 @@ similar to that from C++, we should use `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or `A
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires `unsafe` blocks).
 The last one should only be used if one is certain that the usage won't cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like `vec.push()` can reallocate internally
-and cause unsafe behavior (so even monotonicity may not be enough to justify `UnsafeCell`)
+and cause unsafe behavior (so even monotonicity[^5] may not be enough to justify `UnsafeCell`)
 
 
 [^4]: `Arc<UnsafeCell<T>>` actually won't compile since `UnsafeCell<T>` isn't `Send` or `Sync`, but we can wrap it in a type and implement `Send`/`Sync` for it manually to get `Arc<Wrapper<T>>` where `Wrapper` is `struct Wrapper<T>(UnsafeCell<T>)`.
+[^5]: By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack
 
 #### Guarantees
 
