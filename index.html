@@ -2454,7 +2454,16 @@ by mutation of the outer structure. (Think about references to the interiors of 
 <code>&amp;mut</code> allows mutation xor interior references but not sharing;
 <code>Cell</code> allows shared mutability but not interior references.</p></blockquote>
 
-<p>[because <code>Cell</code> operates by copying, it can&rsquo;t create interior references]</p>
+<p>Ultimately, while shared mutability can cause many logical errors (as outlined in <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">my previous post
+</a>), it can only cause memory safety errors when coupled with &ldquo;interior references&rdquo;. This
+is for types who have an &ldquo;interior&rdquo; whose type/size can itself be changed. One example of this is a
+Rust enum; where by changing the variant you can change what type is contained. If you have an alias
+to the inner type whilst the variant is changed, pointers within that alias may be invalidated.
+Similarly, if you change the length of a vector while you have an alias to one of its elements, that
+alias may be invalidated.</p>
+
+<p>Since <code>Cell</code> doesn&rsquo;t allow references to the insides of a type (you can only copy out and copy back
+in), enums and structs alike are safe to be aliased mutably within this.</p>
 
 <p><a href="https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h">This comment by Eddy also touches on the guarantees of <code>Cell</code> and the alternatives</a></p>
 
@@ -2552,7 +2561,7 @@ similar to that from C++, we should use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, 
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code>unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won&rsquo;t cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like <code>vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity may not be enough to justify <code>UnsafeCell</code>)</p>
+and cause unsafe behavior (so even monotonicity<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> may not be enough to justify <code>UnsafeCell</code>)</p>
 
 <h4>Guarantees</h4>
 
@@ -2629,7 +2638,7 @@ with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code>&amp;mut [T]</code><sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code>&amp;mut [T]</code><sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
 <p>In concurrent programs, we have a similar situation with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
@@ -2651,7 +2660,9 @@ we should figure out the tradeoffs as done above and pick one.</p>
 <li id="fn:3">
 <p><code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won&rsquo;t compile since <code>UnsafeCell&lt;T&gt;</code> isn&rsquo;t <code>Send</code> or <code>Sync</code>, but we can wrap it in a type and implement <code>Send</code>/<code>Sync</code> for it manually to get <code>Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code>Wrapper</code> is <code>struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
-<p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<p>By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
