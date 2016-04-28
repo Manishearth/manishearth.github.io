@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2016-04-27T08:17:21+05:30</updated>
+  <updated>2016-04-28T17:57:06+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -776,30 +776,32 @@ explanation for those who are interested</em></p>
 
 <p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon&rsquo;s blog post on the same topic</a></p>
 
-<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such &ldquo;marker&rdquo; traits
-in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>.
-I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>,
-since I&rsquo;ll be using them as examples throughout this post; but the concepts explained here are largely independent.</p>
+<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such
+&ldquo;marker&rdquo; traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>
+and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>. I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types
+like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>, since I&rsquo;ll be using them as examples throughout this post;
+but the concepts explained here are largely independent.</p>
 
-<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread dangling pointers.
-Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which utilize the type system to provide
-some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-sessions</a> attempts to
-provide protocol safety using session types.</p>
+<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread
+dangling pointers. Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which
+utilize the type system to provide some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-
+sessions</a> attempts to provide protocol safety using
+session types.</p>
 
-<p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So,
-for example, if struct <code>Foo</code> is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, all structs containing <code>Foo</code> will
-also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we explicitly opt out using <code>impl !Sync for Bar {}</code>. Similarly,
-if struct <code>Foo</code> is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, structs containing it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either,
-unless they explicitly opt in (<code>unsafe impl Sync for Bar {}</code>)</p>
+<p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So, for example,
+if struct <code>Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we
+explicitly opt out using <code>impl !Sync for Foo {}</code>. Similarly, if struct <code>Foo</code> contains at least one
+non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either, unless it explicitly opts in (<code>unsafe
+impl Sync for Foo {}</code>)</p>
 
-<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>,
-but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This pattern is quite powerful;
-it lets one use channels with non-threadsafe data in a single-threaded context without
-requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
+<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This
+pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
+context without requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
 
-<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields
-have explicitly opted out of one or more of these because the invariants they rely on do not
-hold in threaded situations.</p>
+<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields have explicitly opted out of one or more of these because the
+invariants they rely on do not hold in threaded situations.</p>
 
 <p>It&rsquo;s actually possible to design your own library with comparable thread safety guarantees outside
 of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
