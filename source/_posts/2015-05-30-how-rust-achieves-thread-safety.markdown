@@ -18,30 +18,32 @@ See also: [Huon's blog post on the same topic][huon-send]
 [huon-send]: http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/
 [^1]: So much that I added bonus slides about thread safety to the end of my deck, and of course I ended up using them at the talk I gave recently
 
-In my [previous post][post-prev] I touched a bit on the [`Copy`][copy] trait. There are other such "marker" traits
-in the standard library, and the ones relevant to this discussion are [`Send`][send] and [`Sync`][sync].
-I recommend reading that post if you're not familiar with Rust wrapper types like [`RefCell`][refcell] and [`Rc`][rc],
-since I'll be using them as examples throughout this post; but the concepts explained here are largely independent.
+In my [previous post][post-prev] I touched a bit on the [`Copy`][copy] trait. There are other such
+"marker" traits in the standard library, and the ones relevant to this discussion are [`Send`][send]
+and [`Sync`][sync]. I recommend reading that post if you're not familiar with Rust wrapper types
+like [`RefCell`][refcell] and [`Rc`][rc], since I'll be using them as examples throughout this post;
+but the concepts explained here are largely independent.
 
-For the purposes of this post, I'll restrict thread safety to mean no data races or cross-thread dangling pointers.
-Rust doesn't aim to solve race conditions. However, there are projects which utilize the type system to provide
-some form of extra safety, for example [rust-sessions](https://github.com/Munksgaard/rust-sessions) attempts to
-provide protocol safety using session types.
+For the purposes of this post, I'll restrict thread safety to mean no data races or cross-thread
+dangling pointers. Rust doesn't aim to solve race conditions. However, there are projects which
+utilize the type system to provide some form of extra safety, for example [rust-
+sessions](https://github.com/Munksgaard/rust-sessions) attempts to provide protocol safety using
+session types.
 
-These traits are auto-implemented using a feature called "opt in builtin traits". So,
-for example, if struct `Foo` is [`Sync`][sync], all structs containing `Foo` will
-also be [`Sync`][sync], unless we explicitly opt out using `impl !Sync for Bar {}`. Similarly,
-if struct `Foo` is not [`Sync`][sync], structs containing it will not be [`Sync`][sync] either,
-unless they explicitly opt in (`unsafe impl Sync for Bar {}`)
+These traits are auto-implemented using a feature called "opt in builtin traits". So, for example,
+if struct `Foo` contains only [`Sync`][sync] fields, it will also be [`Sync`][sync], unless we
+explicitly opt out using `impl !Sync for Foo {}`. Similarly, if struct `Foo` contains at least one
+non-[`Sync`][sync] type, it will not be [`Sync`][sync] either, unless it explicitly opts in (`unsafe
+impl Sync for Foo {}`)
 
-This means that, for example, a [`Sender`][sender] for a [`Send`][send] type is itself [`Send`][send],
-but a [`Sender`][sender] for a non-`Send` type will not be [`Send`][send]. This pattern is quite powerful;
-it lets one use channels with non-threadsafe data in a single-threaded context without
-requiring a separate "single threaded" channel abstraction.
+This means that, for example, a [`Sender`][sender] for a [`Send`][send] type is itself
+[`Send`][send], but a [`Sender`][sender] for a non-`Send` type will not be [`Send`][send]. This
+pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
+context without requiring a separate "single threaded" channel abstraction.
 
-At the same time, structs like [`Rc`][rc] and [`RefCell`][refcell] which contain [`Send`][send]/[`Sync`][sync] fields
-have explicitly opted out of one or more of these because the invariants they rely on do not
-hold in threaded situations.
+At the same time, structs like [`Rc`][rc] and [`RefCell`][refcell] which contain
+[`Send`][send]/[`Sync`][sync] fields have explicitly opted out of one or more of these because the
+invariants they rely on do not hold in threaded situations.
 
 It's actually possible to design your own library with comparable thread safety guarantees outside
 of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
