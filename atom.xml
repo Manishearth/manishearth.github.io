@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2016-06-04T21:20:18+05:30</updated>
+  <updated>2016-08-10T12:35:40+05:30</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,166 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Interactive Sudoku Zero-knowledge Proof]]></title>
+    <link href="http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/"/>
+    <updated>2016-08-10T11:21:19+05:30</updated>
+    <id>http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof</id>
+    <content type="html"><![CDATA[<p>Back in March I was particularly interested in Zero-Knowledge Proofs. At the time, I wrote
+<a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">a long blog post</a> introducing them and explaining how the ZKP for generic execution
+works.</p>
+
+<p>I was really enjoying learning about them, so I decided to do a presentation on them in my crypto
+course. Sadly there wasn&rsquo;t going to be time for explaining the structure of the proof for general
+execution, but I could present something more fun: Sudoku.</p>
+
+<p>Sudoku solutions can be proven via ZKP. That is to say, if Peggy has a solution to Victor&rsquo;s Sudoku
+problem, she can prove that she has a valid solution without ever revealing any information about
+her solution to Victor (aside from the fact that it is valid).</p>
+
+<p>To make the ZKP easier to explain, I wrote an <a href="https://manishearth.github.io/sudoku-zkp/zkp.html">interactive version of it</a>.</p>
+
+<p>I planned to write about it then, but completely forgot till now. Oops.</p>
+
+<p>I&rsquo;m first going to explain how the ZKP is carried out before I explain how the interactive verifier
+works. If you aren&rsquo;t familiar with ZKPs, you might want to read
+<a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">my previous post on the subject</a> up to and including the part about proving graph colorings.</p>
+
+<h2>Proving Sudoku</h2>
+
+<p>This proof is going to be carried out very similarly to the graph coloring proof. Indeed, Sudoku can
+be reduced to a graph coloring problem, though that&rsquo;s not how we&rsquo;re going to obtain the ZKP.</p>
+
+<p>Victor has a Sudoku problem:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/sudoku-problem.png" width="300"></p>
+
+<p>Peggy has a solution:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/sudoku-solution.png" width="300"></p>
+
+<p>In order to not leak information about her solution, Peggy permutes it:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/sudoku-solution-permuted.png" width="300"></p>
+
+<p>Basically, there is a 1-1 mapping between the old digits and the new ones. In this specific
+permutation, all 3s are replaced by 4s, all 1s by 5s, etc.</p>
+
+<p>She now commits to this permutation by committing to every individual cell. A random nonce is
+obtained for each cell, and the contents of that cell are hashed along with the nonce. This
+is the same commitment procedure used in the graph coloring ZKP.</p>
+
+<p>These commitments are now sent over to Victor.</p>
+
+<p>Victor ponders for a bit, and demands that Alice reveal the third row of the sudoku square.</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/victor-ask.png" width="300"></p>
+
+<p>(Note that this is the non-permuted problem statement)</p>
+
+<p>This row is marked in orange. There are some additional elements marked in green, which I shall
+get to shortly.</p>
+
+<p>Peggy reveals the permuted values for this row:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/peggy-reveal-orange.png" width="300"></p>
+
+<p>Victor can now verify that all digits 1-9 appear within this permuted row, and that they match the
+commitments. This means that they appear in the original solution too (since permutation doesn&rsquo;t
+change this fact), and, at least for this row, the solution is correct. If Peggy didn&rsquo;t have a
+solution, there was a chance she&rsquo;d be caught in this round if Victor had asked for the right
+set of 9 squares to be revealed.</p>
+
+<p>The procedure can be repeated (with a new permutation each time) to minimize this chance, with
+Victor asking to reveal a row, column, or 3x3 subsquare each time, until he is certain that Peggy
+has a solution.</p>
+
+<p>But wait! This only works towards proving that Peggy has a valid Sudoku solution, not that this
+is <em>the</em> solution to Victor&rsquo;s specific problem. Victor only verified that each row/column/subsquare
+had no duplicates, a property which is true for all sudoku solutions!</p>
+
+<p>This is where the green squares come in. For any given set of &ldquo;orange squares&rdquo; (a row, column, or
+3x3 subsquare), we take the &ldquo;preset&rdquo; digits appearing in the problem statement (In this case: 7, 8,
+and 6) in that set of squares. All other instances of those digits preset in the problem statement
+form the set of &ldquo;green squares&rdquo;:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/victor-ask.png" width="300"></p>
+
+<p>Peggy reveals the permuted values for both the green and orange squares each time:</p>
+
+<p><img src="http://manishearth.github.io/images//sudoku-zkp/peggy-reveal-both.png" width="300"></p>
+
+<p>In addition to verifying that there are no duplicates in the orange squares, Victor additionally
+verifies that the permutation is consistent. For example, the 7th element in that row is a 6, which
+is already preset in the problem statement. There are two other 6s in the problem statement, one in
+the 5th row 8th column, and one in the 7th row 1st column. If the permutation is consistent, their
+corresponding squares in the revealed portion of the permuted solution should all have the same
+digit. In this case, that number is 1. Similarly, the 5th element in that row is a preset 8, and
+there&rsquo;s a corresponding green square in the 5th row last column that also has an 8. In the permuted
+solution, Victor verifies that they both have the same digit, in this case 7.</p>
+
+<p>This lets Victor ensure that Peggy has a solution to his sudoku problem. The fact that two given
+squares must share the same digit is invariant under permutations, so this can be safely verified.
+In fact, a sudoku problem is really just a problem saying &ldquo;Fill these 81 squares with 9 symbols such
+that there are no duplicates in any row/column/subsquare, and these three squares have the same
+symbol in them, and these five squares have the same symbol in them, and &hellip;&rdquo;. So that&rsquo;s all we
+verify: There should be no duplicates, and the digits in certain sets of squares should be the same.</p>
+
+<p>Note that revealing the green squares doesn&rsquo;t reveal additional information about Peggy&rsquo;s solution.
+Assuming Peggy&rsquo;s solution is correct, from comparing the problem statement with the
+revealed/permuted values, Victor already <em>knows</em> that in the permutation, 7 has become 6, 8 has
+become 7, and 6 has become 1. So he already knows what the other preset green squares contain, he
+is just verifying them.</p>
+
+<p>We cannot reveal anything <em>more</em> than the green squares, since that would reveal additional
+information about the permutation and thus the solution.</p>
+
+<h2>The interactive verifier</h2>
+
+<p>Visit the <a href="https://manishearth.github.io/sudoku-zkp/zkp.html">interactive verifier</a>. There&rsquo;s a sudoku square at the top which you can fill
+with a problem, and you can fill the solution in on the first square on the Prover side &ndash; fill this
+in and click Start. Since I know nobody&rsquo;s going to actually do that, there&rsquo;s a &ldquo;Fill with known
+problem/solution&rdquo; that does this for you.</p>
+
+<p>Once you&rsquo;ve initiated the process, the ball is in the Prover&rsquo;s court. The Prover must first permute
+the solution by clicking the Permute button. You can edit the permutation if you like (to introduce
+a flaw), or manually do this after clicking the button.</p>
+
+<p>Once you&rsquo;ve clicked the button, generate nonces by clicking the next one, &ldquo;Populate Nonces&rdquo;. These,
+too can be edited. You can generate hashes (which can also be edited) by clicking the next button,
+and after that send the hashes (commitments) over to the Verifier&rsquo;s side.</p>
+
+<p>The ball is now in the Verifier&rsquo;s court. As you can see, there&rsquo;s a set of hashes on the Verifier&rsquo;s
+side. The Verifier only knows the problem statement and whatever is visible on their side of the
+screen, and nothing more.</p>
+
+<p>You, acting on behalf of the Verifier, can now select a row/column/subsquare using the dropdown and
+text box on the Verifier. As you select, the orange/green squares that are going to be revealed will
+be shown. When satisfied with your choice, click &ldquo;Reveal&rdquo;, and the Prover will populate your squares
+with the permuted values and nonces. &ldquo;Verify&rdquo; will verify that:</p>
+
+<ul>
+<li>The appropriate elements and hashes are revealed</li>
+<li>The hash is equal to <code>SHA256(nonce + "-" + digit)</code></li>
+<li>The orange squares contain distinct digits.</li>
+<li>The green squares contain digits that match with the orange squares they correspond to from the problem solution</li>
+</ul>
+
+
+<p>Once you click verify, it will show the probability of correctness (this isn&rsquo;t an exact value, it&rsquo;s
+calculated using an approximate formula that doesn&rsquo;t depend on the problem statement), and the ball
+moves back into Peggy&rsquo;s court, who can permute her solution again and continue. The probability
+slowly increases each round.</p>
+
+<p>Doing this manually till it reaches 99% is boring, so there&rsquo;s a button at the top (&ldquo;Run
+automatically&rdquo;) which can be clicked to run it for a given number of rounds, at any stage in the
+process once started. If you tamper with one of the values in the permuted solution, and run it
+for ~20 runs, it usually gets caught.</p>
+
+<p>Have fun!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Starting at Mozilla]]></title>
