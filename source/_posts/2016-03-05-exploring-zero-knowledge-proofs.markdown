@@ -7,6 +7,8 @@ math: true
 categories: 
 ---
 
+_Follow up article to this one [here][sudoku-post]_
+
 So recently I read [this article][bitcoin-article] about how the Bitcoin community had executed
 what's known as a "Zero-Knowledge Contingent Payment"; a pretty neat concept.
 
@@ -20,7 +22,7 @@ I intend this article to be read by people with a programming or mathematical ba
 who have some understanding of what logic gates are. Please let me know if you feel that something
 is inadequately (or wrongly) explained.
 
-
+ [sudoku-post]: http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/
  [bitcoin-article]: https://bitcoincore.org/en/2016/02/26/zero-knowledge-contingent-payments-announcement/
  [txt-algo]: https://people.xiph.org/~greg/simple_verifyable_execution.txt
 

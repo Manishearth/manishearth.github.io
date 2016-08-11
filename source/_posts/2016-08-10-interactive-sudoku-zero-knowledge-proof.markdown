@@ -52,7 +52,7 @@ is the same commitment procedure used in the graph coloring ZKP.
 
 These commitments are now sent over to Victor.
 
-Victor ponders for a bit, and demands that Alice reveal the third row of the sudoku square.
+Victor ponders for a bit, and demands that Peggy reveal the third row of the sudoku square.
 
 {% img /images//sudoku-zkp/victor-ask.png 300 %}
 
@@ -115,6 +115,23 @@ is just verifying them.
 We cannot reveal anything _more_ than the green squares, since that would reveal additional
 information about the permutation and thus the solution.
 
+Edit: This actually _still_ isn't enough, which was pointed out to me by "dooglius"
+[here][peggy-cheat]. Basically, if the sudoku problem has two digits which only appear once each,
+there is nothing that can stop Peggy from coming up with a solution where these two digits have been
+changed to something else (since they'll never be in a green square). Fixing this is easy, we allow
+Victor to ask Peggy to reveal just the permuted values of the presets (without simultaneously
+revealing a row/column/subsquare). Victor can then verify that the preset-permutation mapping is
+consistent (all presets of the same value map to the same permutation) and 1-1.
+
+This check actually obviates the need of the green squares entirely. As long as there is a chance
+that Victor will ask for the presets to be revealed instead of a row/column/subsquare, Peggy cannot
+try to trick Victor with the solution of a different sudoku problem without the risk of getting
+caught when Victor asks for the presets to be revealed. However, the green squares leak no
+information, so there's no problem in keeping them as a part of the ZKP as a way to reduce the
+chances of Peggy duping Victor.
+
+ [peggy-cheat]: https://github.com/Manishearth/sudoku-zkp/issues/1
+
 ## The interactive verifier
 
 Visit the [interactive verifier][interactive]. There's a sudoku square at the top which you can fill
@@ -134,10 +151,10 @@ The ball is now in the Verifier's court. As you can see, there's a set of hashes
 side. The Verifier only knows the problem statement and whatever is visible on their side of the
 screen, and nothing more.
 
-You, acting on behalf of the Verifier, can now select a row/column/subsquare using the dropdown and
-text box on the Verifier. As you select, the orange/green squares that are going to be revealed will
-be shown. When satisfied with your choice, click "Reveal", and the Prover will populate your squares
-with the permuted values and nonces. "Verify" will verify that:
+You, acting on behalf of the Verifier, can now select a row/column/subsquare/preset using the
+dropdown and text box on the Verifier. As you select, the orange/green squares that are going to be
+revealed will be shown. When satisfied with your choice, click "Reveal", and the Prover will
+populate your squares with the permuted values and nonces. "Verify" will verify that:
 
  - The appropriate elements and hashes are revealed
  - The hash is equal to `SHA256(nonce + "-" + digit)`
