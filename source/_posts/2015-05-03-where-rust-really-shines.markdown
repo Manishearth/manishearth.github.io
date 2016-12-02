@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Where Rust really shines"
-date: 2015-05-03 03:49:49 +0530
+date: 2015-05-03 03:49:49 -0800
 comments: true
 categories: [Rust, Mozilla, Programming]
 ---

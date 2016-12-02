@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "The world's most over-engineered alarm clock"
-date: 2015-08-29 00:08:59 +0530
+date: 2015-08-29 00:08:59 -0800
 comments: true
 categories: programming
 ---

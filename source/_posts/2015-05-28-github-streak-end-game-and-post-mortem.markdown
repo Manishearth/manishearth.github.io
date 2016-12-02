@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Github streak: End-game and post-mortem"
-date: 2015-05-28 07:48:53 +0530
+date: 2015-05-28 07:48:53 -0800
 comments: true
 categories: programming
 ---

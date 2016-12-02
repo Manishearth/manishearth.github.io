@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Adventures in Systems Programming: C++ local statics"
-date: 2015-06-26 15:32:06 +0530
+date: 2015-06-26 15:32:06 -0800
 comments: true
 categories: ["Programming", "C++", "Systems"]
 ---

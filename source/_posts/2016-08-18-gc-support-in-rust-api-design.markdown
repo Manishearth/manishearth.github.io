@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "GC support in Rust: API design"
-date: 2016-08-18 21:57:48 +0530
+date: 2016-08-18 21:57:48 -0800
 comments: true
 categories: 
 ---

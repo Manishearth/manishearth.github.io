@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Designing a GC in Rust"
-date: 2015-09-01 00:23:40 +0530
+date: 2015-09-01 00:23:40 -0800
 comments: true
 categories: programming rust mozilla
 ---

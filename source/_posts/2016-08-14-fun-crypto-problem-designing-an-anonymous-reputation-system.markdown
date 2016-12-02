@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Fun crypto problem: Designing an anonymous reputation system"
-date: 2016-08-14 12:15:31 +0530
+date: 2016-08-14 12:15:31 -0800
 comments: true
 categories: 
 ---

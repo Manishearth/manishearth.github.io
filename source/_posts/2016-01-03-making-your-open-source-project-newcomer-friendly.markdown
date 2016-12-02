@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Making your open source project newcomer-friendly"
-date: 2016-01-03 18:56:24 +0530
+date: 2016-01-03 18:56:24 -0800
 comments: true
 categories: 
 ---

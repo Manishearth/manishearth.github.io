@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Starting at Mozilla"
-date: 2016-06-04 20:44:37 +0530
+date: 2016-06-04 20:44:37 -0800
 comments: true
 categories: mozilla rust
 ---

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Wrapper types in Rust: Choosing your guarantees"
-date: 2015-05-27 20:29:59 +0530
+date: 2015-05-27 20:29:59 -0800
 comments: true
 categories: [Rust, Mozilla, Programming]
 ---
