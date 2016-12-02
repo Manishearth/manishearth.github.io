@@ -6,11 +6,11 @@ comments: true
 categories: 
 ---
 
-Recently we've been working on getting compiler-level GC support for Rust. The plan is to provide a
-base set of APIs and intrinsics on which GCs can be built, without including an actual GC itself.
-This blog post serves as status update and a pre-pre-rfc on the designs. I'm also going to walk
-through the process of coming up with the current design. We'll soon be posting more detailed
-design docs and discussion about some of the unresolved bits.
+Recently we ([Felix][pnkfelix], [Niko][niko], and I) have been working on getting compiler-level GC
+support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
+built, without including an actual GC itself. This blog post serves as status update and a pre-pre-
+rfc on the designs. I'm also going to walk through the process of coming up with the current design.
+We'll soon be posting more detailed design docs and discussion about some of the unresolved bits.
 
 The motivation behind this is the same as [my motivation for writing rust-gc][motivation]. Firstly,
 it makes it possible to integrate with languages which themselves have a GC. Being able to safely
@@ -34,6 +34,7 @@ suboptimal &mdash; we want GC support to be as efficient as possible.
 [motivation]: http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/
 [crossbeam]: https://aturon.github.io/blog/2015/08/27/epoch/
 [rust-gc]: https://github.com/Manishearth/rust-gc
+[niko]: https://github.com/nikomatsakis
 
 ## Design goals
 
