@@ -433,14 +433,15 @@ but [this is what it looks like in the end][final-code].
 
  [final-code]: https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc_driver/driver.rs#L541
 
-If we try compiling this code after updating SELF_STRING, we will get errors about duplicate
-`trust` modules, which makes sense because we're actually already compiling a backdoored version of
-the Rust source code. While we could set up two Rust builds, the easiest way to verify if our attack
-is working is to just use `#[cfg(stage0)]` on the trust module and the `fold_crate` call[^4]. These
-will only get included during "stage 0" (when it compiles the stage 1 compiler[^7]), and not when it
-compiles the stage 2 compiler, so if the stage 2 compiler still backdoors executables, we're done.
+If we try compiling this code to stage 2 after updating `SELF_STRING`, we will get errors about
+duplicate `trust` modules, which makes sense because we're actually already compiling an already-
+backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
+to verify if our attack is working is to just use `#[cfg(stage0)]` on the trust module and the
+`fold_crate` call[^4]. These will only get included during "stage 0" (when it compiles the stage 1
+compiler[^7]), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
+backdoors executables, we're done.
 
- [^7]: The naming of the stages is a bit confusing. During "stage 0" (`cfg(stage0)`), the stage 1 compiler is _built_. Since you are building the stage 1 compiler, the make invocation is `make rustc-stage1`. Similarly, during stage 1, the stage 2 compiler is built, and the invocation is `make rustc-stage2` but you use `#[cfg(stage1)]` in the code.
+ [^7]: The numbering of the stages is a bit confusing. During "stage 0" (`cfg(stage0)`), the stage 1 compiler is _built_. Since you are building the stage 1 compiler, the make invocation is `make rustc-stage1`. Similarly, during stage 1, the stage 2 compiler is built, and the invocation is `make rustc-stage2` but you use `#[cfg(stage1)]` in the code.
 
 On building the stage 2 (`make rustc-stage2`) compiler,
 
