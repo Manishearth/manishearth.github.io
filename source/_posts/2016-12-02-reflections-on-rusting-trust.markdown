@@ -492,7 +492,7 @@ We in the Rust community should be working on ways to prevent such attacks from 
 
 A couple of things we could do are:
 
- - Work on an alternate Rust compiler (in Rust or otherwise). For a pair of self-hosted compilers, there's a technique called "Diverse Double-Compiling" wherein you choose an arbitrary sequence of compilers (something like "`gcc` followed by 3x `clang` followed by `gcc`" followed by `clang`), and compile each compiler with the output of the previous one. Difficulty of writing a backdoor that can survive this process grows exponentially.
+ - Work on an alternate Rust compiler (in Rust or otherwise). For a pair of self-hosted compilers, there's a technique called ["Diverse Double-Compiling"][ddc] wherein you choose an arbitrary sequence of compilers (something like "`gcc` followed by 3x `clang` followed by `gcc`" followed by `clang`), and compile each compiler with the output of the previous one. Difficulty of writing a backdoor that can survive this process grows exponentially.
  - Try compiling rustc from its ocaml roots, and package up the process into a shell script so that you have reproducible trustworthy rustc builds.
  - Make rustc builds deterministic, which means that a known-trustworthy rustc build can be compared against a suspect one to figure out if it has been tampered with.
 
@@ -509,4 +509,8 @@ shouldn't need to change.
 But it's certainly an interesting attack, and should be something we should at least be thinking
 about.
 
+ [ddc]: http://www.acsa-admin.org/countering-trusting-trust-through-diverse-double-compiling/
+
 _Thanks to Josh Matthews, Michael Layzell, Diane Hosfelt, Eevee, and Yehuda Katz for reviewing drafts of this post._
+
+<small>Discuss: [HN](https://news.ycombinator.com/item?id=13091941), [Reddit](https://www.reddit.com/r/rust/comments/5g5hib/reflections_on_rusting_trust/)</small>
