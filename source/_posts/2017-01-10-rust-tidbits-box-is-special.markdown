@@ -55,7 +55,7 @@ _The call is coming from inside the house!_
 
  [rfcs-impl]: https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300
  [deref-impl]: https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502
- [^1]: Seriously though, does anyone use it much? I've only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.
+ [^1]: Seriously though, does anyone use it much? I've only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.
 
 
 In case you didn't realize it, this deref impl returns `&**self` -- since `self`
@@ -103,7 +103,19 @@ note: recursive call site
 
 Actually trying to dereference the type will lead to a stack overflow.
 
-Clearly something is fishy here. Turns out, `Box<T>` is special.
+Clearly something is fishy here. This deref impl is similar to [the deref impl for `&T`][deref-and],
+or the [`Add` impl for number types][add-num], or any other of the implementations of operators on
+primitive types. For example we literally
+[define `Add` on two integers to be their addition][add-num]. The reason these impls need to exist
+is so that people can still call `Add::add` if they need to in generic code and be able to pass
+integers to things with an `Add` bound. But the compiler knows how to use builtin operators on
+numbers and dereference borrowed references without these impls. But those are primitive types
+which are defined in the compiler, while `Box<T>` is just a regular smart pointer struct, right?
+
+Turns out, `Box<T>` is special. It, too, is somewhat of a primitive type.
+
+ [deref-and]: https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460
+ [add-num]: https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263
 
 This is partly due to historical accident.
 
@@ -125,10 +137,7 @@ operator, and autoderef worked much like it does today.
 As a "primitive" type; like all primitive types, `~T` was special. The compiler knew things about
 it. The compiler knew how to dereference it without an explicit `Deref` impl. In fact, the `Deref`
 traits [came into existence][deref-pr] much after `~T` did. `~T` never got an explicit `Deref` impl,
-though it probably should have. This whole situation is reminiscent of how the `Add` impls on
-integers work, the impl literally [defines `Add` on two integers to be their addition][add-impl].
-The reason these impls need to exist is so that people can still call `Add::add` if they need to
-in generic code and be able to pass integers to things with an `Add` bound. 
+though it probably should have.
 
 Eventually, there was a move to remove sigils from the language. The box constructor `~foo` was
 superseded by [placement `box` syntax][placement], which still exists in Rust nightly[^3]. Then, the
@@ -142,7 +151,6 @@ as it is today.
 
 
  [deref-pr]: https://github.com/rust-lang/rust/pull/12491
- [add-impl]: https://github.com/rust-lang/rust/blob/e57f061be20666eb0506f6f41551c798bbb38b60/src/libcore/ops.rs#L255
  [placement]: https://github.com/rust-lang/rust/pull/11055/
  [die-sigil]: https://github.com/rust-lang/rust/pull/13904
  [box-gets-deref]: https://github.com/rust-lang/rust/pull/20052
