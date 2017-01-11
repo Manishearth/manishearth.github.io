@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-01-11T01:14:16-08:00</updated>
+  <updated>2017-01-11T08:26:48-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -101,7 +101,16 @@ note: recursive call site
 
 <p>Actually trying to dereference the type will lead to a stack overflow.</p>
 
-<p>Clearly something is fishy here. Turns out, <code>Box&lt;T&gt;</code> is special.</p>
+<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
+or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
+primitive types. For example we literally
+<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
+is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
+integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
+numbers and dereference borrowed references without these impls. But those are primitive types
+which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
+
+<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
 
 <p>This is partly due to historical accident.</p>
 
@@ -123,10 +132,7 @@ operator, and autoderef worked much like it does today.</p>
 <p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
 it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
 traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
-though it probably should have. This whole situation is reminiscent of how the <code>Add</code> impls on
-integers work, the impl literally <a href="https://github.com/rust-lang/rust/blob/e57f061be20666eb0506f6f41551c798bbb38b60/src/libcore/ops.rs#L255">defines <code>Add</code> on two integers to be their addition</a>.
-The reason these impls need to exist is so that people can still call <code>Add::add</code> if they need to
-in generic code and be able to pass integers to things with an <code>Add</code> bound.</p>
+though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
 superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
