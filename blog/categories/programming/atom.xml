@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2016-12-02T12:59:49-08:00</updated>
+  <updated>2017-01-11T01:14:16-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,194 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rust Tidbits: Box Is Special]]></title>
+    <link href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"/>
+    <updated>2017-01-10T22:59:43-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special</id>
+    <content type="html"><![CDATA[<p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
+found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
+decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+be a thing in a programming community; and trivia is fun!</p>
+
+<hr />
+
+<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+
+<p>I was discussing some stuff on the rfcs repo when
+<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
+
+<p>Let&rsquo;s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
+
+<pre><code class="rust">#[stable(feature = "rust1", since = "1.0.0")]
+impl&lt;T: ?Sized&gt; Deref for Box&lt;T&gt; {
+    type Target = T;
+
+    fn deref(&amp;self) -&gt; &amp;T {
+        &amp;**self
+    }
+}
+
+#[stable(feature = "rust1", since = "1.0.0")]
+impl&lt;T: ?Sized&gt; DerefMut for Box&lt;T&gt; {
+    fn deref_mut(&amp;mut self) -&gt; &amp;mut T {
+        &amp;mut **self
+    }
+}
+</code></pre>
+
+<p>Wait, what? <em>Squints</em></p>
+
+<pre><code class="rust">    fn deref(&amp;self) -&gt; &amp;T {
+        &amp;**self
+    }
+</code></pre>
+
+<p><em>The call is coming from inside the house!</em></p>
+
+<p>In case you didn&rsquo;t realize it, this deref impl returns <code>&amp;**self</code> &ndash; since <code>self</code>
+is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
+will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
+
+<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that&rsquo;s what <code>Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That&rsquo;s infinite recursion.</p>
+
+<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
+<a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
+
+<pre><code class="rust">use std::ops::Deref;
+
+struct LolBox&lt;T&gt;(T);
+
+impl&lt;T&gt; Deref for LolBox&lt;T&gt; {
+    type Target = T;
+    fn deref(&amp;self) -&gt; &amp;T {
+        &amp;**self
+    }
+}
+</code></pre>
+
+<p>the compiler will warn you:</p>
+
+<pre><code class="text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+ --&gt; &lt;anon&gt;:7:5
+  |
+7 |     fn deref(&amp;self) -&gt; &amp;T {
+  |     ^
+  |
+note: recursive call site
+ --&gt; &lt;anon&gt;:8:10
+  |
+8 |         &amp;**self
+  |          ^^^^^^
+  = help: a `loop` may express intention better if this is on purpose
+</code></pre>
+
+<p>Actually trying to dereference the type will lead to a stack overflow.</p>
+
+<p>Clearly something is fishy here. Turns out, <code>Box&lt;T&gt;</code> is special.</p>
+
+<p>This is partly due to historical accident.</p>
+
+<p>To understand this, we must look back to Ye Olde days of pre-1.0 Rust (ca 2014). Back in these days,
+we had none of this newfangled &ldquo;stability&rdquo; business. The compiler broke your code every two weeks.
+Of course, you wouldn&rsquo;t <em>know</em> that because the compiler would usually crash before it could tell
+you that your code was broken! Sigils roamed the lands freely, and cargo was but a newborn child
+which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
+that their closures were safely boxed and their threads sufficiently green.</p>
+
+<p>Back in these days, we didn&rsquo;t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
+The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
+they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant &ldquo;owned&rdquo;, though
+IMO that caused more confusion than it was worth.</p>
+
+<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
+operator, and autoderef worked much like it does today.</p>
+
+<p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
+it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
+traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
+though it probably should have. This whole situation is reminiscent of how the <code>Add</code> impls on
+integers work, the impl literally <a href="https://github.com/rust-lang/rust/blob/e57f061be20666eb0506f6f41551c798bbb38b60/src/libcore/ops.rs#L255">defines <code>Add</code> on two integers to be their addition</a>.
+The reason these impls need to exist is so that people can still call <code>Add::add</code> if they need to
+in generic code and be able to pass integers to things with an <code>Add</code> bound.</p>
+
+<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
+<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
+a very confusing detour with <code>StrBuf</code> first).</p>
+
+<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
+constructed, but it was still internally a special type. It didn&rsquo;t even have a <code>Deref</code> impl yet,
+that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
+as it is today.</p>
+
+<p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
+ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
+were a regular type.</p>
+
+<p>Turns out that Rust didn&rsquo;t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+dereference semantics were implemented in a different part of the code. And, these semantics were
+not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
+pointers. I don&rsquo;t know if the possibility of being used for <code>~T</code> was considered when
+<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
+three pieces of behavior that could not be replicated in pure Rust at the time:</p>
+
+<ul>
+<li><code>box foo</code> in a pattern would destructure a box into its contents. It&rsquo;s somewhat the opposite of <code>ref</code></li>
+<li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+<li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+</ul>
+
+
+<p>The third one is the one that really gets to us here<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.
+For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
+You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
+<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
+this:</p>
+
+<pre><code class="rust">let x = Box::new(vec![1,2,3,4]);
+let y = *x; // moves the vec out into `y`, then deallocates the box
+            // but does not call a destructor on the vec
+</code></pre>
+
+<p>For any other type, such an operation will produce a &ldquo;cannot move out of a borrow&rdquo; error.</p>
+
+<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
+past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
+removed from <code>Box&lt;T&gt;</code> before 1.0 (I don&rsquo;t find it <em>necessary</em>), but people had better things to do,
+like fixing the million other rough edges of the language that can&rsquo;t be touched after backwards
+compatibility is a thing.</p>
+
+<p>So now we&rsquo;re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+compiler. By &ldquo;special type&rdquo; I don&rsquo;t just mean that the compiler treats it a bit differently (this is
+true for any lang item), I mean that it literally is treated as
+<a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
+There&rsquo;s a TON of cruft in the compiler related to this type, much of which can be removed, but some
+of which can&rsquo;t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
+writing this post I&rsquo;m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+cleaning up the code myself.</p>
+
+<p>Most of this isn&rsquo;t really useful to know unless you actually come across a case where you can make
+use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Seriously though, does anyone use it much? I&rsquo;ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Reflections on Rusting Trust]]></title>
@@ -1258,150 +1446,6 @@ happening there. One step closer to being a better systems programmer!</p>
 <p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 <li id="fn:5">
 <p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How Rust Achieves Thread Safety]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/"/>
-    <updated>2015-05-30T05:25:32-07:00</updated>
-    <id>http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety</id>
-    <content type="html"><![CDATA[<p><em>In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
-has invariably come up<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
-explanation for those who are interested</em></p>
-
-<p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon&rsquo;s blog post on the same topic</a></p>
-
-<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such
-&ldquo;marker&rdquo; traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>. I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types
-like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>, since I&rsquo;ll be using them as examples throughout this post;
-but the concepts explained here are largely independent.</p>
-
-<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread
-dangling pointers. Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which
-utilize the type system to provide some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-
-sessions</a> attempts to provide protocol safety using
-session types.</p>
-
-<p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So, for example,
-if struct <code>Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we
-explicitly opt out using <code>impl !Sync for Foo {}</code>. Similarly, if struct <code>Foo</code> contains at least one
-non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either, unless it explicitly opts in (<code>unsafe
-impl Sync for Foo {}</code>)</p>
-
-<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This
-pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
-context without requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
-
-<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields have explicitly opted out of one or more of these because the
-invariants they rely on do not hold in threaded situations.</p>
-
-<p>It&rsquo;s actually possible to design your own library with comparable thread safety guarantees outside
-of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
-treatment is not necessary for their working. Any two opt-in builtin traits could be used here.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> types can be moved between threads without an issue. It answers the question
-&ldquo;if this variable were moved to another thread, would it still be valid for use?&rdquo;.
-Most objects which completely own their contained data qualify here. Notably, <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> doesn&rsquo;t
-(since it is shared ownership). Another exception is <a href="https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html"><code>LocalKey</code></a>, which
-<em>does</em> own its data but isn&rsquo;t valid from other threads. Borrowed data does qualify to be <code>Send</code>, but
-in most cases it can&rsquo;t be sent across threads due to a constraint that will be touched upon later.</p>
-
-<p>Even though types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> use non-atomic reference counting, it can be sent safely
-between threads because this is a transfer of <em>ownership</em> (a move). Sending a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> to another thread
-will be a move and will make it unusable from the original thread; so this is fine.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, on the other hand, is about synchronous access. It answers the question: &ldquo;if
-multiple threads were all trying to access this data, would it be safe?&rdquo;. Types like
-<a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a> and other lock/atomic based types implement this, along with primitive types.
-Things containing pointers generally are not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>.</p>
-
-<p><code>Sync</code> is sort of a crutch to <code>Send</code>; it helps make other types <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when sharing is
-involved. For example, <code>&amp;T</code> and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> are only <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when the inner data is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (there&rsquo;s an additional
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> bound in the case of <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a>). In words, stuff that has shared/borrowed ownership can be sent
-to another thread if the shared/borrowed data is synchronous-safe.</p>
-
-<p><a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a>, while <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> because of the non atomic reference counting.</p>
-
-<p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code>thread::spawn()</code></a>. It has the signature</p>
-
-<pre><code class="rust">pub fn spawn&lt;F, T&gt;(f: F) -&gt; JoinHandle&lt;T&gt; where F: FnOnce() -&gt; T, F: Send + 'static, T: Send + 'static
-</code></pre>
-
-<p>Admittedly, this is confusing/noisy, partially because it&rsquo;s allowed to return a value, and also because
-it returns a handle from which we can block on a thread join. We can conjure a simpler <code>spawn</code> API for our needs though:</p>
-
-<pre><code class="rust">pub fn spawn&lt;F&gt;(f: F) where F: FnOnce(), F: Send + 'static
-</code></pre>
-
-<p>which can be called like:</p>
-
-<pre><code class="rust">let mut x = vec![1,2,3,4];
-
-// `move` instructs the closure to move out of its environment
-thread::spawn(move || {
-   x.push(1);
-
-});
-
-// x is not accessible here since it was moved
-</code></pre>
-
-<p>In words, <code>spawn()</code> will take a callable (usually a closure) that will be called once, and contains
-data which is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code>. Here, <code>'static</code> just means that there is no borrowed
-data contained in the closure. This is the aforementioned constraint that prevents the sharing of
-borrowed data across threads; without it we would be able to send a borrowed pointer to a thread that
-could easily outlive the borrow, causing safety issues.</p>
-
-<p>There&rsquo;s a slight nuance here about the closures &mdash; closures can capture outer variables,
-but by default they do so by-reference (hence the <code>move</code> keyword). They autoimplement <code>Send</code>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> depending on their capture clauses. For more on their internal representation,
-see <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">huon&rsquo;s post</a>. In this case, <code>x</code> was captured by-move; i.e. as <a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>
-(instead of being similar to <code>&amp;Vec&lt;T&gt;</code> or something), so the closure itself can be <code>Send</code>.
-Without the <code>move</code> keyword, the closure would not be `&lsquo;static&rsquo; since it contains borrowed
-content.</p>
-
-<p>Since the closure inherits the <code>Send</code>/<code>Sync</code>/<code>'static</code>-ness of its captured data, a closure
-capturing data of the correct type will satisfy the <code>F: Send+'static</code> bound.</p>
-
-<p>Some examples of things that are allowed and not allowed by this function (for the type of <code>x</code>):</p>
-
-<ul>
-<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>, <a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> are allowed because they are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code> (when the inner type is of the same kind)</li>
-<li><code>&amp;T</code> isn&rsquo;t allowed because it&rsquo;s not <code>'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
-<li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, so it isn&rsquo;t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
-<li><code>Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> if the inner type is); we can&rsquo;t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> doesn&rsquo;t provide this by default.</li>
-<li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
-<li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed (for <code>Send</code> <code>T</code>). The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code> (as long as it is <code>Send</code>), and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it&rsquo;s only being accessed by one thread at a time (slightly more complex in the case of <a href="http://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock</code></a>), so it doesn&rsquo;t need to know about the threads involved. There can&rsquo;t be data races when <code>Sync</code> types like these are involved.</li>
-</ul>
-
-
-<p>As mentioned before, you can in fact create a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a>/<a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"><code>Receiver</code></a> pair of non-<code>Send</code> objects. This sounds a bit
-counterintuitive &mdash; shouldn&rsquo;t we be only sending values which are <code>Send</code>? However, <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender&lt;T&gt;</code></a> is only
-<code>Send</code> if <code>T</code> is <code>Send</code>; so even if we can use a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> of a non-<code>Send</code> type, we cannot send it to another thread,
-so it cannot be used to violate thread safety.</p>
-
-<p>There is also a way to utilize the <code>Send</code>-ness of <code>&amp;T</code> (which is not <code>'static</code>) for some <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> <code>T</code>, namely <a href="http://doc.rust-lang.org/std/thread/fn.scoped.html"><code>thread::scoped</code></a>.
-This function does not have the <code>'static</code> bound, but it instead has an RAII guard which forces a join before the borrow ends. This
-allows for easy fork-join parallelism without necessarily needing a <a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a>.
-Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> cycles, so the API
-is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code>Send</code>/<code>Sync</code>,
-rather it is a perfect storm of small design inconsistencies in the libraries.</p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9628131">HN</a>, <a href="https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/">Reddit</a></small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>So much that I added bonus slides about thread safety to the end of my deck, and of course I ended up using them at the talk I gave recently<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
