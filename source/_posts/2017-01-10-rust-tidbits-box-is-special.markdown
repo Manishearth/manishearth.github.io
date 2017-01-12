@@ -205,6 +205,8 @@ cleaning up the code myself.
 Most of this isn't really useful to know unless you actually come across a case where you can make
 use of `DerefMove` semantics, or if you work on the compiler. But it certainly is interesting!
 
+Next post: [What is a lang item?](http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/)
+
  [derefmove]: https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d
  [tybox]: http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v
  [^4]: It's easier to special case the first two, much like how `for` loops are aware of the iterator trait without the iterator trait being extremely special cased
