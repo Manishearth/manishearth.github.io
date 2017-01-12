@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mozilla | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/mozilla/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-01-11T08:30:45-08:00</updated>
+  <updated>2017-01-12T02:02:59-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,378 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rust Tidbits: What Is a Lang Item?]]></title>
+    <link href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
+    <updated>2017-01-11T21:01:13-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
+    <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
+found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
+decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+be a thing in a programming community; and trivia is fun!</em></p>
+
+<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
+
+<p>Last time I talked about <code>Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
+I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
+
+<p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
+functions, and other items which the compiler needs to know about.</p>
+
+<p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
+<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does; the spec
+defines that certain types must exist in certain headers with certain names and compilers are
+supposed to confer special meaning to whatever types it finds there. For example,
+<code>std::enable_if</code> has its semantics defined in the
+&ldquo;Transformations between types: Other transformations&rdquo; (§ 20.10.7.6) section of the
+spec. The source code of the header defining <code>enable_if</code> just contains an empty
+templated type. Similarly, the Itanium ABI spec expects functions of certain names
+to just <em>exist</em>, which the compiler is supposed to call in various cases. The
+<code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
+I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
+full of similar <code>__cxa</code> functions.</p>
+
+<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
+placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
+When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
+encounters the addition operator. Of course, usually the compiler will already have been told about
+such a trait since libcore is usually the first library in the pipeline. If you want to actually use
+this, you need to <em>replace libcore</em>.</p>
+
+<p>Huh? You can&rsquo;t do that, can you?</p>
+
+<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
+rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
+that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
+because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
+libstd and the universe will implode.</p>
+
+<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
+libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, libcore is
+a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
+only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
+trying to emulate it).</p>
+
+<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
+
+<pre><code class="rust">#![feature(no_core)]
+#![feature(lang_items)]
+
+// Look at me.
+// Look at me.
+// I'm the libcore now.
+#![no_core]
+
+// Tell the compiler to link to appropriate runtime libs
+// (This way I don't have to specify `-l` flags explicitly)
+#[cfg(target_os = "linux")]
+#[link(name = "c")]
+extern {}
+#[cfg(target_os = "macos")]
+#[link(name = "System")]
+extern {}
+
+// Compiler needs these to proceed
+#[lang = "sized"]
+pub trait Sized {}
+#[lang = "copy"]
+pub trait Copy {}
+
+// `main` isn't the actual entry point, `start` is.
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    // we can't really do much in this benighted hellhole of
+    // an environment without bringing in more libraries.
+    // We can make syscalls, segfault, and set the exit code.
+    // To be sure that this actually ran, let's set the exit code.
+    42
+}
+
+// still need a main unless we want to use `#![no_main]`
+// won't actually get called; `start()` is supposed to call it
+fn main() {}
+</code></pre>
+
+<p>If you run this, the program will exit with exit code 42.</p>
+
+<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
+tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
+to exist, it expects it to make sense. There are properties of the lang item that it assumes
+are true, and it may cause assertions in the code. In this case I do have a tweak, since
+the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</code>, but I know that this tweak
+will work.</p>
+
+<p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
+deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
+start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
+must exist.</p>
+
+<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
+
+<pre><code class="rust">pub static X: u8 = 1;
+</code></pre>
+
+<p>Rust will immediately complain:</p>
+
+<pre><code>$ rustc test.rs
+error: requires `sync` lang_item
+</code></pre>
+
+<p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
+are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
+so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
+lang item, so we need to do:</p>
+
+<pre><code class="rust">pub static X: u8 = 1;
+
+#[lang = "sync"]
+pub unsafe trait Sync {}
+unsafe impl Sync for u8 {}
+</code></pre>
+
+<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
+definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
+should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
+since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
+
+<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
+what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
+
+<pre><code class="rust">struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
+
+<p>We get an error:</p>
+
+<pre><code>$ rustc test.rs
+error[E0369]: binary operation `+` cannot be applied to type `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+   |
+note: an implementation of `std::ops::Add` might be missing for `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+
+error: aborting due to previous error
+</code></pre>
+
+<p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
+This is because the diagnostics in the compiler are free to assume that libcore
+exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
+<code>Foo</code>s. But we can tell it how!</p>
+
+<pre><code class="rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
+
+impl MyAdd&lt;Foo&gt; for Foo {
+    type Output = isize;
+    fn add(self, other: Foo) -&gt; isize {
+        return 42;
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
+
+<p>This will compile fine and the exit code of the program will be 42.</p>
+
+<p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
+same kind of error, even though I mentioned before that the addition of concrete primitives doesn&rsquo;t
+go through <code>Add::add</code>. However, any addition operation still checks if <code>Add::add</code> is implemented,
+even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+
+<pre><code class="rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
+
+impl MyAdd&lt;isize&gt; for isize {
+    type Output = isize;
+    fn add(self, other: isize) -&gt; isize {
+        self + other + 50
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    40 + 2
+}
+</code></pre>
+
+<p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
+wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+
+<p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
+check, it doesn&rsquo;t actually get used.</p>
+
+<hr />
+
+<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
+compiler. Let&rsquo;s go through them:</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
+primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
+coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
+&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
+applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
+a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
+arise from sidestepping coherence.</p>
+
+<p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
+
+<ul>
+<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
+<li>[<code>Unsize</code>] is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
+</ul>
+
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
+these destructors.</p>
+
+<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
+<a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code>Deref</code></a>
+and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code>PartialEq</code>/<code>PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
+are lang items because the compiler needs to know what trait to require (and call)
+when it comes across such an operation.</p>
+
+<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code>UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
+certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code>&amp;mut foo</code> with the
+assumption that the local variable holding the reference is the only alias allowed to read from
+or write to the data, and it is allowed to reorder reads from <code>&amp;foo</code> assuming that no other alias
+writes to it. We tell LLVM that these types are <code>noalias</code>. <code>UnsafeCell&lt;T&gt;</code> turns this optimization
+off, allowing writes to <code>&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
+mutability types like <code>Cell&lt;T&gt;</code>, <code>RefCell&lt;T&gt;</code>, and <code>Mutex&lt;T&gt;</code>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code>Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
+and can be specified with special syntax sugar, so they need to be lang items. They also
+get autoimplemented on closures.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The &ldquo;str_eq&rdquo; lang item</a> is outdated. It <em>used</em> to specify how to check the equality
+of a string value against a literal string pattern in a <code>match</code> (<code>match</code> uses structural equality,
+not <code>PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
+inserts panics in a few places. The first one, <code>"panic"</code>, is used for integer overflow panics in debug mode, and
+<code>"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
+<code>"panic_fmt"</code> hooks into a function defined later in libstd.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code>"exchange_malloc"</code> and <code>"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
+telling the compiler which functions to call in case it needs to do a <code>malloc()</code> or <code>free()</code>. These
+are used when constructing <code>Box&lt;T&gt;</code> via placement <code>box</code> syntax and when moving out of a deref of a
+box.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
+but is no longer used.</p>
+
+<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
+minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
+with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
+tears down anything it needs to. Rust has a C-like minimal runtime, so
+<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
+But you theoretically could stick a very heavy runtime initialization routine here.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
+platform-specific modules) specify various bits of the exception handling behavior. These hooks are
+called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
+or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
+called when the unwinding code wishes to resume unwinding after calling destructors in a landing
+pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
+understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
+the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
+compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
+actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
+lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
+but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code>"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
+an unused type parameter, and it can be used to help fix the variance and drop behavior
+of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
+a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
+like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
+contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
+(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
+we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
+are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
+corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
+
+<p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
+that could be dropped within a type to make it not implement <code>Copy</code>; in the past <code>Copy</code>
+implementations were automatic like <code>Send</code> and <code>Sync</code> are today. <code>NoCopy</code> was the way to opt out.
+There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>CovariantType</code>/<code>CovariantLifetime</code>/etc were the
+predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
+type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
+<code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>. Contravariance no longer exists in the language.
+The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
+removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
+seems unnecessary. It&rsquo;s probably an oversight.</p>
+
+<p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
+loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
+<code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
+<code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
+resolution is done, so withut this, libcore would not be able to use for loops since the compiler
+wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
+
+<hr />
+
+<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
+dispatching calls to functions and trait methods in various situations, conferring special semantics
+to types/traits, or requiring traits to be implemented, the type will be defined in the standard
+library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
+
+<p>Some of the lang items are useful/necessary when working without libstd. Most only come into play if
+you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
+useful outside of the realm of compiler hacking.</p>
+
+<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
+useful!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Rust Tidbits: Box Is Special]]></title>
@@ -1081,150 +1453,6 @@ welcome, we&rsquo;d especially love performance improvements and testcases.</p>
 <p>I&rsquo;m very skeptical that it&rsquo;s possible to make either of these completely sound without writing lints which effectively rewrite a large chunk of the compiler<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
 <p>There is a case to be made for an immutable GC which allows some form of deferred initialization of GC fields, however.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How Rust Achieves Thread Safety]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/"/>
-    <updated>2015-05-30T05:25:32-07:00</updated>
-    <id>http://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety</id>
-    <content type="html"><![CDATA[<p><em>In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
-has invariably come up<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
-explanation for those who are interested</em></p>
-
-<p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon&rsquo;s blog post on the same topic</a></p>
-
-<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such
-&ldquo;marker&rdquo; traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>. I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types
-like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>, since I&rsquo;ll be using them as examples throughout this post;
-but the concepts explained here are largely independent.</p>
-
-<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread
-dangling pointers. Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which
-utilize the type system to provide some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-
-sessions</a> attempts to provide protocol safety using
-session types.</p>
-
-<p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So, for example,
-if struct <code>Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we
-explicitly opt out using <code>impl !Sync for Foo {}</code>. Similarly, if struct <code>Foo</code> contains at least one
-non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either, unless it explicitly opts in (<code>unsafe
-impl Sync for Foo {}</code>)</p>
-
-<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This
-pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
-context without requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
-
-<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields have explicitly opted out of one or more of these because the
-invariants they rely on do not hold in threaded situations.</p>
-
-<p>It&rsquo;s actually possible to design your own library with comparable thread safety guarantees outside
-of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
-treatment is not necessary for their working. Any two opt-in builtin traits could be used here.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> types can be moved between threads without an issue. It answers the question
-&ldquo;if this variable were moved to another thread, would it still be valid for use?&rdquo;.
-Most objects which completely own their contained data qualify here. Notably, <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> doesn&rsquo;t
-(since it is shared ownership). Another exception is <a href="https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html"><code>LocalKey</code></a>, which
-<em>does</em> own its data but isn&rsquo;t valid from other threads. Borrowed data does qualify to be <code>Send</code>, but
-in most cases it can&rsquo;t be sent across threads due to a constraint that will be touched upon later.</p>
-
-<p>Even though types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> use non-atomic reference counting, it can be sent safely
-between threads because this is a transfer of <em>ownership</em> (a move). Sending a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> to another thread
-will be a move and will make it unusable from the original thread; so this is fine.</p>
-
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, on the other hand, is about synchronous access. It answers the question: &ldquo;if
-multiple threads were all trying to access this data, would it be safe?&rdquo;. Types like
-<a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a> and other lock/atomic based types implement this, along with primitive types.
-Things containing pointers generally are not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>.</p>
-
-<p><code>Sync</code> is sort of a crutch to <code>Send</code>; it helps make other types <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when sharing is
-involved. For example, <code>&amp;T</code> and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> are only <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when the inner data is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (there&rsquo;s an additional
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> bound in the case of <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a>). In words, stuff that has shared/borrowed ownership can be sent
-to another thread if the shared/borrowed data is synchronous-safe.</p>
-
-<p><a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a>, while <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> because of the non atomic reference counting.</p>
-
-<p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code>thread::spawn()</code></a>. It has the signature</p>
-
-<pre><code class="rust">pub fn spawn&lt;F, T&gt;(f: F) -&gt; JoinHandle&lt;T&gt; where F: FnOnce() -&gt; T, F: Send + 'static, T: Send + 'static
-</code></pre>
-
-<p>Admittedly, this is confusing/noisy, partially because it&rsquo;s allowed to return a value, and also because
-it returns a handle from which we can block on a thread join. We can conjure a simpler <code>spawn</code> API for our needs though:</p>
-
-<pre><code class="rust">pub fn spawn&lt;F&gt;(f: F) where F: FnOnce(), F: Send + 'static
-</code></pre>
-
-<p>which can be called like:</p>
-
-<pre><code class="rust">let mut x = vec![1,2,3,4];
-
-// `move` instructs the closure to move out of its environment
-thread::spawn(move || {
-   x.push(1);
-
-});
-
-// x is not accessible here since it was moved
-</code></pre>
-
-<p>In words, <code>spawn()</code> will take a callable (usually a closure) that will be called once, and contains
-data which is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code>. Here, <code>'static</code> just means that there is no borrowed
-data contained in the closure. This is the aforementioned constraint that prevents the sharing of
-borrowed data across threads; without it we would be able to send a borrowed pointer to a thread that
-could easily outlive the borrow, causing safety issues.</p>
-
-<p>There&rsquo;s a slight nuance here about the closures &mdash; closures can capture outer variables,
-but by default they do so by-reference (hence the <code>move</code> keyword). They autoimplement <code>Send</code>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> depending on their capture clauses. For more on their internal representation,
-see <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">huon&rsquo;s post</a>. In this case, <code>x</code> was captured by-move; i.e. as <a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>
-(instead of being similar to <code>&amp;Vec&lt;T&gt;</code> or something), so the closure itself can be <code>Send</code>.
-Without the <code>move</code> keyword, the closure would not be `&lsquo;static&rsquo; since it contains borrowed
-content.</p>
-
-<p>Since the closure inherits the <code>Send</code>/<code>Sync</code>/<code>'static</code>-ness of its captured data, a closure
-capturing data of the correct type will satisfy the <code>F: Send+'static</code> bound.</p>
-
-<p>Some examples of things that are allowed and not allowed by this function (for the type of <code>x</code>):</p>
-
-<ul>
-<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>, <a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> are allowed because they are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code> (when the inner type is of the same kind)</li>
-<li><code>&amp;T</code> isn&rsquo;t allowed because it&rsquo;s not <code>'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
-<li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, so it isn&rsquo;t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
-<li><code>Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> if the inner type is); we can&rsquo;t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> doesn&rsquo;t provide this by default.</li>
-<li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
-<li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed (for <code>Send</code> <code>T</code>). The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code> (as long as it is <code>Send</code>), and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it&rsquo;s only being accessed by one thread at a time (slightly more complex in the case of <a href="http://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock</code></a>), so it doesn&rsquo;t need to know about the threads involved. There can&rsquo;t be data races when <code>Sync</code> types like these are involved.</li>
-</ul>
-
-
-<p>As mentioned before, you can in fact create a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a>/<a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"><code>Receiver</code></a> pair of non-<code>Send</code> objects. This sounds a bit
-counterintuitive &mdash; shouldn&rsquo;t we be only sending values which are <code>Send</code>? However, <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender&lt;T&gt;</code></a> is only
-<code>Send</code> if <code>T</code> is <code>Send</code>; so even if we can use a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> of a non-<code>Send</code> type, we cannot send it to another thread,
-so it cannot be used to violate thread safety.</p>
-
-<p>There is also a way to utilize the <code>Send</code>-ness of <code>&amp;T</code> (which is not <code>'static</code>) for some <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> <code>T</code>, namely <a href="http://doc.rust-lang.org/std/thread/fn.scoped.html"><code>thread::scoped</code></a>.
-This function does not have the <code>'static</code> bound, but it instead has an RAII guard which forces a join before the borrow ends. This
-allows for easy fork-join parallelism without necessarily needing a <a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a>.
-Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> cycles, so the API
-is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code>Send</code>/<code>Sync</code>,
-rather it is a perfect storm of small design inconsistencies in the libraries.</p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9628131">HN</a>, <a href="https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/">Reddit</a></small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>So much that I added bonus slides about thread safety to the end of my deck, and of course I ended up using them at the talk I gave recently<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 

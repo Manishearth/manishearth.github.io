@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-01-11T08:30:45-08:00</updated>
+  <updated>2017-01-12T02:02:59-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,378 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rust Tidbits: What Is a Lang Item?]]></title>
+    <link href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
+    <updated>2017-01-11T21:01:13-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
+    <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
+found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
+decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+be a thing in a programming community; and trivia is fun!</em></p>
+
+<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
+
+<p>Last time I talked about <code>Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
+I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
+
+<p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
+functions, and other items which the compiler needs to know about.</p>
+
+<p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
+<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does; the spec
+defines that certain types must exist in certain headers with certain names and compilers are
+supposed to confer special meaning to whatever types it finds there. For example,
+<code>std::enable_if</code> has its semantics defined in the
+&ldquo;Transformations between types: Other transformations&rdquo; (§ 20.10.7.6) section of the
+spec. The source code of the header defining <code>enable_if</code> just contains an empty
+templated type. Similarly, the Itanium ABI spec expects functions of certain names
+to just <em>exist</em>, which the compiler is supposed to call in various cases. The
+<code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
+I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
+full of similar <code>__cxa</code> functions.</p>
+
+<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
+placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
+When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
+encounters the addition operator. Of course, usually the compiler will already have been told about
+such a trait since libcore is usually the first library in the pipeline. If you want to actually use
+this, you need to <em>replace libcore</em>.</p>
+
+<p>Huh? You can&rsquo;t do that, can you?</p>
+
+<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
+rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
+that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
+because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
+libstd and the universe will implode.</p>
+
+<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
+libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, libcore is
+a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
+only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
+trying to emulate it).</p>
+
+<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
+
+<pre><code class="rust">#![feature(no_core)]
+#![feature(lang_items)]
+
+// Look at me.
+// Look at me.
+// I'm the libcore now.
+#![no_core]
+
+// Tell the compiler to link to appropriate runtime libs
+// (This way I don't have to specify `-l` flags explicitly)
+#[cfg(target_os = "linux")]
+#[link(name = "c")]
+extern {}
+#[cfg(target_os = "macos")]
+#[link(name = "System")]
+extern {}
+
+// Compiler needs these to proceed
+#[lang = "sized"]
+pub trait Sized {}
+#[lang = "copy"]
+pub trait Copy {}
+
+// `main` isn't the actual entry point, `start` is.
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    // we can't really do much in this benighted hellhole of
+    // an environment without bringing in more libraries.
+    // We can make syscalls, segfault, and set the exit code.
+    // To be sure that this actually ran, let's set the exit code.
+    42
+}
+
+// still need a main unless we want to use `#![no_main]`
+// won't actually get called; `start()` is supposed to call it
+fn main() {}
+</code></pre>
+
+<p>If you run this, the program will exit with exit code 42.</p>
+
+<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
+tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
+to exist, it expects it to make sense. There are properties of the lang item that it assumes
+are true, and it may cause assertions in the code. In this case I do have a tweak, since
+the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</code>, but I know that this tweak
+will work.</p>
+
+<p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
+deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
+start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
+must exist.</p>
+
+<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
+
+<pre><code class="rust">pub static X: u8 = 1;
+</code></pre>
+
+<p>Rust will immediately complain:</p>
+
+<pre><code>$ rustc test.rs
+error: requires `sync` lang_item
+</code></pre>
+
+<p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
+are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
+so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
+lang item, so we need to do:</p>
+
+<pre><code class="rust">pub static X: u8 = 1;
+
+#[lang = "sync"]
+pub unsafe trait Sync {}
+unsafe impl Sync for u8 {}
+</code></pre>
+
+<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
+definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
+should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
+since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
+
+<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
+what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
+
+<pre><code class="rust">struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
+
+<p>We get an error:</p>
+
+<pre><code>$ rustc test.rs
+error[E0369]: binary operation `+` cannot be applied to type `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+   |
+note: an implementation of `std::ops::Add` might be missing for `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+
+error: aborting due to previous error
+</code></pre>
+
+<p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
+This is because the diagnostics in the compiler are free to assume that libcore
+exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
+<code>Foo</code>s. But we can tell it how!</p>
+
+<pre><code class="rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
+
+impl MyAdd&lt;Foo&gt; for Foo {
+    type Output = isize;
+    fn add(self, other: Foo) -&gt; isize {
+        return 42;
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
+
+<p>This will compile fine and the exit code of the program will be 42.</p>
+
+<p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
+same kind of error, even though I mentioned before that the addition of concrete primitives doesn&rsquo;t
+go through <code>Add::add</code>. However, any addition operation still checks if <code>Add::add</code> is implemented,
+even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+
+<pre><code class="rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
+
+impl MyAdd&lt;isize&gt; for isize {
+    type Output = isize;
+    fn add(self, other: isize) -&gt; isize {
+        self + other + 50
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    40 + 2
+}
+</code></pre>
+
+<p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
+wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+
+<p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
+check, it doesn&rsquo;t actually get used.</p>
+
+<hr />
+
+<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
+compiler. Let&rsquo;s go through them:</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
+primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
+coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
+&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
+applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
+a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
+arise from sidestepping coherence.</p>
+
+<p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
+
+<ul>
+<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
+<li>[<code>Unsize</code>] is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
+</ul>
+
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
+these destructors.</p>
+
+<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
+<a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code>Deref</code></a>
+and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code>PartialEq</code>/<code>PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
+are lang items because the compiler needs to know what trait to require (and call)
+when it comes across such an operation.</p>
+
+<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code>UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
+certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code>&amp;mut foo</code> with the
+assumption that the local variable holding the reference is the only alias allowed to read from
+or write to the data, and it is allowed to reorder reads from <code>&amp;foo</code> assuming that no other alias
+writes to it. We tell LLVM that these types are <code>noalias</code>. <code>UnsafeCell&lt;T&gt;</code> turns this optimization
+off, allowing writes to <code>&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
+mutability types like <code>Cell&lt;T&gt;</code>, <code>RefCell&lt;T&gt;</code>, and <code>Mutex&lt;T&gt;</code>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code>Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
+and can be specified with special syntax sugar, so they need to be lang items. They also
+get autoimplemented on closures.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The &ldquo;str_eq&rdquo; lang item</a> is outdated. It <em>used</em> to specify how to check the equality
+of a string value against a literal string pattern in a <code>match</code> (<code>match</code> uses structural equality,
+not <code>PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
+inserts panics in a few places. The first one, <code>"panic"</code>, is used for integer overflow panics in debug mode, and
+<code>"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
+<code>"panic_fmt"</code> hooks into a function defined later in libstd.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code>"exchange_malloc"</code> and <code>"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
+telling the compiler which functions to call in case it needs to do a <code>malloc()</code> or <code>free()</code>. These
+are used when constructing <code>Box&lt;T&gt;</code> via placement <code>box</code> syntax and when moving out of a deref of a
+box.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
+but is no longer used.</p>
+
+<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
+minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
+with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
+tears down anything it needs to. Rust has a C-like minimal runtime, so
+<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
+But you theoretically could stick a very heavy runtime initialization routine here.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
+platform-specific modules) specify various bits of the exception handling behavior. These hooks are
+called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
+or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
+called when the unwinding code wishes to resume unwinding after calling destructors in a landing
+pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
+understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
+the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
+compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
+actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
+lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
+but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code>"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
+an unused type parameter, and it can be used to help fix the variance and drop behavior
+of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
+a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
+like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
+contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
+(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
+we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
+are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
+corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
+
+<p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
+that could be dropped within a type to make it not implement <code>Copy</code>; in the past <code>Copy</code>
+implementations were automatic like <code>Send</code> and <code>Sync</code> are today. <code>NoCopy</code> was the way to opt out.
+There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>CovariantType</code>/<code>CovariantLifetime</code>/etc were the
+predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
+type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
+<code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>. Contravariance no longer exists in the language.
+The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
+removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
+seems unnecessary. It&rsquo;s probably an oversight.</p>
+
+<p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
+loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
+<code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
+<code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
+resolution is done, so withut this, libcore would not be able to use for loops since the compiler
+wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
+
+<hr />
+
+<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
+dispatching calls to functions and trait methods in various situations, conferring special semantics
+to types/traits, or requiring traits to be implemented, the type will be defined in the standard
+library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
+
+<p>Some of the lang items are useful/necessary when working without libstd. Most only come into play if
+you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
+useful outside of the realm of compiler hacking.</p>
+
+<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
+useful!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Rust Tidbits: Box Is Special]]></title>
@@ -1131,327 +1503,6 @@ able to Linux in my sleep, which is a win-win!</p>
 <ol>
 <li id="fn:1">
 <p>As a fourth year student the fully-awake me also has a bit of trouble with this ;)<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Adventures in Systems Programming: C++ Local Statics]]></title>
-    <link href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
-    <updated>2015-06-26T16:32:06-07:00</updated>
-    <id>http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
-    <content type="html"><![CDATA[<p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
-feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
-what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Conversely, it&rsquo;s
-important to know how your tools work more than ever in systems programming. So when I see a
-language feature I&rsquo;m not familiar with, I&rsquo;m interested in finding out how it works under the hood.</p>
-
-<p>I&rsquo;m not a C++ expert. I can work on C++ codebases, but I&rsquo;m not anywhere near knowing all of the
-features and nuances of C++. However, I am pretty good at Rust and understand a decent portion of
-the compiler internals. This gives me a great perspective &mdash; I&rsquo;ve not yet internalized most C++
-features to take them for granted, and I&rsquo;m well equipped to investigate these features.</p>
-
-<p>Today I came across some C++ code similar to the following<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
-
-<pre><code class="cpp">void foo() {
-    static SomeType bar = Env()-&gt;someMethod();
-    static OtherType baz = Env()-&gt;otherMethod(bar);
-}
-</code></pre>
-
-<p>This code piqued my interest. Specifically, the local <code>static</code> stuff. I knew that when you have a
-static like</p>
-
-<pre><code>static int FOO = 1;
-</code></pre>
-
-<p>the <code>1</code> is stored somewhere in the <code>.data</code> section of the program. This is easily verified with <code>gdb</code>:</p>
-
-<pre><code class="cpp">static int THING = 0xAAAA;
-
-int main() {
- return 1;
-}
-</code></pre>
-
-<pre><code class="text">$ g++ test.cpp -g
-$ gdb a.out
-(gdb) info addr THING
-Symbol "THING" is static storage at address 0x601038.
-(gdb) info symbol 0x601038
-THING in section .data
-</code></pre>
-
-<p>This is basically a part of the compiled program as it is loaded into memory.</p>
-
-<p>Similarly, when you have a <code>static</code> that is initialized with a function, it&rsquo;s stored in the <code>.bss</code>
-section, and initialized before <code>main()</code>. Again, easily verified:</p>
-
-<pre><code class="cpp">#include&lt;iostream&gt;
-using namespace std;
-
-int bar() {
- cout&lt;&lt;"bar called\n";
- return 0xFAFAFA;
-}
-
-static int THING = bar();
-
-int main() {
- cout&lt;&lt;"main called\n";
- return 0;
-}
-</code></pre>
-
-<pre><code class="text">$ ./a.out 
-bar called
-main called
-$ gdb a.out
-(gdb) info addr THING
-Symbol "THING" is static storage at address 0x601198.
-(gdb) info symbol 0x601198
-THING in section .bss
-</code></pre>
-
-<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
-
-<p>So far so good.</p>
-
-<p>Now back to the original snippet:</p>
-
-<pre><code class="cpp">void foo() {
-    static SomeType bar = Env()-&gt;someMethod();
-    static OtherType baz = Env()-&gt;otherMethod(bar);
-}
-</code></pre>
-
-<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It&rsquo;s
-not much different from <code>static THING = bar()</code> aside from the fact that it isn&rsquo;t a global
-identifier.</p>
-
-<p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
-that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
-called <sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
-
-<p>Instead, these are statics which are initialized the first time the function is called.</p>
-
-<pre><code class="cpp">#include&lt;iostream&gt;
-using namespace std;
-
-int bar() {
- cout&lt;&lt;"bar called\n";
- return 0xFAFAFA;
-}
-
-void foo() {
- cout&lt;&lt;"foo called\n";
- static int i = bar();
- cout&lt;&lt;"Static is:"&lt;&lt; i&lt;&lt;"\n";
-}
-
-int main() {
- cout&lt;&lt;"main called\n";
- foo();
- foo();
- foo();
- return 0;
-}
-</code></pre>
-
-<pre><code class="text">$ g++ test.cpp
-$ ./a.out
-main called
-foo called
-bar called
-Static is:16448250
-foo called
-Static is:16448250
-foo called
-Static is:16448250
-</code></pre>
-
-<p>Wait, &ldquo;the first time the function is called&rdquo;? <em>Alarm bells go off&hellip;</em> Surely there&rsquo;s some cost to that! Let&rsquo;s investigate.</p>
-
-<pre><code class="text">$ gdb a.out
-(gdb) disas bar
-   // snip
-   0x0000000000400c72 &lt;+15&gt;:    test   %al,%al
-   0x0000000000400c74 &lt;+17&gt;:    jne    0x400ca4 &lt;_Z3foov+65&gt;
-   0x0000000000400c76 &lt;+19&gt;:    mov    $0x6021f8,%edi
-   0x0000000000400c7b &lt;+24&gt;:    callq  0x400a00 &lt;__cxa_guard_acquire@plt&gt;
-   0x0000000000400c80 &lt;+29&gt;:    test   %eax,%eax
-   0x0000000000400c82 &lt;+31&gt;:    setne  %al
-   0x0000000000400c85 &lt;+34&gt;:    test   %al,%al
-   0x0000000000400c87 &lt;+36&gt;:    je     0x400ca4 &lt;_Z3foov+65&gt;
-   0x0000000000400c89 &lt;+38&gt;:    mov    $0x0,%r12d
-   0x0000000000400c8f &lt;+44&gt;:    callq  0x400c06 &lt;_Z3barv&gt;
-   0x0000000000400c94 &lt;+49&gt;:    mov    %eax,0x201566(%rip)        # 0x602200 &lt;_ZZ3foovE1i&gt;
-   0x0000000000400c9a &lt;+55&gt;:    mov    $0x6021f8,%edi
-   0x0000000000400c9f &lt;+60&gt;:    callq  0x400a80 &lt;__cxa_guard_release@plt&gt;
-   0x0000000000400ca4 &lt;+65&gt;:    mov    0x201556(%rip),%eax        # 0x602200 &lt;_ZZ3foovE1i&gt;
-   0x0000000000400caa &lt;+71&gt;:    mov    %eax,%esi
-   0x0000000000400cac &lt;+73&gt;:    mov    $0x6020c0,%edi
-   // snip
-</code></pre>
-
-<p>The instruction at <code>+44</code> calls <code>bar()</code>, and it seems to be surrounded by calls to some <code>__cxa_guard</code>
-functions.</p>
-
-<p>We can take a naïve guess at what this does: It probably just sets a hidden static flag on
-initialization which ensures that it only runs once.</p>
-
-<p>Of course, the actual solution isn&rsquo;t as simple. It needs to avoid data races, handle errors, and
-somehow take care of recursive initialization.</p>
-
-<p>Let&rsquo;s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
-<code>__cxa_guard</code>.</p>
-
-<p>Both of them show us the generated code for initializing things like local statics:</p>
-
-<pre><code class="cpp">  if (obj_guard.first_byte == 0) {
-    if ( __cxa_guard_acquire (&amp;obj_guard) ) {
-      try {
-      // ... initialize the object ...;
-      } catch (...) {
-        __cxa_guard_abort (&amp;obj_guard);
-        throw;
-      }
-      // ... queue object destructor with __cxa_atexit() ...;
-      __cxa_guard_release (&amp;obj_guard);
-    }
-  }
-</code></pre>
-
-<p>Here, <code>obj_guard</code> is our &ldquo;hidden static flag&rdquo;, with some other extra data.</p>
-
-<p><code>__cxa_guard_acquire</code> and <code>__cxa_guard_release</code> acquire and release a lock to prevent recursive
-initialization. So this program will crash:</p>
-
-<pre><code class="cpp">#include&lt;iostream&gt;
-using namespace std;
-
-void foo(bool recur);
-
-int bar(bool recur) {
- cout&lt;&lt;"bar called\n";
- if(recur) {
-    foo(false);
- }
- return 0xFAFAFA;
-}
-
-void foo(bool recur) {
- cout&lt;&lt;"foo called\n";
- static int i = bar(recur);
- cout&lt;&lt;"Static is:"&lt;&lt; i&lt;&lt;"\n";
-}
-
-
-
-int main() {
- foo(true);
- return 0;
-}
-</code></pre>
-
-<pre><code class="text">$ g++ test.cpp
-$ ./a.out 
-foo called
-bar called
-foo called
-terminate called after throwing an instance of '__gnu_cxx::recursive_init_error'
-  what():  std::exception
-Aborted (core dumped)
-</code></pre>
-
-<p>Over here, to initialize <code>i</code>, <code>bar()</code> needs to be called, but <code>bar()</code> calls <code>foo()</code> which needs <code>i</code>
-to be initialized, which again will call <code>bar()</code> (though this time it won&rsquo;t recurse). If <code>i</code> wasn&rsquo;t
-<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it&rsquo;s unclear as
-to which value should be used.</p>
-
-<p>The implementation is pretty interesting. Before looking at the code my quick guess was that the
-following would happen for local statics:</p>
-
-<ul>
-<li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
-&ldquo;uninitialized&rdquo;, &ldquo;initializing&rdquo;, and &ldquo;initialized&rdquo;. Alternatively, use an atomic state indicator.</li>
-<li>When we try to initialize for the first time, the mutex is locked, the flag is set
-to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, and the flag is set to &ldquo;initialized&rdquo;.</li>
-<li>If when acquiring the mutex, the value is &ldquo;initialized&rdquo;, don&rsquo;t initialize again</li>
-<li>If when acquiring the mutex, the value is &ldquo;initializing&rdquo;, throw some exception</li>
-</ul>
-
-
-<p> (We need the tristate flag because without it recursion would cause deadlocks)</p>
-
-<p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
-<a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
-uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. This is okay because the C++
-spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
-
-<blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
-behavior is undefined.</p></blockquote>
-
-<p>However, the implementations in <a href="https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc">gcc/libstdc++</a> (also <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">this version</a> of
-<code>libcppabi</code> from Apple, which is a bit more readable) do something different. They use a global
-recursive mutex to handle reentrancy. Recursive mutexes basically can be locked multiple times by a
-single thread, but cannot be locked by another thread till the locking thread unlocks them the same
-number of times. This means that recursion/reentrancy won&rsquo;t cause deadlocks, but we still have one-
-thread-at-a-time access. What these implementations do is:</p>
-
-<ul>
-<li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
-and one which indicates that the static is being initialized (&ldquo;in use&rdquo;)</li>
-<li>If the object is initialized, do nothing (this doesn&rsquo;t use mutexes and is cheap).
-This isn&rsquo;t exactly part of the implementation in the library, but is part of the generated code.</li>
-<li>If it isn&rsquo;t initialized, acquire the global recursive lock</li>
-<li>If the object is initialized by the time the lock was acquired, unlock and return</li>
-<li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
-&ldquo;in use&rdquo;, throw an exception.</li>
-<li>If it wasn&rsquo;t, mark the second flag of the static&rsquo;s guard object as being &ldquo;in use&rdquo;</li>
-<li>Call the initialization function, bubble errors</li>
-<li>Unlock the global mutex</li>
-<li>Mark the second flag as &ldquo;not in use&rdquo;</li>
-</ul>
-
-
-<p>At any one time, only one thread will be in the process of running initialization routines, due to
-the global recursive mutex. Since the mutex is recursive, a function (eg <code>bar()</code>) used for
-initializing local statics may itself use (different) local statics. Due to the &ldquo;in use&rdquo; flag, the
-initialization of a local static may not recursively call its parent function without causing an
-error.</p>
-
-<p>This doesn&rsquo;t need per-static atomics, and doesn&rsquo;t deadlock, however it has the cost of a global
-mutex which is called at most once per local static. In a highly threaded situation with lots of
-such statics, one might want to reevaluate directly using local statics.</p>
-
-<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM&rsquo;s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
-mutex it uses a regular mutex (on non-ARM Apple systems) which is unlocked before
-<code>__cxa_guard_acquire</code> exits and tests for reentrancy by noting the thread ID in the guard object
-instead of the &ldquo;in use&rdquo; flag. Condvars are used for waiting for a thread to stop using an object. On
-other platforms, it seems to deadlock, though I&rsquo;m not sure.</p>
-
-<p>So here we have a rather innocent-looking feature that has some hidden costs and pitfalls. But now I
-can look at a line of code where this feature is being used, and have a good idea of what&rsquo;s
-happening there. One step closer to being a better systems programmer!</p>
-
-<p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Emphasis on <em>relatively</em>. This article will show that it&rsquo;s definitely not &ldquo;easy&rdquo; all the time.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Unless it has a constructor or otherwise isn&rsquo;t made out of trivially constructible types; in this case it is treated similar to the previous case.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
