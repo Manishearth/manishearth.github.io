@@ -119,17 +119,17 @@ functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
 <code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
-<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does; the spec
-defines that certain types must exist in certain headers with certain names and compilers are
-supposed to confer special meaning to whatever types it finds there. For example,
-<code>std::enable_if</code> has its semantics defined in the
-&ldquo;Transformations between types: Other transformations&rdquo; (§ 20.10.7.6) section of the
-spec. The source code of the header defining <code>enable_if</code> just contains an empty
-templated type. Similarly, the Itanium ABI spec expects functions of certain names
+<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
+the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
 <code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
 I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
-full of similar <code>__cxa</code> functions.</p>
+full of similar <code>__cxa</code> functions. While the spec just expects certain types,
+e.g. <code>std::type_traits</code> (&ldquo;Type properties&rdquo; § 20.10.4.3), to be magic and exist in certain locations,
+the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren&rsquo;t defined
+in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
+to known ABI functions, and they partly implement &ldquo;special&rdquo; types via intrinsics which
+are detected and magicked when the compiler comes across them.</p>
 
 <p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
 placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
