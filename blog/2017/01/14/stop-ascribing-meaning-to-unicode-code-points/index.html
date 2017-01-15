@@ -1,0 +1,438 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Let&#8217;s Stop Ascribing Meaning to Code Points - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="I&rsquo;ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
+misconception I&rsquo;ve seen is that code &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Let&#8217;s Stop Ascribing Meaning to Code Points</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-01-14T10:13:18-08:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>14</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>10:13 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>I&rsquo;ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
+misconception I&rsquo;ve seen is that <em>code points have cross-language intrinsic meaning</em>.</p>
+
+<p>It usually comes up when people are comparing UTF8 and UTF32. Folks start implying that code points
+<em>mean</em> something, and that O(1) indexing or slicing at code point boundaries is a useful operation.
+I&rsquo;ve also seen this assumption manifest itself in actual programs which make incorrect assumptions
+about the nature of code points and mess things up when fed non-Latin text.</p>
+
+<p>If you like reading about unicode, you might also want to go through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">Eevee&rsquo;s article</a>
+on the dark corners of unicode. Great read!</p>
+
+<h2>Encodings</h2>
+
+<p>So, anyway, we have some popular encodings for Unicode. UTF8 encodes 7-bit code points as a single
+byte, 11-bit code points as two bytes, 16-bit code points as 3 bytes, and 21-bit code points as four
+bytes. UTF-16 encodes the first three in two bytes, and the last one as four bytes (logically, a
+pair of two-byte code units). UTF-32 encodes all code points as 4-byte code units. UTF-16 is mostly
+a &ldquo;worst of both worlds&rdquo; compromise at this point, and the main programming language I can think of
+that uses it (and exposes it in this form) is Javascript, and that too in a broken way.</p>
+
+<p>The nice thing about UTF8 is that it saves space. Of course, that is subjective and dependent on
+the script you use most commonly, for example my first name is 12 bytes in UTF-8 but only 4
+in ISCII (or a hypothetical unicode-based encoding that swapped the Devanagri Unicode block with
+the ASCII block). It also uses more space over the very non-hypothetical UTF-16 encoding if you
+tend to use code points in the U+0800 - U+FFFF range. It always uses less space than UTF-32 however.</p>
+
+<p>A commonly touted disadvantage of UTF-8 is that string indexing is <code>O(n)</code>. Because code points take
+up a variable number of bytes, you won&rsquo;t know where the 5th codepoint is until you scan the string
+and look for it. UTF-32 doesn&rsquo;t have this problem; it&rsquo;s always <code>4 * index</code> bytes away.</p>
+
+<p>The problem here is that indexing by code point shouldn&rsquo;t be an operation you ever need!</p>
+
+<h2>Indexing by code point</h2>
+
+<p>The main time you want to be able to index by code point is if you&rsquo;re implementing algorithms
+defined in the unicode spec that operate on unicode strings (casefolding, segmentation, NFD/NFC).
+Most if not all of these algorithms operate on whole strings, so implementing them
+as an iteration pass is usually necessary anyway, so you don&rsquo;t lose anything if you can&rsquo;t
+do arbitrary code point indexing.</p>
+
+<p>But for application logic, dealing with code points doesn&rsquo;t really make sense. This is because
+code points have no intrinsic meaning. They are not &ldquo;characters&rdquo;. I&rsquo;m using scare quotes here
+because a &ldquo;character&rdquo; isn&rsquo;t a well-defined concept either, but we&rsquo;ll get to that later.</p>
+
+<p>For example, &ldquo;e&#x0301;&rdquo; is two code points (<code>e</code> +<code>́</code>), where one of them is a combining accent. My name,
+&ldquo;मनीष&rdquo;, visually looks like three &ldquo;characters&rdquo;, but is four code points. The &ldquo;नी&rdquo; is made up of <code>न</code>
++ <code>ी</code>. My last name contains a &ldquo;character&rdquo; made up of three code points (and multiple two-code-point
+&ldquo;characters&rdquo;). The flag emoji &ldquo;🇺🇸&rdquo; is also made of two code points, <code>🇺</code> + <code>🇸</code>.</p>
+
+<p>One false assumption that&rsquo;s often made is that code points are a single column wide. They&rsquo;re not.
+They sometimes bunch up to form characters that fit in single &ldquo;columns&rdquo;. This is often dependent on
+the font, and if your application relies on this, you should be querying the font. There are even
+code points like U+FDFD (﷽) which are often rendered multiple columns wide. In fact, in my
+<em>monospace</em> font in my text editor, that character is rendered <em>almost</em> 12 columns wide. Yes,
+&ldquo;almost&rdquo;, subsequent characters get offset a tiny bit. I don&rsquo;t know why.</p>
+
+<p>Another false assumption is that editing actions (selection, backspace, cut, paste) operate on code
+points. In both Chrome and Firefox, selection will often include multiple code points. All the
+multi-code-point examples I gave above fall into this category. An interesting testcase for this is
+the string &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo;, which will rarely if ever render as a single &ldquo;character&rdquo; but will be considered
+as one for the purposes of selection, pretty much universally. I&rsquo;ll get to why this is later.</p>
+
+<p>Backspace can gobble multiple code points at once too, but the heuristics are different. The reason
+behind this is that backspace needs to mirror the act of typing, and while typing sometimes
+constructs multi-codepoint characters, backspace decomposes it piece by piece. In cases where a
+multi-codepoint &ldquo;character&rdquo; <em>can</em> be logically decomposed (e.g. &ldquo;letter + accent&rdquo;), backspace will
+decompose it, by removing the accent or whatever. But some multi-codepoint characters are not
+&ldquo;constructions&rdquo; of general concepts that should be exposed to the user. For example, a user should
+never need to know that the &ldquo;🇺🇸&rdquo; flag emoji is made of <code>🇺</code> + <code>🇸</code>, and hitting backspace on it should
+delete both codepoints. Similarly, variation selectors and other such code points shouldn&rsquo;t
+be treated as their own unit when backspacing.</p>
+
+<p>On my Mac most builtin apps (which I presume use the OSX UI toolkits) seem to use the same
+heuristics that Firefox/Chrome use for selection for both selection and backspace. While the
+treatment of code points in editing contexts is not consistent, it seems like applications
+consistently do not consider code points as &ldquo;editing units&rdquo;.</p>
+
+<p>Now, it is true that you often need <em>some</em> way to index a string. For example, if you have a large
+document and need to represent a slice of it. This could be a user-selection, or something delimeted
+by markup. Basically, you&rsquo;ve already gone through the document and have a section you want to be
+able to refer to later without copying it out.</p>
+
+<p>However, you don&rsquo;t need code point indexing here, byte
+indexing works fine! UTF8 is designed so that you can check if you&rsquo;re on a code point boundary even
+if you just byte-index directly. It does this by restricting the kinds of bytes allowed. One-byte
+code points never have the high bit set (ASCII). All other code points have the high bit set in each
+byte. The first byte of multibyte codepoints always starts with a sequence that specifies the number
+of bytes in the codepoint, and such sequences can&rsquo;t be found in the lower-order bytes of any
+multibyte codepoint. You can see this visually in the table <a href="https://en.wikipedia.org/wiki/UTF-8#Description">here</a>. The upshot of all this
+is that you just need to check the current byte if you want to be sure you&rsquo;re on a codepoint
+boundary, and if you receive an arbitrarily byte-sliced string, you will not mistake it for
+something else. It&rsquo;s not possible to have a valid code point be a subslice of another, or form a
+valid code point by subslicing a sequence of two different ones by cutting each in half.</p>
+
+<p>So all you need to do is keep track of the byte indices, and use them for slicing it later.</p>
+
+<p>All in all, it&rsquo;s important to always remember that &ldquo;code point&rdquo; doesn&rsquo;t have intrinsic meaning. If
+you need to do a segmentation operation on a string, find out what <em>exactly</em> you&rsquo;re looking for, and
+what concept maps closest to that. It&rsquo;s rare that &ldquo;code point&rdquo; is the concept you&rsquo;re looking for.
+In <em>most</em> cases, what you&rsquo;re looking for instead is &ldquo;grapheme cluster&rdquo;.</p>
+
+<h2>Grapheme clusters</h2>
+
+<p>The concept of a &ldquo;character&rdquo; is a nebulous one. Is &ldquo;&#x1100;&#x1161;&#x11A8;&rdquo; a single character, or
+three? How about &ldquo;नी&rdquo;? Or &ldquo;நி&rdquo;? Or the &ldquo;👨‍❤️‍👨&rdquo; emoji<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>? Or the &ldquo;👨‍👨‍👧‍👧&rdquo; family emoji<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>?
+Different scripts have different concepts which may not clearly map to the Latin notion of &ldquo;letter&rdquo;
+or our programmery notion of &ldquo;character&rdquo;.</p>
+
+<p>Unicode itself gives the term <a href="http://unicode.org/glossary/#character">&ldquo;character&rdquo;</a> multiple incompatible meanings, and as
+far as I know doesn&rsquo;t use the term in any normative text.</p>
+
+<p>Often, you need to deal with what is actually displayed to the user. A lot of terminal emulators do
+this wrong, and end up messing up cursor placement. I used to use irssi-xmpp to keep my Facebook and
+Gchat conversations in my IRC client, but I eventually stopped as I was increasingly chatting in
+Marathi or Hindi and I prefer using the actual script over romanizing<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and it would just break
+my terminal<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Also, they got rid of the XMPP bridge but I&rsquo;d already cut down on it by then.</p>
+
+<p>So sometimes, you need an API querying what the font is doing. Generally, when talking about the
+actual rendered image, the term &ldquo;glyph&rdquo; or &ldquo;glyph image&rdquo; is used.</p>
+
+<p>However, you can&rsquo;t always query the font. Text itself exists independent of rendering, and sometimes
+you need a rendering-agnostic way of segmenting it into &ldquo;characters&rdquo;.</p>
+
+<p>For this, Unicode has a concept of <a href="http://unicode.org/glossary/#grapheme_cluster">&ldquo;grapheme cluster&rdquo;</a>. There&rsquo;s also &ldquo;extended grapheme
+cluster&rdquo; (EGC), which is basically an updated version of the concept. In this post, whenever
+I use the term &ldquo;grapheme cluster&rdquo;, I am talking about EGCs.</p>
+
+<p>The term is defined and explored in <a href="http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries">UAX #29</a>. It starts by pinning down the still-nebulous
+concept of &ldquo;user-perceived character&rdquo; (&ldquo;a basic unit of a writing system for a language&rdquo;),
+and then declares the concept of a &ldquo;grapheme cluster&rdquo; to be an approximation to this notion
+that we can determine programmatically.</p>
+
+<p>A rough definition of grapheme cluster is a &ldquo;horizontally segmentable unit of text&rdquo;.</p>
+
+<p>The spec goes into detail as to the exact algorithm that segments text at grapheme cluster
+boundaries. All of the examples I gave in the first paragraph of this section are single grapheme
+clusters. So is &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo; (or &ldquo;ᄀᄀᄀ&#x1100;&#x1161;&#x11A8;ᆨᆨ&rdquo;), which apparently is considered a
+single syllable block in Hangul even though it is not of the typical form of leading consonant +
+vowel + optional tail consonant, but is not something you&rsquo;d see in modern Korean. The spec
+explicitly talks of this case so it seems to be on purpose. I like this string because nothing I
+know of renders it as a single glyph; so you can easily use it to tell if a particular segmentation-
+aware operation uses grapheme clusters as segmentation. If you try and select it, in most browsers
+you will be forced to select the whole thing, but backspace will delete the jamos one by one. For
+the second string, backspace will decompose the core syllable block too (in the first string the
+syllable block &#x1100;&#x1161;&#x11A8; is &ldquo;precomposed&rdquo; as a single code point, in the second one I
+built it using combining jamos).</p>
+
+<p>Basically, unless you have very specific requirements or are able to query the font, use an API that
+segments strings into grapheme clusters wherever you need to deal with the notion of &ldquo;character&rdquo;.</p>
+
+<h2>Language defaults</h2>
+
+<p>Now, a lot of languages by default are now using Unicode-aware encodings. This is great. It gets rid
+of the misconception that characters are one byte long.</p>
+
+<p>But it doesn&rsquo;t get rid of the misconception that user-perceived characters are one code point long.</p>
+
+<p>There are only two languages I know of which handle this well: Swift and Perl 6. I don&rsquo;t know much
+about Perl 6&rsquo;s thing so I can&rsquo;t really comment on it, but I am really happy with what Swift does:</p>
+
+<p>In Swift, the <code>Character</code> type is an extended grapheme cluster. This does mean that a
+character itself is basically a string, since EGCs can be arbitrarily many code points long.</p>
+
+<p>All the APIs by default deal with EGCs. The length of a string is the number of EGCs in it. They
+are indexed by EGC. Iteration yields EGCs. The default comparison algorithm uses unicode
+canonical equivalence, which I think is kind of neat. Of course, APIs that work with code
+points are exposed too, you can iterate over the code points using <code>.unicodeScalars</code>.</p>
+
+<p>The internal encoding itself is &hellip; weird (and as far as I can tell not publicly exposed), but as a
+higher level language I think it&rsquo;s fine to do things like that.</p>
+
+<p>I strongly feel that languages should be moving in this direction, having defaults involving
+grapheme clusters.</p>
+
+<p>Rust, for example, gets a lot of things right &ndash; it has UTF-8 strings. It internally uses byte
+indices in slices. Explicit slicing usually uses byte indices too, and will panic if out of bounds.
+The non-O(1) methods are all explicit, since you will use an iterator to perform the operation (E.g.
+<code>.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
+to coalesce the cost with nearby iterations &ndash; if you are going to do multiple <code>O(n)</code> things, do
+them in a single iteration! Rust <code>char</code>s represent code points. <code>.char_indices()</code> is
+a useful string iteration method that bridges the gap between byte indexing and code points.</p>
+
+<p>However, while the documentation does mention grapheme clusters, the stdlib is not aware of the
+concept of grapheme clusters at all. The default &ldquo;fundamental&rdquo; unit of the string in Rust is
+a code point, and the operations revolve around that. If you want grapheme clusters, you
+may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code>unicode-segmentation</code></a></p>
+
+<p>Now, Rust is a systems programming language and it just wouldn&rsquo;t do to have expensive grapheme
+segmentation operations all over your string defaults. I&rsquo;m very happy that the expensive <code>O(n)</code>
+operations are all only possible with explicit acknowledgement of the cost. So I do think that going
+the Swift route would be counterproductive for Rust. Not that it <em>can</em> anyway, due to backwards
+compatibility :)</p>
+
+<p>But I would prefer if the grapheme segmentation methods were in the stdlib (they used to be).
+This is probably not something that will happen, though I should probably push for the unicode
+crates being move into the nursery at least.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Emoji may not render as a single glyph depending on the font.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>While writing this paragraph I discovered that wrapping text that contains lots of family emoji hangs Sublime. Neat.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>It&rsquo;s possible to make work. You need a good terminal emulator, with the right settings, the right settings in your env vars, the right settings in irssi, and the right settings in screen. I think my current setup works well with non-ascii text but I&rsquo;m not sure what I did to make it happen.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>Part of the reason here is that I just find romanization confusing. There are some standardized ways to romanize which don&rsquo;t get used much. My friends and I romanize one way, different from the standardizations. My family members romanize things a completely different way and it&rsquo;s a bit hard to read. Then again, romanization <em>does</em> hide the fact that my spelling in Hindi is atrocious :)<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2017-01-14T10:13:18-08:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>14</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>10:13 am</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/" data-via="" data-counturl="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/" title="Previous Post: Rust Tidbits: What is a lang item?">&laquo; Rust Tidbits: What is a lang item?</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/">Let&#8217;s Stop Ascribing Meaning to Code Points</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">Rust Tidbits: What Is a Lang Item?</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/01/10/rust-tidbits-box-is-special/">Rust Tidbits: Box Is Special</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2016/12/02/reflections-on-rusting-trust/">Reflections on Rusting Trust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2016/08/18/gc-support-in-rust-api-design/">GC Support in Rust: API Design</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
