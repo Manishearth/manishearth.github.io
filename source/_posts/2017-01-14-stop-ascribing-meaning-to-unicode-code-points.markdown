@@ -6,6 +6,8 @@ comments: true
 categories: programming
 ---
 
+_Update: This post got a sequel, [Breaking our latin-1 assumptions][breakl1]._
+
 I've seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
 misconception I've seen is that _code points have cross-language intrinsic meaning_.
 
@@ -19,6 +21,7 @@ If you like reading about unicode, you might also want to go through [Eevee's ar
 on the dark corners of unicode. Great read!
 
  [vee]: https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/
+ [breakl1]: http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions/
 
 ## Encodings
 
