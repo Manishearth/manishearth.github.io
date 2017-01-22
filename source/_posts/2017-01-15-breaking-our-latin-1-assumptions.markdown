@@ -163,15 +163,19 @@ These scripts don't use spaces to split words. Instead, they have rules for what
 of characters start and end a word. This can be determined programmatically, however IIRC the
 Unicode spec does not attempt to deal with this. There are libraries you can use here instead.
 
-## Turkish and German
+## Latin scripts themselves!
 
-Turkish is actually a latin-based script. But it has a quirk: The uppercase of "i" is
+Turkish is a latin-based script. But it has a quirk: The uppercase of "i" is
 a dotted "İ", and the lowercase of "I" is "ı". If doing case-based operations, try to use
 a Unicode-aware library, and try to provide the locale if possible.
 
 Also, not all code points have a single-codepoint uppercase version. The eszett (ß) capitalizes
 to "SS". There's also the "capital" eszett ẞ, but its usage seems to vary and I'm not exactly
 sure how it interacts here.
+
+While Latin-1 uses precomposed characters, Unicode also introduces ways to specify the same
+characters via combining diacritics. Treating these the same involves using the normalization
+algorithms (NFC/NFD).
 
 ## Emoji
 
