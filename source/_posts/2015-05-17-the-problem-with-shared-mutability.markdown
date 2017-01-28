@@ -6,6 +6,10 @@ comments: true
 categories: rust mozilla programming
 ---
 
+_Edit (Jan 2017): I re-discovered [Niko's post][niko] which touches on this and reaches for the same realization. I suspect I subconsciously got the idea for this from that post, at least in part._
+
+ [niko]: http://smallcultfollowing.com/babysteps/blog/2013/06/11/on-the-connection-between-memory-management-and-data-race-freedom/
+
 This is a post that I've been meaning to write for a while now; and the release of Rust 1.0 gives
 me the perfect impetus to go ahead and do it.
 
@@ -157,7 +161,14 @@ This would still cause problems with more complex situations involving multidime
 > Aliasing with mutability in a sufficiently complex, single-threaded program is effectively the same thing as
 > accessing data shared across multiple threads without a lock
 
-(The above is my paraphrasing of someone else's quote; but I can't find the original or remember who made it)
+<s>(The above is my paraphrasing of someone else's quote; but I can't find the original or remember who made it)</s>
+
+Edit (Jan 2017): I found the original, it's a comment by [kmc]:
+
+> My intuition is that code far away from my code _might as well be in another thread_,
+> for all I can reason about what it will do to shared mutable state.
+
+ [kmc]: https://www.reddit.com/r/rust/comments/2x0h17/whats_your_killer_rust_feature/cow3zod/
 
 Let's step back a bit and figure out why we need locks in multithreaded programs. The way caches and memory work;
 we'll never need to worry about two processes writing to the same memory location simultaneously and coming up with

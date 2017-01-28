@@ -36,7 +36,7 @@ but we really don't want these creeping into real-world code, either by accident
 
 
  [underhanded]: https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html
- [c]: www.underhanded-c.org
+ [c]: http://www.underhanded-c.org
  [gankro]: https://github.com/Gankro/thesis/blob/master/thesis.pdf
  [prize]: https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize
 
