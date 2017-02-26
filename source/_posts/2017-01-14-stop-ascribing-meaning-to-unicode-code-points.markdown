@@ -133,8 +133,8 @@ far as I know doesn't use the term in any normative text.
 Often, you need to deal with what is actually displayed to the user. A lot of terminal emulators do
 this wrong, and end up messing up cursor placement. I used to use irssi-xmpp to keep my Facebook and
 Gchat conversations in my IRC client, but I eventually stopped as I was increasingly chatting in
-Marathi or Hindi and I prefer using the actual script over romanizing[^5], and it would just break
-my terminal[^2]. Also, they got rid of the XMPP bridge but I'd already cut down on it by then.
+Marathi or Hindi and I prefer using the actual script over romanizing[^2], and it would just break
+my terminal[^5]. Also, they got rid of the XMPP bridge but I'd already cut down on it by then.
 
 So sometimes, you need an API querying what the font is doing. Generally, when talking about the
 actual rendered image, the term "glyph" or "glyph image" is used.
