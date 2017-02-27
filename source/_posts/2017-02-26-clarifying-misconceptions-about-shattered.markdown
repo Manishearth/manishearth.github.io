@@ -123,7 +123,7 @@ begin embedded image                  |
     random nonce of length N          | (comment ends here) 
                                      ---
     image 1, length L                 | String C
-    jpg EOF byte (1 byte)             |
+    jpg EOF byte (2 bytes)            |
     image 2                           |
 end embedded image                    |
 
