@@ -36,7 +36,7 @@ you can upload two images and get a PDF with collisions in it)
 I explained this a bit in my older post about [zero-knowledge-proofs][zkp].
 
 In essence, a hash function takes some data (usually of arbitrary size), and produces a value called
-a _hash_ (usually of fixed size). Thd function has some additional properties:
+a _hash_ (usually of fixed size). The function has some additional properties:
 
  - In almost all cases, a small perturbation in the input will lead to a large perturbation in the hash
  - Given an input and its hash, it is computationally hard to find an alternate input producing the same hash
