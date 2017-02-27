@@ -167,11 +167,15 @@ such a deception is being carried out.
 
 Don't check colliding PDFs into SVN. [Things break][webkit].
 
-Outside the world of PDFs, little has changed. It's still a bad idea to use SHA-1. It's still
-possible for people to generate entirely new collisions like Google did, though this needs a lot of
-resources. It's possible that someone with resources has already generated such a "universal-key
-collision" for some other file format[^1] and will use it on you, but this was equally possible
-before Google published their attack.
+In some cases it is possible to use the PDF collision in other formats. For example,
+[it can be used to create colliding HTML documents][html]. I think it can be used to colide
+ZIP files too.
+
+Outside the world of complex file formats, little has changed. It's still a bad idea to use SHA-1.
+It's still possible for people to generate entirely new collisions like Google did, though this
+needs a lot of resources. It's possible that someone with resources has already generated such a
+"universal-key collision" for some other file format[^1] and will use it on you, but this was
+equally possible before Google published their attack.
 
 This does not make it easier to collide with arbitrary hashes -- if someone else
 has uploaded a document with a hash, and you trust them to not be playing any tricks,
@@ -182,4 +186,5 @@ and broadcast your trust in document A with hash `SHA(A)`, and then the attacker
 document B.
 
  [webkit]: https://bugs.webkit.org/show_bug.cgi?id=168774#c27
+ [html]: https://mobile.twitter.com/arw/status/834883944898125824
  [^1]: Google's specific collision was designed to be a "universal key", since A and B are designed to have the image-switching mechanism built into it. Some other collision may not be like this; it could just be a collision of two images (or whatever) with no such switching mechanism. It takes about the same effort to do either of these, however, so if you have a file format that can be exploited to create a switching mechanism, it would always make more sense to build one into any collision you look for.
