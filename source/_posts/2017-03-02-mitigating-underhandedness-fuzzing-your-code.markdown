@@ -77,7 +77,7 @@ $ cargo install cargo-fuzz
 Now, within your crate, initialize the fuzz setup:
 
 ```sh
-$ cargo fuzz init
+$ cargo fuzz --init
 ```
 
 This will create a fuzzing crate in `fuzz/`, with a single "fuzz target", `fuzzer_script_1`.
