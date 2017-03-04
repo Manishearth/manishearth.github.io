@@ -9,7 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="This week Google published a SHA-1 collision. There&rsquo;s a lot of confusion about the implications of this. A lot of this is due to differences of &hellip;">
+  <meta name="description" content="This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -81,6 +81,176 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/">Mitigating Underhandedness: Fuzzing Your Code</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-03-02T16:13:54-08:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>2</span><span class='date-suffix'>nd</span>, <span class='date-year'>2017</span></span> <span class='time'>4:13 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
+
+<p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
+let&rsquo;s talk more about how to keep your code working and free from bugs/underhandedness.</p>
+
+<p><a href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/">Previously, we talked about Clippy</a>.</p>
+
+<p>Now, really, underhanded bugs are just another form of bug. And how do we find bugs? We test!</p>
+
+<p>We write unit tests. We run the code under Valgrind, ASan, MSan, UBSan, TSan, and any other sanitizer
+we can get our hands on. Tests tests tests. More tests. Tests.</p>
+
+<p>But, there&rsquo;s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
+fed to your code after which you check whatever invariants your code has. There&rsquo;s
+no guarantee that the test cases you write will exercise all the code paths in your
+program. This applies for sanitizers too, sanitizers are limited to testing the code paths
+that your test cases hit.</p>
+
+<p>Of course, you can use code coverage tools to ensure that all these code paths will be hit.
+However, there&rsquo;s a conflict here &ndash; your code will have many code paths that are
+<em>not supposed to be hit ever</em>. Things like redundant bounds checks, null checks, etc.
+In Rust programs such code paths generally use panics.</p>
+
+<p>Now, these code paths are never <em>supposed</em> to be hit, so they&rsquo;ll never show up in your
+code coverage. But you don&rsquo;t have a guarantee that they can never be hit, short
+of formally verifying your program. The only solution here is writing more test cases.</p>
+
+<p>Aside from that, even ignoring those code paths, you still need to manually write
+test cases for everything. For each possible code path in your code, if you want to
+be sure.</p>
+
+<p>Who wants to manually write a million test cases?</p>
+
+<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400"></p>
+
+<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400"></p>
+
+<p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
+codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
+codepaths are taken. You write tests for the fuzzer such that they can accept arbitrary input, and
+the fuzzer will find cases where they crash or panic.</p>
+
+<p>One of the most popular fuzzers out there is <a href="http://lcamtuf.coredump.cx/afl/">AFL</a>, which takes a binary and feeds it random
+input. Rust <a href="https://github.com/rust-fuzz/afl.rs">has a library that you can use for running AFL</a>, however it currently needs
+to be run via a Docker image or needs a recompilation of rustc, since it adds a custom LLVM pass.
+We&rsquo;re working on making this step unnecessary.</p>
+
+<p>However, as of a few weeks ago, we now have bindings for <a href="http://llvm.org/docs/LibFuzzer.html">libFuzzer</a>, which uses existing
+instrumentation options built in to LLVM itself! libFuzzer works a bit differently; instead
+of giving it a binary, you write a function in a special way and give it a library containing
+that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
+inside the binary itself and it doesn&rsquo;t need to execute a new program each time.</p>
+
+<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo install cargo-fuzz
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now, within your crate, initialize the fuzz setup:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz init
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single &ldquo;fuzz target&rdquo;, <code>fuzzer_script_1</code>.
+You can add more such targets with <code>cargo fuzz --add name_of_target</code>. Fuzz targets are small libraries
+with a single function in them; the function that will be called over and over again by the fuzzer.
+It is up to you to fill in the body of this function, such that the program will crash or panic
+if and only if something goes wrong.</p>
+
+<p>For example, for the <code>unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
+takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
+the new string is the same.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">extern</span> <span class="k">fn</span> <span class="n">go</span><span class="p">(</span><span class="n">data</span><span class="o">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// we only deal with unicode input</span>
+</span><span class='line'>    <span class="c1">// bail early, *without panicking* if the input isn&#39;t utf8</span>
+</span><span class='line'>    <span class="k">if</span> <span class="kd">let</span> <span class="nb">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="kt">str</span><span class="o">::</span><span class="n">from_utf8</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// split into graphemes, recollect</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">UnicodeSegmentation</span><span class="o">::</span><span class="n">graphemes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="k">true</span><span class="p">).</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
+</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c1">// split into words, recollect</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">split_word_bounds</span><span class="p">().</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
+</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The other targets ensure that the forward and reverse word/grapheme
+iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
+(silently failing  &ndash; NOT panicking &ndash; if not possible), and then use the string as an input
+testcase.</p>
+
+<p>Now, these targets will panic if the test fails, and the fuzzer will try and force that panic to
+happen. But also, these targets put together exercise most of the API surface of the crate, so
+the fuzzer may also find panics (or even segmentation faults!) in the crate itself. For example,
+the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn&rsquo;t itself assert; all it does is try to parse the given
+string. The fuzzer will try to get the URL parser to panic.</p>
+
+<p>To run a fuzz script:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz --fuzz-target fuzzer_script_1
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will start the fuzzer, running until it finds a crash or panic. It may also
+find other things like inputs which make the code abnormally slow.</p>
+
+<p>Fuzzing can find some interesting bugs. For example, the unicode-segmentation
+fuzzers found <a href="https://github.com/unicode-rs/unicode-segmentation/issues/19">this bug</a>, where an emoji followed by <em>two</em> skin tone modifiers
+isn&rsquo;t handled correctly. We&rsquo;d probably never have been able to come up with this testcase on our
+own. But the fuzzer could find it!</p>
+
+<p>The Rust Cap&#8217;n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
+are more such examples <a href="https://github.com/rust-fuzz/cargo-fuzz#trophy-case">in the trophy case</a> (be sure to add any of your own findings
+to the trophy case, too!)</p>
+
+<p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
+But you can start taking it for a spin now, and finding bugs!</p>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -3366,201 +3536,6 @@ made me write my <a href="http://manishearth.github.io/blog/2016/08/10/interacti
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/">Interactive Sudoku Zero-knowledge Proof</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-<time class='entry-date' datetime='2016-08-10T12:21:19-07:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>12:21 pm</span></time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Back in March I was particularly interested in Zero-Knowledge Proofs. At the time, I wrote
-<a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">a long blog post</a> introducing them and explaining how the ZKP for generic execution
-works.</p>
-
-<p>I was really enjoying learning about them, so I decided to do a presentation on them in my crypto
-course. Sadly there wasn&rsquo;t going to be time for explaining the structure of the proof for general
-execution, but I could present something more fun: Sudoku.</p>
-
-<p>Sudoku solutions can be proven via ZKP. That is to say, if Peggy has a solution to Victor&rsquo;s Sudoku
-problem, she can prove that she has a valid solution without ever revealing any information about
-her solution to Victor (aside from the fact that it is valid).</p>
-
-<p>To make the ZKP easier to explain, I wrote an <a href="https://manishearth.github.io/sudoku-zkp/zkp.html">interactive version of it</a>.</p>
-
-<p>I planned to write about it then, but completely forgot till now. Oops.</p>
-
-<p>I&rsquo;m first going to explain how the ZKP is carried out before I explain how the interactive verifier
-works. If you aren&rsquo;t familiar with ZKPs, you might want to read
-<a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">my previous post on the subject</a> up to and including the part about proving graph colorings.</p>
-
-<h2>Proving Sudoku</h2>
-
-<p>This proof is going to be carried out very similarly to the graph coloring proof. Indeed, Sudoku can
-be reduced to a graph coloring problem, though that&rsquo;s not how we&rsquo;re going to obtain the ZKP.</p>
-
-<p>Victor has a Sudoku problem:</p>
-
-<p><img src="/images//sudoku-zkp/sudoku-problem.png" width="300"></p>
-
-<p>Peggy has a solution:</p>
-
-<p><img src="/images//sudoku-zkp/sudoku-solution.png" width="300"></p>
-
-<p>In order to not leak information about her solution, Peggy permutes it:</p>
-
-<p><img src="/images//sudoku-zkp/sudoku-solution-permuted.png" width="300"></p>
-
-<p>Basically, there is a 1-1 mapping between the old digits and the new ones. In this specific
-permutation, all 3s are replaced by 4s, all 1s by 5s, etc.</p>
-
-<p>She now commits to this permutation by committing to every individual cell. A random nonce is
-obtained for each cell, and the contents of that cell are hashed along with the nonce. This
-is the same commitment procedure used in the graph coloring ZKP.</p>
-
-<p>These commitments are now sent over to Victor.</p>
-
-<p>Victor ponders for a bit, and demands that Peggy reveal the third row of the sudoku square.</p>
-
-<p><img src="/images//sudoku-zkp/victor-ask.png" width="300"></p>
-
-<p>(Note that this is the non-permuted problem statement)</p>
-
-<p>This row is marked in orange. There are some additional elements marked in green, which I shall
-get to shortly.</p>
-
-<p>Peggy reveals the permuted values for this row:</p>
-
-<p><img src="/images//sudoku-zkp/peggy-reveal-orange.png" width="300"></p>
-
-<p>Victor can now verify that all digits 1-9 appear within this permuted row, and that they match the
-commitments. This means that they appear in the original solution too (since permutation doesn&rsquo;t
-change this fact), and, at least for this row, the solution is correct. If Peggy didn&rsquo;t have a
-solution, there was a chance she&rsquo;d be caught in this round if Victor had asked for the right
-set of 9 squares to be revealed.</p>
-
-<p>The procedure can be repeated (with a new permutation each time) to minimize this chance, with
-Victor asking to reveal a row, column, or 3x3 subsquare each time, until he is certain that Peggy
-has a solution.</p>
-
-<p>But wait! This only works towards proving that Peggy has a valid Sudoku solution, not that this
-is <em>the</em> solution to Victor&rsquo;s specific problem. Victor only verified that each row/column/subsquare
-had no duplicates, a property which is true for all sudoku solutions!</p>
-
-<p>This is where the green squares come in. For any given set of &ldquo;orange squares&rdquo; (a row, column, or
-3x3 subsquare), we take the &ldquo;preset&rdquo; digits appearing in the problem statement (In this case: 7, 8,
-and 6) in that set of squares. All other instances of those digits preset in the problem statement
-form the set of &ldquo;green squares&rdquo;:</p>
-
-<p><img src="/images//sudoku-zkp/victor-ask.png" width="300"></p>
-
-<p>Peggy reveals the permuted values for both the green and orange squares each time:</p>
-
-<p><img src="/images//sudoku-zkp/peggy-reveal-both.png" width="300"></p>
-
-<p>In addition to verifying that there are no duplicates in the orange squares, Victor additionally
-verifies that the permutation is consistent. For example, the 7th element in that row is a 6, which
-is already preset in the problem statement. There are two other 6s in the problem statement, one in
-the 5th row 8th column, and one in the 7th row 1st column. If the permutation is consistent, their
-corresponding squares in the revealed portion of the permuted solution should all have the same
-digit. In this case, that number is 1. Similarly, the 5th element in that row is a preset 8, and
-there&rsquo;s a corresponding green square in the 5th row last column that also has an 8. In the permuted
-solution, Victor verifies that they both have the same digit, in this case 7.</p>
-
-<p>This lets Victor ensure that Peggy has a solution to his sudoku problem. The fact that two given
-squares must share the same digit is invariant under permutations, so this can be safely verified.
-In fact, a sudoku problem is really just a problem saying &ldquo;Fill these 81 squares with 9 symbols such
-that there are no duplicates in any row/column/subsquare, and these three squares have the same
-symbol in them, and these five squares have the same symbol in them, and &hellip;&rdquo;. So that&rsquo;s all we
-verify: There should be no duplicates, and the digits in certain sets of squares should be the same.</p>
-
-<p>Note that revealing the green squares doesn&rsquo;t reveal additional information about Peggy&rsquo;s solution.
-Assuming Peggy&rsquo;s solution is correct, from comparing the problem statement with the
-revealed/permuted values, Victor already <em>knows</em> that in the permutation, 7 has become 6, 8 has
-become 7, and 6 has become 1. So he already knows what the other preset green squares contain, he
-is just verifying them.</p>
-
-<p>We cannot reveal anything <em>more</em> than the green squares, since that would reveal additional
-information about the permutation and thus the solution.</p>
-
-<p>Edit: This actually <em>still</em> isn&rsquo;t enough, which was pointed out to me by &ldquo;dooglius&rdquo;
-<a href="https://github.com/Manishearth/sudoku-zkp/issues/1">here</a>. Basically, if the sudoku problem has two digits which only appear once each,
-there is nothing that can stop Peggy from coming up with a solution where these two digits have been
-changed to something else (since they&rsquo;ll never be in a green square). Fixing this is easy, we allow
-Victor to ask Peggy to reveal just the permuted values of the presets (without simultaneously
-revealing a row/column/subsquare). Victor can then verify that the preset-permutation mapping is
-consistent (all presets of the same value map to the same permutation) and 1-1.</p>
-
-<p>This check actually obviates the need of the green squares entirely. As long as there is a chance
-that Victor will ask for the presets to be revealed instead of a row/column/subsquare, Peggy cannot
-try to trick Victor with the solution of a different sudoku problem without the risk of getting
-caught when Victor asks for the presets to be revealed. However, the green squares leak no
-information, so there&rsquo;s no problem in keeping them as a part of the ZKP as a way to reduce the
-chances of Peggy duping Victor.</p>
-
-<h2>The interactive verifier</h2>
-
-<p>Visit the <a href="https://manishearth.github.io/sudoku-zkp/zkp.html">interactive verifier</a>. There&rsquo;s a sudoku square at the top which you can fill
-with a problem, and you can fill the solution in on the first square on the Prover side &ndash; fill this
-in and click Start. Since I know nobody&rsquo;s going to actually do that, there&rsquo;s a &ldquo;Fill with known
-problem/solution&rdquo; that does this for you.</p>
-
-<p>Once you&rsquo;ve initiated the process, the ball is in the Prover&rsquo;s court. The Prover must first permute
-the solution by clicking the Permute button. You can edit the permutation if you like (to introduce
-a flaw), or manually do this after clicking the button.</p>
-
-<p>Once you&rsquo;ve clicked the button, generate nonces by clicking the next one, &ldquo;Populate Nonces&rdquo;. These,
-too can be edited. You can generate hashes (which can also be edited) by clicking the next button,
-and after that send the hashes (commitments) over to the Verifier&rsquo;s side.</p>
-
-<p>The ball is now in the Verifier&rsquo;s court. As you can see, there&rsquo;s a set of hashes on the Verifier&rsquo;s
-side. The Verifier only knows the problem statement and whatever is visible on their side of the
-screen, and nothing more.</p>
-
-<p>You, acting on behalf of the Verifier, can now select a row/column/subsquare/preset using the
-dropdown and text box on the Verifier. As you select, the orange/green squares that are going to be
-revealed will be shown. When satisfied with your choice, click &ldquo;Reveal&rdquo;, and the Prover will
-populate your squares with the permuted values and nonces. &ldquo;Verify&rdquo; will verify that:</p>
-
-<ul>
-<li>The appropriate elements and hashes are revealed</li>
-<li>The hash is equal to <code>SHA256(nonce + "-" + digit)</code></li>
-<li>The orange squares contain distinct digits.</li>
-<li>The green squares contain digits that match with the orange squares they correspond to from the problem solution</li>
-</ul>
-
-
-<p>Once you click verify, it will show the probability of correctness (this isn&rsquo;t an exact value, it&rsquo;s
-calculated using an approximate formula that doesn&rsquo;t depend on the problem statement), and the ball
-moves back into Peggy&rsquo;s court, who can permute her solution again and continue. The probability
-slowly increases each round.</p>
-
-<p>Doing this manually till it reaches 99% is boring, so there&rsquo;s a button at the top (&ldquo;Run
-automatically&rdquo;) which can be clicked to run it for a given number of rounds, at any stage in the
-process once started. If you tamper with one of the values in the permuted solution, and run it
-for ~20 runs, it usually gets caught.</p>
-
-<p>Have fun!</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/2">&larr; Older</a>
@@ -3589,6 +3564,10 @@ for ~20 runs, it usually gets caught.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/">Mitigating Underhandedness: Fuzzing Your Code</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2017/02/26/clarifying-misconceptions-about-shattered/">Clarifying Misconceptions About SHAttered</a>
       </li>
     
@@ -3602,10 +3581,6 @@ for ~20 runs, it usually gets caught.</p>
     
       <li class="post">
         <a href="/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/">Let&#8217;s Stop Ascribing Meaning to Code Points</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">Rust Tidbits: What Is a Lang Item?</a>
       </li>
     
   </ul>

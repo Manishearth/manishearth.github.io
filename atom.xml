@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-02-27T09:26:33-08:00</updated>
+  <updated>2017-03-04T04:03:36-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,156 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Mitigating Underhandedness: Fuzzing Your Code]]></title>
+    <link href="http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/"/>
+    <updated>2017-03-02T16:13:54-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code</id>
+    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
+
+<p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
+let&rsquo;s talk more about how to keep your code working and free from bugs/underhandedness.</p>
+
+<p><a href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/">Previously, we talked about Clippy</a>.</p>
+
+<p>Now, really, underhanded bugs are just another form of bug. And how do we find bugs? We test!</p>
+
+<p>We write unit tests. We run the code under Valgrind, ASan, MSan, UBSan, TSan, and any other sanitizer
+we can get our hands on. Tests tests tests. More tests. Tests.</p>
+
+<p>But, there&rsquo;s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
+fed to your code after which you check whatever invariants your code has. There&rsquo;s
+no guarantee that the test cases you write will exercise all the code paths in your
+program. This applies for sanitizers too, sanitizers are limited to testing the code paths
+that your test cases hit.</p>
+
+<p>Of course, you can use code coverage tools to ensure that all these code paths will be hit.
+However, there&rsquo;s a conflict here &ndash; your code will have many code paths that are
+<em>not supposed to be hit ever</em>. Things like redundant bounds checks, null checks, etc.
+In Rust programs such code paths generally use panics.</p>
+
+<p>Now, these code paths are never <em>supposed</em> to be hit, so they&rsquo;ll never show up in your
+code coverage. But you don&rsquo;t have a guarantee that they can never be hit, short
+of formally verifying your program. The only solution here is writing more test cases.</p>
+
+<p>Aside from that, even ignoring those code paths, you still need to manually write
+test cases for everything. For each possible code path in your code, if you want to
+be sure.</p>
+
+<p>Who wants to manually write a million test cases?</p>
+
+<p><img class="center" src="http://manishearth.github.io/images/post/memes/aint-nobody.jpg" width="400"></p>
+
+<p><img class="center" src="http://manishearth.github.io/images/post/memes/that-would-be-great.jpg" width="400"></p>
+
+<p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
+codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
+codepaths are taken. You write tests for the fuzzer such that they can accept arbitrary input, and
+the fuzzer will find cases where they crash or panic.</p>
+
+<p>One of the most popular fuzzers out there is <a href="http://lcamtuf.coredump.cx/afl/">AFL</a>, which takes a binary and feeds it random
+input. Rust <a href="https://github.com/rust-fuzz/afl.rs">has a library that you can use for running AFL</a>, however it currently needs
+to be run via a Docker image or needs a recompilation of rustc, since it adds a custom LLVM pass.
+We&rsquo;re working on making this step unnecessary.</p>
+
+<p>However, as of a few weeks ago, we now have bindings for <a href="http://llvm.org/docs/LibFuzzer.html">libFuzzer</a>, which uses existing
+instrumentation options built in to LLVM itself! libFuzzer works a bit differently; instead
+of giving it a binary, you write a function in a special way and give it a library containing
+that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
+inside the binary itself and it doesn&rsquo;t need to execute a new program each time.</p>
+
+<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo install cargo-fuzz
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now, within your crate, initialize the fuzz setup:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz init
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single &ldquo;fuzz target&rdquo;, <code>fuzzer_script_1</code>.
+You can add more such targets with <code>cargo fuzz --add name_of_target</code>. Fuzz targets are small libraries
+with a single function in them; the function that will be called over and over again by the fuzzer.
+It is up to you to fill in the body of this function, such that the program will crash or panic
+if and only if something goes wrong.</p>
+
+<p>For example, for the <code>unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
+takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
+the new string is the same.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">extern</span> <span class="k">fn</span> <span class="n">go</span><span class="p">(</span><span class="n">data</span><span class="o">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// we only deal with unicode input</span>
+</span><span class='line'>    <span class="c1">// bail early, *without panicking* if the input isn&#39;t utf8</span>
+</span><span class='line'>    <span class="k">if</span> <span class="kd">let</span> <span class="nb">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="kt">str</span><span class="o">::</span><span class="n">from_utf8</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// split into graphemes, recollect</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">UnicodeSegmentation</span><span class="o">::</span><span class="n">graphemes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="k">true</span><span class="p">).</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
+</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c1">// split into words, recollect</span>
+</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">split_word_bounds</span><span class="p">().</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
+</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The other targets ensure that the forward and reverse word/grapheme
+iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
+(silently failing  &ndash; NOT panicking &ndash; if not possible), and then use the string as an input
+testcase.</p>
+
+<p>Now, these targets will panic if the test fails, and the fuzzer will try and force that panic to
+happen. But also, these targets put together exercise most of the API surface of the crate, so
+the fuzzer may also find panics (or even segmentation faults!) in the crate itself. For example,
+the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn&rsquo;t itself assert; all it does is try to parse the given
+string. The fuzzer will try to get the URL parser to panic.</p>
+
+<p>To run a fuzz script:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz --fuzz-target fuzzer_script_1
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will start the fuzzer, running until it finds a crash or panic. It may also
+find other things like inputs which make the code abnormally slow.</p>
+
+<p>Fuzzing can find some interesting bugs. For example, the unicode-segmentation
+fuzzers found <a href="https://github.com/unicode-rs/unicode-segmentation/issues/19">this bug</a>, where an emoji followed by <em>two</em> skin tone modifiers
+isn&rsquo;t handled correctly. We&rsquo;d probably never have been able to come up with this testcase on our
+own. But the fuzzer could find it!</p>
+
+<p>The Rust Cap&#8217;n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
+are more such examples <a href="https://github.com/rust-fuzz/cargo-fuzz#trophy-case">in the trophy case</a> (be sure to add any of your own findings
+to the trophy case, too!)</p>
+
+<p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
+But you can start taking it for a spin now, and finding bugs!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Clarifying Misconceptions About SHAttered]]></title>
@@ -5740,335 +5890,6 @@ we should figure out the tradeoffs as done above and pick one.</p>
 <p>By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 <li id="fn:5">
 <p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[The Problem With Single-threaded Shared Mutability]]></title>
-    <link href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/"/>
-    <updated>2015-05-17T17:56:59-07:00</updated>
-    <id>http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability</id>
-    <content type="html"><![CDATA[<p><em>Edit (Jan 2017): I re-discovered <a href="http://smallcultfollowing.com/babysteps/blog/2013/06/11/on-the-connection-between-memory-management-and-data-race-freedom/">Niko&rsquo;s post</a> which touches on this and reaches for the same realization. I suspect I subconsciously got the idea for this from that post, at least in part.</em></p>
-
-<p>This is a post that I&rsquo;ve been meaning to write for a while now; and the release of Rust 1.0 gives
-me the perfect impetus to go ahead and do it.</p>
-
-<p>Whilst this post discusses a choice made in the design of Rust; and uses examples in Rust; the principles discussed
-here apply to other languages for the most part. I&rsquo;ll also try to make the post easy to understand for those without
-a Rust background; please let me know if some code or terminology needs to be explained.</p>
-
-<p>What I&rsquo;m going to discuss here is the choice made in Rust to disallow having multiple mutable aliases
-to the same data (or a mutable alias when there are active immutable aliases),
-<strong>even from the same thread</strong>. In essence, it disallows one from doing things like:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="n">Vec</span><span class="o">::</span><span class="n">new</span><span class="p">();</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>    <span class="kd">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// Take a mutable reference to `x`</span>
-</span><span class='line'>    <span class="n">ptr</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Allowed</span>
-</span><span class='line'>    <span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Not allowed (will not compile): as long as `ptr` is active,</span>
-</span><span class='line'>                  <span class="c1">// x cannot be read from ...</span>
-</span><span class='line'>    <span class="n">x</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>    <span class="c1">// .. or written to</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// alternatively,</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="n">Vec</span><span class="o">::</span><span class="n">new</span><span class="p">();</span>
-</span><span class='line'><span class="n">x</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Allowed</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>    <span class="kd">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="c1">// Create an immutable reference</span>
-</span><span class='line'>    <span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ptr</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Allowed, nobody can mutate</span>
-</span><span class='line'>    <span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Similarly allowed</span>
-</span><span class='line'>    <span class="n">x</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Not allowed (will not compile): as long as `ptr` is active,</span>
-</span><span class='line'>               <span class="c1">// `x` is frozen for mutation</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This is essentially the &ldquo;Read-Write lock&rdquo; (RWLock) pattern, except it&rsquo;s not being used in a
-threaded context, and the &ldquo;locks&rdquo; are done via static analysis (compile time &ldquo;borrow checking&rdquo;).</p>
-
-<p>Newcomers to the language have the recurring question as to why this exists. <a href="http://doc.rust-lang.org/nightly/book/ownership.html">Ownership semantics</a>
-and immutable <a href="http://doc.rust-lang.org/nightly/book/references-and-borrowing.html">borrows</a> can be grasped because there are concrete examples from languages like C++ of
-problems that these concepts prevent. It makes sense that having only one &ldquo;owner&rdquo; and then multiple &ldquo;borrowers&rdquo; who
-are statically guaranteed to not stick around longer than the owner will prevent things like use-after-free.</p>
-
-<p>But what could possibly be wrong with having multiple handles for mutating an object? Why do we need an RWLock pattern? <sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup></p>
-
-<h2>It causes memory unsafety</h2>
-
-<p>This issue is specific to Rust, and I promise that this will be the only Rust-specific answer.</p>
-
-<p><a href="http://doc.rust-lang.org/nightly/book/enums.html">Rust enums</a> provide a form of algebraic data types. A Rust enum is allowed to &ldquo;contain&rdquo; data,
-for example you can have the enum</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">StringOrInt</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Str</span><span class="p">(</span><span class="n">String</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Int</span><span class="p">(</span><span class="kt">i64</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>which gives us a type that can either be a variant <code>Str</code>, with an associated string, or a variant <code>Int</code><sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, with an associated integer.</p>
-
-<p>With such an enum, we could cause a segfault like so:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nb">Str</span><span class="p">(</span><span class="s">&quot;Hi!&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">());</span> <span class="c1">// Create an instance of the `Str` variant with associated string &quot;Hi!&quot;</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// Create a mutable alias to x</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">if</span> <span class="kd">let</span> <span class="nb">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">insides</span><span class="p">)</span> <span class="o">=</span> <span class="n">x</span> <span class="p">{</span> <span class="c1">// If x is a `Str`, assign its inner data to the variable `insides`</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nb">Int</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Set `*y` to `Int(1), therefore setting `x` to `Int(1)` too</span>
-</span><span class='line'>    <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;x says: {}&quot;</span><span class="p">,</span> <span class="n">insides</span><span class="p">);</span> <span class="c1">// Uh oh!</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Here, we invalidated the <code>insides</code> reference because setting <code>x</code> to <code>Int(1)</code> meant that there is no longer a string inside it.
-However, <code>insides</code> is still a reference to a <code>String</code>, and the generated assembly would try to dereference the memory location where
-the pointer to the allocated string <em>was</em>, and probably end up trying to dereference <code>1</code> or some nearby data instead, and cause a segfault.</p>
-
-<p>Okay, so far so good. We know that for Rust-style enums to work safely in Rust, we need the RWLock pattern. But are there any other
-reasons we need the RWLock pattern? Not many languages have such enums, so this shouldn&rsquo;t really be a problem for them.</p>
-
-<h2>Iterator invalidation</h2>
-
-<p>Ah, the example that is brought up almost every time the question above is asked. While I&rsquo;ve been quite guilty of
-using this example often myself (and feel that it is a very appropriate example that can be quickly explained),
-I also find it to be a bit of a cop-out, for reasons which I will explain below. This is partly why I&rsquo;m writing
-this post in the first place; a better idea of the answer to The Question should be available for those who want
-to dig deeper.</p>
-
-<p>Iterator invalidation involves using tools like iterators whilst modifying the underlying dataset somehow.</p>
-
-<p>For example,</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">buf</span> <span class="o">=</span> <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="o">&amp;</span><span class="n">buf</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">buf</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Firstly, this will loop infinitely (if it compiled, which it doesn&rsquo;t, because Rust prevents this). The
-equivalent C++ example would be <a href="http://stackoverflow.com/questions/5638323/modifying-a-data-structure-while-iterating-over-it">this one</a>, which I <a href="http://manishearth.github.io/Presentations/Rust/#/1/2">use</a> at every opportunity.</p>
-
-<p>What&rsquo;s happening in both code snippets is that the iterator is really just a pointer to the vector and an index.
-It doesn&rsquo;t contain a snapshot of the original vector; so pushing to the original vector will make the iterator iterate for
-longer. Pushing once per iteration will obviously make it iterate forever.</p>
-
-<p>The infinite loop isn&rsquo;t even the real problem here. The real problem is that after a while, we could get a segmentation fault.
-Internally, vectors have a certain amount of allocated space to work with. If the vector is grown past this space,
-a new, larger allocation may need to be done (freeing the old one), since vectors must use contiguous memory.</p>
-
-<p>This means that when the vector overflows its capacity, it will reallocate, invalidating the reference stored in the
-iterator, and causing use-after-free.</p>
-
-<p>Of course, there is a trivial solution in this case &mdash; store a reference to the <code>Vec</code>/<code>vector</code> object inside
-the iterator instead of just the pointer to the vector on the heap. This leads to some extra indirection or a larger
-stack size for the iterator (depending on how you implement it), but overall will prevent the memory unsafety.</p>
-
-<p>This would still cause problems with more complex situations involving multidimensional vectors, however.</p>
-
-<h2>&ldquo;It&rsquo;s effectively threaded&rdquo;</h2>
-
-<blockquote><p>Aliasing with mutability in a sufficiently complex, single-threaded program is effectively the same thing as
-accessing data shared across multiple threads without a lock</p></blockquote>
-
-<p><s>(The above is my paraphrasing of someone else&rsquo;s quote; but I can&rsquo;t find the original or remember who made it)</s></p>
-
-<p>Edit (Jan 2017): I found the original, it&rsquo;s a comment by <a href="https://www.reddit.com/r/rust/comments/2x0h17/whats_your_killer_rust_feature/cow3zod/">kmc</a>:</p>
-
-<blockquote><p>My intuition is that code far away from my code <em>might as well be in another thread</em>,
-for all I can reason about what it will do to shared mutable state.</p></blockquote>
-
-<p>Let&rsquo;s step back a bit and figure out why we need locks in multithreaded programs. The way caches and memory work;
-we&rsquo;ll never need to worry about two processes writing to the same memory location simultaneously and coming up with
-a hybrid value, or a read happening halfway through a write.</p>
-
-<p>What we do need to worry about is the rug being pulled out underneath our feet. A bunch of related reads/writes
-would have been written with some invariants in mind, and arbitrary reads/writes possibly happening between them
-would invalidate those invariants. For example, a bit of code might first read the length of a vector, and then go ahead
-and iterate through it with a regular for loop bounded on the length.
-The invariant assumed here is the length of the vector. If <code>pop()</code> was called on the vector in some other thread, this invariant could be
-invalidated after the read to <code>length</code> but before the reads elsewhere, possibly causing a segfault or use-after-free in the last iteration.</p>
-
-<p>However, we can have a situation similar to this (in spirit) in single threaded code. Consider the following:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">some_big_thing</span><span class="p">();</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">len</span> <span class="o">=</span> <span class="n">x</span><span class="p">.</span><span class="n">some_vec</span><span class="p">.</span><span class="n">len</span><span class="p">();</span>
-</span><span class='line'><span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mf">0.</span><span class="p">.</span><span class="n">len</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="p">.</span><span class="n">do_something_complicated</span><span class="p">(</span><span class="n">x</span><span class="p">.</span><span class="n">some_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We have the same invariant here; but can we be sure that <code>x.do_something_complicated()</code> doesn&rsquo;t modify <code>x.some_vec</code> for
-some reason? In a complicated codebase, where <code>do_something_complicated()</code> itself calls a lot of other functions which may
-also modify <code>x</code>, this can be hard to audit.</p>
-
-<p>Of course, the above example is a simplification and contrived; but it doesn&rsquo;t seem unreasonable to assume that such
-bugs can happen in large codebases &mdash; where many methods being called have side effects which may not always be evident.</p>
-
-<p>Which means that in large codebases we have almost the same problem as threaded ones. It&rsquo;s very hard to maintain invariants
-when one is not completely sure of what each line of code is doing. It&rsquo;s possible to become sure of this by reading through the code
-(which takes a while), but further modifications may also have to do the same. It&rsquo;s impractical to do this all the time and eventually
-bugs will start cropping up.</p>
-
-<p>On the other hand, having a static guarantee that this can&rsquo;t happen is great. And when the code is too convoluted for
-a static guarantee (or you just want to avoid the borrow checker), a single-threaded RWlock-esque type called <a href="https://doc.rust-lang.org/core/cell/struct.RefCell.html">RefCell</a>
-is available in Rust. It&rsquo;s a type providing interior mutability and behaves like a runtime version of the borrow checker.
-Similar wrappers can be written in other languages.</p>
-
-<p>Edit: In case of many primitives like simple integers, the problems with shared mutability turn out to not be a major issue.
-For these, we have a type called <a href="http://doc.rust-lang.org/nightly/std/cell/struct.Cell.html">Cell</a> which lets these be mutated and shared simultaenously. This works on all <code>Copy</code>
-types; i.e. types which only need to be copied on the stack to be copied. (Unlike types involving pointers or other indirection)</p>
-
-<p>This sort of bug is a good source of reentrancy problems too.</p>
-
-<h2>Safe abstractions</h2>
-
-<p>In particular, the issue in the previous section makes it hard to write safe abstractions, especially with generic code.
-While this problem is clearer in the case of Rust (where abstractions are expected to be safe and preferably low-cost),
-this isn&rsquo;t unique to any language.</p>
-
-<p>Every method you expose has a contract that is expected to be followed. Many times, a contract is handled by type safety itself,
-or you may have some error-based model to throw out uncontractual data (for example, division by zero).</p>
-
-<p>But, as an API (can be either internal or exposed) gets more complicated, so does the contract. It&rsquo;s not always possible to verify that the contract is being violated
-at runtime either, for example many cases of iterator invalidation are hard to prevent in nontrivial code even with asserts.</p>
-
-<p>It&rsquo;s easy to create a method and add documentation &ldquo;the first two arguments should not point to the same memory&rdquo;.
-But if this method is used by other methods, the contract can change to much more complicated things that are harder to express
-or check. When generics get involved, it only gets worse; you sometimes have no way of forcing that there are no shared mutable aliases,
-or of expressing what isn&rsquo;t allowed in the documentation. Nor will it be easy for an API consumer to enforce this.</p>
-
-<p>This makes it harder and harder to write safe, generic abstractions. Such abstractions rely on invariants, and these invariants can often
-be broken by the problems in the previous section. It&rsquo;s not always easy to enforce these invariants, and such abstractions will either
-be misused or not written in the first place, opting for a heavier option. Generally one sees that such abstractions or patterns are avoided
-altogether, even though they may provide a performance boost, because they are risky and hard to maintain. Even if the present version of
-the code is correct, someone may change something in the future breaking the invariants again.</p>
-
-<p><a href="http://manishearth.github.io/blog/2015/05/03/where-rust-really-shines/">My previous post</a> outlines a situation where Rust was able to choose
-the lighter path in a situation where getting the same guarantees would be hard in C++.</p>
-
-<p>Note that this is a wider problem than just with mutable aliasing. Rust has this problem too, but not when it comes to mutable aliasing.
-Mutable aliasing is important to fix however, because we can make a lot of assumptions about our program when there are no mutable aliases.
-Namely, by looking at a line of code we can know what happened wrt the locals. If there is the possibility of mutable aliasing out there; there&rsquo;s the
-possibility that other locals were modified too. A very simple example is:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">look_ma_no_temp_var_l33t_interview_swap</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">+</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="c1">// or</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">look_ma_no_temp_var_rockstar_interview_swap</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'>    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>In both cases, when the two references are the same<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, instead of swapping, the two variables get set to zero.
-A user (internal to your library, or an API consumer) would expect <code>swap()</code> to not change anything when fed equal
-references, but this is doing something totally different. This assumption could get used in a program; for example instead
-of skipping the passes in an array sort where the slot is being compared with itself, one might just go ahead with it
-because <code>swap()</code> won&rsquo;t change anything there anyway; but it does, and suddenly your sort function fills everything with
-zeroes. This could be solved by documenting the precondition and using asserts, but the documentation gets harder and harder
-as <code>swap()</code> is used in the guts of other methods.</p>
-
-<p>Of course, the example above was contrived. It&rsquo;s well known that those <code>swap()</code> implementations have that precondition,
-and shouldn&rsquo;t be used in such cases. Also, in most swap algorithms it&rsquo;s trivial to ignore cases when you&rsquo;re comparing
-an element with itself, generally done by bounds checking.</p>
-
-<p>But the example is a simplified sketch of the problem at hand.</p>
-
-<p>In Rust, since this is statically checked, one doesn&rsquo;t worry much about these problems, and
-robust APIs can be designed since knowing when something won&rsquo;t be mutated can help simplify
-invariants.</p>
-
-<h2>Wrapping up</h2>
-
-<p>Aliasing that doesn&rsquo;t fit the RWLock pattern is dangerous. If you&rsquo;re using a language like
-Rust, you don&rsquo;t need to worry. If you&rsquo;re using a language like C++, it can cause memory unsafety,
-so be very careful. If you&rsquo;re using a language like Java or Go, while it can&rsquo;t cause memory unsafety,
-it will cause problems in complex bits of code.</p>
-
-<p>This doesn&rsquo;t mean that this problem should force you to switch to Rust, either. If you feel that you
-can avoid writing APIs where this happens, that is a valid way to go around it. This problem is much
-rarer in languages with a GC, so you might be able to avoid it altogether without much effort. It&rsquo;s
-also okay to use runtime checks and asserts to maintain your invariants; performance isn&rsquo;t everything.</p>
-
-<p>But this <em>is</em> an issue in programming; and make sure you think of it when designing your code.</p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9560158">HN</a>, <a href="http://www.reddit.com/r/rust/comments/369jnx/the_problem_with_singlethreaded_shared_mutability/">Reddit</a></small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Hereafter referred to as &ldquo;The Question&rdquo;<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Note: <code>Str</code> and <code>Int</code> are variant names which I chose; they are not keywords. Additionally, I&rsquo;m using &ldquo;associated foo&rdquo; loosely here; Rust <em>does</em> have a distinct concept of &ldquo;associated data&rdquo; but it&rsquo;s not relevant to this post.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Note that this isn&rsquo;t possible in Rust due to the borrow checker.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
