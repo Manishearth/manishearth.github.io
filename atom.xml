@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-03-04T18:58:11-08:00</updated>
+  <updated>2017-03-04T19:41:47-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -374,6 +374,44 @@ each of its component types.</p>
 
 <p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
 talking about sum and product types together &ndash; a language with ADTs will have both.</p>
+
+<p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
+it&rsquo;s the set of all possible mappings from \(B\) to \(A\). The number of elements is \(N_A^{N_B}\). So
+basically, a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
+an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">my_func</span><span class="p">(</span><span class="n">b</span><span class="o">:</span> <span class="n">B</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">A</span> <span class="p">{...}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// is conceptually</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">my_func</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">b1</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for first element in B</span>
+</span><span class='line'>    <span class="n">b2</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for second element in B</span>
+</span><span class='line'>    <span class="n">b3</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span>
+</span><span class='line'>    <span class="c1">// ... </span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>given a value of the input <code>b</code>, the function will find the right field of <code>my_func</code> and return
+the mapping. Since a struct is a product type, this is</p>
+
+&#92;[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots&#92;]
+
+
+<p>making it an exponential type.</p>
+
+<p><a href="http://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
 
 <h2>What, in the name of sanity, is a Pi type?</h2>
 
