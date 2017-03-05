@@ -278,7 +278,39 @@ So, Rust/Swift enums are "sum types".
 You may often notice the terminology "algebraic datatypes" (ADT) being used, usually that's just
 talking about sum and product types together -- a language with ADTs will have both.
 
+
+In fact, you can even have _exponential_ types! The notation A^B in set theory does mean something,
+it's the set of all possible mappings from $B$ to $A$. The number of elements is $N_A^{N_B}$. So
+basically, a function (which is a mapping) is an "exponential" type. You can also view it as
+an iterated product type, a function from type `B` to `A` is really a struct like this:
+
+```rust
+fn my_func(b: B) -> A {...}
+
+// is conceptually
+
+struct my_func {
+    b1: A, // value for first element in B
+    b2: A, // value for second element in B
+    b3: A,
+    // ... 
+}
+```
+
+given a value of the input `b`, the function will find the right field of `my_func` and return
+the mapping. Since a struct is a product type, this is
+
+$$\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots$$
+
+making it an exponential type.
+
+[You can even take _derivatives_ of types!][omg-derivatives] (h/t Sam Tobin-Hochstadt for pointing this out to me)
+
+ [omg-derivatives]: http://strictlypositive.org/diff.pdf
+
+
 {% endmathy %}
+
 
 
  [dragons]: https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools
