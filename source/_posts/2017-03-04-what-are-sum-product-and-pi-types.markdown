@@ -7,6 +7,9 @@ math: true
 categories: programming rust mozilla
 ---
 
+_See also: [Tony's post on the same topic][bascule]_
+
+
 You often hear people saying "Language X[^1] has sum types" or "I wish language X had sum types"[^2],
 or "Sum types are cool".
 
@@ -29,6 +32,7 @@ they have confusing names with confusing mathematical backgrounds[^3].
  [^2]: Lookin' at you, Go.
  [^3]: Moooooooooooooooonads
  [rfc-pi]: https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md
+ [bascule]: https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions
 
 ## So what's a sum type? (the no-type-theory version)
 
