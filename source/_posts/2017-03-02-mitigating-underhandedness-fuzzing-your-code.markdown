@@ -77,11 +77,11 @@ $ cargo install cargo-fuzz
 Now, within your crate, initialize the fuzz setup:
 
 ```sh
-$ cargo fuzz --init
+$ cargo fuzz init
 ```
 
 This will create a fuzzing crate in `fuzz/`, with a single "fuzz target", `fuzzer_script_1`.
-You can add more such targets with `cargo fuzz --add name_of_target`. Fuzz targets are small libraries
+You can add more such targets with `cargo fuzz add name_of_target`. Fuzz targets are small libraries
 with a single function in them; the function that will be called over and over again by the fuzzer.
 It is up to you to fill in the body of this function, such that the program will crash or panic
 if and only if something goes wrong.
@@ -122,7 +122,7 @@ string. The fuzzer will try to get the URL parser to panic.
 To run a fuzz script:
 
 ```sh
-$ cargo fuzz --fuzz-target fuzzer_script_1
+$ cargo fuzz run fuzzer_script_1
 ```
 
 This will start the fuzzer, running until it finds a crash or panic. It may also
