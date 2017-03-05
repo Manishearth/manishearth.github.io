@@ -3,7 +3,7 @@ layout: post
 title: "Making your open source project newcomer-friendly"
 date: 2016-01-03 18:56:24 -0800
 comments: true
-categories: 
+categories: programming
 ---
 
 One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real world problems. There's only so much one can learn from small personal projects; but in open source one often gets to tackle interesting problems on large codebases &mdash; problems which wouldn't occur in small/personal ones. There are also valuable skills related to collaboration to be learnt.

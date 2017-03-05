@@ -3,7 +3,7 @@ layout: post
 title: "Breaking our Latin-1 assumptions"
 date: 2017-01-15 13:34:16 -0800
 comments: true
-categories: 
+categories: programming unicode
 ---
 
 So in my [previous post][post-prev] I explored a specific (wrong) assumption that programmers

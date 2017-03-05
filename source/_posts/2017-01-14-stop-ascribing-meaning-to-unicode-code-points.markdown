@@ -3,7 +3,7 @@ layout: post
 title: "Let's stop ascribing meaning to code points"
 date: 2017-01-14 10:13:18 -0800
 comments: true
-categories: programming
+categories: programming unicode
 ---
 
 _Update: This post got a sequel, [Breaking our latin-1 assumptions][breakl1]._

@@ -3,7 +3,7 @@ layout: post
 title: "GC support in Rust: API design"
 date: 2016-08-18 21:57:48 -0800
 comments: true
-categories: 
+categories: programming mozilla rust
 ---
 
 Recently we ([Felix][pnkfelix], [Niko][niko], and I) have been working on getting compiler-level GC

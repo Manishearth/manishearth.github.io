@@ -3,7 +3,7 @@ layout: post
 title: "Mitigating underhandedness: Clippy!"
 date: 2017-01-21 15:22:16 -0800
 comments: true
-categories: 
+categories: programming mozilla rust
 ---
 
 _This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!_
