@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-03-04T21:10:32-08:00</updated>
+  <updated>2017-03-04T22:19:03-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -531,787 +531,523 @@ But you can start taking it for a spin now, and finding bugs!</p>
   </entry>
   
   <entry>
-    <title type="html"><![CDATA[Let's Stop Ascribing Meaning to Code Points]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/"/>
-    <updated>2017-01-14T10:13:18-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points</id>
-    <content type="html"><![CDATA[<p><em>Update: This post got a sequel, <a href="http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions/">Breaking our latin-1 assumptions</a>.</em></p>
+    <title type="html"><![CDATA[Clarifying Misconceptions About SHAttered]]></title>
+    <link href="http://manishearth.github.io/blog/2017/02/26/clarifying-misconceptions-about-shattered/"/>
+    <updated>2017-02-26T00:30:56-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/02/26/clarifying-misconceptions-about-shattered</id>
+    <content type="html"><![CDATA[<p>This week Google published a <a href="https://shattered.io/">SHA-1 collision</a>.</p>
 
-<p>I&rsquo;ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
-misconception I&rsquo;ve seen is that <em>code points have cross-language intrinsic meaning</em>.</p>
+<p>There&rsquo;s a lot of confusion about the implications of this. A lot of this is due to differences of
+opinion on what exactly constitutes a &ldquo;new&rdquo; collision. I <a href="https://twitter.com/ManishEarth/status/835557328308969472">tweeted about this</a>. The webpage
+for the attack itself is misleading, saying that the answer to &ldquo;Who is capable of mounting this attack?&rdquo;
+is people with Google-esque resources. This depends on what exactly you mean by &ldquo;this attack&rdquo;.</p>
 
-<p>It usually comes up when people are comparing UTF8 and UTF32. Folks start implying that code points
-<em>mean</em> something, and that O(1) indexing or slicing at code point boundaries is a useful operation.
-I&rsquo;ve also seen this assumption manifest itself in actual programs which make incorrect assumptions
-about the nature of code points and mess things up when fed non-Latin text.</p>
+<p>So I&rsquo;m seeing a lot of &ldquo;oh well just another anti-milestone for SHA, doesn&rsquo;t affect anyone since its
+still quite expensive to exploit&rdquo; reactions, as well as the opposite &ldquo;aaaaa everything is on fire&rdquo;
+reaction. Both are wrong. It has practical implications for you even if you are certain that you
+won&rsquo;t attract the ire of an entity with a lot of computational power. None of these implications,
+however, are likely to be disastrous.</p>
 
-<p>If you like reading about unicode, you might also want to go through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">Eevee&rsquo;s article</a>
-on the dark corners of unicode. Great read!</p>
+<p>TLDR: Now <em>anyone</em>, without needing Google-esque resources,
+can generate two colliding PDFs with arbitrary visual content in each.</p>
 
-<h2>Encodings</h2>
+<p>(In fact, there&rsquo;s already <a href="http://alf.nu/SHA1">a PDF collision-generator</a> up where
+you can upload two images and get a PDF with collisions in it)</p>
 
-<p>So, anyway, we have some popular encodings for Unicode. UTF8 encodes 7-bit code points as a single
-byte, 11-bit code points as two bytes, 16-bit code points as 3 bytes, and 21-bit code points as four
-bytes. UTF-16 encodes the first three in two bytes, and the last one as four bytes (logically, a
-pair of two-byte code units). UTF-32 encodes all code points as 4-byte code units. UTF-16 is mostly
-a &ldquo;worst of both worlds&rdquo; compromise at this point, and the main programming language I can think of
-that uses it (and exposes it in this form) is Javascript, and that too in a broken way.</p>
+<h2>Okay, back up a bit. What&rsquo;s a hash? What&rsquo;s SHA-1?</h2>
 
-<p>The nice thing about UTF8 is that it saves space. Of course, that is subjective and dependent on
-the script you use most commonly, for example my first name is 12 bytes in UTF-8 but only 4
-in ISCII (or a hypothetical unicode-based encoding that swapped the Devanagri Unicode block with
-the ASCII block). It also uses more space over the very non-hypothetical UTF-16 encoding if you
-tend to use code points in the U+0800 - U+FFFF range. It always uses less space than UTF-32 however.</p>
+<p>I explained this a bit in my older post about <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">zero-knowledge-proofs</a>.</p>
 
-<p>A commonly touted disadvantage of UTF-8 is that string indexing is <code>O(n)</code>. Because code points take
-up a variable number of bytes, you won&rsquo;t know where the 5th codepoint is until you scan the string
-and look for it. UTF-32 doesn&rsquo;t have this problem; it&rsquo;s always <code>4 * index</code> bytes away.</p>
+<p>In essence, a hash function takes some data (usually of arbitrary size), and produces a value called
+a <em>hash</em> (usually of fixed size). The function has some additional properties:</p>
 
-<p>The problem here is that indexing by code point shouldn&rsquo;t be an operation you ever need!</p>
+<ul>
+<li>In almost all cases, a small perturbation in the input will lead to a large perturbation in the hash</li>
+<li>Given an input and its hash, it is computationally hard to find an alternate input producing the same hash</li>
+<li>It&rsquo;s also hard to just find two inputs that has to the same value, though this is usually easier than the previous one</li>
+</ul>
 
-<h2>Indexing by code point</h2>
 
-<p>The main time you want to be able to index by code point is if you&rsquo;re implementing algorithms
-defined in the unicode spec that operate on unicode strings (casefolding, segmentation, NFD/NFC).
-Most if not all of these algorithms operate on whole strings, so implementing them
-as an iteration pass is usually necessary anyway, so you don&rsquo;t lose anything if you can&rsquo;t
-do arbitrary code point indexing.</p>
+<p>when two inputs hash to the same value, this is called a collision. As mentioned, is easier to find
+<em>a</em> collision, over finding a colliding alternate input for a known input.</p>
 
-<p>But for application logic, dealing with code points doesn&rsquo;t really make sense. This is because
-code points have no intrinsic meaning. They are not &ldquo;characters&rdquo;. I&rsquo;m using scare quotes here
-because a &ldquo;character&rdquo; isn&rsquo;t a well-defined concept either, but we&rsquo;ll get to that later.</p>
+<p>SHA-1 is one such hash function. It&rsquo;s been known for a while that it&rsquo;s insecure, and the industry has
+largely moved off of it, but it&rsquo;s still used,</p>
 
-<p>For example, &ldquo;e&#x0301;&rdquo; is two code points (<code>e</code> +<code>́</code>), where one of them is a combining accent. My name,
-&ldquo;मनीष&rdquo;, visually looks like three &ldquo;characters&rdquo;, but is four code points. The &ldquo;नी&rdquo; is made up of <code>न</code>
-+ <code>ी</code>. My last name contains a &ldquo;character&rdquo; made up of three code points (and multiple two-code-point
-&ldquo;characters&rdquo;). The flag emoji &ldquo;🇺🇸&rdquo; is also made of two code points, <code>🇺</code> + <code>🇸</code>.</p>
+<h2>What did the researchers do?</h2>
 
-<p>One false assumption that&rsquo;s often made is that code points are a single column wide. They&rsquo;re not.
-They sometimes bunch up to form characters that fit in single &ldquo;columns&rdquo;. This is often dependent on
-the font, and if your application relies on this, you should be querying the font. There are even
-code points like U+FDFD (﷽) which are often rendered multiple columns wide. In fact, in my
-<em>monospace</em> font in my text editor, that character is rendered <em>almost</em> 12 columns wide. Yes,
-&ldquo;almost&rdquo;, subsequent characters get offset a tiny bit. I don&rsquo;t know why.</p>
+<p>They found a hash collision for SHA-1. In essence, they found two strings, <code>A</code> and <code>B</code>, where
+<code>SHA1(A) == SHA1(B)</code>.</p>
 
-<p>Another false assumption is that editing actions (selection, backspace, cut, paste) operate on code
-points. In both Chrome and Firefox, selection will often include multiple code points. All the
-multi-code-point examples I gave above fall into this category. An interesting testcase for this is
-the string &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo;, which will rarely if ever render as a single &ldquo;character&rdquo; but will be considered
-as one for the purposes of selection, pretty much universally. I&rsquo;ll get to why this is later.</p>
+<p><em>However</em>, given the way SHA-1 works, this means that you can generate infinitely many other
+such pairs of strings. And given the nature of the exact <code>A</code> and <code>B</code> they created, it is possible
+to use this to create arbitrary colliding PDFs.</p>
 
-<p>Backspace can gobble multiple code points at once too, but the heuristics are different. The reason
-behind this is that backspace needs to mirror the act of typing, and while typing sometimes
-constructs multi-codepoint characters, backspace decomposes it piece by piece. In cases where a
-multi-codepoint &ldquo;character&rdquo; <em>can</em> be logically decomposed (e.g. &ldquo;letter + accent&rdquo;), backspace will
-decompose it, by removing the accent or whatever. But some multi-codepoint characters are not
-&ldquo;constructions&rdquo; of general concepts that should be exposed to the user. For example, a user should
-never need to know that the &ldquo;🇺🇸&rdquo; flag emoji is made of <code>🇺</code> + <code>🇸</code>, and hitting backspace on it should
-delete both codepoints. Similarly, variation selectors and other such code points shouldn&rsquo;t
-be treated as their own unit when backspacing.</p>
+<p>Basically, SHA-1 (and many other hash functions), operate on &ldquo;blocks&rdquo;. These are fixed-size chunks
+of data, where the size is a property of the hash function. For SHA1 this is 512 bits.</p>
 
-<p>On my Mac most builtin apps (which I presume use the OSX UI toolkits) seem to use the same
-heuristics that Firefox/Chrome use for selection for both selection and backspace. While the
-treatment of code points in editing contexts is not consistent, it seems like applications
-consistently do not consider code points as &ldquo;editing units&rdquo;.</p>
+<p>The function starts off with an &ldquo;initial&rdquo; built-in hash. It takes the first block of your data and
+this hash, and does some computation with the two to produce a new hash, which is its state after
+the first block.</p>
 
-<p>Now, it is true that you often need <em>some</em> way to index a string. For example, if you have a large
-document and need to represent a slice of it. This could be a user-selection, or something delimeted
-by markup. Basically, you&rsquo;ve already gone through the document and have a section you want to be
-able to refer to later without copying it out.</p>
+<p>It will then take this hash and the second block, and run the same computations to produce
+a newer hash, which is its state after the second block. This is repeated till all blocks have
+been processed, and the final state is the result of the function.</p>
 
-<p>However, you don&rsquo;t need code point indexing here, byte
-indexing works fine! UTF8 is designed so that you can check if you&rsquo;re on a code point boundary even
-if you just byte-index directly. It does this by restricting the kinds of bytes allowed. One-byte
-code points never have the high bit set (ASCII). All other code points have the high bit set in each
-byte. The first byte of multibyte codepoints always starts with a sequence that specifies the number
-of bytes in the codepoint, and such sequences can&rsquo;t be found in the lower-order bytes of any
-multibyte codepoint. You can see this visually in the table <a href="https://en.wikipedia.org/wiki/UTF-8#Description">here</a>. The upshot of all this
-is that you just need to check the current byte if you want to be sure you&rsquo;re on a codepoint
-boundary, and if you receive an arbitrarily byte-sliced string, you will not mistake it for
-something else. It&rsquo;s not possible to have a valid code point be a subslice of another, or form a
-valid code point by subslicing a sequence of two different ones by cutting each in half.</p>
+<p>There&rsquo;s an important thing to notice here. At each block, the only inputs are the block itself and the
+hash of the string up to that block.</p>
 
-<p>So all you need to do is keep track of the byte indices, and use them for slicing it later.</p>
+<p>This means, if <code>A</code> and <code>B</code> are of a size that is a multiple of the block size, and <code>SHA1(A) == SHA1(B)</code>,
+then <code>SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code>C</code>, the state will
+be the same due to the hash collision, and after this point the next input blocks are identical in
+both cases, so the final hash will be the same.</p>
 
-<p>All in all, it&rsquo;s important to always remember that &ldquo;code point&rdquo; doesn&rsquo;t have intrinsic meaning. If
-you need to do a segmentation operation on a string, find out what <em>exactly</em> you&rsquo;re looking for, and
-what concept maps closest to that. It&rsquo;s rare that &ldquo;code point&rdquo; is the concept you&rsquo;re looking for.
-In <em>most</em> cases, what you&rsquo;re looking for instead is &ldquo;grapheme cluster&rdquo;.</p>
+<p>Now, while you might consider <code>A+C, B+C</code> to be the &ldquo;same collision&rdquo; as <code>A, B</code>, the implications
+of this are different than just &ldquo;there is now one known pair of inputs that collide&rdquo;, since everyone
+now has the ability to generate new colliding inputs by appending an arbitrary string to <code>A</code> and <code>B</code>.</p>
 
-<h2>Grapheme clusters</h2>
+<p>Of course, these new collisions have the restriction that the strings will always start with <code>A</code> or
+<code>B</code> and the suffixes will be identical. If you want to break this restriction, you will
+have to devote expensive resources to finding a new collision, like Google did.</p>
 
-<p>The concept of a &ldquo;character&rdquo; is a nebulous one. Is &ldquo;&#x1100;&#x1161;&#x11A8;&rdquo; a single character, or
-three? How about &ldquo;नी&rdquo;? Or &ldquo;நி&rdquo;? Or the &ldquo;👨‍❤️‍👨&rdquo; emoji<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>? Or the &ldquo;👨‍👨‍👧‍👧&rdquo; family emoji<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>?
-Different scripts have different concepts which may not clearly map to the Latin notion of &ldquo;letter&rdquo;
-or our programmery notion of &ldquo;character&rdquo;.</p>
+<h2>How does this let us generate arbitrary colliding PDFs?</h2>
 
-<p>Unicode itself gives the term <a href="http://unicode.org/glossary/#character">&ldquo;character&rdquo;</a> multiple incompatible meanings, and as
-far as I know doesn&rsquo;t use the term in any normative text.</p>
+<p>So this exploit actually uses features of the JPEG format to work. It was done in
+a PDF format since JPEGs often get compressed when sent around the Internet. However,
+since both A and B start a partial PDF document, they can only be used to generate colliding
+PDFs, not JPEGs.</p>
 
-<p>Often, you need to deal with what is actually displayed to the user. A lot of terminal emulators do
-this wrong, and end up messing up cursor placement. I used to use irssi-xmpp to keep my Facebook and
-Gchat conversations in my IRC client, but I eventually stopped as I was increasingly chatting in
-Marathi or Hindi and I prefer using the actual script over romanizing<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and it would just break
-my terminal<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Also, they got rid of the XMPP bridge but I&rsquo;d already cut down on it by then.</p>
+<p>I&rsquo;m going to first sketch out a simplified example of what this is doing, using a hypothetical
+pseudocode-y file format. The researchers found a collision between the strings:</p>
 
-<p>So sometimes, you need an API querying what the font is doing. Generally, when talking about the
-actual rendered image, the term &ldquo;glyph&rdquo; or &ldquo;glyph image&rdquo; is used.</p>
+<ul>
+<li>A: <code>&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
+<li>B: <code>&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
+</ul>
 
-<p>However, you can&rsquo;t always query the font. Text itself exists independent of rendering, and sometimes
-you need a rendering-agnostic way of segmenting it into &ldquo;characters&rdquo;.</p>
 
-<p>For this, Unicode has a concept of <a href="http://unicode.org/glossary/#grapheme_cluster">&ldquo;grapheme cluster&rdquo;</a>. There&rsquo;s also &ldquo;extended grapheme
-cluster&rdquo; (EGC), which is basically an updated version of the concept. In this post, whenever
-I use the term &ldquo;grapheme cluster&rdquo;, I am talking about EGCs.</p>
+<p>Here, <code>&lt;header data&gt;</code> is whatever is necessary to make the format work, and the &ldquo;nonce&#8221;s are
+strings that make <code>A</code> and <code>B</code> have the same hash. Finding these nonces is where
+the computational power is required, since you basically have to brute-force a solution.</p>
 
-<p>The term is defined and explored in <a href="http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries">UAX #29</a>. It starts by pinning down the still-nebulous
-concept of &ldquo;user-perceived character&rdquo; (&ldquo;a basic unit of a writing system for a language&rdquo;),
-and then declares the concept of a &ldquo;grapheme cluster&rdquo; to be an approximation to this notion
-that we can determine programmatically.</p>
+<p>Now, to both these strings, they append a suffix C: <code>IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
+This creates two complete documents. Both of the documents contain both images, but each one is instructed
+to display a different one. Note that since <code>SHA1(A) == SHA1(B)</code>, <code>SHA1(A + C) = SHA1(B + C)</code>, so these
+final documents have the same hash.</p>
 
-<p>A rough definition of grapheme cluster is a &ldquo;horizontally segmentable unit of text&rdquo;.</p>
+<p>The contents of <code>C</code> don&rsquo;t affect the collision at all. So, we can insert any two images in <code>C</code>, to create
+our own personal pair of colliding PDFs.</p>
 
-<p>The spec goes into detail as to the exact algorithm that segments text at grapheme cluster
-boundaries. All of the examples I gave in the first paragraph of this section are single grapheme
-clusters. So is &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo; (or &ldquo;ᄀᄀᄀ&#x1100;&#x1161;&#x11A8;ᆨᆨ&rdquo;), which apparently is considered a
-single syllable block in Hangul even though it is not of the typical form of leading consonant +
-vowel + optional tail consonant, but is not something you&rsquo;d see in modern Korean. The spec
-explicitly talks of this case so it seems to be on purpose. I like this string because nothing I
-know of renders it as a single glyph; so you can easily use it to tell if a particular segmentation-
-aware operation uses grapheme clusters as segmentation. If you try and select it, in most browsers
-you will be forced to select the whole thing, but backspace will delete the jamos one by one. For
-the second string, backspace will decompose the core syllable block too (in the first string the
-syllable block &#x1100;&#x1161;&#x11A8; is &ldquo;precomposed&rdquo; as a single code point, in the second one I
-built it using combining jamos).</p>
+<p>The actual technique used is similar to this, and it relies on JPEG comment fields. They have found
+a collision between two strings that look like:</p>
 
-<p>Basically, unless you have very specific requirements or are able to query the font, use an API that
-segments strings into grapheme clusters wherever you need to deal with the notion of &ldquo;character&rdquo;.</p>
+<pre><code class="text">pdf header data                       | String A
+begin embedded image                  |  
+    jpg header data                   |
+    declare jpg comment of length N   |
+    random nonce of length N          | (comment ends here) 
+                                     ---
+    image 1, length L                 | String C
+    jpg EOF byte (2 bytes)            |
+    image 2                           |
+end embedded image                    |
 
-<h2>Language defaults</h2>
+and
 
-<p>Now, a lot of languages by default are now using Unicode-aware encodings. This is great. It gets rid
-of the misconception that characters are one byte long.</p>
+pdf header data                       | String B
+begin embedded image                  |
+    jpg header data                   |
+    declare jpg comment of length M   |
+    random nonce of length M-L-2      |
+                                     ---
+    image 1, length L                 | String C
+    jpg EOF marker (2 bytes)          | (comment ends here)
+    image 2                           |
+end embedded image                    |
+</code></pre>
 
-<p>But it doesn&rsquo;t get rid of the misconception that user-perceived characters are one code point long.</p>
+<p>By playing with the nonces, they managed to generate a collision between <code>A</code> and <code>B</code>. In the first
+pdf, the embedded image has a comment containing only the nonce. Once the JPEG reader gets past that
+comment, it sees the first image, displays it, and then sees the end-of-file marker and decides to
+stop. Since the PDF format doesn&rsquo;t try to interpret the image itself, the PDF format won&rsquo;t be
+boggled by the fact that there&rsquo;s some extra garbage data after the JPEG EOF marker. It
+simply takes all the data between the &ldquo;begin embedded image&rdquo; and &ldquo;end embedded image&rdquo; blocks,
+and passes it to the JPEG decoder. The JPEG decoder itself stops after it sees the end of file
+marker, and doesn&rsquo;t get to the extra data for the second image.</p>
 
-<p>There are only two languages I know of which handle this well: Swift and Perl 6. I don&rsquo;t know much
-about Perl 6&rsquo;s thing so I can&rsquo;t really comment on it, but I am really happy with what Swift does:</p>
+<p>In the second pdf, the jpg comment is longer, and subsumes the first image (as well as the EOF marker)
+Thus, the JPEG decoder directly gets to the second image, which it displays.</p>
 
-<p>In Swift, the <code>Character</code> type is an extended grapheme cluster. This does mean that a
-character itself is basically a string, since EGCs can be arbitrarily many code points long.</p>
+<p>Since the actual images are not part of the original collision (A and B), you can substitute any pair
+of jpeg images there, with some length restrictions.</p>
 
-<p>All the APIs by default deal with EGCs. The length of a string is the number of EGCs in it. They
-are indexed by EGC. Iteration yields EGCs. The default comparison algorithm uses unicode
-canonical equivalence, which I think is kind of neat. Of course, APIs that work with code
-points are exposed too, you can iterate over the code points using <code>.unicodeScalars</code>.</p>
+<h2>What are the implications?</h2>
 
-<p>The internal encoding itself is &hellip; weird (and as far as I can tell not publicly exposed), but as a
-higher level language I think it&rsquo;s fine to do things like that.</p>
+<p>This does mean that you should not trust the integrity of a PDF when all you have
+to go on is its SHA-1 hash. Use a better hash. <em>Anyone can generate these colliding PDFs
+now.</em></p>
 
-<p>I strongly feel that languages should be moving in this direction, having defaults involving
-grapheme clusters.</p>
+<p>Fortunately, since all such PDFs will have the same prefix A or B, you can detect when
+such a deception is being carried out.</p>
 
-<p>Rust, for example, gets a lot of things right &ndash; it has UTF-8 strings. It internally uses byte
-indices in slices. Explicit slicing usually uses byte indices too, and will panic if out of bounds.
-The non-O(1) methods are all explicit, since you will use an iterator to perform the operation (E.g.
-<code>.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
-to coalesce the cost with nearby iterations &ndash; if you are going to do multiple <code>O(n)</code> things, do
-them in a single iteration! Rust <code>char</code>s represent code points. <code>.char_indices()</code> is
-a useful string iteration method that bridges the gap between byte indexing and code points.</p>
+<p>Don&rsquo;t check colliding PDFs into SVN. <a href="https://bugs.webkit.org/show_bug.cgi?id=168774#c27">Things break</a>.</p>
 
-<p>However, while the documentation does mention grapheme clusters, the stdlib is not aware of the
-concept of grapheme clusters at all. The default &ldquo;fundamental&rdquo; unit of the string in Rust is
-a code point, and the operations revolve around that. If you want grapheme clusters, you
-may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code>unicode-segmentation</code></a></p>
+<p>In some cases it is possible to use the PDF collision in other formats. For example,
+<a href="https://mobile.twitter.com/arw/status/834883944898125824">it can be used to create colliding HTML documents</a>. I think it can be used to colide
+ZIP files too.</p>
 
-<p>Now, Rust is a systems programming language and it just wouldn&rsquo;t do to have expensive grapheme
-segmentation operations all over your string defaults. I&rsquo;m very happy that the expensive <code>O(n)</code>
-operations are all only possible with explicit acknowledgement of the cost. So I do think that going
-the Swift route would be counterproductive for Rust. Not that it <em>can</em> anyway, due to backwards
-compatibility :)</p>
+<p>Outside the world of complex file formats, little has changed. It&rsquo;s still a bad idea to use SHA-1.
+It&rsquo;s still possible for people to generate entirely new collisions like Google did, though this
+needs a lot of resources. It&rsquo;s possible that someone with resources has already generated such a
+&ldquo;universal-key collision&rdquo; for some other file format<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> and will use it on you, but this was
+equally possible before Google published their attack.</p>
 
-<p>But I would prefer if the grapheme segmentation methods were in the stdlib (they used to be).
-This is probably not something that will happen, though I should probably push for the unicode
-crates being move into the nursery at least.</p>
+<p>This does not make it easier to collide with arbitrary hashes &ndash; if someone else
+has uploaded a document with a hash, and you trust them to not be playing any tricks,
+an attacker won&rsquo;t be able to generate a colliding document for this without immense
+resources. The attack only works when the attacker has control over the initial document;
+e.g. in a bait-and-switch-like attack where the attacker uploads document A, you read and verify it
+and broadcast your trust in document A with hash <code>SHA(A)</code>, and then the attacker switches it with
+document B.</p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p>Emoji may not render as a single glyph depending on the font.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>Google&rsquo;s specific collision was designed to be a &ldquo;universal key&rdquo;, since A and B are designed to have the image-switching mechanism built into it. Some other collision may not be like this; it could just be a collision of two images (or whatever) with no such switching mechanism. It takes about the same effort to do either of these, however, so if you have a file format that can be exploited to create a switching mechanism, it would always make more sense to build one into any collision you look for.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Mitigating Underhandedness: Clippy!]]></title>
+    <link href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/"/>
+    <updated>2017-01-21T15:22:16-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy</id>
+    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
+
+<p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
+writing seemingly-innocuous malicious code; code that is deliberately written to do some harm,
+but will pass a typical code review.</p>
+
+<p>It is inspired by the <a href="http://www.underhanded-c.org">Underhanded C</a> contest. Most of the underhanded C submissions have to do
+with hidden buffer overflows, pointer arithmetic fails, or misuse of C macros; and these problems
+largely don&rsquo;t occur in Rust programs. However, the ability to layer abstractions on each other does
+open up new avenues to introducing underhandedness by relying on sufficiently confusing abstraction
+sandwiches. There are probably other interesting avenues. Overall, I&rsquo;m pretty excited to see what
+kind of underhandedness folks come up with!</p>
+
+<p>Of course, underhandedness is not just about fun and games; we should be hardening our code against
+this kind of thing. Even if you trust your fellow programmers. Even if <em>you</em> are the sole programmer and you trust yourself.
+After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can&rsquo;t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
+Rust is about trusting <em>nobody</em>. Not even yourself.</p>
+
+<p><img src="/images/post/memes/trust-nobody.jpg" width="300"></p>
+
+<p>Rust protects you from your own mistakes when it comes to memory management. But we
+should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
+programming involve sleights of hand that could just as well be introduced in the code by accident, causing bugs.
+Not memory safety bugs (in Rust), but still, bugs. The existence of these sleights of hand is great for
+that very common situation
+<a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize">when you are feeling severely under-plushied and must win a competition to replenish your supply</a>
+but we really don&rsquo;t want these creeping into real-world code, either by accident or intentionally.</p>
+
+<hr />
+
+<p>Allow me to take a moment out of your busy underhanded-submission-writing schedules to talk to you about
+our Lord and Savior <a href="http://github.com/manishearth/rust-clippy/">Clippy</a>.</p>
+
+<p>Clippy is for those of you who have become desensitized to the constant whining of the Rust compiler
+and need a higher dosage of whininess to be kept on their toes. Clippy is for those perfectionists
+amongst you who want to know every minute thing wrong with their code so that they can fix it.
+But really, Clippy is for everyone.</p>
+
+<p>Clippy is simply a large repository of lints. As of the time of writing this post, there are
+<a href="https://github.com/manishearth/rust-clippy/#lints">183 lints</a> in it, though not all of them are enabled by default. These use the regular Rust lint
+system so you can pick and choose the ones you need via <code>#[allow(lint_name)]</code> and
+<code>#[warn(lint_name)]</code>. These lints cover a wide range of functions:</p>
+
+<ul>
+<li>Improving readability of the code (though <a href="https://github.com/rust-lang-nursery/rustfmt/">rustfmt</a> is the main tool you should use for this)</li>
+<li>Helping make the code more compact by reducing unnecessary things (my absolute favorite is <a href="https://github.com/Manishearth/rust-clippy/wiki#needless_lifetimes">needless_lifetimes</a>)</li>
+<li>Helping make the code more idiomatic</li>
+<li>Making sure you don&rsquo;t do things that you&rsquo;re not supposed to</li>
+<li>Catching mistakes and cases where the code may not work as expected</li>
+</ul>
+
+
+<p>The last two really are the ones which help with underhanded code. Just to give an example,
+we have lints like:</p>
+
+<ul>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#cmp_nan">cmp_nan</a>, which disallows things like <code>x == NaN</code></li>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#clone_double_ref">clone_double_ref</a>, which disallows calling <code>.clone()</code> on double-references (<code>&amp;&amp;T</code>), since that&rsquo;s a straightforward copy and you probably meant to do something like <code>(*x).clone()</code></li>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#for_loop_over_option">for_loop_over_option</a>: <code>Option&lt;T&gt;</code> is iterable, and while this is useful when composing iterators, directly iterating over an option is usually an indication of a mistake.</li>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#match_same_arms">match_same_arms</a>, which checks for identical match arm bodies (strong indication of a typo)</li>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#suspicious_assignment_formatting">suspicious_assignment_formatting</a>, which checks for possible typos with the <code>+=</code> and <code>-=</code> operators</li>
+<li><a href="https://github.com/Manishearth/rust-clippy/wiki#unused_io_amount">unused_io_amount</a>, which ensures that you don&rsquo;t forget that some I/O APIs may not write all bytes in the span of a single call</li>
+</ul>
+
+
+<p>These catch many of the gotchas that might crop up in Rust code. In fact,
+I based <a href="https://www.reddit.com/r/rust/comments/3hb0wm/underhanded_rust_contest/cu5yuhr/">my solution of an older, more informal Underhanded Rust contest</a> on one of these.</p>
+
+<h2>Usage</h2>
+
+<p>Clippy is still nightly-only. We hook straight into the compiler&rsquo;s guts to obtain
+the information we need, and like most internal compiler APIs, this is completely unstable. This
+does mean that you usually need a latest or near-latest nightly for clippy to work, and there will
+be times when it won&rsquo;t compile while we&rsquo;re working to update it.</p>
+
+<p>There is a plan to ship clippy as an optional component of rustc releases, which will fix all of
+these issues (yay!).</p>
+
+<p>But, for now, you can use clippy via:</p>
+
+<pre><code class="sh">rustup install nightly
+# +nightly not necessary if nightly is your default toolchain
+cargo +nightly install clippy
+# in your project folder
+cargo +nightly clippy
+</code></pre>
+
+<p>If you&rsquo;re going to be making it part of the development procedures of a crate
+you maintain, you can also <a href="https://github.com/manishearth/rust-clippy/#optional-dependency">make it an optional dependency</a>.</p>
+
+<p>If you&rsquo;re on windows, there&rsquo;s currently a rustup/cargo <a href="https://github.com/rust-lang-nursery/rustup.rs/issues/876">bug</a> where you may have to add
+the rustc libs path in your <code>PATH</code> for <code>cargo clippy</code> to work.</p>
+
+<p>There&rsquo;s an experimental project called <a href="https://github.com/killercup/rustfix">rustfix</a> which can automatically apply suggestions from
+clippy and rustc to your code. This may help in clippy-izing a large codebase, but it may
+also eat your code and/or laundry, so beware.</p>
+
+<h2>Contributing</h2>
+
+<p>There&rsquo;s a <em>lot</em> of work that can be done on clippy. A hundred and eighty lints is just
+a start, there are <a href="https://github.com/manishearth/rust-clippy/issues">hundreds more lint ideas filed on the issue tracker</a>. We&rsquo;re
+willing to mentor anyone who wants to get involved; and have
+<a href="https://github.com/manishearth/rust-clippy/issues?q=is%3Aissue+is%3Aopen+label%3AE-easy">specially tagged &ldquo;easy&rdquo; issues</a> for folks new to compiler internals. In general,
+contributing to clippy is a great way to gain an understanding of compiler internals
+if you want to contribute to the compiler itself.</p>
+
+<p>If you don&rsquo;t want to write code for clippy, you can also run it on random crates,
+open pull requests with fixes, and file bugs on clippy for any false positives that appear.</p>
+
+<p>There are more tips about contributing in <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">our CONTRIBUTING.md</a>.</p>
+
+<hr />
+
+<p>I hope this helps reduce mistakes and underhandedness in your code!</p>
+
+<p>..unless you&rsquo;re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Breaking Our Latin-1 Assumptions]]></title>
+    <link href="http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions/"/>
+    <updated>2017-01-15T13:34:16-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions</id>
+    <content type="html"><![CDATA[<p>So in my <a href="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points">previous post</a> I explored a specific (wrong) assumption that programmers
+tend to make about the nature of code points and text.</p>
+
+<p>I was asked multiple times about other assumptions we tend to make. There are a lot. Most
+Latin-based scripts are simple, but most programmers spend their time dealing with Latin
+text so these complexities never come up.</p>
+
+<p>I thought it would be useful to share my personal list of
+<a href="https://twitter.com/ManishEarth/status/810582690906931200">scripts that break our Latin-1 assumptions</a>. This is a list I mentally check against
+whenever I am attempting to reason about text. I check if I&rsquo;m making any assumptions that
+break in these scripts. <em>Most</em> of these concepts are independent of Unicode; so any program
+would have to deal with this regardless of encoding.</p>
+
+<p>I again recommend going through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">eevee&rsquo;s post</a>, since it covers many related issues.
+<a href="https://github.com/jagracey/Awesome-Unicode">Awesome-Unicode</a> also has a lot of random tidbits about Unicode.</p>
+
+<p>Anyway, here&rsquo;s the list. Note that a lot of the concepts here exist in scripts other than the
+ones listed, these are just the scripts <em>I</em> use for comparing.</p>
+
+<h2>Arabic / Hebrew</h2>
+
+<p>Both Arabic and Hebrew are RTL scripts; they read right-to-left. This may even affect how
+a page is laid out, see the <a href="https://he.wikipedia.org/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99">Hebrew Wikipedia</a>.</p>
+
+<p>They both have a concept of letters changing how they look depending on where they are in the word.
+Hebrew has the &ldquo;sofit&rdquo; letters, which use separate code points. For example, Kaf (כ) should be typed
+as ך at the end of a word. Greek has something similar with the sigma.</p>
+
+<p>In Arabic, the letters can have up to four different forms, depending on whether they start a word,
+end a word, are inside a word, or are used by themselves. These forms can look very different. They
+don&rsquo;t use separate code points for this; however. You can see a list of these forms <a href="https://en.wikipedia.org/wiki/Arabic_alphabet#Table_of_basic_letters">here</a></p>
+
+<p>As I mentioned in the last post, U+FDFD (﷽), a ligature representing the Basamala,
+is also a character that breaks a lot of assumptions.</p>
+
+<h2>Indic scripts</h2>
+
+<p>Indic scripts are <em>abugidas</em>, where you have consonants with vowel modifiers. For example, क is
+&ldquo;kə&rdquo;, where the upside down &ldquo;e&rdquo; is a schwa, something like an &ldquo;uh&rdquo; vowel sound. You can change the
+vowel by adding a diacritic (e.g <code>ा</code>); getting things like का (&ldquo;kaa&rdquo;) को (&ldquo;koh&rdquo;) कू (&ldquo;koo&rdquo;).</p>
+
+<p>You can also mash together consonants to create consonant clusters. The &ldquo;virama&rdquo; is a vowel-killer
+symbol that removes the inherent schwa vowel. So, <code>क</code> + <code>्</code> becomes <code>क्</code>. This sound itself is
+unpronounceable since क is a stop consonant (vowel-killed consonants can be pronounced for nasal and some other
+consonants though), but you can combine it with another consonant, as <code>क्</code> + <code>र</code> (&ldquo;rə&rdquo;), to get <code>क्र</code>
+(&ldquo;krə&rdquo;). Consonants can be strung up infinitely, and you can stick one or more vowel diacritics
+after that. Usually, you won&rsquo;t see more than two consonants in a cluster, but larger ones are not
+uncommon in Sanskrit (or when writing down some onomatopoeia). They may not get rendered as single
+glyphs, depending on the font.</p>
+
+<p>One thing that crops up is that there&rsquo;s no unambiguous concept of a letter here. There
+is a concept of an &ldquo;akshara&rdquo;, which basically includes the vowel diacritics, and
+depending on who you talk to may also include consonant clusters. Often things are
+clusters an akshara depending on whether they&rsquo;re drawn with an explicit virama
+or form a single glyph.</p>
+
+<p>In general the nature of the virama as a two-way combining character in Unicode is pretty new.</p>
+
+<h2>Hangul</h2>
+
+<p>Korean does its own fun thing when it comes to conjoining characters. Hangul has a concept
+of a &ldquo;syllable block&rdquo;, which is basically a letter. It&rsquo;s made up of a leading consonant,
+medial vowel, and an optional tail consonant. &#x1100;&#x1161;&#x11A8; is an example of
+such a syllable block, and it can be typed as &#x1100; + &#x1161; + &#x11A8;. It can
+also be typed as &#xAC01;, which is a &ldquo;precomposed form&rdquo; (and a single code point).</p>
+
+<p>These characters are examples of combining characters with very specific combining rules. Unlike
+accents or other diacritics, these combining characters will combine with the surrounding characters
+only when the surrounding characters form an L-V-T or L-V syllable block.</p>
+
+<p>As I mentioned in my previous post, apparently syllable blocks with more (adjacent) Ls, Vs, and Ts are
+also valid and used in Old Korean, so the grapheme segmentation algorithm in Unicode considers
+&ldquo;ᄀᄀᄀ&#x1100;&#x1161;&#x11A8;ᆨᆨ&rdquo; to be a single grapheme (<a href="http://www.unicode.org/reports/tr29/#Hangul_Syllable_Boundary_Determination">it explicitly mentions this</a>).
+I&rsquo;m not aware of any fonts which render these as a single syllable block, or if that&rsquo;s even
+a valid thing to do.</p>
+
+<h2>Han scripts</h2>
+
+<p>So Chinese (Hanzi), Japanese (Kanji<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>), Korean (Hanja<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>), and Vietnamese (Hán tự, along with Chữ
+Nôm <sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>) all share glyphs, collectively called &ldquo;Han characters&rdquo; (or CJK characters<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>). These
+languages at some point in their history borrowed the Chinese writing system, and made their own
+changes to it to tailor to their needs.</p>
+
+<p>Now, the Han characters are ideographs. This is not a phonetic script; individual characters
+represent words. The word/idea they represent is not always consistent across languages. The
+pronounciation is usually different too. Sometimes, the glyph is drawn slightly differently based on
+the language used. There are around 80,000 Han ideographs in Unicode right now.</p>
+
+<p>The concept of ideographs itself breaks some of our Latin-1 assumptions. For example, how
+do you define Levenshtein edit distance for text using Han ideographs? The straight answer is that
+you can&rsquo;t, though if you step back and decide <em>why</em> you need edit distance you might be able
+to find a workaround. For example, if you need it to detect typos, the user&rsquo;s input method
+may help. If it&rsquo;s based on pinyin or bopomofo, you might be able to reverse-convert to the
+phonetic script, apply edit distance in that space, and convert back. Or not. I only maintain
+an idle curiosity in these scripts and don&rsquo;t actually use them, so I&rsquo;m not sure how well this would
+work.</p>
+
+<p>The concept of halfwidth character is a quirk that breaks some assumptions.</p>
+
+<p>In the space of Unicode in particular, all of these scripts are represented by a single set of
+ideographs. This is known as &ldquo;Han unification&rdquo;. This is a pretty controversial issue, but the
+end result is that rendering may sometimes be dependent on the language of the text, which
+e.g. in HTML you set with a <code>&lt;span lang=whatever&gt;</code>. <a href="https://en.wikipedia.org/wiki/Han_unification#Examples_of_language-dependent_glyphs">The wiki page</a> has some examples of
+encoding-dependent characters.</p>
+
+<p>Unicode also has a concept of variation selector, which is a code point that can be used to
+select between variations for a code point that has multiple ways of being drawn. These
+do get used in Han scripts.</p>
+
+<p>While this doesn&rsquo;t affect rendering, Unicode, as a system for <em>describing</em> text,
+also has a concept of interlinear annotation characters. These are used to represent
+<a href="https://en.wikipedia.org/wiki/Ruby_character">furigana / ruby</a>. Fonts don&rsquo;t render this, but it&rsquo;s useful if you want to represent
+text that uses ruby. Similarly, there are <a href="https://en.wikipedia.org/wiki/Chinese_character_description_languages#Ideographic_Description_Sequences">ideographic description sequences</a> which
+can be used to &ldquo;build up&rdquo; glyphs from smaller ones when the glyph can&rsquo;t be encoded in
+Unicode. These, too, are not to be rendered, but can be used when you want to describe
+the existence of a character like <a href="https://en.wikipedia.org/wiki/Biangbiang_noodles#Chinese_character_for_bi.C3.A1ng">biáng</a>. These are not things a programmer
+needs to worry about; I just find them interesting and couldn&rsquo;t resist mentioning them :)</p>
+
+<p>Japanese speakers haven&rsquo;t completely moved to Unicode; there are a lot of things out there
+using Shift-JIS, and IIRC there are valid reasons for that (perhaps Han unification?). This
+is another thing you may have to consider.</p>
+
+<p>Finally, these scripts are often written <em>vertically</em>, top-down. <a href="https://en.wikipedia.org/wiki/Mongolian_script">Mongolian</a>, while
+not being a Han script, is written vertically sideways, which is pretty unique. The
+CSS <a href="https://drafts.csswg.org/css-writing-modes/">writing modes</a> spec introduces various concepts related to this, though that&rsquo;s mostly in the
+context of the Web.</p>
+
+<h2>Thai / Khmer / Burmese / Lao</h2>
+
+<p>These scripts don&rsquo;t use spaces to split words. Instead, they have rules for what kinds of sequences
+of characters start and end a word. This can be determined programmatically, however IIRC the
+Unicode spec does not attempt to deal with this. There are libraries you can use here instead.</p>
+
+<h2>Latin scripts themselves!</h2>
+
+<p>Turkish is a latin-based script. But it has a quirk: The uppercase of &ldquo;i&rdquo; is
+a dotted &ldquo;İ&rdquo;, and the lowercase of &ldquo;I&rdquo; is &ldquo;ı&rdquo;. If doing case-based operations, try to use
+a Unicode-aware library, and try to provide the locale if possible.</p>
+
+<p>Also, not all code points have a single-codepoint uppercase version. The eszett (ß) capitalizes
+to &ldquo;SS&rdquo;. There&rsquo;s also the &ldquo;capital&rdquo; eszett ẞ, but its usage seems to vary and I&rsquo;m not exactly
+sure how it interacts here.</p>
+
+<p>While Latin-1 uses precomposed characters, Unicode also introduces ways to specify the same
+characters via combining diacritics. Treating these the same involves using the normalization
+algorithms (NFC/NFD).</p>
+
+<h2>Emoji</h2>
+
+<p>Well, not a script<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. But emoji is weird enough that it breaks many of our assumptions. The
+scripts above cover most of these, but it&rsquo;s sometimes easier to think of them
+in the context of emoji.</p>
+
+<p>The main thing with emoji is that you can use a zero-width-joiner character to glue emoji together.</p>
+
+<p>For example, the family emoji 👩‍👩‍👧‍👦 (may not render for you) is made by using the woman/man/girl/boy
+emoji and gluing them together with ZWJs. You can see its decomposition in <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%91%A9%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%E2%80%8D%F0%9F%91%A6">uniview</a>.</p>
+
+<p>There are more sequences like this, which you can see in the <a href="http://unicode.org/Public/emoji/4.0/emoji-zwj-sequences.txt">emoji-zwj-sequences</a> file. For
+example, MAN + ZWJ + COOK will give a male cook emoji (font support is sketchy).
+Similarly, SWIMMER + ZWJ + FEMALE SIGN is a female swimmer. You have both sequences of
+the form &ldquo;gendered person + zwj + thing&rdquo;, and &ldquo;emoji containing human + zwj + gender&rdquo;,
+IIRC due to legacy issues<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup></p>
+
+<p>There are also <a href="http://www.unicode.org/reports/tr51/#Diversity">modifier characters</a> that let you change the skin tone of an emoji that
+contains a human (or human body part, like the hand-gesture emojis) in it.</p>
+
+<p>Finally, the flag emoji are pretty special snowflakes. For example, 🇪🇸 is the Spanish
+flag. It&rsquo;s made up of <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%87%AA%F0%9F%87%B8">two regional indicator characters for &ldquo;E&rdquo; and &ldquo;S&rdquo;</a>.</p>
+
+<p>Unicode didn&rsquo;t want to deal with adding new flags each time a new country or territory pops up. Nor
+did they want to get into the tricky business of determining what a country <em>is</em>, for example
+when dealing with disputed territories. So instead, they just defined these regional indicator
+symbols. Fonts are supposed to take pairs of RI symbols<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup> and map the country code to a flag.
+This mapping is up to them, so it&rsquo;s totally valid for a font to render a regional indicator
+pair &ldquo;E&rdquo; + &ldquo;S&rdquo; as something other than the flag of Spain. On some Chinese systems, for example,
+the flag for Taiwan (🇹🇼) may not render.</p>
+
+<hr />
+
+<p>I hightly recommend comparing against this relatively small list of scripts the next time you
+are writing code that does heavy manipulation of user-provided strings.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Supplemented (but not replaced) by the Hiragana and Katakana phonetic scripts. In widespread use.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
-<p>While writing this paragraph I discovered that wrapping text that contains lots of family emoji hangs Sublime. Neat.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<p>Replaced by Hangul in modern usage<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p>Part of the reason here is that I just find romanization confusing. There are some standardized ways to romanize which don&rsquo;t get used much. My friends and I romanize one way, different from the standardizations. My family members romanize things a completely different way and it&rsquo;s a bit hard to read. Then again, romanization <em>does</em> hide the fact that my spelling in Hindi is atrocious :)<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>Replaced by chữ quốc ngữ in modern usage, which is based on the Latin alphabet<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
-<p>It&rsquo;s possible to make work. You need a good terminal emulator, with the right settings, the right settings in your env vars, the right settings in irssi, and the right settings in screen. I think my current setup works well with non-ascii text but I&rsquo;m not sure what I did to make it happen.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Rust Tidbits: What Is a Lang Item?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
-    <updated>2017-01-11T21:01:13-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
-    <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
-be a thing in a programming community; and trivia is fun!</em></p>
-
-<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
-
-<p>Last time I talked about <code>Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
-I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
-
-<p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
-functions, and other items which the compiler needs to know about.</p>
-
-<p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
-<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
-<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
-the Itanium ABI spec expects functions of certain names
-to just <em>exist</em>, which the compiler is supposed to call in various cases. The
-<code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
-I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
-full of similar <code>__cxa</code> functions. While the spec just expects certain types,
-e.g. <code>std::type_traits</code> (&ldquo;Type properties&rdquo; § 20.10.4.3), to be magic and exist in certain locations,
-the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren&rsquo;t defined
-in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
-to known ABI functions, and they partly implement &ldquo;special&rdquo; types via intrinsics which
-are detected and magicked when the compiler comes across them.</p>
-
-<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
-placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
-When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
-encounters the addition operator. Of course, usually the compiler will already have been told about
-such a trait since libcore is usually the first library in the pipeline. If you want to actually use
-this, you need to <em>replace libcore</em>.</p>
-
-<p>Huh? You can&rsquo;t do that, can you?</p>
-
-<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
-<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
-rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
-that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
-because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
-libstd and the universe will implode.</p>
-
-<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
-libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, <code>no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
-only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
-trying to emulate it).</p>
-
-<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
-
-<pre><code class="rust">#![feature(no_core)]
-#![feature(lang_items)]
-
-// Look at me.
-// Look at me.
-// I'm the libcore now.
-#![no_core]
-
-// Tell the compiler to link to appropriate runtime libs
-// (This way I don't have to specify `-l` flags explicitly)
-#[cfg(target_os = "linux")]
-#[link(name = "c")]
-extern {}
-#[cfg(target_os = "macos")]
-#[link(name = "System")]
-extern {}
-
-// Compiler needs these to proceed
-#[lang = "sized"]
-pub trait Sized {}
-#[lang = "copy"]
-pub trait Copy {}
-
-// `main` isn't the actual entry point, `start` is.
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    // we can't really do much in this benighted hellhole of
-    // an environment without bringing in more libraries.
-    // We can make syscalls, segfault, and set the exit code.
-    // To be sure that this actually ran, let's set the exit code.
-    42
-}
-
-// still need a main unless we want to use `#![no_main]`
-// won't actually get called; `start()` is supposed to call it
-fn main() {}
-</code></pre>
-
-<p>If you run this, the program will exit with exit code 42.</p>
-
-<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
-<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
-tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
-to exist, it expects it to make sense. There are properties of the lang item that it assumes
-are true, and it may cause assertions in the code. In this case I do have a tweak, since
-the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</code>, but I know that this tweak
-will work.</p>
-
-<p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
-deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
-start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
-must exist.</p>
-
-<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
-
-<pre><code class="rust">pub static X: u8 = 1;
-</code></pre>
-
-<p>Rust will immediately complain:</p>
-
-<pre><code>$ rustc test.rs
-error: requires `sync` lang_item
-</code></pre>
-
-<p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
-are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
-so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
-lang item, so we need to do:</p>
-
-<pre><code class="rust">pub static X: u8 = 1;
-
-#[lang = "sync"]
-pub unsafe trait Sync {}
-unsafe impl Sync for u8 {}
-</code></pre>
-
-<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
-definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
-should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
-since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
-
-<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
-what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
-
-<pre><code class="rust">struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
-
-<p>We get an error:</p>
-
-<pre><code>$ rustc test.rs
-error[E0369]: binary operation `+` cannot be applied to type `Foo`
-  --&gt; test.rs:33:5
-   |
-33 |     Foo + Foo
-   |     ^^^
-   |
-note: an implementation of `std::ops::Add` might be missing for `Foo`
-  --&gt; test.rs:33:5
-   |
-33 |     Foo + Foo
-   |     ^^^
-
-error: aborting due to previous error
-</code></pre>
-
-<p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
-This is because the diagnostics in the compiler are free to assume that libcore
-exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
-<code>Foo</code>s. But we can tell it how!</p>
-
-<pre><code class="rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
-
-impl MyAdd&lt;Foo&gt; for Foo {
-    type Output = isize;
-    fn add(self, other: Foo) -&gt; isize {
-        return 42;
-    }
-}
-
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
-
-<p>This will compile fine and the exit code of the program will be 42.</p>
-
-<p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
-same kind of error, even though I mentioned before that the addition of concrete primitives doesn&rsquo;t
-go through <code>Add::add</code>. However, any addition operation still checks if <code>Add::add</code> is implemented,
-even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
-
-<pre><code class="rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
-
-impl MyAdd&lt;isize&gt; for isize {
-    type Output = isize;
-    fn add(self, other: isize) -&gt; isize {
-        self + other + 50
-    }
-}
-
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    40 + 2
-}
-</code></pre>
-
-<p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
-wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
-
-<p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
-check, it doesn&rsquo;t actually get used.</p>
-
-<hr />
-
-<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
-compiler. Let&rsquo;s go through them:</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
-primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
-coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
-&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
-applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
-<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
-a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
-arise from sidestepping coherence.</p>
-
-<p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
-
-<ul>
-<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
-<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
-<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
-<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
-<li>[<code>Unsize</code>] is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
-</ul>
-
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
-these destructors.</p>
-
-<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
-(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
-<a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code>Deref</code></a>
-and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code>PartialEq</code>/<code>PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
-are lang items because the compiler needs to know what trait to require (and call)
-when it comes across such an operation.</p>
-
-<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code>UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
-(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
-certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code>&amp;mut foo</code> with the
-assumption that the local variable holding the reference is the only alias allowed to read from
-or write to the data, and it is allowed to reorder reads from <code>&amp;foo</code> assuming that no other alias
-writes to it. We tell LLVM that these types are <code>noalias</code>. <code>UnsafeCell&lt;T&gt;</code> turns this optimization
-off, allowing writes to <code>&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
-mutability types like <code>Cell&lt;T&gt;</code>, <code>RefCell&lt;T&gt;</code>, and <code>Mutex&lt;T&gt;</code>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code>Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
-and can be specified with special syntax sugar, so they need to be lang items. They also
-get autoimplemented on closures.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The &ldquo;str_eq&rdquo; lang item</a> is outdated. It <em>used</em> to specify how to check the equality
-of a string value against a literal string pattern in a <code>match</code> (<code>match</code> uses structural equality,
-not <code>PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
-inserts panics in a few places. The first one, <code>"panic"</code>, is used for integer overflow panics in debug mode, and
-<code>"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
-<code>"panic_fmt"</code> hooks into a function defined later in libstd.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code>"exchange_malloc"</code> and <code>"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
-telling the compiler which functions to call in case it needs to do a <code>malloc()</code> or <code>free()</code>. These
-are used when constructing <code>Box&lt;T&gt;</code> via placement <code>box</code> syntax and when moving out of a deref of a
-box.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
-but is no longer used.</p>
-
-<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
-minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
-with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
-tears down anything it needs to. Rust has a C-like minimal runtime, so
-<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
-But you theoretically could stick a very heavy runtime initialization routine here.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
-platform-specific modules) specify various bits of the exception handling behavior. These hooks are
-called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
-or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
-called when the unwinding code wishes to resume unwinding after calling destructors in a landing
-pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
-understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
-the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
-compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
-actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
-lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
-but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code>"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
-an unused type parameter, and it can be used to help fix the variance and drop behavior
-of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
-a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
-like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
-contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
-(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
-we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
-are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
-corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
-
-<p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
-that could be dropped within a type to make it not implement <code>Copy</code>; in the past <code>Copy</code>
-implementations were automatic like <code>Send</code> and <code>Sync</code> are today. <code>NoCopy</code> was the way to opt out.
-There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>CovariantType</code>/<code>CovariantLifetime</code>/etc were the
-predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
-type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
-<code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
-The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
-removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
-seems unnecessary. It&rsquo;s probably an oversight.</p>
-
-<p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
-loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
-<code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
-<code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
-resolution is done, so withut this, libcore would not be able to use for loops since the compiler
-wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
-
-<hr />
-
-<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
-dispatching calls to functions and trait methods in various situations, conferring special semantics
-to types/traits, or requiring traits to be implemented, the type will be defined in the standard
-library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
-
-<p>Some of the lang items are useful/necessary when working without libstd. Most only come into play if
-you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
-useful outside of the realm of compiler hacking.</p>
-
-<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
-useful!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Rust Tidbits: Box Is Special]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"/>
-    <updated>2017-01-10T22:59:43-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special</id>
-    <content type="html"><![CDATA[<p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
-be a thing in a programming community; and trivia is fun!</p>
-
-<hr />
-
-<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
-
-<p>I was discussing some stuff on the rfcs repo when
-<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
-
-<p>Let&rsquo;s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
-
-<pre><code class="rust">#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; Deref for Box&lt;T&gt; {
-    type Target = T;
-
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
-
-#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; DerefMut for Box&lt;T&gt; {
-    fn deref_mut(&amp;mut self) -&gt; &amp;mut T {
-        &amp;mut **self
-    }
-}
-</code></pre>
-
-<p>Wait, what? <em>Squints</em></p>
-
-<pre><code class="rust">    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-</code></pre>
-
-<p><em>The call is coming from inside the house!</em></p>
-
-<p>In case you didn&rsquo;t realize it, this deref impl returns <code>&amp;**self</code> &ndash; since <code>self</code>
-is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
-will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
-
-<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that&rsquo;s what <code>Deref::deref</code> is
-for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That&rsquo;s infinite recursion.</p>
-
-<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
-<a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
-
-<pre><code class="rust">use std::ops::Deref;
-
-struct LolBox&lt;T&gt;(T);
-
-impl&lt;T&gt; Deref for LolBox&lt;T&gt; {
-    type Target = T;
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
-</code></pre>
-
-<p>the compiler will warn you:</p>
-
-<pre><code class="text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
- --&gt; &lt;anon&gt;:7:5
-  |
-7 |     fn deref(&amp;self) -&gt; &amp;T {
-  |     ^
-  |
-note: recursive call site
- --&gt; &lt;anon&gt;:8:10
-  |
-8 |         &amp;**self
-  |          ^^^^^^
-  = help: a `loop` may express intention better if this is on purpose
-</code></pre>
-
-<p>Actually trying to dereference the type will lead to a stack overflow.</p>
-
-<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
-or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
-primitive types. For example we literally
-<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
-is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
-integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
-numbers and dereference borrowed references without these impls. But those are primitive types
-which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
-
-<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
-
-<p>This is partly due to historical accident.</p>
-
-<p>To understand this, we must look back to Ye Olde days of pre-1.0 Rust (ca 2014). Back in these days,
-we had none of this newfangled &ldquo;stability&rdquo; business. The compiler broke your code every two weeks.
-Of course, you wouldn&rsquo;t <em>know</em> that because the compiler would usually crash before it could tell
-you that your code was broken! Sigils roamed the lands freely, and cargo was but a newborn child
-which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
-that their closures were safely boxed and their threads sufficiently green.</p>
-
-<p>Back in these days, we didn&rsquo;t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
-The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
-they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant &ldquo;owned&rdquo;, though
-IMO that caused more confusion than it was worth.</p>
-
-<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
-operator, and autoderef worked much like it does today.</p>
-
-<p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
-it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
-traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
-though it probably should have.</p>
-
-<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
-<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
-a very confusing detour with <code>StrBuf</code> first).</p>
-
-<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
-constructed, but it was still internally a special type. It didn&rsquo;t even have a <code>Deref</code> impl yet,
-that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
-as it is today.</p>
-
-<p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
-ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
-were a regular type.</p>
-
-<p>Turns out that Rust didn&rsquo;t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
-dereference semantics were implemented in a different part of the code. And, these semantics were
-not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
-pointers. I don&rsquo;t know if the possibility of being used for <code>~T</code> was considered when
-<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
-three pieces of behavior that could not be replicated in pure Rust at the time:</p>
-
-<ul>
-<li><code>box foo</code> in a pattern would destructure a box into its contents. It&rsquo;s somewhat the opposite of <code>ref</code></li>
-<li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
-<li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
-</ul>
-
-
-<p>The third one is the one that really gets to us here<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.
-For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
-You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
-<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
-this:</p>
-
-<pre><code class="rust">let x = Box::new(vec![1,2,3,4]);
-let y = *x; // moves the vec out into `y`, then deallocates the box
-            // but does not call a destructor on the vec
-</code></pre>
-
-<p>For any other type, such an operation will produce a &ldquo;cannot move out of a borrow&rdquo; error.</p>
-
-<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
-past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
-removed from <code>Box&lt;T&gt;</code> before 1.0 (I don&rsquo;t find it <em>necessary</em>), but people had better things to do,
-like fixing the million other rough edges of the language that can&rsquo;t be touched after backwards
-compatibility is a thing.</p>
-
-<p>So now we&rsquo;re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
-compiler. By &ldquo;special type&rdquo; I don&rsquo;t just mean that the compiler treats it a bit differently (this is
-true for any lang item), I mean that it literally is treated as
-<a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
-There&rsquo;s a TON of cruft in the compiler related to this type, much of which can be removed, but some
-of which can&rsquo;t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
-writing this post I&rsquo;m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
-cleaning up the code myself.</p>
-
-<p>Most of this isn&rsquo;t really useful to know unless you actually come across a case where you can make
-use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
-
-<p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Seriously though, does anyone use it much? I&rsquo;ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>&ldquo;CJK&rdquo; (Chinese-Japanese-Korean) is probably more accurate here, though it probably should include &ldquo;V&rdquo; for Vietnamese too. Not all of these ideographs come from Han; the other scripts invented some of their own. See: Kokuji, Gukja, Chữ Nôm.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>Back in <em>my</em> day we painstakingly typed actual real words on numeric phone keypads, while trudging to 🏫 in three feet of ❄️️, and it was uphill both ways, and we weren&rsquo;t even <em>allowed</em> 📱s in 🏫. Get off my lawn!<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>We previously had individual code points for professions and stuff and they decided to switch over to using existing object emoji with combiners instead of inventing new profession emoji all the time<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<li id="fn:7">
+<p>676 countries should be enough for anybody<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
