@@ -190,10 +190,11 @@ dangling off it, but that's not so important here.
 
 {% mathy %}
 
-In other words, it's a [set]. A boolean is the set $\\\{\mathtt{true}, \mathtt{false}\\\}$. An 8-bit unsigned integer
+In other words, it's like[^10] a [set]. A boolean is the set $\\\{\mathtt{true}, \mathtt{false}\\\}$. An 8-bit unsigned integer
 (`u8` in Rust) is the set $\\\{0, 1, 2, 3, .... 254, 255\\\}$. A string is a set with
 infinite elements, containing all possible valid strings[^4].
 
+ [^10]: Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets.
 
 What's a struct? A struct with two fields contains every possible combination of elements from the two sets.
 
