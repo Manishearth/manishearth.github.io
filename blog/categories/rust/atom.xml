@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-03-04T22:19:03-08:00</updated>
+  <updated>2017-03-05T09:12:51-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -279,12 +279,13 @@ talking about sum and product types together &ndash; a language with ADTs will h
 
 <p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
 it&rsquo;s the set of all possible mappings from &#92;(B&#92;) to &#92;(A&#92;). The number of elements is &#92;(N_A^{N_B}&#92;). So
-basically, a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
+basically, the type of a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
 an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
 
-<pre><code class="rust">fn my_func(b: B) -&gt; A {...}
+<pre><code class="rust">// the type
+fn my_func(b: B) -&gt; A;
 
-// is conceptually
+// is conceptually (each possible my_func can be written as an instance of)
 
 struct my_func {
     b1: A, // value for first element in B
@@ -316,6 +317,9 @@ can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsig
 <p>The name comes from how a constructor for these types would look:</p>
 
 <pre><code class="rust">// create an array of booleans from a given integer
+// note that the *type signature* contains a type dependent on this integer.
+// We are generic over multiple different array lengths here.
+
 // I made up this syntax, this is _not_ from the Rust Pi type RFC
 fn make_array(x: u8) -&gt; Array&lt;bool, x&gt; {
     // ...
