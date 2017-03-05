@@ -3,7 +3,7 @@ layout: post
 title: "Mitigating underhandedness: Fuzzing your code"
 date: 2017-03-02 16:13:54 -0800
 comments: true
-categories: 
+categories: programming rust mozilla
 ---
 
 _This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!_
