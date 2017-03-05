@@ -395,6 +395,6 @@ is only known at runtime). `Vec<bool>` is conceptually similar to the sigma type
 Types are sets, and we can do set-theory things on them to make cooler types.
 
 Let's try to avoid using confusing terminology, however. If Rust _does_ get "pi types",
-let's just call them "dependent types" or "integer generics" :)
+let's just call them "dependent types" or "const generics" :)
 
 _Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post._
