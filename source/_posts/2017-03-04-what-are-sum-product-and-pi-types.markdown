@@ -383,7 +383,8 @@ construct an array", with the sigma type we have "there exists some N for which 
 As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
 are basically instances of `Array<bool, N>` for some specific `N` where the `N` is only known at runtime.
 (much like how regular sum types are instances of one amongst multiple types, where the exact type
-is only known at runtime). `Vec<bool>` is conceptually similar to the sigma type `Array<bool, ?>`.
+is only known at runtime). `Vec<bool>` is conceptually similar to the sigma type `Array<bool, ?>`,
+as is `&[bool]`.
 
 {% endmathy %}
 
