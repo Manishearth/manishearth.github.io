@@ -22,7 +22,7 @@ These days, I've also seen people asking about "Pi types", because of [this Rust
 But what does "sum type" mean? And why is it called that? And what, in the name of sanity, is
 a Pi type?
 
-Before I start, I'll meniton that while I will be covering some type theory to explain the names
+Before I start, I'll mention that while I will be covering some type theory to explain the names
 "sum" and "product", you don't need to understand these names to use these things! Far too often
 do people have trouble understanding relatively straightforward concepts in languages because
 they have confusing names with confusing mathematical backgrounds[^3].
