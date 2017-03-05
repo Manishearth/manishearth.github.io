@@ -281,13 +281,14 @@ talking about sum and product types together -- a language with ADTs will have b
 
 In fact, you can even have _exponential_ types! The notation A^B in set theory does mean something,
 it's the set of all possible mappings from $B$ to $A$. The number of elements is $N_A^{N_B}$. So
-basically, a function (which is a mapping) is an "exponential" type. You can also view it as
+basically, the type of a function (which is a mapping) is an "exponential" type. You can also view it as
 an iterated product type, a function from type `B` to `A` is really a struct like this:
 
 ```rust
-fn my_func(b: B) -> A {...}
+// the type
+fn my_func(b: B) -> A;
 
-// is conceptually
+// is conceptually (each possible my_func can be written as an instance of)
 
 struct my_func {
     b1: A, // value for first element in B
@@ -324,6 +325,9 @@ making it an exponential type.
 It's essentially a form of dependent type. A dependent type is when your type
 can depend on a value. An example of this is integer generics, where you
 can do things like `Array<bool, 5>`, or `template<unsigned int N, typename T> Array<T, N> ...` (in C++).
+
+Note that the type signature contains a _type_ dependent on an integer, being generic over multiple
+different array lengths.
 
 The name comes from how a constructor for these types would look:
 
