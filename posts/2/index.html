@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="The Rust compiler is written in Rust. This is overall a pretty common practice in compiler
-development. This usually means that the process of &hellip;">
+  <meta name="description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -82,6 +82,270 @@ development. This usually means that the process of &hellip;">
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2017/01/10/rust-tidbits-box-is-special/">Rust Tidbits: Box Is Special</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-01-10T22:59:43-08:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>10:59 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
+found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
+decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+be a thing in a programming community; and trivia is fun!</p>
+
+<hr />
+
+<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+
+<p>I was discussing some stuff on the rfcs repo when
+<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
+
+<p>Let&rsquo;s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="cp">#[stable(feature = </span><span class="s">&quot;rust1&quot;</span><span class="cp">, since = </span><span class="s">&quot;1.0.0&quot;</span><span class="cp">)]</span>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cp">#[stable(feature = </span><span class="s">&quot;rust1&quot;</span><span class="cp">, since = </span><span class="s">&quot;1.0.0&quot;</span><span class="cp">)]</span>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="n">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Wait, what? <em>Squints</em></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>    <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>The call is coming from inside the house!</em></p>
+
+<p>In case you didn&rsquo;t realize it, this deref impl returns <code>&amp;**self</code> &ndash; since <code>self</code>
+is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
+will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
+
+<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that&rsquo;s what <code>Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That&rsquo;s infinite recursion.</p>
+
+<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
+<a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kn">use</span> <span class="n">std</span><span class="o">::</span><span class="n">ops</span><span class="o">::</span><span class="n">Deref</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>the compiler will warn you:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+</span><span class='line'> --&gt; &lt;anon&gt;:7:5
+</span><span class='line'>  |
+</span><span class='line'>7 |     fn deref(&amp;self) -&gt; &amp;T {
+</span><span class='line'>  |     ^
+</span><span class='line'>  |
+</span><span class='line'>note: recursive call site
+</span><span class='line'> --&gt; &lt;anon&gt;:8:10
+</span><span class='line'>  |
+</span><span class='line'>8 |         &amp;**self
+</span><span class='line'>  |          ^^^^^^
+</span><span class='line'>  = help: a `loop` may express intention better if this is on purpose
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Actually trying to dereference the type will lead to a stack overflow.</p>
+
+<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
+or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
+primitive types. For example we literally
+<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
+is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
+integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
+numbers and dereference borrowed references without these impls. But those are primitive types
+which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
+
+<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
+
+<p>This is partly due to historical accident.</p>
+
+<p>To understand this, we must look back to Ye Olde days of pre-1.0 Rust (ca 2014). Back in these days,
+we had none of this newfangled &ldquo;stability&rdquo; business. The compiler broke your code every two weeks.
+Of course, you wouldn&rsquo;t <em>know</em> that because the compiler would usually crash before it could tell
+you that your code was broken! Sigils roamed the lands freely, and cargo was but a newborn child
+which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
+that their closures were safely boxed and their threads sufficiently green.</p>
+
+<p>Back in these days, we didn&rsquo;t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
+The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
+they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant &ldquo;owned&rdquo;, though
+IMO that caused more confusion than it was worth.</p>
+
+<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
+operator, and autoderef worked much like it does today.</p>
+
+<p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
+it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
+traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
+though it probably should have.</p>
+
+<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
+<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
+a very confusing detour with <code>StrBuf</code> first).</p>
+
+<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
+constructed, but it was still internally a special type. It didn&rsquo;t even have a <code>Deref</code> impl yet,
+that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
+as it is today.</p>
+
+<p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
+ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
+were a regular type.</p>
+
+<p>Turns out that Rust didn&rsquo;t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+dereference semantics were implemented in a different part of the code. And, these semantics were
+not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
+pointers. I don&rsquo;t know if the possibility of being used for <code>~T</code> was considered when
+<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
+three pieces of behavior that could not be replicated in pure Rust at the time:</p>
+
+<ul>
+<li><code>box foo</code> in a pattern would destructure a box into its contents. It&rsquo;s somewhat the opposite of <code>ref</code></li>
+<li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+<li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+</ul>
+
+
+<p>The third one is the one that really gets to us here<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.
+For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
+You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
+<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
+this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c1">// moves the vec out into `y`, then deallocates the box</span>
+</span><span class='line'>            <span class="c1">// but does not call a destructor on the vec</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For any other type, such an operation will produce a &ldquo;cannot move out of a borrow&rdquo; error.</p>
+
+<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
+past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
+removed from <code>Box&lt;T&gt;</code> before 1.0 (I don&rsquo;t find it <em>necessary</em>), but people had better things to do,
+like fixing the million other rough edges of the language that can&rsquo;t be touched after backwards
+compatibility is a thing.</p>
+
+<p>So now we&rsquo;re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+compiler. By &ldquo;special type&rdquo; I don&rsquo;t just mean that the compiler treats it a bit differently (this is
+true for any lang item), I mean that it literally is treated as
+<a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
+There&rsquo;s a TON of cruft in the compiler related to this type, much of which can be removed, but some
+of which can&rsquo;t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
+writing this post I&rsquo;m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+cleaning up the code myself.</p>
+
+<p>Most of this isn&rsquo;t really useful to know unless you actually come across a case where you can make
+use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
+
+<p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Seriously though, does anyone use it much? I&rsquo;ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -3383,504 +3647,6 @@ able to Linux in my sleep, which is a win-win!</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">Adventures in Systems Programming: C++ Local Statics</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-<time class='entry-date' datetime='2015-06-26T16:32:06-07:00'><span class='date'><span class='date-month'>Jun</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>4:32 pm</span></time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
-feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
-what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Conversely, it&rsquo;s
-important to know how your tools work more than ever in systems programming. So when I see a
-language feature I&rsquo;m not familiar with, I&rsquo;m interested in finding out how it works under the hood.</p>
-
-<p>I&rsquo;m not a C++ expert. I can work on C++ codebases, but I&rsquo;m not anywhere near knowing all of the
-features and nuances of C++. However, I am pretty good at Rust and understand a decent portion of
-the compiler internals. This gives me a great perspective &mdash; I&rsquo;ve not yet internalized most C++
-features to take them for granted, and I&rsquo;m well equipped to investigate these features.</p>
-
-<p>Today I came across some C++ code similar to the following<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
-</span><span class='line'>    <span class="k">static</span> <span class="n">OtherType</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">otherMethod</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This code piqued my interest. Specifically, the local <code>static</code> stuff. I knew that when you have a
-static like</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">FOO</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>the <code>1</code> is stored somewhere in the <code>.data</code> section of the program. This is easily verified with <code>gdb</code>:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">THING</span> <span class="o">=</span> <span class="mh">0xAAAA</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp -g
-</span><span class='line'>$ gdb a.out
-</span><span class='line'>(gdb) info addr THING
-</span><span class='line'>Symbol &quot;THING&quot; is static storage at address 0x601038.
-</span><span class='line'>(gdb) info symbol 0x601038
-</span><span class='line'>THING in section .data
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This is basically a part of the compiled program as it is loaded into memory.</p>
-
-<p>Similarly, when you have a <code>static</code> that is initialized with a function, it&rsquo;s stored in the <code>.bss</code>
-section, and initialized before <code>main()</code>. Again, easily verified:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
-</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">THING</span> <span class="o">=</span> <span class="n">bar</span><span class="p">();</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;main called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='text'><span class='line'>$ ./a.out
-</span><span class='line'>bar called
-</span><span class='line'>main called
-</span><span class='line'>$ gdb a.out
-</span><span class='line'>(gdb) info addr THING
-</span><span class='line'>Symbol &quot;THING&quot; is static storage at address 0x601198.
-</span><span class='line'>(gdb) info symbol 0x601198
-</span><span class='line'>THING in section .bss
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
-
-<p>So far so good.</p>
-
-<p>Now back to the original snippet:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
-</span><span class='line'>    <span class="k">static</span> <span class="n">OtherType</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">otherMethod</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It&rsquo;s
-not much different from <code>static THING = bar()</code> aside from the fact that it isn&rsquo;t a global
-identifier.</p>
-
-<p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
-that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
-called <sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
-
-<p>Instead, these are statics which are initialized the first time the function is called.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
-</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;foo called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">static</span> <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">bar</span><span class="p">();</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;Static is:&quot;</span><span class="o">&lt;&lt;</span> <span class="n">i</span><span class="o">&lt;&lt;</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;main called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
-</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
-</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
-</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp
-</span><span class='line'>$ ./a.out
-</span><span class='line'>main called
-</span><span class='line'>foo called
-</span><span class='line'>bar called
-</span><span class='line'>Static is:16448250
-</span><span class='line'>foo called
-</span><span class='line'>Static is:16448250
-</span><span class='line'>foo called
-</span><span class='line'>Static is:16448250
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Wait, &ldquo;the first time the function is called&rdquo;? <em>Alarm bells go off&hellip;</em> Surely there&rsquo;s some cost to that! Let&rsquo;s investigate.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-</pre></td><td class='code'><pre><code class='text'><span class='line'>$ gdb a.out
-</span><span class='line'>(gdb) disas bar
-</span><span class='line'>   // snip
-</span><span class='line'>   0x0000000000400c72 &lt;+15&gt;:    test   %al,%al
-</span><span class='line'>   0x0000000000400c74 &lt;+17&gt;:    jne    0x400ca4 &lt;_Z3foov+65&gt;
-</span><span class='line'>   0x0000000000400c76 &lt;+19&gt;:    mov    $0x6021f8,%edi
-</span><span class='line'>   0x0000000000400c7b &lt;+24&gt;:    callq  0x400a00 &lt;__cxa_guard_acquire@plt&gt;
-</span><span class='line'>   0x0000000000400c80 &lt;+29&gt;:    test   %eax,%eax
-</span><span class='line'>   0x0000000000400c82 &lt;+31&gt;:    setne  %al
-</span><span class='line'>   0x0000000000400c85 &lt;+34&gt;:    test   %al,%al
-</span><span class='line'>   0x0000000000400c87 &lt;+36&gt;:    je     0x400ca4 &lt;_Z3foov+65&gt;
-</span><span class='line'>   0x0000000000400c89 &lt;+38&gt;:    mov    $0x0,%r12d
-</span><span class='line'>   0x0000000000400c8f &lt;+44&gt;:    callq  0x400c06 &lt;_Z3barv&gt;
-</span><span class='line'>   0x0000000000400c94 &lt;+49&gt;:    mov    %eax,0x201566(%rip)        # 0x602200 &lt;_ZZ3foovE1i&gt;
-</span><span class='line'>   0x0000000000400c9a &lt;+55&gt;:    mov    $0x6021f8,%edi
-</span><span class='line'>   0x0000000000400c9f &lt;+60&gt;:    callq  0x400a80 &lt;__cxa_guard_release@plt&gt;
-</span><span class='line'>   0x0000000000400ca4 &lt;+65&gt;:    mov    0x201556(%rip),%eax        # 0x602200 &lt;_ZZ3foovE1i&gt;
-</span><span class='line'>   0x0000000000400caa &lt;+71&gt;:    mov    %eax,%esi
-</span><span class='line'>   0x0000000000400cac &lt;+73&gt;:    mov    $0x6020c0,%edi
-</span><span class='line'>   // snip
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The instruction at <code>+44</code> calls <code>bar()</code>, and it seems to be surrounded by calls to some <code>__cxa_guard</code>
-functions.</p>
-
-<p>We can take a naïve guess at what this does: It probably just sets a hidden static flag on
-initialization which ensures that it only runs once.</p>
-
-<p>Of course, the actual solution isn&rsquo;t as simple. It needs to avoid data races, handle errors, and
-somehow take care of recursive initialization.</p>
-
-<p>Let&rsquo;s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
-<code>__cxa_guard</code>.</p>
-
-<p>Both of them show us the generated code for initializing things like local statics:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="n">obj_guard</span><span class="p">.</span><span class="n">first_byte</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">if</span> <span class="p">(</span> <span class="n">__cxa_guard_acquire</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">)</span> <span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>      <span class="n">try</span> <span class="p">{</span>
-</span><span class='line'>      <span class="c1">// ... initialize the object ...;</span>
-</span><span class='line'>      <span class="p">}</span> <span class="k">catch</span> <span class="p">(...)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">__cxa_guard_abort</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">);</span>
-</span><span class='line'>        <span class="k">throw</span><span class="p">;</span>
-</span><span class='line'>      <span class="p">}</span>
-</span><span class='line'>      <span class="c1">// ... queue object destructor with __cxa_atexit() ...;</span>
-</span><span class='line'>      <span class="n">__cxa_guard_release</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Here, <code>obj_guard</code> is our &ldquo;hidden static flag&rdquo;, with some other extra data.</p>
-
-<p><code>__cxa_guard_acquire</code> and <code>__cxa_guard_release</code> acquire and release a lock to prevent recursive
-initialization. So this program will crash:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
-</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">);</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">if</span><span class="p">(</span><span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">foo</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
-</span><span class='line'> <span class="p">}</span>
-</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;foo called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'> <span class="k">static</span> <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">bar</span><span class="p">(</span><span class="n">recur</span><span class="p">);</span>
-</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;Static is:&quot;</span><span class="o">&lt;&lt;</span> <span class="n">i</span><span class="o">&lt;&lt;</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'> <span class="n">foo</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp
-</span><span class='line'>$ ./a.out
-</span><span class='line'>foo called
-</span><span class='line'>bar called
-</span><span class='line'>foo called
-</span><span class='line'>terminate called after throwing an instance of &#39;__gnu_cxx::recursive_init_error&#39;
-</span><span class='line'>  what():  std::exception
-</span><span class='line'>Aborted (core dumped)
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Over here, to initialize <code>i</code>, <code>bar()</code> needs to be called, but <code>bar()</code> calls <code>foo()</code> which needs <code>i</code>
-to be initialized, which again will call <code>bar()</code> (though this time it won&rsquo;t recurse). If <code>i</code> wasn&rsquo;t
-<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it&rsquo;s unclear as
-to which value should be used.</p>
-
-<p>The implementation is pretty interesting. Before looking at the code my quick guess was that the
-following would happen for local statics:</p>
-
-<ul>
-<li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
-&ldquo;uninitialized&rdquo;, &ldquo;initializing&rdquo;, and &ldquo;initialized&rdquo;. Alternatively, use an atomic state indicator.</li>
-<li>When we try to initialize for the first time, the mutex is locked, the flag is set
-to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, and the flag is set to &ldquo;initialized&rdquo;.</li>
-<li>If when acquiring the mutex, the value is &ldquo;initialized&rdquo;, don&rsquo;t initialize again</li>
-<li>If when acquiring the mutex, the value is &ldquo;initializing&rdquo;, throw some exception</li>
-</ul>
-
-
-<p> (We need the tristate flag because without it recursion would cause deadlocks)</p>
-
-<p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
-<a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
-uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. This is okay because the C++
-spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
-
-<blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
-behavior is undefined.</p></blockquote>
-
-<p>However, the implementations in <a href="https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc">gcc/libstdc++</a> (also <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">this version</a> of
-<code>libcppabi</code> from Apple, which is a bit more readable) do something different. They use a global
-recursive mutex to handle reentrancy. Recursive mutexes basically can be locked multiple times by a
-single thread, but cannot be locked by another thread till the locking thread unlocks them the same
-number of times. This means that recursion/reentrancy won&rsquo;t cause deadlocks, but we still have one-
-thread-at-a-time access. What these implementations do is:</p>
-
-<ul>
-<li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
-and one which indicates that the static is being initialized (&ldquo;in use&rdquo;)</li>
-<li>If the object is initialized, do nothing (this doesn&rsquo;t use mutexes and is cheap).
-This isn&rsquo;t exactly part of the implementation in the library, but is part of the generated code.</li>
-<li>If it isn&rsquo;t initialized, acquire the global recursive lock</li>
-<li>If the object is initialized by the time the lock was acquired, unlock and return</li>
-<li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
-&ldquo;in use&rdquo;, throw an exception.</li>
-<li>If it wasn&rsquo;t, mark the second flag of the static&rsquo;s guard object as being &ldquo;in use&rdquo;</li>
-<li>Call the initialization function, bubble errors</li>
-<li>Unlock the global mutex</li>
-<li>Mark the second flag as &ldquo;not in use&rdquo;</li>
-</ul>
-
-
-<p>At any one time, only one thread will be in the process of running initialization routines, due to
-the global recursive mutex. Since the mutex is recursive, a function (eg <code>bar()</code>) used for
-initializing local statics may itself use (different) local statics. Due to the &ldquo;in use&rdquo; flag, the
-initialization of a local static may not recursively call its parent function without causing an
-error.</p>
-
-<p>This doesn&rsquo;t need per-static atomics, and doesn&rsquo;t deadlock, however it has the cost of a global
-mutex which is called at most once per local static. In a highly threaded situation with lots of
-such statics, one might want to reevaluate directly using local statics.</p>
-
-<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM&rsquo;s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
-mutex it uses a regular mutex (on non-ARM Apple systems) which is unlocked before
-<code>__cxa_guard_acquire</code> exits and tests for reentrancy by noting the thread ID in the guard object
-instead of the &ldquo;in use&rdquo; flag. Condvars are used for waiting for a thread to stop using an object. On
-other platforms, it seems to deadlock, though I&rsquo;m not sure.</p>
-
-<p>So here we have a rather innocent-looking feature that has some hidden costs and pitfalls. But now I
-can look at a line of code where this feature is being used, and have a good idea of what&rsquo;s
-happening there. One step closer to being a better systems programmer!</p>
-
-<p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Emphasis on <em>relatively</em>. This article will show that it&rsquo;s definitely not &ldquo;easy&rdquo; all the time.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Unless it has a constructor or otherwise isn&rsquo;t made out of trivially constructible types; in this case it is treated similar to the previous case.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/3">&larr; Older</a>
@@ -3911,6 +3677,10 @@ happening there. One step closer to being a better systems programmer!</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2017/03/11/why-quantum-computing-is-weird/">Why Quantum Computing Is Weird</a>
       </li>
     
@@ -3924,10 +3694,6 @@ happening there. One step closer to being a better systems programmer!</p>
     
       <li class="post">
         <a href="/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/">Mitigating Underhandedness: Fuzzing Your Code</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2017/02/26/clarifying-misconceptions-about-shattered/">Clarifying Misconceptions About SHAttered</a>
       </li>
     
   </ul>
