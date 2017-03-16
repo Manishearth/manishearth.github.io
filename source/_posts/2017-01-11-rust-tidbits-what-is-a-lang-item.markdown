@@ -121,7 +121,8 @@ Note that this already adds two lang items. `Sized` and `Copy`. It's usually wor
 [looking at the lang item in libcore][sized-source] and copying it over unless you want to make
 tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
 to exist, it expects it to make sense. There are properties of the lang item that it assumes
-are true, and it may cause assertions in the code. In this case I do have a tweak, since
+are true, and failure to provide an appropriate lang item may cause the compiler to assert
+without a useful error message. In this case I do have a tweak, since
 the original definition of `Copy` is `pub trait Copy: Clone {}`, but I know that this tweak
 will work.
 
@@ -281,7 +282,7 @@ There are a bunch for the [marker traits][lang-marker] ([core][lang-marker-impl]
  - `Sync` is a lang item for the same reasons as `Send`, but also because the compiler needs to enforce its implementation on types used in statics
  - `Copy` is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item
  - `Sized` is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with `?Sized`
- - [`Unsize`] is implemented automatically on types using a specific set of rules ([listed in the nomicon][nom-unsize]). Unlike `Send` and `Sync`, this mechanism for autoimplementation is tailored for the use case of `Unsize` and can't be reused on user-defined marker traits.
+ - [`Unsize`][unsize] is implemented automatically on types using a specific set of rules ([listed in the nomicon][nom-unsize]). Unlike `Send` and `Sync`, this mechanism for autoimplementation is tailored for the use case of `Unsize` and can't be reused on user-defined marker traits.
 
 [`Drop` is a lang item][lang-drop] ([core][lang-drop-impl]) because the compiler needs to know which types have destructors, and how to call
 these destructors.
@@ -308,7 +309,7 @@ The [`Fn` traits][lang-fn] ([core][lang-fn-impl]) are used in dispatching functi
 and can be specified with special syntax sugar, so they need to be lang items. They also
 get autoimplemented on closures.
 
-[The "str_eq" lang item][lang-streq] is outdated. It *used* to specify how to check the equality
+[The `"str_eq"` lang item][lang-streq] is outdated. It *used* to specify how to check the equality
 of a string value against a literal string pattern in a `match` (`match` uses structural equality,
 not `PartialEq::eq`), however I believe this behavior is now hardcoded in the compiler.
 
@@ -386,7 +387,7 @@ wouldn't know what calls to insert in place of the loops while compiling.
  [lang-marker]: https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278
  [lang-marker-impl]: https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356
  [nom-unsize]: https://doc.rust-lang.org/nomicon/coercions.html
- [Unsize]: https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html
+ [unsize]: https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html
  [lang-drop]: https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280
  [lang-drop-impl]: https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197
  [lang-coerceunsized]: https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282
