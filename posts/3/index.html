@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
-feel that an important feature of systems &hellip;">
+  <meta name="description" content="A few weeks ago, I set up my Raspberry Pi as a music server so that I could listen to music without
+having to deal with keeping my laptop in a &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -82,6 +82,96 @@ feel that an important feature of systems &hellip;">
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2015/08/29/the-worlds-most-over-engineered-alarm-clock/">The World&#8217;s Most Over-engineered Alarm Clock</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-08-29T01:08:59-07:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>1:08 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>A few weeks ago, I set up my Raspberry Pi as a music server so that I could listen to music without
+having to deal with keeping my laptop in a certain corner of the room.</p>
+
+<p>After setting it all up, it occurred to me: &ldquo;I can do much more with this!&rdquo;.</p>
+
+<p>Waking up to go to class in the morning is always a challenge for me. It&rsquo;s not that I don&rsquo;t wake up
+&mdash; I often wake up, cancel all the alarms, and go back to bed. Half-asleep me somehow has the
+skill to turn off alarms, but not the discipline of going to class<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I&rsquo;ve tried those apps that
+make you do math before you can cancel the alarm, and I&rsquo;m able to do the math and go back to sleep
+without fully waking up in the process (Hey, I&rsquo;m a physics student; math is what we do!).</p>
+
+<p>So I decided to create an alarm clock. Not just any alarm clock, the most overengineered alarm clock
+I can think of.</p>
+
+<p>It consists of the Pi connected to a speaker and kept in a hard-to-reach area of the room. The Pi is
+on a DHCP network. Every night, I ssh to the Pi, set the volume to full, and run a script which,
+using <code>at</code> and <code>mpg123</code>, will schedule jobs to run around the desired time of waking up. First,
+there will be a few pieces of soothing music (either violin music or parts of the <em>Interstellar</em>
+OST) run once or twice, a while before the time of waking up. Close to the time of waking up, there
+are a bunch of jobs where each one will run a string of annoying music. In my case, it&rsquo;s the
+Minions&#8217; banana song followed by Nyan Cat (I sometimes add more to this list).</p>
+
+<p>So far so good.</p>
+
+<p>Now, the soothing music gives asleep-me me a chance to surrender and wake up <em>before</em> the Nyan Cat
+begins, and often fear of Nyan Cat is a pretty good motivator to wake up. If I don&rsquo;t wake up to
+the soft songs, the annoying ones invariably work.</p>
+
+<p>At this stage I&rsquo;m still pretty groggy and have the intense urge to go back to bed. However, turning
+off the alarm isn&rsquo;t simple. Since it&rsquo;s in a hard to reach area of the room, I can&rsquo;t just turn it
+off. I need to get up, sit in my chair, and turn on the laptop (which is hibernated/suspended), and
+kill it via ssh.</p>
+
+<p>This needs me to:</p>
+
+<ul>
+<li><code>nmap</code> the network to find the Pi (I&rsquo;m the only one on this subnet who uses <code>ssh</code>, so this just needs a port filter)</li>
+<li><code>ssh</code> into the Pi, remembering the password (I haven&rsquo;t done this yet but I could further complicate things by changing the password often to reduce muscle-memory)</li>
+<li><code>killall mpg123</code> to kill the currently playing song</li>
+<li>Cancel the remaining <code>at</code> jobs. This can be done with <code>atq</code> + <code>atrm</code> for every job (tedious and long), or with <code>awk</code>. If I&rsquo;ve already fully woken up, I&rsquo;m able to do the <code>awk</code> one, otherwise half-asleep me ends up doing the brute-force one, which is enough manual typing to shake the remaining bits of sleepiness off.</li>
+</ul>
+
+
+<p>After this whole process, it&rsquo;s pretty much guaranteed that I&rsquo;m fully awake &ndash; there&rsquo;s no going back now!</p>
+
+<p>So far it&rsquo;s worked pretty well (both when I&rsquo;ve slept on time and when I haven&rsquo;t). The first ten minutes after this I&rsquo;m rather annoyed, but after that I&rsquo;m happy I woke up. If half-asleep me
+eventually gets the muscle memory to get past this process, I should probably be able to tweak it
+to add more complexity or change the way it works.</p>
+
+<p>Of course, having an arms race with oneself probably isn&rsquo;t the best way to solve this problem. I
+suspect I&rsquo;ll go back to regular alarms in a month or so, but it&rsquo;s a fun experiment for now.</p>
+
+<p>However, by the time I&rsquo;m done with this alarm clock, I&rsquo;ll either be waking up on time, or I&rsquo;ll be
+able to Linux in my sleep, which is a win-win!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>As a fourth year student the fully-awake me also has a bit of trouble with this ;)<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -1932,6 +2022,10 @@ my cup of tea.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
       </li>
     
@@ -1945,10 +2039,6 @@ my cup of tea.</p>
     
       <li class="post">
         <a href="/blog/2017/03/04/what-are-sum-product-and-pi-types/">What Are Sum, Product, and Pi Types?</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/">Mitigating Underhandedness: Fuzzing Your Code</a>
       </li>
     
   </ul>
