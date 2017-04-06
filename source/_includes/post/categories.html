@@ -1,6 +1,16 @@
 {% capture category %}{% if post %}{{ post.categories | category_links | size }}{% else %}{{ page.categories | category_links | size }}{% endif %}{% endcapture %}
+{% if post %}
+    {% assign is_moz = post.categories | category_contains_moz %}
+{% else %}
+    {% assign is_moz = page.categories | category_contains_moz %}
+{% endif %}
+{% if is_moz %}
+<span class="aftersep beforesep">
+    <a class='category' href='/{{site.category_dir}}/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+{% endif %}
 {% unless category == '0' %}
-<span class="categories">
+<span class="categories aftersep">
   {% if post %}
     {{ post.categories | category_links }}
   {% else %}
