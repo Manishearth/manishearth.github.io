@@ -85,7 +85,7 @@ packages this particular task into a single git command. Changing `EDITOR=true` 
 `EDITOR=: GIT_SEQUENCE_EDITOR=:` will make it not even open the editor for confirmation
 and try to do the whole thing automatically.
 
-`git rebase -x some_command` is also pretty neat, lets you run a shell on each step during a rebase.
+`git rebase -x some_command` is also pretty neat, lets you run a shell command on each step during a rebase.
 
 In this model, you are fundamentally thinking of commits as diffs. When you move around
 commits in the interactive rebase editor, you're moving around diffs. When you mark things
@@ -132,10 +132,10 @@ This is useful for extracting the history of a folder into its own repository.
 
 Another useful filter is the tree filter, you can use it to do things like moving around, creating,
 or removing files. For example, if you want to move `README.md` to `README` in the entire history,
-you'd do something like `git filter-branch --tree-filter 'mv README.md README' @`. The tree filter
-will work by checking out each commit (in a separate temporary folder), running your filter on the
-working directory, adding any changes to the index (no need to `git add` yourself), and committing
-the new index.
+you'd do something like `git filter-branch --tree-filter 'mv README.md README' @` (you can also
+achieve this much faster with some manual work and `rebase`). The tree filter will work by checking
+out each commit (in a separate temporary folder), running your filter on the working directory,
+adding any changes to the index (no need to `git add` yourself), and committing the new index.
 
 The `--prune-empty` argument is useful here, as it removes commits which are now empty due to the
 rewrite.

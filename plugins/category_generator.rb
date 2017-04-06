@@ -153,9 +153,19 @@ ERR
     # Returns string
     #
     def category_links(categories)
-      categories.sort.map { |c| category_link c }.join(', ')
+      categories.sort.select {|c| c != 'mozilla'}.map { |c| category_link c }.join(', ')
     end
 
+
+    # Is "mozilla" included in this list?
+    #
+    #  +categories+ is the list of categories to check.
+    #
+    # Returns bool
+    #
+    def category_contains_moz(categories)
+      categories.include? "mozilla"
+    end
     # Outputs a single category as an <a> link.
     #
     #  +category+ is a category string to format as an <a> link
