@@ -1,0 +1,521 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Prolonging Temporaries in Rust - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Prolonging temporaries in Rust">
+      <meta property="twitter:description" content="A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2017/04/12/prolonging-temporaries-in-rust/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Prolonging Temporaries in Rust</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-04-12T22:36:05-07:00'><span class='date'><span class='date-month'>Apr</span> <span class='date-day'>12</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>10:36 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
+I&rsquo;d document it.</p>
+
+<p>The code was like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="kn">use</span><span class="p">(</span><span class="n">maybe_foo</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="cp">#[derive(Debug)]</span>
+</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Thingy</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">foo</span><span class="o">:</span> <span class="n">Foo</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">impl</span> <span class="n">Thingy</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">pub</span> <span class="k">fn</span> <span class="n">get_ref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">foo</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="k">pub</span> <span class="k">fn</span> <span class="n">get_owned</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nb">Some</span><span class="p">(</span><span class="n">Foo</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="k">pub</span> <span class="k">fn</span> <span class="n">new</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Self</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">Thingy</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">foo</span><span class="o">:</span> <span class="n">Foo</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="k">pub</span> <span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">some_condition</span> <span class="o">=</span> <span class="k">true</span><span class="p">;</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">thing</span> <span class="o">=</span> <span class="n">Thingy</span><span class="o">::</span><span class="n">new</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+</span><span class='line'>    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
+</span><span class='line'>    <span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span> <span class="n">maybe_foo</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I&rsquo;m only going to be changing the contents of <code>main()</code> here.</p>
+
+<p>What&rsquo;s happening here is that a non-<code>Copy</code> type, <code>Foo</code>, is returned in an <code>Option</code>. In one case,
+we have a reference to the <code>Foo</code>, and in another case an owned copy.</p>
+
+<p>We want to set a variable to these, but of course we can&rsquo;t because they&rsquo;re different types.</p>
+
+<p>In one case, we have an owned <code>Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code>Option</code>, there&rsquo;s a convenience method <code>.as_ref()</code> that does this<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Let&rsquo;s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">().</span><span class="n">as_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will give us an error.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="n">error</span><span class="o">:</span> <span class="n">borrowed</span> <span class="n">value</span> <span class="n">does</span> <span class="n">not</span> <span class="n">live</span> <span class="n">long</span> <span class="n">enough</span>
+</span><span class='line'>  <span class="o">--&gt;</span> <span class="o">&lt;</span><span class="n">anon</span><span class="o">&gt;:</span><span class="mi">32</span><span class="o">:</span><span class="mi">5</span>
+</span><span class='line'>   <span class="o">|</span>
+</span><span class='line'><span class="mi">31</span> <span class="o">|</span>         <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">().</span><span class="n">as_ref</span><span class="p">()</span>
+</span><span class='line'>   <span class="o">|</span>         <span class="o">-----------------</span> <span class="n">temporary</span> <span class="n">value</span> <span class="n">created</span> <span class="n">here</span>
+</span><span class='line'><span class="mi">32</span> <span class="o">|</span>     <span class="p">};</span>
+</span><span class='line'>   <span class="o">|</span>     <span class="o">^</span> <span class="n">temporary</span> <span class="n">value</span> <span class="n">dropped</span> <span class="n">here</span> <span class="k">while</span> <span class="n">still</span> <span class="n">borrowed</span>
+</span><span class='line'><span class="p">...</span>
+</span><span class='line'><span class="mi">35</span> <span class="o">|</span> <span class="p">}</span>
+</span><span class='line'>   <span class="o">|</span> <span class="o">-</span> <span class="n">temporary</span> <span class="n">value</span> <span class="n">needs</span> <span class="n">to</span> <span class="n">live</span> <span class="n">until</span> <span class="n">here</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">error</span><span class="o">:</span> <span class="n">aborting</span> <span class="n">due</span> <span class="n">to</span> <span class="n">previous</span> <span class="n">error</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The problem is, <code>thing.get_owned()</code> returns an owned value. There&rsquo;s nothing that it gets anchored to
+(we don&rsquo;t set its value to a variable), so it is just a temporary &ndash; we can call methods on it, but
+once we&rsquo;re done the value will go out of scope.</p>
+
+<p>What we want is something like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kd">let</span> <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">();</span>
+</span><span class='line'>    <span class="n">owned</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>but this will still give a borrow error &ndash; <code>owned</code> will still go out of scope within the <code>if</code> block,
+and we need the reference to it last as long as <code>maybe_foo</code> (outside the block) is supposed to last.</p>
+
+<p>So this is no good.</p>
+
+<p>An alternate solution here <em>can</em> be copying/cloning the <code>Foo</code> in the <em>first</em> case by calling <code>.map(|x|
+x.clone())</code> or <code>.cloned()</code> or something. Sometimes you don&rsquo;t want to clone, so this isn&rsquo;t great.</p>
+
+<p>Another solution here &ndash; the generic advice for dealing with values which may be owned or borrow &ndash;
+is to use <code>Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+inlined enough.</p>
+
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code>thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code>if</code>.</p>
+
+<p>One way to do this is to have an <code>Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">();</span>
+</span><span class='line'>    <span class="n">owned</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This works in this case, but in this case we already had an <code>Option</code>. If <code>get_ref()</code> and <code>get_owned()</code>
+returned <code>&amp;Foo</code> and <code>Foo</code> respectively, then we&rsquo;d need to do something like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">owned</span> <span class="o">=</span> <span class="nb">Some</span><span class="p">(</span><span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">());</span>
+</span><span class='line'>    <span class="n">owned</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">()</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>which is icky since it introduces an unwrap.</p>
+
+<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
+for the scope of the enclosing block.</p>
+
+<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c1">// 😯😯😯😯😯</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">thing</span><span class="p">.</span><span class="n">get_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="p">.</span><span class="n">get_owned</span><span class="p">();</span>
+</span><span class='line'>    <span class="n">owned</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We know that Rust doesn&rsquo;t do &ldquo;uninitialized&rdquo; variables. If you want to name a variable, you have to
+initialize it. <code>let foo;</code> feels rather like magic in this context, because it looks like we&rsquo;ve declared
+an uninitialized variable.</p>
+
+<p>What&rsquo;s less well known is that Rust <em>can</em> do &ldquo;deferred&rdquo; initialization. Here, you declare a variable
+and can initialize it later, but expressions involving the variable can only exist in branches
+where the compiler knows it has been initialized.</p>
+
+<p>This is the case here. We declared the <code>owned</code> variable beforehand. It now lives in the outer scope
+and won&rsquo;t be destroyed until the end of the outer scope. However, the variable cannot be used directly
+in an expression in the first branch, or after the <code>if</code>. Doing so will give a compile time error
+saying <code>use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code>else</code> branch
+because the compiler can see that it is unconditionally initialized in that branch.</p>
+
+<p>We can still read the value of <code>owned</code> indirectly through <code>maybe_foo</code> from outside the branch.
+This is okay because the storage of <code>owned</code> is guaranteed to live as long as the outer scope,
+and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code> is set to a value inside <code>owned</code> is when
+<code>owned</code> has been initialized, so it is safe.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>In my experience <code>.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code>.map()</code><a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2017-04-12T22:36:05-07:00'><span class='date'><span class='date-month'>Apr</span> <span class='date-day'>12</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>10:36 pm</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2017/04/12/prolonging-temporaries-in-rust/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2017/04/12/prolonging-temporaries-in-rust/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2017/04/05/youre-doing-it-wrong/" title="Previous Post: You're doing it wrong">&laquo; You&#8217;re doing it wrong</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/04/12/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/11/why-quantum-computing-is-weird/">Why Quantum Computing Is Weird</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
