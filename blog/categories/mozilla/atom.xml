@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mozilla | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/mozilla/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-04-06T16:28:01-07:00</updated>
+  <updated>2017-04-13T14:35:42+08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -14,10 +14,199 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Prolonging Temporaries in Rust]]></title>
+    <link href="http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust/"/>
+    <updated>2017-04-13T13:36:05+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust</id>
+    <content type="html"><![CDATA[<p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
+I&rsquo;d document it.</p>
+
+<p>The code was like this:</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+} else {
+    thing.get_owned() // returns Option&lt;Foo&gt;
+};
+
+use(maybe_foo);
+</code></pre>
+
+<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">#[derive(Debug)]
+struct Foo;
+
+struct Thingy {
+    foo: Foo
+}
+
+impl Thingy {
+    pub fn get_ref(&amp;self) -&gt; Option&lt;&amp;Foo&gt; {
+        Some(&amp;self.foo)
+    }
+    pub fn get_owned(&amp;self) -&gt; Option&lt;Foo&gt; {
+        Some(Foo)
+    }
+    pub fn new() -&gt; Self {
+        Thingy {
+            foo: Foo
+        }
+    }
+}
+
+
+
+pub fn main() {
+    let some_condition = true;
+    let thing = Thingy::new();
+
+    let maybe_foo = if some_condition {
+        thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+    } else {
+        thing.get_owned() // returns Option&lt;Foo&gt;
+    };
+
+    println!("{:?}", maybe_foo);
+}
+</code></pre>
+
+<p>I&rsquo;m only going to be changing the contents of <code>main()</code> here.</p>
+
+<p>What&rsquo;s happening here is that a non-<code>Copy</code> type, <code>Foo</code>, is returned in an <code>Option</code>. In one case,
+we have a reference to the <code>Foo</code>, and in another case an owned copy.</p>
+
+<p>We want to set a variable to these, but of course we can&rsquo;t because they&rsquo;re different types.</p>
+
+<p>In one case, we have an owned <code>Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code>Option</code>, there&rsquo;s a convenience method <code>.as_ref()</code> that does this<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Let&rsquo;s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    thing.get_owned().as_ref()
+};
+</code></pre>
+
+<p>This will give us an error.</p>
+
+<pre><code>error: borrowed value does not live long enough
+  --&gt; &lt;anon&gt;:32:5
+   |
+31 |         thing.get_owned().as_ref()
+   |         ----------------- temporary value created here
+32 |     };
+   |     ^ temporary value dropped here while still borrowed
+...
+35 | }
+   | - temporary value needs to live until here
+
+error: aborting due to previous error
+</code></pre>
+
+<p>The problem is, <code>thing.get_owned()</code> returns an owned value. There&rsquo;s nothing that it gets anchored to
+(we don&rsquo;t set its value to a variable), so it is just a temporary &ndash; we can call methods on it, but
+once we&rsquo;re done the value will go out of scope.</p>
+
+<p>What we want is something like</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    let owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>but this will still give a borrow error &ndash; <code>owned</code> will still go out of scope within the <code>if</code> block,
+and we need the reference to it last as long as <code>maybe_foo</code> (outside the block) is supposed to last.</p>
+
+<p>So this is no good.</p>
+
+<p>An alternate solution here <em>can</em> be copying/cloning the <code>Foo</code> in the <em>first</em> case by calling <code>.map(|x|
+x.clone())</code> or <code>.cloned()</code> or something. Sometimes you don&rsquo;t want to clone, so this isn&rsquo;t great.</p>
+
+<p>Another solution here &ndash; the generic advice for dealing with values which may be owned or borrow &ndash;
+is to use <code>Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+inlined enough.</p>
+
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code>thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code>if</code>.</p>
+
+<p>One way to do this is to have an <code>Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>This works in this case, but in this case we already had an <code>Option</code>. If <code>get_ref()</code> and <code>get_owned()</code>
+returned <code>&amp;Foo</code> and <code>Foo</code> respectively, then we&rsquo;d need to do something like:</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = Some(thing.get_owned());
+    owned.as_ref().unwrap()
+};
+</code></pre>
+
+<p>which is icky since it introduces an unwrap.</p>
+
+<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
+for the scope of the enclosing block.</p>
+
+<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
+
+<pre><code class="rust">let owned; // 😯😯😯😯😯
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>We know that Rust doesn&rsquo;t do &ldquo;uninitialized&rdquo; variables. If you want to name a variable, you have to
+initialize it. <code>let foo;</code> feels rather like magic in this context, because it looks like we&rsquo;ve declared
+an uninitialized variable.</p>
+
+<p>What&rsquo;s less well known is that Rust <em>can</em> do &ldquo;deferred&rdquo; initialization. Here, you declare a variable
+and can initialize it later, but expressions involving the variable can only exist in branches
+where the compiler knows it has been initialized.</p>
+
+<p>This is the case here. We declared the <code>owned</code> variable beforehand. It now lives in the outer scope
+and won&rsquo;t be destroyed until the end of the outer scope. However, the variable cannot be used directly
+in an expression in the first branch, or after the <code>if</code>. Doing so will give a compile time error
+saying <code>use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code>else</code> branch
+because the compiler can see that it is unconditionally initialized in that branch.</p>
+
+<p>We can still read the value of <code>owned</code> indirectly through <code>maybe_foo</code> from outside the branch.
+This is okay because the storage of <code>owned</code> is guaranteed to live as long as the outer scope,
+and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code> is set to a value inside <code>owned</code> is when
+<code>owned</code> has been initialized, so it is safe.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>In my experience <code>.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code>.map()</code><a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[You're Doing It Wrong]]></title>
-    <link href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/"/>
-    <updated>2017-04-05T09:37:40-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong</id>
+    <link href="http://manishearth.github.io/blog/2017/04/06/youre-doing-it-wrong/"/>
+    <updated>2017-04-06T00:37:40+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/04/06/youre-doing-it-wrong</id>
     <content type="html"><![CDATA[<p>&ldquo;You&rsquo;re doing it wrong&rdquo;</p>
 
 <p>A common refrain in issue trackers and discussion forums everywhere. In isolation,
@@ -85,9 +274,9 @@ preempt various confusions they see.</p>
   
   <entry>
     <title type="html"><![CDATA[I Never Hear the Phrase 'INHTPAMA' Anymore]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa/"/>
-    <updated>2017-03-18T19:50:42-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa</id>
+    <link href="http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa/"/>
+    <updated>2017-03-19T10:50:42+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa</id>
     <content type="html"><![CDATA[<p>Imagine never hearing the phrase &lsquo;INHTPAMA&rsquo; again.</p>
 
 <p>Oh, that&rsquo;s already the case? Bummer.</p>
@@ -122,9 +311,9 @@ memory of the Rust community.</p>
   
   <entry>
     <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
-    <updated>2017-03-04T18:52:00-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
+    <link href="http://manishearth.github.io/blog/2017/03/05/what-are-sum-product-and-pi-types/"/>
+    <updated>2017-03-05T10:52:00+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/05/what-are-sum-product-and-pi-types</id>
     <content type="html"><![CDATA[<p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
 
 <p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
@@ -517,9 +706,9 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
   
   <entry>
     <title type="html"><![CDATA[Mitigating Underhandedness: Fuzzing Your Code]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/"/>
-    <updated>2017-03-02T16:13:54-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code</id>
+    <link href="http://manishearth.github.io/blog/2017/03/03/mitigating-underhandedness-fuzzing-your-code/"/>
+    <updated>2017-03-03T08:13:54+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/03/mitigating-underhandedness-fuzzing-your-code</id>
     <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
 
 <p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
@@ -640,130 +829,6 @@ to the trophy case, too!)</p>
 
 <p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
 But you can start taking it for a spin now, and finding bugs!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mitigating Underhandedness: Clippy!]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/"/>
-    <updated>2017-01-21T15:22:16-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy</id>
-    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
-
-<p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
-writing seemingly-innocuous malicious code; code that is deliberately written to do some harm,
-but will pass a typical code review.</p>
-
-<p>It is inspired by the <a href="http://www.underhanded-c.org">Underhanded C</a> contest. Most of the underhanded C submissions have to do
-with hidden buffer overflows, pointer arithmetic fails, or misuse of C macros; and these problems
-largely don&rsquo;t occur in Rust programs. However, the ability to layer abstractions on each other does
-open up new avenues to introducing underhandedness by relying on sufficiently confusing abstraction
-sandwiches. There are probably other interesting avenues. Overall, I&rsquo;m pretty excited to see what
-kind of underhandedness folks come up with!</p>
-
-<p>Of course, underhandedness is not just about fun and games; we should be hardening our code against
-this kind of thing. Even if you trust your fellow programmers. Even if <em>you</em> are the sole programmer and you trust yourself.
-After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can&rsquo;t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
-Rust is about trusting <em>nobody</em>. Not even yourself.</p>
-
-<p><img src="/images/post/memes/trust-nobody.jpg" width="300"></p>
-
-<p>Rust protects you from your own mistakes when it comes to memory management. But we
-should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
-programming involve sleights of hand that could just as well be introduced in the code by accident, causing bugs.
-Not memory safety bugs (in Rust), but still, bugs. The existence of these sleights of hand is great for
-that very common situation
-<a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize">when you are feeling severely under-plushied and must win a competition to replenish your supply</a>
-but we really don&rsquo;t want these creeping into real-world code, either by accident or intentionally.</p>
-
-<hr />
-
-<p>Allow me to take a moment out of your busy underhanded-submission-writing schedules to talk to you about
-our Lord and Savior <a href="http://github.com/manishearth/rust-clippy/">Clippy</a>.</p>
-
-<p>Clippy is for those of you who have become desensitized to the constant whining of the Rust compiler
-and need a higher dosage of whininess to be kept on their toes. Clippy is for those perfectionists
-amongst you who want to know every minute thing wrong with their code so that they can fix it.
-But really, Clippy is for everyone.</p>
-
-<p>Clippy is simply a large repository of lints. As of the time of writing this post, there are
-<a href="https://github.com/manishearth/rust-clippy/#lints">183 lints</a> in it, though not all of them are enabled by default. These use the regular Rust lint
-system so you can pick and choose the ones you need via <code>#[allow(lint_name)]</code> and
-<code>#[warn(lint_name)]</code>. These lints cover a wide range of functions:</p>
-
-<ul>
-<li>Improving readability of the code (though <a href="https://github.com/rust-lang-nursery/rustfmt/">rustfmt</a> is the main tool you should use for this)</li>
-<li>Helping make the code more compact by reducing unnecessary things (my absolute favorite is <a href="https://github.com/Manishearth/rust-clippy/wiki#needless_lifetimes">needless_lifetimes</a>)</li>
-<li>Helping make the code more idiomatic</li>
-<li>Making sure you don&rsquo;t do things that you&rsquo;re not supposed to</li>
-<li>Catching mistakes and cases where the code may not work as expected</li>
-</ul>
-
-
-<p>The last two really are the ones which help with underhanded code. Just to give an example,
-we have lints like:</p>
-
-<ul>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#cmp_nan">cmp_nan</a>, which disallows things like <code>x == NaN</code></li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#clone_double_ref">clone_double_ref</a>, which disallows calling <code>.clone()</code> on double-references (<code>&amp;&amp;T</code>), since that&rsquo;s a straightforward copy and you probably meant to do something like <code>(*x).clone()</code></li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#for_loop_over_option">for_loop_over_option</a>: <code>Option&lt;T&gt;</code> is iterable, and while this is useful when composing iterators, directly iterating over an option is usually an indication of a mistake.</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#match_same_arms">match_same_arms</a>, which checks for identical match arm bodies (strong indication of a typo)</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#suspicious_assignment_formatting">suspicious_assignment_formatting</a>, which checks for possible typos with the <code>+=</code> and <code>-=</code> operators</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#unused_io_amount">unused_io_amount</a>, which ensures that you don&rsquo;t forget that some I/O APIs may not write all bytes in the span of a single call</li>
-</ul>
-
-
-<p>These catch many of the gotchas that might crop up in Rust code. In fact,
-I based <a href="https://www.reddit.com/r/rust/comments/3hb0wm/underhanded_rust_contest/cu5yuhr/">my solution of an older, more informal Underhanded Rust contest</a> on one of these.</p>
-
-<h2>Usage</h2>
-
-<p>Clippy is still nightly-only. We hook straight into the compiler&rsquo;s guts to obtain
-the information we need, and like most internal compiler APIs, this is completely unstable. This
-does mean that you usually need a latest or near-latest nightly for clippy to work, and there will
-be times when it won&rsquo;t compile while we&rsquo;re working to update it.</p>
-
-<p>There is a plan to ship clippy as an optional component of rustc releases, which will fix all of
-these issues (yay!).</p>
-
-<p>But, for now, you can use clippy via:</p>
-
-<pre><code class="sh">rustup install nightly
-# +nightly not necessary if nightly is your default toolchain
-cargo +nightly install clippy
-# in your project folder
-cargo +nightly clippy
-</code></pre>
-
-<p>If you&rsquo;re going to be making it part of the development procedures of a crate
-you maintain, you can also <a href="https://github.com/manishearth/rust-clippy/#optional-dependency">make it an optional dependency</a>.</p>
-
-<p>If you&rsquo;re on windows, there&rsquo;s currently a rustup/cargo <a href="https://github.com/rust-lang-nursery/rustup.rs/issues/876">bug</a> where you may have to add
-the rustc libs path in your <code>PATH</code> for <code>cargo clippy</code> to work.</p>
-
-<p>There&rsquo;s an experimental project called <a href="https://github.com/killercup/rustfix">rustfix</a> which can automatically apply suggestions from
-clippy and rustc to your code. This may help in clippy-izing a large codebase, but it may
-also eat your code and/or laundry, so beware.</p>
-
-<h2>Contributing</h2>
-
-<p>There&rsquo;s a <em>lot</em> of work that can be done on clippy. A hundred and eighty lints is just
-a start, there are <a href="https://github.com/manishearth/rust-clippy/issues">hundreds more lint ideas filed on the issue tracker</a>. We&rsquo;re
-willing to mentor anyone who wants to get involved; and have
-<a href="https://github.com/manishearth/rust-clippy/issues?q=is%3Aissue+is%3Aopen+label%3AE-easy">specially tagged &ldquo;easy&rdquo; issues</a> for folks new to compiler internals. In general,
-contributing to clippy is a great way to gain an understanding of compiler internals
-if you want to contribute to the compiler itself.</p>
-
-<p>If you don&rsquo;t want to write code for clippy, you can also run it on random crates,
-open pull requests with fixes, and file bugs on clippy for any false positives that appear.</p>
-
-<p>There are more tips about contributing in <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">our CONTRIBUTING.md</a>.</p>
-
-<hr />
-
-<p>I hope this helps reduce mistakes and underhandedness in your code!</p>
-
-<p>..unless you&rsquo;re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
 ]]></content>
   </entry>
   

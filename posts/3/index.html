@@ -9,8 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="For a while I&rsquo;ve been working on a garbage collector for Rust with Michael
-Layzell. I thought this would be a good time to talk of our design &hellip;">
+  <meta name="description" content="One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +17,7 @@ Layzell. I thought this would be a good time to talk of our design &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="For a while I&rsquo;ve been working on a garbage collector for Rust with Michael
-Layzell. I thought this would be a good time to talk of our design and progress so far. Motivation &ldquo;Wait&rdquo &hellip;">
+      <meta property="twitter:description" content="One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real world problems. There&rsquo;s only so much one can &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -98,6 +96,193 @@ Layzell. I thought this would be a good time to talk of our design and progress 
       
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2016/01/04/making-your-open-source-project-newcomer-friendly/">Making Your Open Source Project Newcomer-friendly</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2016-01-04T10:56:24+08:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>4</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>10:56 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real world problems. There&rsquo;s only so much one can learn from small personal projects; but in open source one often gets to tackle interesting problems on large codebases &mdash; problems which wouldn&rsquo;t occur in small/personal ones. There are also valuable skills related to collaboration to be learnt.</p>
+
+<p>Because of this, I care quite a bit about making projects welcoming to new contributions, and try to improve this experience on projects I&rsquo;m involved in. I&rsquo;ve picked up a few tricks along the way. Most of these aren&rsquo;t my ideas, I&rsquo;ve gleaned them from watching people like <a href="https://twitter.com/lastontheboat">Josh Matthews</a>, <a href="https://twitter.com/mleibovic">Margaret Leibovic</a>, <a href="https://twitter.com/mike_conley">Mike Conley</a>, and <a href="https://twitter.com/redheadedcuban">Joel Maher</a> do their thing. If you&rsquo;re interested, <a href="http://blog.margaretleibovic.com/2013/08/06/increasing-volunteer-participation-on-the-firefox.html">here</a> is a post by Margaret, and <a href="http://www.joshmatthews.net/fsoss15/contribution.html">here</a> are some of Josh&rsquo;s slides from a presentation, both on the same subject.</p>
+
+<p>Before I get started, bear in mind that making a project &ldquo;newbie-friendly&rdquo; isn&rsquo;t something that magically happens. Like most things, it takes effort, but often this effort can come to fruition in the form of motivated contributors helping out on your project and eventually even becoming co-maintainers. It&rsquo;s really worth it!</p>
+
+<h2>The simple stuff</h2>
+
+<p>There&rsquo;s a lot of really easy stuff you can do to kickstart contributions to your own project. Most of this is obvious:</p>
+
+<h3>CONTRIBUTING.md</h3>
+
+<p><strong>Add a <code>CONTRIBUTING.md</code></strong> file. Keep it up to date. Link to it prominently from the README. The README should also have clear and detailed instructions for building the project. These two files are different &ndash; README is for those who want to use your project (perhaps by building from sources), CONTRIBUTING is for people who want to contribute.</p>
+
+<p><strong>Mention steps for getting involved</strong>: how to find something to work on, how to send a patch/make a pull request, a checklist of things to ensure your patch/PR satisfies before submission (e.g. passing tests, commit message guidelines, etc).
+Additionally, include some tips and tricks (like a link to the internal documentation) that can help new contributors, links to communication channels (IRC, Slack, Gitter, whatever) and anything else you may find helpful for someone considering contributing to your project. If you use some form of issue labeling, explanations of the labeling scheme can help folks find stuff they want to work on. An overview of the directory structure can be similarly helpful.</p>
+
+<p>For some examples, check out the CONTRIBUTING.md files for <a href="https://github.com/servo/servo/blob/master/CONTRIBUTING.md">servo</a> and <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">rust-clippy</a>.</p>
+
+<h3>Maintain a list of easy bugs</h3>
+
+<p>More on this later, but try to <strong>use some form of tagging to mark easy bugs</strong>. I love <a href="http://www.joshmatthews.net/fsoss15/contribution.html?full#issuetracker">this slide</a> from Josh&rsquo;s talk.</p>
+
+<blockquote><p>How to politely say f*** off</p>
+
+<p>&ldquo;Choose something to work on from our issue tracker.&rdquo; <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - every project maintainer</p></blockquote>
+
+<p>Most bugs on issue trackers are nontrivial, steeped with jargon, devoid of actionable information, or otherwise inaccessible to the average new contributor. It&rsquo;s relatively low effort to recognize bugs which are &ldquo;easy&rdquo; for maintainers, but it&rsquo;s a lot of work for people unfamiliar to this project to figure this out.</p>
+
+<p>A simple label on GitHub is all you need in most cases. Be sure to link to it from your contributing file!</p>
+
+<h3>Communicate!</h3>
+
+<p><strong>Have open channels</strong> for communication. IRC is often the favorite here, though IRC is pretty alien for people getting involved in open source for the first time. If you&rsquo;re using IRC, see if you can link to a web client (like <a href="https://wiki.mibbit.com/index.php/Widget">Mibbit</a>) with short instructions on how to join. Stuff like Gitter works too.</p>
+
+<p>Mailing lists also work &mdash; everyone knows how to email! However, email can be intimidating to newcomers; many have a &ldquo;omg I can&rsquo;t ask my silly questions here!&rdquo; attitude which stops them from progressing.</p>
+
+<p>Explicitly inviting questions in each issue helps here. Clippy doesn&rsquo;t have a mailing list or IRC channel (too small a project), but I encourage people working on new bugs to ping me on any communication channel they&rsquo;d like. I&rsquo;ve mentored people over email, GH issue threads, IRC, even reddit PMs, and it&rsquo;s worked out fine in each case.</p>
+
+<p>Often folks will PM you for help. Provide help, but <strong>encourage them to ask questions</strong> in the main venue. This has the twofold benefit of showing everyone that the main channel is open to questions, and it also helps people get quicker answers since someone else can answer if you&rsquo;re not around.</p>
+
+<h3>Recognition</h3>
+
+<p><strong>Celebrate new contributors</strong>. Tweet about them. Mention them in blog posts. Getting a two-line patch accepted in an open source project doesn&rsquo;t sound like much, but when you&rsquo;re just getting started, it&rsquo;s a very awesome feeling. Make it more awesome! Both <a href="http://this-week-in-rust.org/">This Week In Rust</a> and <a href="https://blog.servo.org/">This Week In Servo</a> mention new contributors (sometimes we tweet about it too), and I&rsquo;ve often got very happy messages from these contributors about the mentions.</p>
+
+<h3>Add a code of conduct</h3>
+
+<p>A lot of folks have had bad experiences with people online, often in other open source communities and may be wary about joining others. <strong>A code of conduct</strong> is a statement that unsavory behavior won&rsquo;t be tolerated, which helps make the project more welcoming and appealing to these people, simultaneously making it a nicer place which is helpful for everyone. Of course, you should be prepared to enforce the code of conduct if the situation requires it.</p>
+
+<p>I use the <a href="https://www.rust-lang.org/conduct.html">Rust code of conduct</a> but the <a href="http://contributor-covenant.org/">Contributor Covenant</a> is good, too. Various language/framework communities often have their own favorite code of conduct. Pick one.</p>
+
+<h3>Empathize!</h3>
+
+<p>We often forget how hard it is to jumpstart in something we&rsquo;re an active part of. For example, for many of us the process of making a pull request is almost second nature.</p>
+
+<p>However, not everyone is used to these things. I&rsquo;ve seen contributors who can code well but haven&rsquo;t used Github in the past having lots of trouble making and updating a pull request. The same applies to other workflow things; like code review, version control<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, or build system peculiarities.</p>
+
+<p>Keep this in mind when dealing with new contributors. These are skills which can be picked up relatively quickly, but those without them will have a frustrating experience and end up asking you a lot of questions.</p>
+
+<h2>Improving the newcomer experience</h2>
+
+<p>Alright, now you&rsquo;ve gotten all the basics done. People now have a vague idea of how to contribute to your project. Let&rsquo;s make it more concrete.</p>
+
+<h3>Mentoring</h3>
+
+<p>Don&rsquo;t just leave an easy bug open. <strong>Offer to mentor it!</strong> This is a very fun and rewarding experience, and of course contributors are more likely to stick around in a project they percieve to be helpful and welcoming.</p>
+
+<p>It&rsquo;s often better to go one step further and <strong>give tips for fixing the issue before anyone even picks it up</strong> (<a href="https://github.com/rust-lang/rust/issues/10969#issuecomment-158282317">example</a>). Communication in open source has latency &mdash; the contributor might be on the other side of the planet, or might otherwise be contributing at a different time of the day than you<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Reducing the number of back-and-forth cycles is really helpful here, and giving some info so that a contributor can get started immediately without needing to wait for a response goes a long way in improving the newcomer experience.</p>
+
+<p>Avoid creating a mentored bug where you yourself aren&rsquo;t certain on how to fix it. Ideally, <strong>you should know the exact steps to take to fix a bug</strong> before marking it as mentored. Don&rsquo;t divulge all the steps to the mentee, but the exercise of solving the bug yourself (without writing the code) ensures that there aren&rsquo;t any hidden traps.</p>
+
+<p>Mostly mentorship just involves <strong>answering questions and laying out a path</strong> for the mentee. Be sure to encourage questions in the first place! A lot of people, especially students, are intimidated when joining open source and try to stay as quiet as possible. For a healthy mentorship, you want them to ask questions. A lot. Encourage this.</p>
+
+<p>Remember that in many cases the new contributor may be intimidated by <em>you</em>. For example, I&rsquo;ve often come across new Firefox contributors (who I introduced to the project) asking me questions instead of their assigned mentor because &ldquo;the mentor works for Mozilla and is way too awesome for me to bug with questions&rdquo;. This wasn&rsquo;t something the mentor told them (Firefox mentors are all very nice and helpful people), it was a conclusion they came to on their own &mdash; one which would impede their progress on the bug.</p>
+
+<p>One trick that helps mitigate this is encouraging questions in your main channel. When people PM me with questions on IRC, I answer their questions, but also encourage them to ask in the main IRC channel next time. This is good for everyone &mdash; It gives the channel an aura of being &ldquo;okay to ask questions in&rdquo; (if other people see that questions are being asked and answered in the channel), and it also lets other maintainers jump in to help the new contributor in case I&rsquo;m not around.</p>
+
+<p>Once a new contributor has fixed a bug, mentorship isn&rsquo;t over &ndash; it&rsquo;s just started! See if you can find something more involved for them to work in a related area of the codebase. Get to know the contributor too, a sense of familiarity goes a long way in reducing intimidation and other friction.</p>
+
+<h3>Tailoring process for newcomers</h3>
+
+<p>Most open source projects have a set of hoops you have to jump through for a pull request to be accepted. These are necessary for the health of the project and pretty straightforward for existing contributors, but can be intimidating for new ones. They also add extra cycles of communication. I&rsquo;ve often seen people put up almost-working patches, and disappear after a few cycles &mdash; even though the bulk of the work was done and there were just process issues (or code nits) left over for merging; which can be quite disheartening. Reducing extra process helps mitigate this.</p>
+
+<p>For example, Servo uses this great tool called <a href="http://reviewable.io/">Reviewable</a> for code review. Regular contributors don&rsquo;t have much friction whilst using this, so we use it wherever possible. However, for small pull requests from new contributors I avoid using Reviewable and instead opt to review directly from the GitHub interface. For these pull requests I don&rsquo;t need Reviewable&rsquo;s features, so I don&rsquo;t lose much, but now the contributor has to go through one less hoop.</p>
+
+<p>Similarly, for rust-clippy, I often make minor fixes and run <a href="https://github.com/Manishearth/rust-clippy/blob/master/util/update_lints.py">the readme update script</a> on behalf of the contributor instead of asking them to do it themselves. I usually check out the PR locally, run <code>git merge pr-branch --no-commit --no-ff</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, make edits, commit and push. This way the PR still gets marked as merged (<code>commit --amend</code> doesn&rsquo;t do that), and the history stays bisectable.</p>
+
+<p>OpenSSL uses a mailing list for patches, however they allow contributions via GitHub too. Most seasoned contributors probably stick to the mailing list, but new contributors can use the familiar GitHub interface if they want, reducing friction.</p>
+
+<p>Of course, cutting down on (necessary) process should only be done for the first one or two contributions; try to educate the newcomer about your processes as time passes.</p>
+
+<p>An alternate way to tackle this issue is to go the other way around and teach process first. Give newcomers an extremely easy bug that just involves replacing a string or some other simple one-line fix, and help them push it through the process. This way, the next time they work on something, they&rsquo;ll be familiar with the process and be able to devote more time to the actual code.</p>
+
+<h3>Creating easy bugs</h3>
+
+<p>At some point down this road many projects have a problem where there are people who want to contribute, but not enough suitable easy bugs.</p>
+
+<p>One technique that has helped me create a lot of easy bugs is to just <strong>look out for separable and non-critical subfeatures when working on something</strong>. There often are things like polish or other small features which you don&rsquo;t need to include in the main pull request, but you do anyway because it&rsquo;s a few extra seconds of work. If you think it can be split out as an easy bug, go ahead and file it!</p>
+
+<p>For example, whilst working on some <a href="https://github.com/servo/servo/commit/b677f0f4ae718c9c6953134bbed27656a6aeb48d">form issues</a>, instead of completely implementing something, I implemented just what I needed, and <a href="https://github.com/servo/servo/issues/7726">filed an easy bug</a>. <a href="https://github.com/servo/servo/issues/4534">This</a> is another bug with a very similar situation; I&rsquo;d implemented the framework for form submission, made it work with <code>&lt;input&gt;</code>, and filed an easy bug for wiring it up to <code>&lt;button&gt;</code>.</p>
+
+<p>Sometimes you may not find a subfeature that can be split out, but you may notice something else which could be improved. <a href="https://github.com/servo/servo/issues/7517">This</a> is an example of such an issue. I was working on something else, and noticed that this area of the code could be designed better. Whilst I could have fixed it myself with very little effort as part of my other changes, I made it into an easy bug instead.</p>
+
+<p><strong>Simple refactorings</strong> can be a source of easy bugs too. These require familiarity with the language, but not much more, so they&rsquo;re ideal for people new to the project.</p>
+
+<p>It&rsquo;s also possible to take a hard bug and make it easier, either by partially implementing it, or giving enough hints (code links, explanations, etc) that the hard part is already taken care of.</p>
+
+<p><strong>Avoid making &ldquo;critical&rdquo; (i.e, needs to land in a week or two) features into easy bugs</strong>. Even simple changes can take a while for new contributors (especially due to the nature of asynchronous communication, lack of time, and/or getting bogged down in the process). Easy bugs should be something which you <em>eventually</em> want, but are okay with it taking longer to solve. It&rsquo;s very disheartening for a new contributor if they are working on something and a maintainer solves it for them because it was needed to land quickly. (Given enough time this will eventually happen for some bug, in such a case see if you can provide a different bug for them to work on and apologize)</p>
+
+<h3>Discoverability</h3>
+
+<p>Make it super easy for newcomers to <strong>find a bug they <em>want</em> to work on</strong>; not just any easy bug!</p>
+
+<p><a href="http://www.joshmatthews.net/bugsahoy/">Bugs Ahoy</a> and <a href="http://whatcanidoformozilla.org/">What Can I do for Mozilla</a> are both great examples of this. Servo has <a href="http://servo.github.io/servo-starters/">servo-starters</a>.</p>
+
+<p>There are also various sites where you can list your easy bugs, some of which are listed in <a href="http://edunham.net/2015/11/04/beyond_openhatch.html">Emily&rsquo;s post</a>.</p>
+
+<h3>Projects and more involved participation</h3>
+
+<p>Having easy bugs and mentoring newcomers is just one step. You probably want to have these newcomers working on harder stuff, projects, and perhaps eventually maintianing/reviewing!</p>
+
+<p>For many people these steps may not necessarily require involvement from you; I&rsquo;ve seen professional software developers move their way to being a maintainer with very little mentorship just because they&rsquo;re experienced enough to figure out how the project works on their own.</p>
+
+<p>However, many of your contributors may be students or otherwise inexperienced; indeed they may be contributing to your project to <em>gain</em> this experience and become better developers. Such people can become valuable members of the team with some effort.</p>
+
+<p>This mostly involves <strong>nudging people towards harder bugs and/or projects</strong>. It&rsquo;s also very valuable to maintain a list of &ldquo;student projects&rdquo; (noncritical but large bodies of work). These can be picked up by contributors or sometimes students wishing to do a project for course credit.</p>
+
+<p>It&rsquo;s important to <strong>try and provide a logical series of issues</strong> instead of picking things randomly around the project so that the contributor can focus on one part of the codebase while starting out. If the issues all culminate in a large feature, even better.</p>
+
+<p>Joel Maher and the Mozilla Tools team <a href="https://elvis314.wordpress.com/2015/10/02/hacking-on-a-defined-length-contribution-program/">have started a pretty great program called &ldquo;Quarter of Contribution&rdquo;</a> which provides focused mentorship for a particular project. It seems to work out well. Programs like Google Summer of Code and Outreachy also provide ways for new contributors to try out your project at a significant level of involvement.</p>
+
+<p><em>Creating</em> such projects or harder bugs is a nontrivial problem, and I don&rsquo;t have a clear idea on how this can be done (aside from using similar techniques as listed in the &ldquo;creating easy bugs&rdquo; section above). Ideas welcome!</p>
+
+<p>Projects aren&rsquo;t always necessary here either. Depending on the contributor, sometimes you can present them with a regular (i.e., not &ldquo;easy&rdquo; or otherwise earmarked) issue to work on, provide some hints, and tell them to try and figure stuff out without your help (or with less help). Stay involved, and encourage them to ask questions of others or initiate discussions, but try to stick to observing. It&rsquo;s really fun to watch someone figure stuff out on their own. I did this with a contributor <a href="https://github.com/rust-lang/rust/pull/30377">here</a>, where I only provided the initial hint and the code review; as well as <a href="https://github.com/rust-lang/rust/pull/29989">here</a>, where I encouraged the contributor to initiate and direct the relevant bikeshedding on various channels without my involvement. The contributor is now more in touch with the Rust community and codebase as a result; and for me I enjoyed watching him figure stuff out and direct discussions on his own.</p>
+
+<h2>Mentor! Share!</h2>
+
+<p>I&rsquo;m still exploring these techniques myself. I&rsquo;ve had great results applying some of these to <a href="https://github.com/Manishearth/rust-clippy/">clippy</a>, and we already apply many of them to Servo. I&rsquo;m <a href="https://users.rust-lang.org/t/mentoring-newcomers-to-the-rust-ecosystem/3088">slowly working on applying these techniques to Rust</a>.</p>
+
+<p>While some of these projects I&rsquo;m always open to hearing about more ideas for making it easier for newcomers to contribute, so please let me know if you have any ideas or experiences to share!</p>
+
+<p>Mentoring, while a lot of work, is an insanely rewarding experience, and I hope you try to incorporate it into your open source projects!</p>
+
+<p><em>Thanks to Josh Matthews, James Graham, Emily Dunham, and Joel Maher for feedback on drafts of this post</em></p>
+
+<p><small>discuss: <a href="https://news.ycombinator.com/item?id=10836345">HN</a></small></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>I&rsquo;ve lost track of the number of times I&rsquo;ve helped someone through <code>git rebase</code> and merge conflicts on Servo<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This often happens with open source projects with paid staff &ndash; the staff is around during the workday, but the contributors are around during the evenings, so there&rsquo;s less overlap.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>There are various reasons why you should <em>not</em> do this, mainly because non-merge-related changes in merge commits are hard to track down. Be aware of the downsides and use this trick judiciously.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2015/09/01/designing-a-gc-in-rust/">Designing a GC in Rust</a></h1>
     
     
@@ -107,7 +292,7 @@ Layzell. I thought this would be a good time to talk of our design and progress 
 
 
 
-<time class='entry-date' datetime='2015-09-01T01:23:40-07:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>1</span><span class='date-suffix'>st</span>, <span class='date-year'>2015</span></span> <span class='time'>1:23 am</span></time>
+<time class='entry-date' datetime='2015-09-01T16:23:40+08:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>1</span><span class='date-suffix'>st</span>, <span class='date-year'>2015</span></span> <span class='time'>4:23 pm</span></time>
         
       </p>
     
@@ -561,7 +746,7 @@ welcome, we&rsquo;d especially love performance improvements and testcases.</p>
 
 
 
-<time class='entry-date' datetime='2015-08-29T01:08:59-07:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>1:08 am</span></time>
+<time class='entry-date' datetime='2015-08-29T16:08:59+08:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>4:08 pm</span></time>
         
       </p>
     
@@ -642,7 +827,7 @@ able to Linux in my sleep, which is a win-win!</p>
       
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">Adventures in Systems Programming: C++ Local Statics</a></h1>
+      <h1 class="entry-title"><a href="/blog/2015/06/27/adventures-in-systems-programming-c-plus-plus-local-statics/">Adventures in Systems Programming: C++ Local Statics</a></h1>
     
     
       <p class="meta">
@@ -651,7 +836,7 @@ able to Linux in my sleep, which is a win-win!</p>
 
 
 
-<time class='entry-date' datetime='2015-06-26T16:32:06-07:00'><span class='date'><span class='date-month'>Jun</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>4:32 pm</span></time>
+<time class='entry-date' datetime='2015-06-27T07:32:06+08:00'><span class='date'><span class='date-month'>Jun</span> <span class='date-day'>27</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>7:32 am</span></time>
         
       </p>
     
@@ -1149,7 +1334,7 @@ happening there. One step closer to being a better systems programmer!</p>
 
 
 
-<time class='entry-date' datetime='2015-05-30T05:25:32-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>30</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>5:25 am</span></time>
+<time class='entry-date' datetime='2015-05-30T20:25:32+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>30</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>8:25 pm</span></time>
         
       </p>
     
@@ -1327,7 +1512,7 @@ rather it is a perfect storm of small design inconsistencies in the libraries.</
 
 
 
-<time class='entry-date' datetime='2015-05-28T08:48:53-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>28</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>8:48 am</span></time>
+<time class='entry-date' datetime='2015-05-28T23:48:53+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>28</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>11:48 pm</span></time>
         
       </p>
     
@@ -1394,7 +1579,7 @@ I&rsquo;m pretty sure there will be days where I don&rsquo;t want to program fur
       
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">Wrapper Types in Rust: Choosing Your Guarantees</a></h1>
+      <h1 class="entry-title"><a href="/blog/2015/05/28/wrapper-types-in-rust-choosing-your-guarantees/">Wrapper Types in Rust: Choosing Your Guarantees</a></h1>
     
     
       <p class="meta">
@@ -1403,7 +1588,7 @@ I&rsquo;m pretty sure there will be days where I don&rsquo;t want to program fur
 
 
 
-<time class='entry-date' datetime='2015-05-27T21:29:59-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>27</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>9:29 pm</span></time>
+<time class='entry-date' datetime='2015-05-28T12:29:59+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>28</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>12:29 pm</span></time>
         
       </p>
     
@@ -1838,7 +2023,7 @@ we should figure out the tradeoffs as done above and pick one.</p>
       
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2015/05/17/the-problem-with-shared-mutability/">The Problem With Single-threaded Shared Mutability</a></h1>
+      <h1 class="entry-title"><a href="/blog/2015/05/18/the-problem-with-shared-mutability/">The Problem With Single-threaded Shared Mutability</a></h1>
     
     
       <p class="meta">
@@ -1847,7 +2032,7 @@ we should figure out the tradeoffs as done above and pick one.</p>
 
 
 
-<time class='entry-date' datetime='2015-05-17T17:56:59-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>17</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>5:56 pm</span></time>
+<time class='entry-date' datetime='2015-05-18T08:56:59+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>18</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>8:56 am</span></time>
         
       </p>
     
@@ -2196,7 +2381,7 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
 
 
 
-<time class='entry-date' datetime='2015-05-03T04:49:49-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2015</span></span> <span class='time'>4:49 am</span></time>
+<time class='entry-date' datetime='2015-05-03T19:49:49+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2015</span></span> <span class='time'>7:49 pm</span></time>
         
       </p>
     
@@ -2436,7 +2621,7 @@ with much cognitive overhead; I could just follow the compiler and it fixed ever
 
 
 
-<time class='entry-date' datetime='2015-05-03T04:08:12-07:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2015</span></span> <span class='time'>4:08 am</span></time>
+<time class='entry-date' datetime='2015-05-03T19:08:12+08:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2015</span></span> <span class='time'>7:08 pm</span></time>
         
       </p>
     
@@ -2486,23 +2671,23 @@ my cup of tea.</p>
   <ul id="recent_posts">
     
       <li class="post">
-        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+        <a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
       </li>
     
       <li class="post">
-        <a href="/blog/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+        <a href="/blog/2017/04/06/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
       </li>
     
       <li class="post">
-        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+        <a href="/blog/2017/03/19/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
       </li>
     
       <li class="post">
-        <a href="/blog/2017/03/11/why-quantum-computing-is-weird/">Why Quantum Computing Is Weird</a>
+        <a href="/blog/2017/03/13/use-signal-use-tor/">Use Signal. Use Tor.</a>
       </li>
     
       <li class="post">
-        <a href="/blog/2017/03/05/understanding-git-filter-branch/">Understanding Git Filter-branch and the Git Storage Model</a>
+        <a href="/blog/2017/03/12/why-quantum-computing-is-weird/">Why Quantum Computing Is Weird</a>
       </li>
     
   </ul>

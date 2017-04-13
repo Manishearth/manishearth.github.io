@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-04-06T16:28:01-07:00</updated>
+  <updated>2017-04-13T14:35:42+08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -14,10 +14,199 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Prolonging Temporaries in Rust]]></title>
+    <link href="http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust/"/>
+    <updated>2017-04-13T13:36:05+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust</id>
+    <content type="html"><![CDATA[<p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
+I&rsquo;d document it.</p>
+
+<p>The code was like this:</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+} else {
+    thing.get_owned() // returns Option&lt;Foo&gt;
+};
+
+use(maybe_foo);
+</code></pre>
+
+<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">#[derive(Debug)]
+struct Foo;
+
+struct Thingy {
+    foo: Foo
+}
+
+impl Thingy {
+    pub fn get_ref(&amp;self) -&gt; Option&lt;&amp;Foo&gt; {
+        Some(&amp;self.foo)
+    }
+    pub fn get_owned(&amp;self) -&gt; Option&lt;Foo&gt; {
+        Some(Foo)
+    }
+    pub fn new() -&gt; Self {
+        Thingy {
+            foo: Foo
+        }
+    }
+}
+
+
+
+pub fn main() {
+    let some_condition = true;
+    let thing = Thingy::new();
+
+    let maybe_foo = if some_condition {
+        thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+    } else {
+        thing.get_owned() // returns Option&lt;Foo&gt;
+    };
+
+    println!("{:?}", maybe_foo);
+}
+</code></pre>
+
+<p>I&rsquo;m only going to be changing the contents of <code>main()</code> here.</p>
+
+<p>What&rsquo;s happening here is that a non-<code>Copy</code> type, <code>Foo</code>, is returned in an <code>Option</code>. In one case,
+we have a reference to the <code>Foo</code>, and in another case an owned copy.</p>
+
+<p>We want to set a variable to these, but of course we can&rsquo;t because they&rsquo;re different types.</p>
+
+<p>In one case, we have an owned <code>Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code>Option</code>, there&rsquo;s a convenience method <code>.as_ref()</code> that does this<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Let&rsquo;s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    thing.get_owned().as_ref()
+};
+</code></pre>
+
+<p>This will give us an error.</p>
+
+<pre><code>error: borrowed value does not live long enough
+  --&gt; &lt;anon&gt;:32:5
+   |
+31 |         thing.get_owned().as_ref()
+   |         ----------------- temporary value created here
+32 |     };
+   |     ^ temporary value dropped here while still borrowed
+...
+35 | }
+   | - temporary value needs to live until here
+
+error: aborting due to previous error
+</code></pre>
+
+<p>The problem is, <code>thing.get_owned()</code> returns an owned value. There&rsquo;s nothing that it gets anchored to
+(we don&rsquo;t set its value to a variable), so it is just a temporary &ndash; we can call methods on it, but
+once we&rsquo;re done the value will go out of scope.</p>
+
+<p>What we want is something like</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    let owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>but this will still give a borrow error &ndash; <code>owned</code> will still go out of scope within the <code>if</code> block,
+and we need the reference to it last as long as <code>maybe_foo</code> (outside the block) is supposed to last.</p>
+
+<p>So this is no good.</p>
+
+<p>An alternate solution here <em>can</em> be copying/cloning the <code>Foo</code> in the <em>first</em> case by calling <code>.map(|x|
+x.clone())</code> or <code>.cloned()</code> or something. Sometimes you don&rsquo;t want to clone, so this isn&rsquo;t great.</p>
+
+<p>Another solution here &ndash; the generic advice for dealing with values which may be owned or borrow &ndash;
+is to use <code>Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+inlined enough.</p>
+
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code>thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code>if</code>.</p>
+
+<p>One way to do this is to have an <code>Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>This works in this case, but in this case we already had an <code>Option</code>. If <code>get_ref()</code> and <code>get_owned()</code>
+returned <code>&amp;Foo</code> and <code>Foo</code> respectively, then we&rsquo;d need to do something like:</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = Some(thing.get_owned());
+    owned.as_ref().unwrap()
+};
+</code></pre>
+
+<p>which is icky since it introduces an unwrap.</p>
+
+<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
+for the scope of the enclosing block.</p>
+
+<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
+
+<pre><code class="rust">let owned; // 😯😯😯😯😯
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>We know that Rust doesn&rsquo;t do &ldquo;uninitialized&rdquo; variables. If you want to name a variable, you have to
+initialize it. <code>let foo;</code> feels rather like magic in this context, because it looks like we&rsquo;ve declared
+an uninitialized variable.</p>
+
+<p>What&rsquo;s less well known is that Rust <em>can</em> do &ldquo;deferred&rdquo; initialization. Here, you declare a variable
+and can initialize it later, but expressions involving the variable can only exist in branches
+where the compiler knows it has been initialized.</p>
+
+<p>This is the case here. We declared the <code>owned</code> variable beforehand. It now lives in the outer scope
+and won&rsquo;t be destroyed until the end of the outer scope. However, the variable cannot be used directly
+in an expression in the first branch, or after the <code>if</code>. Doing so will give a compile time error
+saying <code>use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code>else</code> branch
+because the compiler can see that it is unconditionally initialized in that branch.</p>
+
+<p>We can still read the value of <code>owned</code> indirectly through <code>maybe_foo</code> from outside the branch.
+This is okay because the storage of <code>owned</code> is guaranteed to live as long as the outer scope,
+and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code> is set to a value inside <code>owned</code> is when
+<code>owned</code> has been initialized, so it is safe.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>In my experience <code>.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code>.map()</code><a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[You're Doing It Wrong]]></title>
-    <link href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/"/>
-    <updated>2017-04-05T09:37:40-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong</id>
+    <link href="http://manishearth.github.io/blog/2017/04/06/youre-doing-it-wrong/"/>
+    <updated>2017-04-06T00:37:40+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/04/06/youre-doing-it-wrong</id>
     <content type="html"><![CDATA[<p>&ldquo;You&rsquo;re doing it wrong&rdquo;</p>
 
 <p>A common refrain in issue trackers and discussion forums everywhere. In isolation,
@@ -85,9 +274,9 @@ preempt various confusions they see.</p>
   
   <entry>
     <title type="html"><![CDATA[I Never Hear the Phrase 'INHTPAMA' Anymore]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa/"/>
-    <updated>2017-03-18T19:50:42-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa</id>
+    <link href="http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa/"/>
+    <updated>2017-03-19T10:50:42+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa</id>
     <content type="html"><![CDATA[<p>Imagine never hearing the phrase &lsquo;INHTPAMA&rsquo; again.</p>
 
 <p>Oh, that&rsquo;s already the case? Bummer.</p>
@@ -122,9 +311,9 @@ memory of the Rust community.</p>
   
   <entry>
     <title type="html"><![CDATA[Use Signal. Use Tor.]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/12/use-signal-use-tor/"/>
-    <updated>2017-03-12T12:36:54-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/12/use-signal-use-tor</id>
+    <link href="http://manishearth.github.io/blog/2017/03/13/use-signal-use-tor/"/>
+    <updated>2017-03-13T03:36:54+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/13/use-signal-use-tor</id>
     <content type="html"><![CDATA[<p>I went to send a missive today<br>
 As I have done so oft before<br>
 But I forgot to employ that scrap of advice<br>
@@ -159,9 +348,9 @@ Use Signal. Use Tor.</p>
   
   <entry>
     <title type="html"><![CDATA[Understanding Git Filter-branch and the Git Storage Model]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/05/understanding-git-filter-branch/"/>
-    <updated>2017-03-05T10:56:59-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/05/understanding-git-filter-branch</id>
+    <link href="http://manishearth.github.io/blog/2017/03/06/understanding-git-filter-branch/"/>
+    <updated>2017-03-06T02:56:59+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/06/understanding-git-filter-branch</id>
     <content type="html"><![CDATA[<p>The other day <a href="http://twitter.com/steveklabnik">Steve</a> wanted git alchemy done on the Rust repo.</p>
 
 <p>Specifically, he wanted the reference and nomicon moved out into
@@ -559,401 +748,6 @@ with other commits.</p>
 <p>I haven&rsquo;t had the opportunity to work with packfiles much, but they&rsquo;re an
 additional optimization on top of this. <a href="https://codewords.recurse.com/issues/three/unpacking-git-packfiles">Aditya&rsquo;s post</a> is a good
 intro to these.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
-    <updated>2017-03-04T18:52:00-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
-    <content type="html"><![CDATA[<p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
-
-<p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
-or &ldquo;Sum types are cool&rdquo;.</p>
-
-<p>Much like fezzes and bow ties, sum types are indeed cool.</p>
-
-<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400"></p>
-
-<p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
-
-<p>But what does &ldquo;sum type&rdquo; mean? And why is it called that? And what, in the name of sanity, is
-a Pi type?</p>
-
-<p>Before I start, I&rsquo;ll mention that while I will be covering some type theory to explain the names
-&ldquo;sum&rdquo; and &ldquo;product&rdquo;, you don&rsquo;t need to understand these names to use these things! Far too often
-do people have trouble understanding relatively straightforward concepts in languages because
-they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
-
-<h2>So what&rsquo;s a sum type? (the no-type-theory version)</h2>
-
-<p>In it&rsquo;s essence, a sum type is basically an &ldquo;or&rdquo; type. Let&rsquo;s first look at structs.</p>
-
-<pre><code class="rust">struct Foo {
-    x: bool,
-    y: String,
-}
-</code></pre>
-
-<p><code>Foo</code> is a <code>bool</code> AND a <code>String</code>. You need one of each to make one.
-This is an &ldquo;and&rdquo; type, or a &ldquo;product&rdquo; type (I&rsquo;ll explain the name later).</p>
-
-<p>So what would an &ldquo;or&rdquo; type be? It would be one where the value can be a
-<code>bool</code> OR a <code>String</code>. You can achieve this with C++ with a union:</p>
-
-<pre><code class="cpp">union Foo {
-    bool x;
-    string y;
-}
-
-foo.x = true; // set it to a bool
-foo.y = "blah"; // set it to a string
-</code></pre>
-
-<p>However, this isn&rsquo;t <em>exactly</em> right, since the value doesn&rsquo;t store the information
-of which variant it is. You could store <code>false</code> and the reader wouldn&rsquo;t know
-if you had stored an empty <code>string</code> or a <code>false</code> <code>bool</code>.</p>
-
-<p>There&rsquo;s a pattern called &ldquo;tagged union&rdquo; (or &ldquo;discriminated union&rdquo;) in C++ which bridges this gap.</p>
-
-<pre><code class="cpp">union FooUnion {
-    bool x;
-    string y;
-}
-
-enum FooTag {
-    BOOL, STRING
-}
-
-struct Foo {
-    FooUnion data;
-    FooTag tag;
-}
-
-// set it to a bool
-foo.data.x = true;
-foo.tag = BOOL;
-
-// set it to a string
-foo.data.y = "blah";
-foo.tag = STRING;
-</code></pre>
-
-<p>Here, you manually set the tag when setting the value. C++ also has <code>std::variant</code> (or
-<code>boost::variant</code>) that encapsulates this pattern with a better API.</p>
-
-<p>While I&rsquo;m calling these &ldquo;or&rdquo; types here, the technical term for such types is &ldquo;sum&rdquo; types.
-Other languages have built-in sum types.</p>
-
-<p>Rust has them and calls them &ldquo;enums&rdquo;. These are a more generalized version of the
-enums you see in other languages.</p>
-
-<pre><code class="rust">enum Foo {
-    Str(String),
-    Bool(bool)
-}
-
-let foo = Foo::Bool(true);
-
-// "pattern matching"
-match foo {
-    Str(s) =&gt; /* do something with string `s` */,
-    Bool(b) =&gt; /* do something with bool `b` */,
-}
-</code></pre>
-
-<p>Swift is similar, and also calls them enums
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">str</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">boolean</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-</span><span class='line'><span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="k">let</span> <span class="n">s</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with string &lt;code&gt;s&lt;/code&gt;</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="k">let</span> <span class="n">b</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with boolean &lt;code&gt;b&lt;/code&gt;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></p>
-
-<p>You can fake these in Go using interfaces, as well. Typescript has built-in
-unions which can be typechecked without any special effort, but you need
-to add a tag (like in C++) to pattern match on them.</p>
-
-<p>Of course, Haskell has them:</p>
-
-<pre><code class="haskell">data Foo = B Bool | S String
-
--- define a function
-doThing :: Foo -&gt; SomeReturnType
-doThing (B b) = -- do something with boolean b
-doThing (S s) = -- do something with string s
-
--- call it
-doThing (S "blah")
-doThing (B True)
-</code></pre>
-
-<p>One of the very common things that languages with sum types do is express nullability
-as a sum type;</p>
-
-<pre><code class="rust">// an Option is either "something", containing a type, or "nothing"
-enum Option&lt;T&gt; {
-    Some(T),
-    None
-}
-
-let x = Some("hello");
-match x {
-    Some(s) =&gt; println!("{}", s),
-    None =&gt; println!("no string for you"),
-}
-</code></pre>
-
-<p>Generally, these languages have &ldquo;pattern matching&rdquo;, which is like a <code>switch</code>
-statement on steroids. It lets you match on and destructure all kinds of things,
-sum types being one of them. Usually, these are &ldquo;exhaustive&rdquo;, which means that
-you are forced to handle all possible cases. In Rust, if you remove that <code>None</code>
-branch, the program won&rsquo;t compile. So you&rsquo;re forced to deal with the none case,
-<em>somehow</em>.</p>
-
-<p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
-tend to make heavy use of them, almost as much as they use structs.</p>
-
-<h2>Why do we call it a sum type?</h2>
-
-<p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
-
-<p>Let&rsquo;s step back a bit and figure out what a type is.</p>
-
-<p>It&rsquo;s really a restriction on the values allowed. It can have things like methods and whatnot
-dangling off it, but that&rsquo;s not so important here.</p>
-
-<p></p>
-
-<p>In other words, it&rsquo;s like<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set &#92;(\{\mathtt{true}, \mathtt{false}\}&#92;). An 8-bit unsigned integer
-(<code>u8</code> in Rust) is the set &#92;(\{0, 1, 2, 3, &hellip;. 254, 255\}&#92;). A string is a set with
-infinite elements, containing all possible valid strings<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
-
-<p>What&rsquo;s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
-
-<pre><code class="rust">struct Foo {
-    x: bool,
-    y: u8,
-}
-</code></pre>
-
-<p>The set of possible values of <code>Foo</code> is</p>
-
-<p>&#92;[\{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}\}&#92;]</p>
-
-<p>(Read as &ldquo;The set of all &#92;((\mathtt{x}, \mathtt{y})&#92;) where &#92;(\tt x&#92;) is in &#92;(\mathtt{bool}&#92;) and &#92;(\tt y&#92;) is in &#92;(\mathtt{u8}&#92;)&rdquo;)</p>
-
-<p>This is called a <em>Cartesian product</em>, and is often represented as &#92;(\tt Foo = bool \times u8&#92;).
-An easy way to view this as a product is to count the possible values: The number of possible values
-of <code>Foo</code> is the number of possible values of <code>bool</code> (2) <em>times</em> the number of possible values of <code>u8</code> (256).</p>
-
-<p>A general struct would be a &ldquo;product&rdquo; of the types of each field, so something like</p>
-
-<pre><code class="rust">struct Bar {
-    x: bool,
-    y: u8,
-    z: bool,
-    w: String
-}
-</code></pre>
-
-<p>is &#92;(\mathtt{Bar = bool \times u8 \times bool \times String}&#92;)</p>
-
-<p>This is why structs are called &ldquo;product types&rdquo;<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>.</p>
-
-<p>You can probably guess what comes next &ndash; Rust/Swift enums are &ldquo;sum types&rdquo;, because they are the
-<em>sum</em> of the two sets.</p>
-
-<pre><code class="rust">enum Foo {
-    Bool(bool),
-    Integer(u8),
-}
-</code></pre>
-
-<p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
-is a sum of sets, &#92;(\tt Foo = bool + u8&#92;). More accurately, it&rsquo;s a <em>disjoint union</em>, where if the input
-sets have overlap, the overlap is &ldquo;discriminated&rdquo; out.</p>
-
-<p>An example of this being a disjoint union is:</p>
-
-<pre><code class="rust">enum Bar {
-    Bool1(bool),
-    Bool2(bool),
-    Integer(u8).
-}
-</code></pre>
-
-<p>This is not &#92;(\tt Bar = bool + bool + u8&#92;), because &#92;(\tt bool + bool = bool&#92;), (regular set addition doesn&rsquo;t duplicate the overlap).</p>
-
-<p>Instead, it&rsquo;s something like</p>
-
-<p>&#92;[\tt Bar = bool + otherbool + u8&#92;]</p>
-
-<p>where &#92;(\tt otherbool&#92;) is also a set &#92;(\tt \{true, false\}&#92;),
-except that these elements are <em>different</em> from those in &#92;(\tt bool&#92;). You can look at it as if</p>
-
-<p>&#92;[\tt otherbool = \{true_2, false_2\}&#92;]</p>
-
-<p>so that</p>
-
-<p>&#92;[\mathtt{bool + otherbool} = \{\mathtt{true, false, true_2, false_2}\}&#92;]</p>
-
-<p>For sum types, the number of possible values is the sum of the number of possible values of
-each of its component types.</p>
-
-<p>So, Rust/Swift enums are &ldquo;sum types&rdquo;.</p>
-
-<p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
-talking about sum and product types together &ndash; a language with ADTs will have both.</p>
-
-<p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
-it&rsquo;s the set of all possible mappings from &#92;(B&#92;) to &#92;(A&#92;). The number of elements is &#92;(N_A^{N_B}&#92;). So
-basically, the type of a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
-an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
-
-<pre><code class="rust">// the type
-fn my_func(b: B) -&gt; A;
-
-// is conceptually (each possible my_func can be written as an instance of)
-
-struct my_func {
-    b1: A, // value for first element in B
-    b2: A, // value for second element in B
-    b3: A,
-    // ... 
-}
-</code></pre>
-
-<p>given a value of the input <code>b</code>, the function will find the right field of <code>my_func</code> and return
-the mapping. Since a struct is a product type, this is</p>
-
-<p>&#92;[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots&#92;]</p>
-
-<p>making it an exponential type.</p>
-
-<p><a href="http://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
-
-<p></p>
-
-<h2>What, in the name of sanity, is a Pi type?</h2>
-
-<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400"></p>
-
-<p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
-can depend on a value. An example of this is integer generics, where you
-can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
-
-<p>Note that the type signature contains a <em>type</em> dependent on an integer, being generic over multiple
-different array lengths.</p>
-
-<p>The name comes from how a constructor for these types would look:</p>
-
-<pre><code class="rust">// create an array of booleans from a given integer
-// I made up this syntax, this is _not_ from the Rust Pi type RFC
-fn make_array(x: u8) -&gt; Array&lt;bool, x&gt; {
-    // ...
-}
-
-// or
-// (the proposed rust syntax)
-fn make_array&lt;const x: u8&gt;() -&gt; Array&lt;bool, x&gt; {
-   // ... 
-}
-</code></pre>
-
-<p>What&rsquo;s the type of <code>make_array</code> here? It&rsquo;s a function which can accept any integer
-and return a different type in each case. You can view it as a set of functions,
-where each function corresponds to a different integer input. It&rsquo;s basically:</p>
-
-<pre><code class="rust">struct make_array {
-    make_array_0: fn() -&gt; Array&lt;bool, 0&gt;,
-    make_array_1: fn() -&gt; Array&lt;bool, 1&gt;,
-    make_array_2: fn() -&gt; Array&lt;bool, 2&gt;,
-    make_array_3: fn() -&gt; Array&lt;bool, 3&gt;,
-    make_array_4: fn() -&gt; Array&lt;bool, 4&gt;,
-    make_array_5: fn() -&gt; Array&lt;bool, 5&gt;,
-    // ... 
-}
-</code></pre>
-
-<p>Given an input, the function chooses the right child function here, and calls it.</p>
-
-<p></p>
-
-<p>This is a struct, or a product type! But it&rsquo;s a product of an infinite number of types<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
-
-<p>We can look at it as</p>
-
-<p>&#92;[\texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
-
-<p>The usage of the &#92;(\Pi&#92;) symbol to denote an iterative product gives this the name &ldquo;Pi type&rdquo;.</p>
-
-<p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
-that can give you a value, and actually having the value. So, the type of <code>make_array</code> is the type
-of <code>Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
-
-<p>There&rsquo;s also a notion of a &ldquo;sigma&rdquo; type, which is basically</p>
-
-<p>&#92;[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
-
-<p>With the Pi type, we had &ldquo;for all N we can
-construct an array&rdquo;, with the sigma type we have &ldquo;there exists some N for which we can construct this array&rdquo;.
-As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
-are basically instances of <code>Array&lt;bool, N&gt;</code> for some specific <code>N</code> where the <code>N</code> is only known at runtime.
-(much like how regular sum types are instances of one amongst multiple types, where the exact type
-is only known at runtime). <code>Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code>Array&lt;bool, ?&gt;</code>,
-as is <code>&amp;[bool]</code>.</p>
-
-<p></p>
-
-<h2>Wrapping up</h2>
-
-<p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
-
-<p>Let&rsquo;s try to avoid using confusing terminology, however. If Rust <em>does</em> get &ldquo;pi types&rdquo;,
-let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generics&rdquo; :)</p>
-
-<p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Lookin&#8217; at you, Go.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Moooooooooooooooonads<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it&rsquo;s still a finite set.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>Like with strings, in practice this would probably be bounded by the integer type chosen<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
 ]]></content>
   </entry>
   

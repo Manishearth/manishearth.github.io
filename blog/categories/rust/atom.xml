@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-04-06T16:28:01-07:00</updated>
+  <updated>2017-04-13T14:35:42+08:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -14,10 +14,199 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Prolonging Temporaries in Rust]]></title>
+    <link href="http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust/"/>
+    <updated>2017-04-13T13:36:05+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust</id>
+    <content type="html"><![CDATA[<p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
+I&rsquo;d document it.</p>
+
+<p>The code was like this:</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+} else {
+    thing.get_owned() // returns Option&lt;Foo&gt;
+};
+
+use(maybe_foo);
+</code></pre>
+
+<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">#[derive(Debug)]
+struct Foo;
+
+struct Thingy {
+    foo: Foo
+}
+
+impl Thingy {
+    pub fn get_ref(&amp;self) -&gt; Option&lt;&amp;Foo&gt; {
+        Some(&amp;self.foo)
+    }
+    pub fn get_owned(&amp;self) -&gt; Option&lt;Foo&gt; {
+        Some(Foo)
+    }
+    pub fn new() -&gt; Self {
+        Thingy {
+            foo: Foo
+        }
+    }
+}
+
+
+
+pub fn main() {
+    let some_condition = true;
+    let thing = Thingy::new();
+
+    let maybe_foo = if some_condition {
+        thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
+    } else {
+        thing.get_owned() // returns Option&lt;Foo&gt;
+    };
+
+    println!("{:?}", maybe_foo);
+}
+</code></pre>
+
+<p>I&rsquo;m only going to be changing the contents of <code>main()</code> here.</p>
+
+<p>What&rsquo;s happening here is that a non-<code>Copy</code> type, <code>Foo</code>, is returned in an <code>Option</code>. In one case,
+we have a reference to the <code>Foo</code>, and in another case an owned copy.</p>
+
+<p>We want to set a variable to these, but of course we can&rsquo;t because they&rsquo;re different types.</p>
+
+<p>In one case, we have an owned <code>Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code>Option</code>, there&rsquo;s a convenience method <code>.as_ref()</code> that does this<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Let&rsquo;s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    thing.get_owned().as_ref()
+};
+</code></pre>
+
+<p>This will give us an error.</p>
+
+<pre><code>error: borrowed value does not live long enough
+  --&gt; &lt;anon&gt;:32:5
+   |
+31 |         thing.get_owned().as_ref()
+   |         ----------------- temporary value created here
+32 |     };
+   |     ^ temporary value dropped here while still borrowed
+...
+35 | }
+   | - temporary value needs to live until here
+
+error: aborting due to previous error
+</code></pre>
+
+<p>The problem is, <code>thing.get_owned()</code> returns an owned value. There&rsquo;s nothing that it gets anchored to
+(we don&rsquo;t set its value to a variable), so it is just a temporary &ndash; we can call methods on it, but
+once we&rsquo;re done the value will go out of scope.</p>
+
+<p>What we want is something like</p>
+
+<pre><code class="rust">let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    let owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>but this will still give a borrow error &ndash; <code>owned</code> will still go out of scope within the <code>if</code> block,
+and we need the reference to it last as long as <code>maybe_foo</code> (outside the block) is supposed to last.</p>
+
+<p>So this is no good.</p>
+
+<p>An alternate solution here <em>can</em> be copying/cloning the <code>Foo</code> in the <em>first</em> case by calling <code>.map(|x|
+x.clone())</code> or <code>.cloned()</code> or something. Sometimes you don&rsquo;t want to clone, so this isn&rsquo;t great.</p>
+
+<p>Another solution here &ndash; the generic advice for dealing with values which may be owned or borrow &ndash;
+is to use <code>Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+inlined enough.</p>
+
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code>thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code>if</code>.</p>
+
+<p>One way to do this is to have an <code>Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>This works in this case, but in this case we already had an <code>Option</code>. If <code>get_ref()</code> and <code>get_owned()</code>
+returned <code>&amp;Foo</code> and <code>Foo</code> respectively, then we&rsquo;d need to do something like:</p>
+
+<pre><code class="rust">let mut owned = None;
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = Some(thing.get_owned());
+    owned.as_ref().unwrap()
+};
+</code></pre>
+
+<p>which is icky since it introduces an unwrap.</p>
+
+<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
+for the scope of the enclosing block.</p>
+
+<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
+
+<pre><code class="rust">let owned; // 😯😯😯😯😯
+let maybe_foo = if some_condition {
+    thing.get_ref()
+} else {
+    owned = thing.get_owned();
+    owned.as_ref()
+};
+</code></pre>
+
+<p>We know that Rust doesn&rsquo;t do &ldquo;uninitialized&rdquo; variables. If you want to name a variable, you have to
+initialize it. <code>let foo;</code> feels rather like magic in this context, because it looks like we&rsquo;ve declared
+an uninitialized variable.</p>
+
+<p>What&rsquo;s less well known is that Rust <em>can</em> do &ldquo;deferred&rdquo; initialization. Here, you declare a variable
+and can initialize it later, but expressions involving the variable can only exist in branches
+where the compiler knows it has been initialized.</p>
+
+<p>This is the case here. We declared the <code>owned</code> variable beforehand. It now lives in the outer scope
+and won&rsquo;t be destroyed until the end of the outer scope. However, the variable cannot be used directly
+in an expression in the first branch, or after the <code>if</code>. Doing so will give a compile time error
+saying <code>use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code>else</code> branch
+because the compiler can see that it is unconditionally initialized in that branch.</p>
+
+<p>We can still read the value of <code>owned</code> indirectly through <code>maybe_foo</code> from outside the branch.
+This is okay because the storage of <code>owned</code> is guaranteed to live as long as the outer scope,
+and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code> is set to a value inside <code>owned</code> is when
+<code>owned</code> has been initialized, so it is safe.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>In my experience <code>.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code>.map()</code><a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[I Never Hear the Phrase 'INHTPAMA' Anymore]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa/"/>
-    <updated>2017-03-18T19:50:42-07:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa</id>
+    <link href="http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa/"/>
+    <updated>2017-03-19T10:50:42+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/19/inhtpinhtpamaa</id>
     <content type="html"><![CDATA[<p>Imagine never hearing the phrase &lsquo;INHTPAMA&rsquo; again.</p>
 
 <p>Oh, that&rsquo;s already the case? Bummer.</p>
@@ -52,9 +241,9 @@ memory of the Rust community.</p>
   
   <entry>
     <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
-    <updated>2017-03-04T18:52:00-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
+    <link href="http://manishearth.github.io/blog/2017/03/05/what-are-sum-product-and-pi-types/"/>
+    <updated>2017-03-05T10:52:00+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/05/what-are-sum-product-and-pi-types</id>
     <content type="html"><![CDATA[<p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
 
 <p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
@@ -447,9 +636,9 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
   
   <entry>
     <title type="html"><![CDATA[Mitigating Underhandedness: Fuzzing Your Code]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/"/>
-    <updated>2017-03-02T16:13:54-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code</id>
+    <link href="http://manishearth.github.io/blog/2017/03/03/mitigating-underhandedness-fuzzing-your-code/"/>
+    <updated>2017-03-03T08:13:54+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/03/03/mitigating-underhandedness-fuzzing-your-code</id>
     <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
 
 <p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
@@ -575,9 +764,9 @@ But you can start taking it for a spin now, and finding bugs!</p>
   
   <entry>
     <title type="html"><![CDATA[Mitigating Underhandedness: Clippy!]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/"/>
-    <updated>2017-01-21T15:22:16-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy</id>
+    <link href="http://manishearth.github.io/blog/2017/01/22/mitigating-underhandedness-clippy/"/>
+    <updated>2017-01-22T07:22:16+08:00</updated>
+    <id>http://manishearth.github.io/blog/2017/01/22/mitigating-underhandedness-clippy</id>
     <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
 
 <p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
@@ -694,379 +883,6 @@ open pull requests with fixes, and file bugs on clippy for any false positives t
 <p>I hope this helps reduce mistakes and underhandedness in your code!</p>
 
 <p>..unless you&rsquo;re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Rust Tidbits: What Is a Lang Item?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
-    <updated>2017-01-11T21:01:13-08:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
-    <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
-be a thing in a programming community; and trivia is fun!</em></p>
-
-<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
-
-<p>Last time I talked about <code>Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
-I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
-
-<p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
-functions, and other items which the compiler needs to know about.</p>
-
-<p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
-<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
-<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
-the Itanium ABI spec expects functions of certain names
-to just <em>exist</em>, which the compiler is supposed to call in various cases. The
-<code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
-I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
-full of similar <code>__cxa</code> functions. While the spec just expects certain types,
-e.g. <code>std::type_traits</code> (&ldquo;Type properties&rdquo; § 20.10.4.3), to be magic and exist in certain locations,
-the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren&rsquo;t defined
-in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
-to known ABI functions, and they partly implement &ldquo;special&rdquo; types via intrinsics which
-are detected and magicked when the compiler comes across them.</p>
-
-<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
-placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
-When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
-encounters the addition operator. Of course, usually the compiler will already have been told about
-such a trait since libcore is usually the first library in the pipeline. If you want to actually use
-this, you need to <em>replace libcore</em>.</p>
-
-<p>Huh? You can&rsquo;t do that, can you?</p>
-
-<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
-<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
-rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
-that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
-because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
-libstd and the universe will implode.</p>
-
-<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
-libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, <code>no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
-only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
-trying to emulate it).</p>
-
-<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
-
-<pre><code class="rust">#![feature(no_core)]
-#![feature(lang_items)]
-
-// Look at me.
-// Look at me.
-// I'm the libcore now.
-#![no_core]
-
-// Tell the compiler to link to appropriate runtime libs
-// (This way I don't have to specify `-l` flags explicitly)
-#[cfg(target_os = "linux")]
-#[link(name = "c")]
-extern {}
-#[cfg(target_os = "macos")]
-#[link(name = "System")]
-extern {}
-
-// Compiler needs these to proceed
-#[lang = "sized"]
-pub trait Sized {}
-#[lang = "copy"]
-pub trait Copy {}
-
-// `main` isn't the actual entry point, `start` is.
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    // we can't really do much in this benighted hellhole of
-    // an environment without bringing in more libraries.
-    // We can make syscalls, segfault, and set the exit code.
-    // To be sure that this actually ran, let's set the exit code.
-    42
-}
-
-// still need a main unless we want to use `#![no_main]`
-// won't actually get called; `start()` is supposed to call it
-fn main() {}
-</code></pre>
-
-<p>If you run this, the program will exit with exit code 42.</p>
-
-<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
-<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
-tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
-to exist, it expects it to make sense. There are properties of the lang item that it assumes
-are true, and failure to provide an appropriate lang item may cause the compiler to assert
-without a useful error message. In this case I do have a tweak, since
-the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</code>, but I know that this tweak
-will work.</p>
-
-<p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
-deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
-start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
-must exist.</p>
-
-<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
-
-<pre><code class="rust">pub static X: u8 = 1;
-</code></pre>
-
-<p>Rust will immediately complain:</p>
-
-<pre><code>$ rustc test.rs
-error: requires `sync` lang_item
-</code></pre>
-
-<p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
-are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
-so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
-lang item, so we need to do:</p>
-
-<pre><code class="rust">pub static X: u8 = 1;
-
-#[lang = "sync"]
-pub unsafe trait Sync {}
-unsafe impl Sync for u8 {}
-</code></pre>
-
-<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
-definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
-should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
-since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
-
-<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
-what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
-
-<pre><code class="rust">struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
-
-<p>We get an error:</p>
-
-<pre><code>$ rustc test.rs
-error[E0369]: binary operation `+` cannot be applied to type `Foo`
-  --&gt; test.rs:33:5
-   |
-33 |     Foo + Foo
-   |     ^^^
-   |
-note: an implementation of `std::ops::Add` might be missing for `Foo`
-  --&gt; test.rs:33:5
-   |
-33 |     Foo + Foo
-   |     ^^^
-
-error: aborting due to previous error
-</code></pre>
-
-<p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
-This is because the diagnostics in the compiler are free to assume that libcore
-exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
-<code>Foo</code>s. But we can tell it how!</p>
-
-<pre><code class="rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
-
-impl MyAdd&lt;Foo&gt; for Foo {
-    type Output = isize;
-    fn add(self, other: Foo) -&gt; isize {
-        return 42;
-    }
-}
-
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
-
-<p>This will compile fine and the exit code of the program will be 42.</p>
-
-<p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
-same kind of error, even though I mentioned before that the addition of concrete primitives doesn&rsquo;t
-go through <code>Add::add</code>. However, any addition operation still checks if <code>Add::add</code> is implemented,
-even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
-
-<pre><code class="rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
-
-impl MyAdd&lt;isize&gt; for isize {
-    type Output = isize;
-    fn add(self, other: isize) -&gt; isize {
-        self + other + 50
-    }
-}
-
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    40 + 2
-}
-</code></pre>
-
-<p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
-wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
-
-<p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
-check, it doesn&rsquo;t actually get used.</p>
-
-<hr />
-
-<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
-compiler. Let&rsquo;s go through them:</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
-primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
-coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
-&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
-applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
-<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
-a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
-arise from sidestepping coherence.</p>
-
-<p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
-
-<ul>
-<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
-<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
-<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
-<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
-<li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
-</ul>
-
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
-these destructors.</p>
-
-<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
-(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
-<a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code>Deref</code></a>
-and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code>PartialEq</code>/<code>PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
-are lang items because the compiler needs to know what trait to require (and call)
-when it comes across such an operation.</p>
-
-<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code>UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
-(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
-certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code>&amp;mut foo</code> with the
-assumption that the local variable holding the reference is the only alias allowed to read from
-or write to the data, and it is allowed to reorder reads from <code>&amp;foo</code> assuming that no other alias
-writes to it. We tell LLVM that these types are <code>noalias</code>. <code>UnsafeCell&lt;T&gt;</code> turns this optimization
-off, allowing writes to <code>&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
-mutability types like <code>Cell&lt;T&gt;</code>, <code>RefCell&lt;T&gt;</code>, and <code>Mutex&lt;T&gt;</code>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code>Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
-and can be specified with special syntax sugar, so they need to be lang items. They also
-get autoimplemented on closures.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The <code>"str_eq"</code> lang item</a> is outdated. It <em>used</em> to specify how to check the equality
-of a string value against a literal string pattern in a <code>match</code> (<code>match</code> uses structural equality,
-not <code>PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
-inserts panics in a few places. The first one, <code>"panic"</code>, is used for integer overflow panics in debug mode, and
-<code>"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
-<code>"panic_fmt"</code> hooks into a function defined later in libstd.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code>"exchange_malloc"</code> and <code>"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
-telling the compiler which functions to call in case it needs to do a <code>malloc()</code> or <code>free()</code>. These
-are used when constructing <code>Box&lt;T&gt;</code> via placement <code>box</code> syntax and when moving out of a deref of a
-box.</p>
-
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
-but is no longer used.</p>
-
-<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
-minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
-with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
-tears down anything it needs to. Rust has a C-like minimal runtime, so
-<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
-But you theoretically could stick a very heavy runtime initialization routine here.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
-platform-specific modules) specify various bits of the exception handling behavior. These hooks are
-called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
-or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
-called when the unwinding code wishes to resume unwinding after calling destructors in a landing
-pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
-understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
-the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
-compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
-actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
-lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
-but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code>"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
-an unused type parameter, and it can be used to help fix the variance and drop behavior
-of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
-
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
-a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
-like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
-contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
-(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
-we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
-are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
-corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
-
-<p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
-that could be dropped within a type to make it not implement <code>Copy</code>; in the past <code>Copy</code>
-implementations were automatic like <code>Send</code> and <code>Sync</code> are today. <code>NoCopy</code> was the way to opt out.
-There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>CovariantType</code>/<code>CovariantLifetime</code>/etc were the
-predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
-type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
-<code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
-The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
-removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
-seems unnecessary. It&rsquo;s probably an oversight.</p>
-
-<p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
-loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
-<code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
-<code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
-resolution is done, so withut this, libcore would not be able to use for loops since the compiler
-wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
-
-<hr />
-
-<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
-dispatching calls to functions and trait methods in various situations, conferring special semantics
-to types/traits, or requiring traits to be implemented, the type will be defined in the standard
-library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
-
-<p>Some of the lang items are useful/necessary when working without libstd. Most only come into play if
-you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
-useful outside of the realm of compiler hacking.</p>
-
-<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
-useful!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
 ]]></content>
   </entry>
   
