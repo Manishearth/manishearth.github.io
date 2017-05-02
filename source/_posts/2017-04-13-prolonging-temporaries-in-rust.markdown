@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Prolonging temporaries in Rust"
-date: 2017-04-13 13:36:05 +0800
+date: 2017-04-13 13:36:05 -0500
 comments: true
 categories: rust mozilla programming
 ---
