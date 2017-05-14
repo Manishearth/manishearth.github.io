@@ -1,0 +1,947 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>GC Support in Rust: API Design - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="Recently we (Felix, Niko, and I) have been working on getting compiler-level GC
+support for Rust. The plan is to provide a base set of APIs and &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="GC support in Rust: API design">
+      <meta property="twitter:description" content="Recently we (Felix, Niko, and I) have been working on getting compiler-level GC
+support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
+built, without including &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2016/08/19/gc-support-in-rust-api-design/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">GC Support in Rust: API Design</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2016-08-19T05:57:48+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>19</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>5:57 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Recently we (<a href="http://github.com/pnkfelix/">Felix</a>, <a href="https://github.com/nikomatsakis">Niko</a>, and I) have been working on getting compiler-level GC
+support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
+built, without including an actual GC itself. This blog post serves as status update and a pre-pre-
+rfc on the designs. I&rsquo;m also going to walk through the process of coming up with the current design.
+We&rsquo;ll soon be posting more detailed design docs and discussion about some of the unresolved bits.</p>
+
+<p>The motivation behind this is the same as <a href="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">my motivation for writing rust-gc</a>. Firstly,
+it makes it possible to integrate with languages which themselves have a GC. Being able to safely
+pass around GCd types in Rust is very useful when writing libraries for Node, Python, or Ruby in
+Rust.</p>
+
+<p>Secondly, some algorithms are much neater when a GC is involved. Things like persistent
+datastructures, for example, are easier to deal with when a GC is involved.
+<a href="https://aturon.github.io/blog/2015/08/27/epoch/">There are ways around this requirement</a>, but it&rsquo;s nice to have the full range of
+options.</p>
+
+<p>Rust tries to be safe without a GC, and this doesn&rsquo;t change that &mdash; we envision that GCs
+in Rust will be rarely used except for some very specific use cases like the ones listed above.</p>
+
+<p>Compiler support isn&rsquo;t strictly necessary for a GC in Rust to be safe. <a href="https://github.com/Manishearth/rust-gc">rust-gc</a> manages to work
+without compiler support (except for a <code>#[derive()]</code> plugin). However, there&rsquo;s a lot of manual
+tracking of roots involved, which has a much higher cost than compiler-backed GCs. This is
+suboptimal &mdash; we want GC support to be as efficient as possible.</p>
+
+<h2>Design goals</h2>
+
+<p>We&rsquo;re considering GCs designed as a <code>Gc&lt;T&gt;</code> object, which, like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>, can be explicitly
+wrapped around a value to move it to the GC heap. A pervasive GC (where every Rust object is GCd) is
+an explicit non-goal; if you need a GC <em>everywhere</em> a different language may make more sense. We&rsquo;re
+expecting <code>Gc&lt;T&gt;</code> to be used only where needed, much like how <code>Rc&lt;T&gt;</code> is today.</p>
+
+<p>We want this to work well with other Rust abstractions. Things like <code>Vec&lt;Gc&lt;T&gt;&gt;</code> should be
+completely legal, for example.</p>
+
+<p>We want implementors to have total freedom in how <code>Gc&lt;T&gt;</code> is represented &ndash; <em>they</em> define the type,
+not the compiler. The compiler provides traits and intrinsics which can be used to find the GC
+roots. It should be possible for implementors to provide safe APIs for <code>Gc&lt;T&gt;</code>. There will be no
+canonical <code>Gc&lt;T&gt;</code> in the stdlib.</p>
+
+<p>We are trying to support multiple GCs in a single binary. This should be a pretty niche thing to
+need, but it strengthens the behavior of GCs as libraries (and not magical one-time things like
+custom allocators). One possible use case for this is if a library internally uses a GC to run some
+algorithm, and this library is used by an application which uses a GC for some other reason (perhaps
+to talk to Node). Interacting GCs are hard to reason about, though. The current design leaves this
+decision up to the GC designer &mdash; while it is possible to let your GCd object contain objects
+managed by a different GC, this requires some explicit extra work. Interacting GCs is a <em>very</em> niche
+use case<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, so if this ability isn&rsquo;t something we&rsquo;re adamant on supporting.</p>
+
+<p>We also would like it to be safe to use trait objects with the GC. This raises some concerns which
+I&rsquo;ll address in depth later in this post.</p>
+
+<h2>Core design</h2>
+
+<p>The core idea is to use <a href="http://llvm.org/docs/StackMaps.html">LLVM stack maps</a> to keep track of roots.</p>
+
+<p>In a tracing GC, the concept of a &ldquo;root&rdquo; is basically something which can be directly reached
+without going through other GC objects. In our case they will be cases of <code>Gc&lt;T&gt;</code> ending up on the
+stack or in non-gc heap boxes which themselves are reachable from the stack. Some examples:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inner</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `bar` is a root</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Gc</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Bar</span><span class="o">::</span><span class="n">new</span><span class="p">());</span>
+</span><span class='line'><span class="c1">// `bar.inner` is not a root, since it can&#39;t be</span>
+</span><span class='line'><span class="c1">// accessed without going through `bar`</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `foo.bar` is a root:</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">::</span><span class="n">new</span><span class="p">();</span> <span class="c1">// This is a root</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `inner` is not a root, because it is a borrowed reference</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">inner</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bar</span><span class="p">.</span><span class="n">inner</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
+</span><span class='line'><span class="c1">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
+</span><span class='line'><span class="c1">// new reference to the same value)</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">rooted_bool</span> <span class="o">=</span> <span class="n">bar</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
+</span><span class='line'><span class="c1">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
+</span><span class='line'><span class="c1">// or passing through a borrowed reference</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">boxed_bar</span> <span class="o">=</span> <span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Gc</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Bar</span><span class="o">::</span><span class="n">new</span><span class="p">()));</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When figuring out which objects are live (&ldquo;tracing&rdquo;), we need to have this initial set of &ldquo;roots&rdquo;
+which contain the list of things directly reachable from the stack. From here, the GC can rifle
+through the fields and subfields of the roots till it finds other GCd objects, which it can mark as
+live and continue the process with.</p>
+
+<p>Most runtimes for GCd languages have efficient ways of obtaining this list of roots. Contrast this
+with conservative collectors like Boehm, which read in the whole stack and consider anything which
+looks like a pointer to the GC heap to be a root. rust-gc&rsquo;s approach is inefficient too; because it
+incurs an additional reference counting cost on copying and mutation.</p>
+
+<p>However, the list of current roots is known at compile time; it&rsquo;s just a matter of which variables
+are live at any point. We store this list of live variables in a per-call-site &ldquo;stack map&rdquo;. To find
+all the roots, you walk up the call stack, and for each call site look up its entry in the stack
+map, which will contain the stack offsets of all the roots (and other metadata if we need it). LLVM
+has native support for this. The stack map is stored in a separate section so there is no runtime
+performance hit during regular execution, however some optimizations may be inhibited by turning on
+GC.</p>
+
+<p>So basically a GC will have access to a <code>walk_roots&lt;F&gt;(f: F) where F: FnMut(..)</code> intrinsic that will
+yield all the roots to the provided function (which can then mark them as such and start tracing).</p>
+
+<p>I&rsquo;m not going to focus on the implementation of this intrinsic for this blog post &mdash; this might
+be the subject of a later blog post by <a href="http://github.com/pnkfelix/">Felix</a> who is working on this.</p>
+
+<p>Instead, I&rsquo;m focusing on the higher-level API.</p>
+
+<h2>Identifying rootables</h2>
+
+<p>The first problem we come across with the design mentioned above is that the compiler doesn&rsquo;t yet
+know how to distinguish between a root and a non-root. We can&rsquo;t mark <em>every</em> variable as a root;
+that would bloat the stack maps and make walking the roots a very expensive operation.</p>
+
+<p>A very simple way of doing this is via a trait, <code>Root</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Root</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// auto-trait, anything containing</span>
+</span><span class='line'><span class="c1">// a Root will itself be Root</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="p">..</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// references are never roots</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">T</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in a gc impl</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>if we detect <code>Root</code> objects that are directly reachable, we consider them to be roots.</p>
+
+<p>This has a flaw, it doesn&rsquo;t actually tell us how to find roots inside container types. What would we
+do if there was a <code>Box&lt;Gc&lt;T&gt;&gt;</code> or a <code>Vec&lt;Gc&lt;T&gt;&gt;</code> on the stack? We can stick their entry in the stack
+map, but the GC needs to know what to do with them!</p>
+
+<p>We could store some type information in the map and let the GC hardcode how to root each container
+type. This isn&rsquo;t extensible though; the GC will have to be able to handle types from arbitrary
+crates too. Additionally, we have to solve this problem anyway for tracing &mdash; when tracing we
+need to be able to find all values &ldquo;contained&rdquo; within a particular value, which is the same
+operation we need to do to find roots.</p>
+
+<p>For this purpose, we introduce the <code>Trace</code> trait:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in libcollections</span>
+</span><span class='line'><span class="c1">// (or any third-party collections library)</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="bp">self</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">i</span><span class="p">.</span><span class="n">trace</span><span class="p">()</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in gc library</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// only allow trace objects</span>
+</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// mark `self`</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c1">// Don&#39;t actually trace contained fields,</span>
+</span><span class='line'>        <span class="c1">// because there may be cycles and we&#39;d recurse infinitely</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in consumer of gc library</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
+</span><span class='line'><span class="cp">#[derive(Trace)]</span>
+</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">baz</span><span class="o">:</span> <span class="n">SomeType</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>(These traits are unsafe to implement because an incorrect implementation can lead to a
+reachable value getting cleaned up by the GC, which is unsafe)</p>
+
+<p>Basically, an implementation of Trace will yield all values owned by the object, unless that object
+is a GC struct like <code>Gc&lt;T&gt;</code>, in which case the GC implementor will have it mark the object. This
+way, calling <code>.trace()</code> will walk all fields and subfields of an object recursively, until it finds
+all of the contained <code>Gc&lt;T&gt;</code>s.</p>
+
+<p>This has an issue with multiple GCs, though &mdash; we don&rsquo;t want the GCs to interact unless they
+want to, and with the <code>Trace</code> trait being shared one GC object may accidentally contain a different
+GC object.</p>
+
+<p>We need to introduce the concept of a tracer here.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">trait</span> <span class="n">Tracer</span> <span class="o">:</span> <span class="nb">Any</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in libcollections</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// impl doesn&#39;t care about the tracer</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="bp">self</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">i</span><span class="p">.</span><span class="n">trace</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in gc library</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c1">// more complicated tracers may have state</span>
+</span><span class='line'><span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// ..</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="kd">let</span> <span class="nb">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="p">.</span><span class="n">downcast_mut</span><span class="o">::&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>            <span class="c1">// mark self</span>
+</span><span class='line'>        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">panic</span><span class="p">(</span><span class="s">&quot;Don&#39;t mix GCs!&quot;</span><span class="p">);</span>
+</span><span class='line'>            <span class="c1">// If you want to support multiple GCs interacting with each other,</span>
+</span><span class='line'>            <span class="c1">// you can let this else block trace the contents.</span>
+</span><span class='line'>            <span class="c1">// Beware, interacting GCs have subtle safety issues.</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This also makes it easier to distinguish between rooting and tracing operations. While the
+operations are similar (&ldquo;to root/trace a value, walk its fields recursively till you find all of the
+Gc<T>s, and root/mark <em>those</em>&rdquo;), the code we run at the leaf <code>Gc&lt;T&gt;</code> nodes is different. In the
+previous model, this could have been solved with a global static boolean that identifies if the code
+is currently walking roots or tracing, but with the <code>Tracer</code> trait object we can just pass in
+different tracer values.</p>
+
+<p>We&rsquo;re not yet sure if we should be lumping root walking and tracing in a single trait; so we might
+end up with a second <code>Scan</code> trait that works similarly.</p>
+
+<p>Note that we&rsquo;re not getting rid of the Root trait here. This is because <code>Root</code> and <code>Trace</code> have
+slightly incompatible purposes &ndash; <code>Root</code> signals to the compiler if something definitely contains
+roots, whereas <code>Trace</code> marks things which are safe to put inside a GC. <code>bool</code> is <code>Trace</code>, but not
+<code>Root</code>. <code>Vec&lt;Gc&lt;T&gt;&gt;</code> is <code>Trace</code> and <code>Root</code>, <code>Vec&lt;bool&gt;</code> is <code>Trace</code> but not <code>Root</code>. <code>&amp;T</code> and <code>&amp;mut T</code>
+are neither. <code>Trace</code> will actually show up in trait bounds for GC code. <code>Root</code> will only be analysed
+by the compiler itself, bounds like <code>R: Root</code> probably won&rsquo;t show up.</p>
+
+<p>There should not be any types which are <code>Root</code> but not <code>Trace</code>, because this means the compiler
+won&rsquo;t know what to do with them!</p>
+
+<p>Now, when generating the stack map, we include the stack offset of all <code>Root</code> objects in scope, as
+well as appropriate dynamic dispatch vtable pointers for the <code>Trace</code> implementation<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Walking the
+stack involves calling the trace method on each entry in the stack map for each call site.</p>
+
+<h2>Unresolved problems</h2>
+
+<p>There are a lot of these. Suggestions very welcome.</p>
+
+<h3>Trait objects</h3>
+
+<p>Trait objects provide an interesting challenge. They may or may not contain roots, but what&rsquo;s more
+important is that trait objects in libraries that know nothing about GC may also contain roots.</p>
+
+<p>For example, if a library is dealing with a <code>Box&lt;SomeTrait&gt;</code>, and your code feeds it a
+<code>Box&lt;SomeRoot as SomeTrait&gt;</code>, the trait object is now a root. If a gc is triggered while in
+this call (perhaps by a callback), then this trait object should be counted as a root.</p>
+
+<p>But this library didn&rsquo;t depend on the GC, and when it was compiled, it wasn&rsquo;t compiled with stack
+map entries for this GC object.</p>
+
+<p>There are two solutions here. The first is to recompile everything (including libstd) from scratch
+with GC support on, and put all owned trait objects in the stack maps. They will have an extra
+generated trace entry in the vtable that will ignore the object if it isn&rsquo;t a root. To put trait
+objects inside <code>Gc&lt;T&gt;</code>, you will have to explicitly use <code>Box&lt;Trait+Trace&gt;</code>, however &ndash; this magical
+trace entry is just for collecting roots.</p>
+
+<p>The second solution is to simply not allow casting <code>Root</code> objects to owned trait objects. I feel
+that there are use cases for both &ndash; the former has extra bloat and requires a custom libstd (which
+could be distributed via rustup if necessary), but the latter restricts how you use trait objects.
+Servo, for example, would probably prefer the latter since we don&rsquo;t put our DOM objects in owned
+trait objects. But other GC users may want maximum flexibility. Letting people choose this via a
+codegen flag (which can be controlled via cargo) might be a good idea.</p>
+
+<h3>Should it be <code>Trace&lt;T&gt;</code>?</h3>
+
+<p>There is a dynamic dispatch cost on rooting/tracing any <code>Gc&lt;T&gt;</code> leaf with the tracer model.</p>
+
+<p>This can be obviated by having it be:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">trait</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Tracer</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Most types would implement <code>Trace&lt;T&gt;</code>, and GCs can implement <code>Trace&lt;SpecificTracer&gt;</code>,
+and only require their contents to be <code>Trace&lt;SpecificTracer&gt;</code>. This lets the type system
+forbid interacting GCs instead of having it done at runtime.</p>
+
+<p>This has multiple downsides, however:</p>
+
+<ul>
+<li><code>#[derive(Trace)]</code> becomes <code>#[derive(Trace&lt;MyTracer&gt;)]</code> for things containing <code>Gc&lt;T&gt;</code> (because <code>Gc&lt;T&gt;</code> is not <code>Trace&lt;T&gt;</code> for all <code>T</code>, and macro expansion runs before this information can be computed).</li>
+<li>If there are multiple GCs, there are multiple <code>Trace&lt;T&gt;</code> vtable pointers in the stack map. Not all libs know about the other GC when being compiled, so you need to defer generation of these stack map entries somehow.</li>
+<li>The heuristics for forbidding types which are <code>Root</code> but not <code>Trace&lt;T&gt;</code> become subtler. You have to effectively forbid types which are <code>Root</code> but do not have an impl of <code>Trace&lt;T&gt;</code> for at least one tracer <code>T</code> that is active in the compilation.</li>
+</ul>
+
+
+<h3>Non-<code>Trace</code> collections on the stack</h3>
+
+<p>If something like the following, defined by a third-party library:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="n">T</span><span class="p">,</span>
+</span><span class='line'>    <span class="c1">// ...</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>doesn&rsquo;t implement <code>Trace</code>, it&rsquo;s still okay to use <code>Foo&lt;RootedThing&gt;</code> on the stack, because we can
+figure out that the inner <code>T</code> is what we need to root.</p>
+
+<p>However, if a third-party <code>MyVec&lt;T&gt;</code> (which behaves like a vector) contains <code>RootedThing</code>s, and is
+on the stack, the compiler doesn&rsquo;t know what do do with it. Lack of a <code>Trace</code> bound makes it
+impossible to put such types on the GC heap, but there&rsquo;s no restriction on putting these types on
+the stack. As I mentioned before, we can simply forbid the existence of types which are <code>Root</code> but
+not <code>Trace</code> (<code>MyVec&lt;RootedThing&gt;</code> is <code>Root</code>). This is already done with <code>Copy</code> and <code>Drop</code>.</p>
+
+<p>There&rsquo;s a subtle difference between this and the <code>Copy</code>/<code>Drop</code> forbidding. <code>Copy</code> and <code>Drop</code> are
+always explicitly implemented. On the other hand, <code>Root</code> is an auto trait and automatically
+implements itself on types containing roots. This means that we can&rsquo;t necessarily forbid such types
+being created at impl time &mdash; third party collections like above for example won&rsquo;t contain
+<code>Root</code> types until they are monomorphised. We can error during monomorphization, but this error
+might not be very user-friendly, like template errors in C++.</p>
+
+<p>Another solution is to make <code>Root</code> into <code>?Root</code>, much like <code>?Sized</code>. This means that the writers of
+collections will explicitly opt in to allowing GCd things inside them. This probably would lead to a
+lot more churn, however. But the diagnostics would be clearer.</p>
+
+<p>Turns out that
+<a href="https://play.rust-lang.org/?gist=ad485dc2fc91e5c1aad53051dc207716&amp;version=nightly&amp;backtrace=0">this</a>
+actually works with half-decent diagnostics. This doesn&rsquo;t forbid the existence of types which impl
+Root but not Trace, however. It simply avoids autoderiving Root on types which aren&rsquo;t Trace. But
+this behavior can be changed.
+(In fact, it <a href="https://github.com/rust-lang/rust/pull/35745">was changed</a> while this post was being written!)</p>
+
+<p>It becomes more complicated with Trace<T> though.
+Having <code>Root&lt;T&gt;</code> might fix this, but then you have to deal with the auto trait generics.</p>
+
+<p>One solution for the auto trait generics is to simple not include <code>Root</code> in the stdlib. Instead,
+require code like the following:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in gc library</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// ...</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cp">#[gc_root_trait]</span>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">MyRoot</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">MyRoot</span> <span class="k">for</span> <span class="p">..</span> <span class="p">{}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="n">MyRoot</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This can be further simplified by completely removing the rooting trait requirement and instead
+require <code>#[gc(tracer=MyTracer)]</code> on all GC structs. This, however, is a bit more special and we lose
+the free diagnostics that you get from utilizing the type system.</p>
+
+<h3>Are <code>Root</code>-containing raw pointers <code>Root</code>?</h3>
+
+<p>For the auto-trait to work, types like <code>Vec&lt;ContainsRoot&gt;</code> should also be marked as <code>Root</code>.</p>
+
+<p>This can be done by just marking <code>*const T</code> and <code>*mut T</code> as <code>Root</code> if <code>T</code> is <code>Root</code> using an impl in
+libcore. However, borrowed types like <code>Iter</code> will also be dragged into this. We only want types
+which <em>own</em> <code>Root</code> things to be considered roots.</p>
+
+<p>The alternative is to not require this, and solely rely on <a href="https://doc.rust-lang.org/stable/nomicon/phantom-data.html"><code>PhantomData</code></a>. <code>Vec&lt;T&gt;</code> also
+contains a <code>PhantomData&lt;T&gt;</code>, which gives the compiler a hint that it owns a <code>T</code>. On the other hand,
+<code>Iter&lt;'a, T&gt;</code> contains a <code>PhantomData&lt;&amp;'a T&gt;</code>, which hints that it borrows a <code>T</code>. This is already
+used by the compiler to determine drop soundness, so we can just use the same thing to determine
+<code>Root</code> types. This is already supported by the autotrait infrastructure.</p>
+
+<p>A downside here is that we&rsquo;re relying more on producers of unsafe code remembering to use
+<code>PhantomData</code>. I&rsquo;m not 100% certain about this, but triggering dropck unsoundness by neglecting
+<code>PhantomData</code> is still pretty hard (and often requires types like arenas), whereas forgetting a root
+can very easily cause a GC segfault. I do not consider this to be a major downside.</p>
+
+<h3>Finalizers and Drop</h3>
+
+<p>The following code is unsafe:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">baz</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="nb">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">bar</span><span class="p">);</span>
+</span><span class='line'>        <span class="c1">// or</span>
+</span><span class='line'>        <span class="o">*</span><span class="bp">self</span><span class="p">.</span><span class="n">baz</span><span class="p">.</span><span class="n">bar</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">bar</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code>bar</code>
+may have already been collected when <code>Foo</code>&rsquo;s destructor runs. While in many cases this can be solved
+with a smart collection alrogithm, in the case where there&rsquo;s a cycle being collected there&rsquo;s nowhere
+safe to start.</p>
+
+<p>Additionally, further mutation of the graph after collection may extend the lifetime of a to-be-
+collected variable.</p>
+
+<p>A simple solution is to forbid all GC accesses during the collection phase. However, this means
+dereferences too, and this will incur a cost on all GCd types &ndash; they stop being simple pointer
+accesses. This solution places the burden on the GC implementor, instead of the compiler.</p>
+
+<p>We have enough information in the type system to solve this &ndash; we can forbid <code>Drop</code> impls on types
+which are explicitly <code>Root</code>. But it turns out that this isn&rsquo;t enough. Consider:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">trait</span> <span class="n">MyTrait</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="k">struct</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">MyTrait</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="n">T</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="nb">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="bp">self</span><span class="p">.</span><span class="n">x</span><span class="p">.</span><span class="n">do_the_thing</span><span class="p">();</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// in other library</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inner</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">impl</span> <span class="n">MyTrait</span> <span class="k">for</span> <span class="n">Bar</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><code>Foo&lt;Bar&gt;</code> now has an unsafe destructor. Stopping this behavior requres forbidding Drop impls on
+structs with trait bounds, but that is too restrictive.</p>
+
+<p>This may end up having a similar solution to the &ldquo;all roots must be <code>Trace</code>&rdquo; issue. Warning on
+monomorphizations isn&rsquo;t enough, we need to be able to allow <code>Vec&lt;ContainsRoot&gt;</code>, but not
+<code>HijackableType&lt;ContainsRoot&gt;</code>. Making this distinction without poisoning half the generics out
+there is tricky.</p>
+
+<p>The notion of a hijackable type is actually already important for sound generic drop impls, see
+<a href="https://github.com/rust-lang/rfcs/blob/master/text/1327-dropck-param-eyepatch.md">RFC 1327 (dropck eyepatch)</a>, <a href="https://github.com/rust-lang/rfcs/blob/master/text/1238-nonparametric-dropck.md">RFC 1238 (nonparametrick dropck)</a>,
+and their predecessor, <a href="https://github.com/rust-lang/rfcs/blob/master/text/0769-sound-generic-drop.md">RFC 0769 (sound generic drop)</a>. We might be able to rely
+on this, but would need to introduce additional constraints in dropck.</p>
+
+<p>Fortunately, there is always the fallback solution of requiring the implementor to enforce this
+constraint at runtime.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Firefox does have a garbage collector and a cycle collector which interact, though, so it&rsquo;s not something which is unthinkable.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>If there is an active stack drop flag for the value, that will need to be included too.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2016-08-19T05:57:48+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>19</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>5:57 am</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2016/08/19/gc-support-in-rust-api-design/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2016/08/19/gc-support-in-rust-api-design/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system/" title="Previous Post: Fun crypto problem: Designing an anonymous reputation system">&laquo; Fun crypto problem: Designing an anonymous reputation system</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2016/12/02/reflections-on-rusting-trust/" title="Next Post: Reflections on Rusting Trust">Reflections on Rusting Trust &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/19/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
