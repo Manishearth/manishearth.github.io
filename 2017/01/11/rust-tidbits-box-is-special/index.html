@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Rust Tidbits: Box Is Special - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Rust tidbits: Box is special">
+      <meta property="twitter:description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/2017/01/11/rust-tidbits-box-is-special/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Rust Tidbits: Box Is Special</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-01-11T06:59:43+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>6:59 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
+found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
+decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+be a thing in a programming community; and trivia is fun!</p>
+
+<hr />
+
+<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+
+<p>I was discussing some stuff on the rfcs repo when
+<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
+
+<p>Let&rsquo;s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="cp">#[stable(feature = </span><span class="s">&quot;rust1&quot;</span><span class="cp">, since = </span><span class="s">&quot;1.0.0&quot;</span><span class="cp">)]</span>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cp">#[stable(feature = </span><span class="s">&quot;rust1&quot;</span><span class="cp">, since = </span><span class="s">&quot;1.0.0&quot;</span><span class="cp">)]</span>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="n">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Wait, what? <em>Squints</em></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>    <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>The call is coming from inside the house!</em></p>
+
+<p>In case you didn&rsquo;t realize it, this deref impl returns <code>&amp;**self</code> &ndash; since <code>self</code>
+is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
+will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
+
+<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that&rsquo;s what <code>Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That&rsquo;s infinite recursion.</p>
+
+<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
+<a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kn">use</span> <span class="n">std</span><span class="o">::</span><span class="n">ops</span><span class="o">::</span><span class="n">Deref</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">struct</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+</span><span class='line'>        <span class="o">&amp;**</span><span class="bp">self</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>the compiler will warn you:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+</span><span class='line'> --&gt; &lt;anon&gt;:7:5
+</span><span class='line'>  |
+</span><span class='line'>7 |     fn deref(&amp;self) -&gt; &amp;T {
+</span><span class='line'>  |     ^
+</span><span class='line'>  |
+</span><span class='line'>note: recursive call site
+</span><span class='line'> --&gt; &lt;anon&gt;:8:10
+</span><span class='line'>  |
+</span><span class='line'>8 |         &amp;**self
+</span><span class='line'>  |          ^^^^^^
+</span><span class='line'>  = help: a `loop` may express intention better if this is on purpose
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Actually trying to dereference the type will lead to a stack overflow.</p>
+
+<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
+or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
+primitive types. For example we literally
+<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
+is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
+integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
+numbers and dereference borrowed references without these impls. But those are primitive types
+which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
+
+<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
+
+<p>This is partly due to historical accident.</p>
+
+<p>To understand this, we must look back to Ye Olde days of pre-1.0 Rust (ca 2014). Back in these days,
+we had none of this newfangled &ldquo;stability&rdquo; business. The compiler broke your code every two weeks.
+Of course, you wouldn&rsquo;t <em>know</em> that because the compiler would usually crash before it could tell
+you that your code was broken! Sigils roamed the lands freely, and cargo was but a newborn child
+which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
+that their closures were safely boxed and their threads sufficiently green.</p>
+
+<p>Back in these days, we didn&rsquo;t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
+The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
+they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant &ldquo;owned&rdquo;, though
+IMO that caused more confusion than it was worth.</p>
+
+<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
+operator, and autoderef worked much like it does today.</p>
+
+<p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
+it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
+traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
+though it probably should have.</p>
+
+<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
+<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
+a very confusing detour with <code>StrBuf</code> first).</p>
+
+<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
+constructed, but it was still internally a special type. It didn&rsquo;t even have a <code>Deref</code> impl yet,
+that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
+as it is today.</p>
+
+<p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
+ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
+were a regular type.</p>
+
+<p>Turns out that Rust didn&rsquo;t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+dereference semantics were implemented in a different part of the code. And, these semantics were
+not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
+pointers. I don&rsquo;t know if the possibility of being used for <code>~T</code> was considered when
+<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
+three pieces of behavior that could not be replicated in pure Rust at the time:</p>
+
+<ul>
+<li><code>box foo</code> in a pattern would destructure a box into its contents. It&rsquo;s somewhat the opposite of <code>ref</code></li>
+<li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+<li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+</ul>
+
+
+<p>The third one is the one that really gets to us here<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.
+For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
+You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
+<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
+this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+</span><span class='line'><span class="kd">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c1">// moves the vec out into `y`, then deallocates the box</span>
+</span><span class='line'>            <span class="c1">// but does not call a destructor on the vec</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For any other type, such an operation will produce a &ldquo;cannot move out of a borrow&rdquo; error.</p>
+
+<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
+past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
+removed from <code>Box&lt;T&gt;</code> before 1.0 (I don&rsquo;t find it <em>necessary</em>), but people had better things to do,
+like fixing the million other rough edges of the language that can&rsquo;t be touched after backwards
+compatibility is a thing.</p>
+
+<p>So now we&rsquo;re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+compiler. By &ldquo;special type&rdquo; I don&rsquo;t just mean that the compiler treats it a bit differently (this is
+true for any lang item), I mean that it literally is treated as
+<a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
+There&rsquo;s a TON of cruft in the compiler related to this type, much of which can be removed, but some
+of which can&rsquo;t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
+writing this post I&rsquo;m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+cleaning up the code myself.</p>
+
+<p>Most of this isn&rsquo;t really useful to know unless you actually come across a case where you can make
+use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
+
+<p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Seriously though, does anyone use it much? I&rsquo;ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2017-01-11T06:59:43+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>6:59 am</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>, <a class='category' href='/blog/categories/tidbits/'>tidbits</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/2017/01/11/rust-tidbits-box-is-special/" data-via="Manishearth" data-counturl="http://manishearth.github.io/2017/01/11/rust-tidbits-box-is-special/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/2016/12/02/reflections-on-rusting-trust/" title="Previous Post: Reflections on Rusting Trust">&laquo; Reflections on Rusting Trust</a>
+      
+      
+        <a class="basic-alignment right" href="/2017/01/12/rust-tidbits-what-is-a-lang-item/" title="Next Post: Rust Tidbits: What is a lang item?">Rust Tidbits: What is a lang item? &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2017/03/19/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
