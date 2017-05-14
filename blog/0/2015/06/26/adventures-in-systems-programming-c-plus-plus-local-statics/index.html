@@ -1,0 +1,714 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Adventures in Systems Programming: C++ Local Statics - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
+feel that an important feature of systems &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Adventures in Systems Programming: C++ local statics">
+      <meta property="twitter:description" content="For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
+feel that an important feature of systems programming is that it&rsquo;s relatively easy to &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/0/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Adventures in Systems Programming: C++ Local Statics</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-06-26T00:00:00+00:00'><span class='date'><span class='date-month'>Jun</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
+feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
+what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Conversely, it&rsquo;s
+important to know how your tools work more than ever in systems programming. So when I see a
+language feature I&rsquo;m not familiar with, I&rsquo;m interested in finding out how it works under the hood.</p>
+
+<p>I&rsquo;m not a C++ expert. I can work on C++ codebases, but I&rsquo;m not anywhere near knowing all of the
+features and nuances of C++. However, I am pretty good at Rust and understand a decent portion of
+the compiler internals. This gives me a great perspective &mdash; I&rsquo;ve not yet internalized most C++
+features to take them for granted, and I&rsquo;m well equipped to investigate these features.</p>
+
+<p>Today I came across some C++ code similar to the following<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">OtherType</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">otherMethod</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This code piqued my interest. Specifically, the local <code>static</code> stuff. I knew that when you have a
+static like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">FOO</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>the <code>1</code> is stored somewhere in the <code>.data</code> section of the program. This is easily verified with <code>gdb</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">THING</span> <span class="o">=</span> <span class="mh">0xAAAA</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp -g
+</span><span class='line'>$ gdb a.out
+</span><span class='line'>(gdb) info addr THING
+</span><span class='line'>Symbol &quot;THING&quot; is static storage at address 0x601038.
+</span><span class='line'>(gdb) info symbol 0x601038
+</span><span class='line'>THING in section .data
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is basically a part of the compiled program as it is loaded into memory.</p>
+
+<p>Similarly, when you have a <code>static</code> that is initialized with a function, it&rsquo;s stored in the <code>.bss</code>
+section, and initialized before <code>main()</code>. Again, easily verified:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
+</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">static</span> <span class="kt">int</span> <span class="n">THING</span> <span class="o">=</span> <span class="n">bar</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;main called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>$ ./a.out
+</span><span class='line'>bar called
+</span><span class='line'>main called
+</span><span class='line'>$ gdb a.out
+</span><span class='line'>(gdb) info addr THING
+</span><span class='line'>Symbol &quot;THING&quot; is static storage at address 0x601198.
+</span><span class='line'>(gdb) info symbol 0x601198
+</span><span class='line'>THING in section .bss
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+
+<p>So far so good.</p>
+
+<p>Now back to the original snippet:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
+</span><span class='line'>    <span class="k">static</span> <span class="n">OtherType</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">otherMethod</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It&rsquo;s
+not much different from <code>static THING = bar()</code> aside from the fact that it isn&rsquo;t a global
+identifier.</p>
+
+<p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
+that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
+called <sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+
+<p>Instead, these are statics which are initialized the first time the function is called.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
+</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;foo called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">static</span> <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">bar</span><span class="p">();</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;Static is:&quot;</span><span class="o">&lt;&lt;</span> <span class="n">i</span><span class="o">&lt;&lt;</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;main called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
+</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
+</span><span class='line'> <span class="n">foo</span><span class="p">();</span>
+</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp
+</span><span class='line'>$ ./a.out
+</span><span class='line'>main called
+</span><span class='line'>foo called
+</span><span class='line'>bar called
+</span><span class='line'>Static is:16448250
+</span><span class='line'>foo called
+</span><span class='line'>Static is:16448250
+</span><span class='line'>foo called
+</span><span class='line'>Static is:16448250
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Wait, &ldquo;the first time the function is called&rdquo;? <em>Alarm bells go off&hellip;</em> Surely there&rsquo;s some cost to that! Let&rsquo;s investigate.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>$ gdb a.out
+</span><span class='line'>(gdb) disas bar
+</span><span class='line'>   // snip
+</span><span class='line'>   0x0000000000400c72 &lt;+15&gt;:    test   %al,%al
+</span><span class='line'>   0x0000000000400c74 &lt;+17&gt;:    jne    0x400ca4 &lt;_Z3foov+65&gt;
+</span><span class='line'>   0x0000000000400c76 &lt;+19&gt;:    mov    $0x6021f8,%edi
+</span><span class='line'>   0x0000000000400c7b &lt;+24&gt;:    callq  0x400a00 &lt;__cxa_guard_acquire@plt&gt;
+</span><span class='line'>   0x0000000000400c80 &lt;+29&gt;:    test   %eax,%eax
+</span><span class='line'>   0x0000000000400c82 &lt;+31&gt;:    setne  %al
+</span><span class='line'>   0x0000000000400c85 &lt;+34&gt;:    test   %al,%al
+</span><span class='line'>   0x0000000000400c87 &lt;+36&gt;:    je     0x400ca4 &lt;_Z3foov+65&gt;
+</span><span class='line'>   0x0000000000400c89 &lt;+38&gt;:    mov    $0x0,%r12d
+</span><span class='line'>   0x0000000000400c8f &lt;+44&gt;:    callq  0x400c06 &lt;_Z3barv&gt;
+</span><span class='line'>   0x0000000000400c94 &lt;+49&gt;:    mov    %eax,0x201566(%rip)        # 0x602200 &lt;_ZZ3foovE1i&gt;
+</span><span class='line'>   0x0000000000400c9a &lt;+55&gt;:    mov    $0x6021f8,%edi
+</span><span class='line'>   0x0000000000400c9f &lt;+60&gt;:    callq  0x400a80 &lt;__cxa_guard_release@plt&gt;
+</span><span class='line'>   0x0000000000400ca4 &lt;+65&gt;:    mov    0x201556(%rip),%eax        # 0x602200 &lt;_ZZ3foovE1i&gt;
+</span><span class='line'>   0x0000000000400caa &lt;+71&gt;:    mov    %eax,%esi
+</span><span class='line'>   0x0000000000400cac &lt;+73&gt;:    mov    $0x6020c0,%edi
+</span><span class='line'>   // snip
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The instruction at <code>+44</code> calls <code>bar()</code>, and it seems to be surrounded by calls to some <code>__cxa_guard</code>
+functions.</p>
+
+<p>We can take a naïve guess at what this does: It probably just sets a hidden static flag on
+initialization which ensures that it only runs once.</p>
+
+<p>Of course, the actual solution isn&rsquo;t as simple. It needs to avoid data races, handle errors, and
+somehow take care of recursive initialization.</p>
+
+<p>Let&rsquo;s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
+<code>__cxa_guard</code>.</p>
+
+<p>Both of them show us the generated code for initializing things like local statics:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="n">obj_guard</span><span class="p">.</span><span class="n">first_byte</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span> <span class="n">__cxa_guard_acquire</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">)</span> <span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="n">try</span> <span class="p">{</span>
+</span><span class='line'>      <span class="c1">// ... initialize the object ...;</span>
+</span><span class='line'>      <span class="p">}</span> <span class="k">catch</span> <span class="p">(...)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">__cxa_guard_abort</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">);</span>
+</span><span class='line'>        <span class="k">throw</span><span class="p">;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="c1">// ... queue object destructor with __cxa_atexit() ...;</span>
+</span><span class='line'>      <span class="n">__cxa_guard_release</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">obj_guard</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here, <code>obj_guard</code> is our &ldquo;hidden static flag&rdquo;, with some other extra data.</p>
+
+<p><code>__cxa_guard_acquire</code> and <code>__cxa_guard_release</code> acquire and release a lock to prevent recursive
+initialization. So this program will crash:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="cp">#include&lt;iostream&gt;</span>
+</span><span class='line'><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;bar called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">if</span><span class="p">(</span><span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">foo</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+</span><span class='line'> <span class="p">}</span>
+</span><span class='line'> <span class="k">return</span> <span class="mh">0xFAFAFA</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;foo called</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'> <span class="k">static</span> <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">bar</span><span class="p">(</span><span class="n">recur</span><span class="p">);</span>
+</span><span class='line'> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&quot;Static is:&quot;</span><span class="o">&lt;&lt;</span> <span class="n">i</span><span class="o">&lt;&lt;</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'> <span class="n">foo</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+</span><span class='line'> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>$ g++ test.cpp
+</span><span class='line'>$ ./a.out
+</span><span class='line'>foo called
+</span><span class='line'>bar called
+</span><span class='line'>foo called
+</span><span class='line'>terminate called after throwing an instance of &#39;__gnu_cxx::recursive_init_error&#39;
+</span><span class='line'>  what():  std::exception
+</span><span class='line'>Aborted (core dumped)
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Over here, to initialize <code>i</code>, <code>bar()</code> needs to be called, but <code>bar()</code> calls <code>foo()</code> which needs <code>i</code>
+to be initialized, which again will call <code>bar()</code> (though this time it won&rsquo;t recurse). If <code>i</code> wasn&rsquo;t
+<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it&rsquo;s unclear as
+to which value should be used.</p>
+
+<p>The implementation is pretty interesting. Before looking at the code my quick guess was that the
+following would happen for local statics:</p>
+
+<ul>
+<li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
+&ldquo;uninitialized&rdquo;, &ldquo;initializing&rdquo;, and &ldquo;initialized&rdquo;. Alternatively, use an atomic state indicator.</li>
+<li>When we try to initialize for the first time, the mutex is locked, the flag is set
+to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, and the flag is set to &ldquo;initialized&rdquo;.</li>
+<li>If when acquiring the mutex, the value is &ldquo;initialized&rdquo;, don&rsquo;t initialize again</li>
+<li>If when acquiring the mutex, the value is &ldquo;initializing&rdquo;, throw some exception</li>
+</ul>
+
+
+<p> (We need the tristate flag because without it recursion would cause deadlocks)</p>
+
+<p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
+<a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
+uses per-static atomics which indicate various states. However, it does not throw an exception when
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. This is okay because the C++
+spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
+
+<blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
+behavior is undefined.</p></blockquote>
+
+<p>However, the implementations in <a href="https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc">gcc/libstdc++</a> (also <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">this version</a> of
+<code>libcppabi</code> from Apple, which is a bit more readable) do something different. They use a global
+recursive mutex to handle reentrancy. Recursive mutexes basically can be locked multiple times by a
+single thread, but cannot be locked by another thread till the locking thread unlocks them the same
+number of times. This means that recursion/reentrancy won&rsquo;t cause deadlocks, but we still have one-
+thread-at-a-time access. What these implementations do is:</p>
+
+<ul>
+<li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
+and one which indicates that the static is being initialized (&ldquo;in use&rdquo;)</li>
+<li>If the object is initialized, do nothing (this doesn&rsquo;t use mutexes and is cheap).
+This isn&rsquo;t exactly part of the implementation in the library, but is part of the generated code.</li>
+<li>If it isn&rsquo;t initialized, acquire the global recursive lock</li>
+<li>If the object is initialized by the time the lock was acquired, unlock and return</li>
+<li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
+&ldquo;in use&rdquo;, throw an exception.</li>
+<li>If it wasn&rsquo;t, mark the second flag of the static&rsquo;s guard object as being &ldquo;in use&rdquo;</li>
+<li>Call the initialization function, bubble errors</li>
+<li>Unlock the global mutex</li>
+<li>Mark the second flag as &ldquo;not in use&rdquo;</li>
+</ul>
+
+
+<p>At any one time, only one thread will be in the process of running initialization routines, due to
+the global recursive mutex. Since the mutex is recursive, a function (eg <code>bar()</code>) used for
+initializing local statics may itself use (different) local statics. Due to the &ldquo;in use&rdquo; flag, the
+initialization of a local static may not recursively call its parent function without causing an
+error.</p>
+
+<p>This doesn&rsquo;t need per-static atomics, and doesn&rsquo;t deadlock, however it has the cost of a global
+mutex which is called at most once per local static. In a highly threaded situation with lots of
+such statics, one might want to reevaluate directly using local statics.</p>
+
+<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM&rsquo;s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
+mutex it uses a regular mutex (on non-ARM Apple systems) which is unlocked before
+<code>__cxa_guard_acquire</code> exits and tests for reentrancy by noting the thread ID in the guard object
+instead of the &ldquo;in use&rdquo; flag. Condvars are used for waiting for a thread to stop using an object. On
+other platforms, it seems to deadlock, though I&rsquo;m not sure.</p>
+
+<p>So here we have a rather innocent-looking feature that has some hidden costs and pitfalls. But now I
+can look at a line of code where this feature is being used, and have a good idea of what&rsquo;s
+happening there. One step closer to being a better systems programmer!</p>
+
+<p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Emphasis on <em>relatively</em>. This article will show that it&rsquo;s definitely not &ldquo;easy&rdquo; all the time.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>Unless it has a constructor or otherwise isn&rsquo;t made out of trivially constructible types; in this case it is treated similar to the previous case.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2015-06-26T00:00:00+00:00'><span class='date'><span class='date-month'>Jun</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/c-plus-plus/'>c++</a>, <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/systems/'>systems</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/0/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/0/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/0/2015/05/30/how-rust-achieves-thread-safety/" title="Previous Post: How Rust achieves thread safety">&laquo; How Rust achieves thread safety</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/0/2015/08/29/the-worlds-most-over-engineered-alarm-clock/" title="Next Post: The world's most over-engineered alarm clock">The world&#8217;s most over-engineered alarm clock &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/0/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

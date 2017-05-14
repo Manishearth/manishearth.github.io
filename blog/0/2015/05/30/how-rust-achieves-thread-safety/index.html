@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>How Rust Achieves Thread Safety - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
+has invariably come up1. I usually just give an &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="How Rust achieves thread safety">
+      <meta property="twitter:description" content="In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
+has invariably come up1. I usually just give an overview, but this provides a more comprehensive &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/0/2015/05/30/how-rust-achieves-thread-safety/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">How Rust Achieves Thread Safety</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-05-30T00:00:00+00:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>30</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><em>In every talk I have given till now, the question &ldquo;how does Rust achieve thread safety?&rdquo;
+has invariably come up<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
+explanation for those who are interested</em></p>
+
+<p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon&rsquo;s blog post on the same topic</a></p>
+
+<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such
+&ldquo;marker&rdquo; traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>
+and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>. I recommend reading that post if you&rsquo;re not familiar with Rust wrapper types
+like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>, since I&rsquo;ll be using them as examples throughout this post;
+but the concepts explained here are largely independent.</p>
+
+<p>For the purposes of this post, I&rsquo;ll restrict thread safety to mean no data races or cross-thread
+dangling pointers. Rust doesn&rsquo;t aim to solve race conditions. However, there are projects which
+utilize the type system to provide some form of extra safety, for example <a href="https://github.com/Munksgaard/rust-sessions">rust-
+sessions</a> attempts to provide protocol safety using
+session types.</p>
+
+<p>These traits are auto-implemented using a feature called &ldquo;opt in builtin traits&rdquo;. So, for example,
+if struct <code>Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we
+explicitly opt out using <code>impl !Sync for Foo {}</code>. Similarly, if struct <code>Foo</code> contains at least one
+non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either, unless it explicitly opts in (<code>unsafe
+impl Sync for Foo {}</code>)</p>
+
+<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This
+pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
+context without requiring a separate &ldquo;single threaded&rdquo; channel abstraction.</p>
+
+<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields have explicitly opted out of one or more of these because the
+invariants they rely on do not hold in threaded situations.</p>
+
+<p>It&rsquo;s actually possible to design your own library with comparable thread safety guarantees outside
+of the compiler &mdash; while these marker traits are specially treated by the compiler, the special
+treatment is not necessary for their working. Any two opt-in builtin traits could be used here.</p>
+
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
+
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> types can be moved between threads without an issue. It answers the question
+&ldquo;if this variable were moved to another thread, would it still be valid for use?&rdquo;.
+Most objects which completely own their contained data qualify here. Notably, <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> doesn&rsquo;t
+(since it is shared ownership). Another exception is <a href="https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html"><code>LocalKey</code></a>, which
+<em>does</em> own its data but isn&rsquo;t valid from other threads. Borrowed data does qualify to be <code>Send</code>, but
+in most cases it can&rsquo;t be sent across threads due to a constraint that will be touched upon later.</p>
+
+<p>Even though types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> use non-atomic reference counting, it can be sent safely
+between threads because this is a transfer of <em>ownership</em> (a move). Sending a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> to another thread
+will be a move and will make it unusable from the original thread; so this is fine.</p>
+
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, on the other hand, is about synchronous access. It answers the question: &ldquo;if
+multiple threads were all trying to access this data, would it be safe?&rdquo;. Types like
+<a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a> and other lock/atomic based types implement this, along with primitive types.
+Things containing pointers generally are not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>.</p>
+
+<p><code>Sync</code> is sort of a crutch to <code>Send</code>; it helps make other types <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when sharing is
+involved. For example, <code>&amp;T</code> and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> are only <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when the inner data is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (there&rsquo;s an additional
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> bound in the case of <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a>). In words, stuff that has shared/borrowed ownership can be sent
+to another thread if the shared/borrowed data is synchronous-safe.</p>
+
+<p><a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a>, while <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> because of the non atomic reference counting.</p>
+
+<p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code>thread::spawn()</code></a>. It has the signature</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">fn</span> <span class="nb">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="o">:</span> <span class="n">F</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JoinHandle</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">where</span> <span class="n">F</span><span class="o">:</span> <span class="n">FnOnce</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">,</span> <span class="n">F</span><span class="o">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">&#39;static</span><span class="p">,</span> <span class="n">T</span><span class="o">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">&#39;static</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Admittedly, this is confusing/noisy, partially because it&rsquo;s allowed to return a value, and also because
+it returns a handle from which we can block on a thread join. We can conjure a simpler <code>spawn</code> API for our needs though:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">fn</span> <span class="nb">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="o">:</span> <span class="n">F</span><span class="p">)</span> <span class="n">where</span> <span class="n">F</span><span class="o">:</span> <span class="n">FnOnce</span><span class="p">(),</span> <span class="n">F</span><span class="o">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">&#39;static</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>which can be called like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="kd">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="n">vec</span><span class="o">!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// `move` instructs the closure to move out of its environment</span>
+</span><span class='line'><span class="n">thread</span><span class="o">::</span><span class="nb">spawn</span><span class="p">(</span><span class="n">move</span> <span class="o">||</span> <span class="p">{</span>
+</span><span class='line'>   <span class="n">x</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// x is not accessible here since it was moved</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In words, <code>spawn()</code> will take a callable (usually a closure) that will be called once, and contains
+data which is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code>. Here, <code>'static</code> just means that there is no borrowed
+data contained in the closure. This is the aforementioned constraint that prevents the sharing of
+borrowed data across threads; without it we would be able to send a borrowed pointer to a thread that
+could easily outlive the borrow, causing safety issues.</p>
+
+<p>There&rsquo;s a slight nuance here about the closures &mdash; closures can capture outer variables,
+but by default they do so by-reference (hence the <code>move</code> keyword). They autoimplement <code>Send</code>
+and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> depending on their capture clauses. For more on their internal representation,
+see <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">huon&rsquo;s post</a>. In this case, <code>x</code> was captured by-move; i.e. as <a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>
+(instead of being similar to <code>&amp;Vec&lt;T&gt;</code> or something), so the closure itself can be <code>Send</code>.
+Without the <code>move</code> keyword, the closure would not be `&lsquo;static&rsquo; since it contains borrowed
+content.</p>
+
+<p>Since the closure inherits the <code>Send</code>/<code>Sync</code>/<code>'static</code>-ness of its captured data, a closure
+capturing data of the correct type will satisfy the <code>F: Send+'static</code> bound.</p>
+
+<p>Some examples of things that are allowed and not allowed by this function (for the type of <code>x</code>):</p>
+
+<ul>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>, <a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> are allowed because they are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code> (when the inner type is of the same kind)</li>
+<li><code>&amp;T</code> isn&rsquo;t allowed because it&rsquo;s not <code>'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
+<li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, so it isn&rsquo;t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
+<li><code>Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> if the inner type is); we can&rsquo;t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> doesn&rsquo;t provide this by default.</li>
+<li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn&rsquo;t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
+<li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed (for <code>Send</code> <code>T</code>). The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code> (as long as it is <code>Send</code>), and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it&rsquo;s only being accessed by one thread at a time (slightly more complex in the case of <a href="http://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock</code></a>), so it doesn&rsquo;t need to know about the threads involved. There can&rsquo;t be data races when <code>Sync</code> types like these are involved.</li>
+</ul>
+
+
+<p>As mentioned before, you can in fact create a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a>/<a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"><code>Receiver</code></a> pair of non-<code>Send</code> objects. This sounds a bit
+counterintuitive &mdash; shouldn&rsquo;t we be only sending values which are <code>Send</code>? However, <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender&lt;T&gt;</code></a> is only
+<code>Send</code> if <code>T</code> is <code>Send</code>; so even if we can use a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> of a non-<code>Send</code> type, we cannot send it to another thread,
+so it cannot be used to violate thread safety.</p>
+
+<p>There is also a way to utilize the <code>Send</code>-ness of <code>&amp;T</code> (which is not <code>'static</code>) for some <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> <code>T</code>, namely <a href="http://doc.rust-lang.org/std/thread/fn.scoped.html"><code>thread::scoped</code></a>.
+This function does not have the <code>'static</code> bound, but it instead has an RAII guard which forces a join before the borrow ends. This
+allows for easy fork-join parallelism without necessarily needing a <a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a>.
+Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> cycles, so the API
+is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code>Send</code>/<code>Sync</code>,
+rather it is a perfect storm of small design inconsistencies in the libraries.</p>
+
+<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9628131">HN</a>, <a href="https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/">Reddit</a></small></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>So much that I added bonus slides about thread safety to the end of my deck, and of course I ended up using them at the talk I gave recently<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2015-05-30T00:00:00+00:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>30</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/0/2015/05/30/how-rust-achieves-thread-safety/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/0/2015/05/30/how-rust-achieves-thread-safety/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/0/2015/05/28/github-streak-end-game-and-post-mortem/" title="Previous Post: Github streak: End-game and post-mortem">&laquo; Github streak: End-game and post-mortem</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/0/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/" title="Next Post: Adventures in Systems Programming: C++ local statics">Adventures in Systems Programming: C++ local statics &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/0/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/0/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
