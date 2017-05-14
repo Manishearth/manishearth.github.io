@@ -1,0 +1,449 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Clarifying Misconceptions About SHAttered - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="This week Google published a SHA-1 collision. There&rsquo;s a lot of confusion about the implications of this. A lot of this is due to differences of &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Clarifying misconceptions about SHAttered">
+      <meta property="twitter:description" content="This week Google published a SHA-1 collision. There&rsquo;s a lot of confusion about the implications of this. A lot of this is due to differences of
+opinion on what exactly constitutes a &ldquo;new& &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2017/02/26/clarifying-misconceptions-about-shattered/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Clarifying Misconceptions About SHAttered</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-02-26T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>This week Google published a <a href="https://shattered.io/">SHA-1 collision</a>.</p>
+
+<p>There&rsquo;s a lot of confusion about the implications of this. A lot of this is due to differences of
+opinion on what exactly constitutes a &ldquo;new&rdquo; collision. I <a href="https://twitter.com/ManishEarth/status/835557328308969472">tweeted about this</a>. The webpage
+for the attack itself is misleading, saying that the answer to &ldquo;Who is capable of mounting this attack?&rdquo;
+is people with Google-esque resources. This depends on what exactly you mean by &ldquo;this attack&rdquo;.</p>
+
+<p>So I&rsquo;m seeing a lot of &ldquo;oh well just another anti-milestone for SHA, doesn&rsquo;t affect anyone since its
+still quite expensive to exploit&rdquo; reactions, as well as the opposite &ldquo;aaaaa everything is on fire&rdquo;
+reaction. Both are wrong. It has practical implications for you even if you are certain that you
+won&rsquo;t attract the ire of an entity with a lot of computational power. None of these implications,
+however, are likely to be disastrous.</p>
+
+<p>TLDR: Now <em>anyone</em>, without needing Google-esque resources,
+can generate two colliding PDFs with arbitrary visual content in each.</p>
+
+<p>(In fact, there&rsquo;s already <a href="http://alf.nu/SHA1">a PDF collision-generator</a> up where
+you can upload two images and get a PDF with collisions in it)</p>
+
+<h2>Okay, back up a bit. What&rsquo;s a hash? What&rsquo;s SHA-1?</h2>
+
+<p>I explained this a bit in my older post about <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">zero-knowledge-proofs</a>.</p>
+
+<p>In essence, a hash function takes some data (usually of arbitrary size), and produces a value called
+a <em>hash</em> (usually of fixed size). The function has some additional properties:</p>
+
+<ul>
+<li>In almost all cases, a small perturbation in the input will lead to a large perturbation in the hash</li>
+<li>Given an input and its hash, it is computationally hard to find an alternate input producing the same hash</li>
+<li>It&rsquo;s also hard to just find two inputs that has to the same value, though this is usually easier than the previous one</li>
+</ul>
+
+
+<p>when two inputs hash to the same value, this is called a collision. As mentioned, is easier to find
+<em>a</em> collision, over finding a colliding alternate input for a known input.</p>
+
+<p>SHA-1 is one such hash function. It&rsquo;s been known for a while that it&rsquo;s insecure, and the industry has
+largely moved off of it, but it&rsquo;s still used,</p>
+
+<h2>What did the researchers do?</h2>
+
+<p>They found a hash collision for SHA-1. In essence, they found two strings, <code>A</code> and <code>B</code>, where
+<code>SHA1(A) == SHA1(B)</code>.</p>
+
+<p><em>However</em>, given the way SHA-1 works, this means that you can generate infinitely many other
+such pairs of strings. And given the nature of the exact <code>A</code> and <code>B</code> they created, it is possible
+to use this to create arbitrary colliding PDFs.</p>
+
+<p>Basically, SHA-1 (and many other hash functions), operate on &ldquo;blocks&rdquo;. These are fixed-size chunks
+of data, where the size is a property of the hash function. For SHA1 this is 512 bits.</p>
+
+<p>The function starts off with an &ldquo;initial&rdquo; built-in hash. It takes the first block of your data and
+this hash, and does some computation with the two to produce a new hash, which is its state after
+the first block.</p>
+
+<p>It will then take this hash and the second block, and run the same computations to produce
+a newer hash, which is its state after the second block. This is repeated till all blocks have
+been processed, and the final state is the result of the function.</p>
+
+<p>There&rsquo;s an important thing to notice here. At each block, the only inputs are the block itself and the
+hash of the string up to that block.</p>
+
+<p>This means, if <code>A</code> and <code>B</code> are of a size that is a multiple of the block size, and <code>SHA1(A) == SHA1(B)</code>,
+then <code>SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code>C</code>, the state will
+be the same due to the hash collision, and after this point the next input blocks are identical in
+both cases, so the final hash will be the same.</p>
+
+<p>Now, while you might consider <code>A+C, B+C</code> to be the &ldquo;same collision&rdquo; as <code>A, B</code>, the implications
+of this are different than just &ldquo;there is now one known pair of inputs that collide&rdquo;, since everyone
+now has the ability to generate new colliding inputs by appending an arbitrary string to <code>A</code> and <code>B</code>.</p>
+
+<p>Of course, these new collisions have the restriction that the strings will always start with <code>A</code> or
+<code>B</code> and the suffixes will be identical. If you want to break this restriction, you will
+have to devote expensive resources to finding a new collision, like Google did.</p>
+
+<h2>How does this let us generate arbitrary colliding PDFs?</h2>
+
+<p>So this exploit actually uses features of the JPEG format to work. It was done in
+a PDF format since JPEGs often get compressed when sent around the Internet. However,
+since both A and B start a partial PDF document, they can only be used to generate colliding
+PDFs, not JPEGs.</p>
+
+<p>I&rsquo;m going to first sketch out a simplified example of what this is doing, using a hypothetical
+pseudocode-y file format. The researchers found a collision between the strings:</p>
+
+<ul>
+<li>A: <code>&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
+<li>B: <code>&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
+</ul>
+
+
+<p>Here, <code>&lt;header data&gt;</code> is whatever is necessary to make the format work, and the &ldquo;nonce&#8221;s are
+strings that make <code>A</code> and <code>B</code> have the same hash. Finding these nonces is where
+the computational power is required, since you basically have to brute-force a solution.</p>
+
+<p>Now, to both these strings, they append a suffix C: <code>IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
+This creates two complete documents. Both of the documents contain both images, but each one is instructed
+to display a different one. Note that since <code>SHA1(A) == SHA1(B)</code>, <code>SHA1(A + C) = SHA1(B + C)</code>, so these
+final documents have the same hash.</p>
+
+<p>The contents of <code>C</code> don&rsquo;t affect the collision at all. So, we can insert any two images in <code>C</code>, to create
+our own personal pair of colliding PDFs.</p>
+
+<p>The actual technique used is similar to this, and it relies on JPEG comment fields. They have found
+a collision between two strings that look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>pdf header data                       | String A
+</span><span class='line'>begin embedded image                  |
+</span><span class='line'>    jpg header data                   |
+</span><span class='line'>    declare jpg comment of length N   |
+</span><span class='line'>    random nonce of length N          | (comment ends here)
+</span><span class='line'>                                     ---
+</span><span class='line'>    image 1, length L                 | String C
+</span><span class='line'>    jpg EOF byte (2 bytes)            |
+</span><span class='line'>    image 2                           |
+</span><span class='line'>end embedded image                    |
+</span><span class='line'>
+</span><span class='line'>and
+</span><span class='line'>
+</span><span class='line'>pdf header data                       | String B
+</span><span class='line'>begin embedded image                  |
+</span><span class='line'>    jpg header data                   |
+</span><span class='line'>    declare jpg comment of length M   |
+</span><span class='line'>    random nonce of length M-L-2      |
+</span><span class='line'>                                     ---
+</span><span class='line'>    image 1, length L                 | String C
+</span><span class='line'>    jpg EOF marker (2 bytes)          | (comment ends here)
+</span><span class='line'>    image 2                           |
+</span><span class='line'>end embedded image                    |
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>By playing with the nonces, they managed to generate a collision between <code>A</code> and <code>B</code>. In the first
+pdf, the embedded image has a comment containing only the nonce. Once the JPEG reader gets past that
+comment, it sees the first image, displays it, and then sees the end-of-file marker and decides to
+stop. Since the PDF format doesn&rsquo;t try to interpret the image itself, the PDF format won&rsquo;t be
+boggled by the fact that there&rsquo;s some extra garbage data after the JPEG EOF marker. It
+simply takes all the data between the &ldquo;begin embedded image&rdquo; and &ldquo;end embedded image&rdquo; blocks,
+and passes it to the JPEG decoder. The JPEG decoder itself stops after it sees the end of file
+marker, and doesn&rsquo;t get to the extra data for the second image.</p>
+
+<p>In the second pdf, the jpg comment is longer, and subsumes the first image (as well as the EOF marker)
+Thus, the JPEG decoder directly gets to the second image, which it displays.</p>
+
+<p>Since the actual images are not part of the original collision (A and B), you can substitute any pair
+of jpeg images there, with some length restrictions.</p>
+
+<h2>What are the implications?</h2>
+
+<p>This does mean that you should not trust the integrity of a PDF when all you have
+to go on is its SHA-1 hash. Use a better hash. <em>Anyone can generate these colliding PDFs
+now.</em></p>
+
+<p>Fortunately, since all such PDFs will have the same prefix A or B, you can detect when
+such a deception is being carried out.</p>
+
+<p>Don&rsquo;t check colliding PDFs into SVN. <a href="https://bugs.webkit.org/show_bug.cgi?id=168774#c27">Things break</a>.</p>
+
+<p>In some cases it is possible to use the PDF collision in other formats. For example,
+<a href="https://mobile.twitter.com/arw/status/834883944898125824">it can be used to create colliding HTML documents</a>. I think it can be used to colide
+ZIP files too.</p>
+
+<p>Outside the world of complex file formats, little has changed. It&rsquo;s still a bad idea to use SHA-1.
+It&rsquo;s still possible for people to generate entirely new collisions like Google did, though this
+needs a lot of resources. It&rsquo;s possible that someone with resources has already generated such a
+&ldquo;universal-key collision&rdquo; for some other file format<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> and will use it on you, but this was
+equally possible before Google published their attack.</p>
+
+<p>This does not make it easier to collide with arbitrary hashes &ndash; if someone else
+has uploaded a document with a hash, and you trust them to not be playing any tricks,
+an attacker won&rsquo;t be able to generate a colliding document for this without immense
+resources. The attack only works when the attacker has control over the initial document;
+e.g. in a bait-and-switch-like attack where the attacker uploads document A, you read and verify it
+and broadcast your trust in document A with hash <code>SHA(A)</code>, and then the attacker switches it with
+document B.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Google&rsquo;s specific collision was designed to be a &ldquo;universal key&rdquo;, since A and B are designed to have the image-switching mechanism built into it. Some other collision may not be like this; it could just be a collision of two images (or whatever) with no such switching mechanism. It takes about the same effort to do either of these, however, so if you have a file format that can be exploited to create a switching mechanism, it would always make more sense to build one into any collision you look for.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2017-02-26T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>26</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/crypto/'>crypto</a>, <a class='category' href='/blog/categories/programming/'>programming</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2017/02/26/clarifying-misconceptions-about-shattered/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2017/02/26/clarifying-misconceptions-about-shattered/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2017/01/21/mitigating-underhandedness-clippy/" title="Previous Post: Mitigating underhandedness: Clippy!">&laquo; Mitigating underhandedness: Clippy!</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/" title="Next Post: Mitigating underhandedness: Fuzzing your code">Mitigating underhandedness: Fuzzing your code &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

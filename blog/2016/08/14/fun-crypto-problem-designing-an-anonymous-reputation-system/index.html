@@ -1,0 +1,371 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Fun Crypto Problem: Designing an Anonymous Reputation System - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="One of the reasons I like crypto is that it&rsquo;s a gold mine of interesting problems which feel
+like they are impossible to solve and if a &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Fun crypto problem: Designing an anonymous reputation system">
+      <meta property="twitter:description" content="One of the reasons I like crypto is that it&rsquo;s a gold mine of interesting problems which feel
+like they are impossible to solve and if a solution exists, it must be magic. The other day, I came &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Fun Crypto Problem: Designing an Anonymous Reputation System</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2016-08-14T00:00:00+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>14</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>One of the reasons I like crypto is that it&rsquo;s a gold mine of interesting problems which feel
+like they are impossible to solve and if a solution exists, it must be magic.</p>
+
+<p>The other day, I came across one such problem <a href="https://twitter.com/SarahJamieLewis/status/763060674956173314">here</a>, by @SarahJamieLewis</p>
+
+<blockquote><p>Is there a scheme where A can give reputation points to B, &amp; later, B presenting as C can prove
+their reputation (without revealing A or B)?</p></blockquote>
+
+<p>(I recommend trying to solve this yourself before reading ahead)</p>
+
+<p>The problem isn&rsquo;t completely defined because we don&rsquo;t know how &ldquo;reputation&rdquo; is supposed to work. A
+simple model is to think of it as currency, and use Bitcoin as a proxy. Of course, a real reputation
+system probably would be different from currency. There might only be a small set of authorized
+reputation &ldquo;sellers&rdquo; (this can still be built on top of Bitcoin, or you can use a system similar to
+the CA system for TLS certificates). Or there might be a system in which each person can vote for
+another person at most once (though this needs to be designed in a way that is resilient to sybil
+attacks).</p>
+
+<p>Let us assume that there is a ledger out there, where each ledger entry is a certificate saying that
+entity X has given one reputation point to entity Y. A public key is included, where the private key
+is only known to Y. This model cleanly applies to both Bitcoin and CA systems &ndash; in Bitcoin, the
+transaction is the &ldquo;certificate&rdquo;, and in the CA system the certificate is the certificate.</p>
+
+<p>For additional anonymity, you can have a different private key for each certificate. I&rsquo;m going to
+assume this is the case, though the solutions don&rsquo;t change much if it isn&rsquo;t.</p>
+
+<h2>Solution via ZKP</h2>
+
+<p>I&rsquo;m very fond of the concept of a zero-knowledge proof, and when you have a hammer everything looks
+like a nail.</p>
+
+<p>So my first solution was one involving zero-knowledge proofs.</p>
+
+<p>Construct the problem &ldquo;Given the certificates in this ledger and X private keys, prove that these
+private keys each have one certificate they correspond to, and that the keys are distinct&rdquo;.</p>
+
+<p>In this problem, the certificates (public keys) are hardcoded, whereas the private keys are inputs.
+This sort of algorithm can be written as a sequential logic circuit, assuming that the method of
+signing can be. We can then perform a zero-knowledge proof of this problem using the ZKP for general
+execution <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">outlined here</a>. The prover inserts their private keys into the algorithm,
+run the algorithm, and prove that the execution was faithful and had an output of true using the ZKP.</p>
+
+<p>Since the ZKP doesn&rsquo;t leak any information about its inputs, it doesn&rsquo;t leak which certificates
+were the ones for which the prover had private keys, so it doesn&rsquo;t leak the identities of A or B.</p>
+
+<p>However, this is overkill. The general ZKP gets very expensive as the size of the algorithm, and
+since the ledger was hardcoded in it, this ZKP will probably take a while (or a lot of computational
+power) to execute. One can perform it with a subset of the ledger picked by the prover, but
+repeating the process may slowly reveal the identity of the prover via the intersection of these
+subsets.</p>
+
+<h2>Solution via secret-sharing</h2>
+
+<p>(This solution is technically a ZKP too, but it doesn&rsquo;t use the &ldquo;general&rdquo; ZKP algorithm which
+while expensive can be used for any combinatorical verification algorithm)</p>
+
+<p>Once I&rsquo;d gotten the &ldquo;use a ZKP!&rdquo; solution out of my system, I thought about it more and realized
+that the problem is very close to a secret-sharing one.</p>
+
+<p>Secret-sharing is when you want to have a cryptographic &ldquo;lock&rdquo; (a shared secret) which can only be
+revealed/opened when the requisite quorum of (any) X keys out of N total keys is used.</p>
+
+<p>Shamir&rsquo;s secret sharing is a nice algorithm using polynomials that lets you do this.</p>
+
+<p>In this situation, we want to prove that we have X private keys out of N total certificates in the
+ledger.</p>
+
+<p>The verifier (Victor) can construct a secret sharing problem with a single secret and N secret-
+sharing-keys (in the case of Shamir, these would be N x,y-coordinate pairs). Each such key is paired
+with a certificate, and is encrypted with the corresponding public key of that certificate.</p>
+
+<p>The prover (Peggy) is given all of these encrypted secret-sharing keys, as well as the certificates
+they correspond to.</p>
+
+<p>If Peggy legitimately has X reputation, she has the X private keys necessary to obtain X of the
+secret sharing keys by decrypting them. From this, she can obtain the secret. By showing the secret
+to Victor, she has proven that she has at least X private keys corresponding to certificates in the
+ledger, and thus has at least X reputation. In the process, <em>which</em> certificates were involved is
+not revealed (so both the reputation-giver and reputation-receiver) stay anonymous.</p>
+
+<p>Or was it?</p>
+
+<p>Victor can construct a malicious secret sharing problem. Such a problem would basically reveal a
+different secret depending on the secret-sharing-keys Peggy uses. For example, in Shamir&rsquo;s secret
+sharing, Victor can just give N random coordinates. X of those coordinates will always create a
+degree-X curve, but the curves obtained from different sets of X coordinates will probably have a
+different constant term (and thus a different secret).</p>
+
+<p>The secret-sharing problem needs to be transmitted in a way that makes it possible for Peggy to
+verify that it&rsquo;s not malicious.</p>
+
+<p>One way to do it is to make it possible to uncover <em>all</em> the secret-sharing-keys, but <em>only</em> after
+the secret has been found. In Shamir&rsquo;s algorithm, this can be done by pre-revealing the x
+coordinates and only encrypting the y coordinates. Once Peggy has found the secret, she has the
+entire polynomial curve, and can input the remaining x coordinates into the curve to find the
+remaining secret sharing keys (and then verify that they have been encrypted properly).</p>
+
+<p>This is <em>almost perfect</em>. User &ldquo;otus&rdquo; on Crypto Stack Exchange <a href="http://crypto.stackexchange.com/q/39274/2081">pointed out my mistake</a>.</p>
+
+<p>The problem with this scheme (and the previous one to a lesser degree) is that Peggy could simply
+brute-force the values of the y coordinates beforehand.</p>
+
+<p>This can be solved by using nonces. Instead of encrypting each y-coordinate, Victor encrypts each
+y-coordinate, <em>plus a nonce</em>. So, instead of encrypting the y-coordinate &ldquo;42&rdquo;, a string like
+&ldquo;da72ke8lv0q-42&rdquo; will be encrypted.</p>
+
+<p>On decryption, it is easy to extract the coordinate from the plaintext (presumably the scheme used
+to add the nonce would be decided upon beforehand). However, we can&rsquo;t brute-force for the plaintext
+anymore, because the ciphertext isn&rsquo;t the encryption of a low-entropy value like a regular, smallish
+number, it&rsquo;s the encryption of a relatively high-entropy value.</p>
+
+<p>So far, this prevents brute forcing, but it also prevents Peggy from verifying that the secret-
+sharing problem was non-malicious, since she doesn&rsquo;t know the nonces. Nor can these be pre-shared
+with her, since she can just use them to brute force again.</p>
+
+<p>The solution here is for Victor to use the shared secret as a symmetric key, encrypt all of the
+nonces with it, and share them with Peggy. Until Peggy knows this key, she cannot use the nonces to
+brute force. Once she knows this key, she can decrypt the values for the nonces and use them to
+verify that the nonces are correct.</p>
+
+<p>This is exactly the property we need. If Peggy doesn&rsquo;t have enough private keys (reputation points),
+she won&rsquo;t have the secret and can&rsquo;t prove her reputation to Victor. Once Peggy does have the quorum
+of keys, she will know the symmetric key, be able to decrypt the nonces, and use these nonces to
+verify that the other N-X ciphertexts fall on the curve which she has obtained. Once she has
+verified this, she can present the shared secret/symmetric key to Victor, who will know that she
+had enough keys to crack the secret sharing problem and thus has at least X reputation.</p>
+
+<hr />
+
+<p>This was quite an entertaining problem to solve (and it got me thinking about ZKPs again, which
+made me write my <a href="http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/">previous post</a>). Thanks, Sarah!</p>
+
+<p>Got an alternate solution (or other similar fun problems)? Let me know!</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2016-08-14T00:00:00+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>14</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2016/08/14/fun-crypto-problem-designing-an-anonymous-reputation-system/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/" title="Previous Post: Interactive Sudoku zero-knowledge proof">&laquo; Interactive Sudoku zero-knowledge proof</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2016/08/18/gc-support-in-rust-api-design/" title="Next Post: GC support in Rust: API design">GC support in Rust: API design &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/18/inhtpinhtpamaa/">I Never Hear the Phrase &#8216;INHTPAMA&#8217; Anymore</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/03/12/use-signal-use-tor/">Use Signal. Use Tor.</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
