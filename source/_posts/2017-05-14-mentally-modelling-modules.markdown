@@ -138,11 +138,12 @@ pub mod bar {
 
 
 These examples remind me of the "point at infinity" in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS. Sometimes, for something to make sense,
+physics or fake lattice elements in various fields of CS[^2]. Sometimes, for something to make sense,
 you add in things that don't normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.
 
+ [^2]: One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with `'static` being the bottom element. There is no top element for lifetimes in Rust syntax, but internally [there is the "empty lifetime"](http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty) which is used during borrow checking. If something resolves to have an empty lifetime, it can't exist, so we get a lifetime error.
 
 ### Imports
 
@@ -150,7 +151,7 @@ The core confusion behind how imports work can really be resolved by remembering
 
  - `use foo::bar::baz` resolves `foo` relative to the root module (`lib.rs` or `main.rs`)
    - You can resolve relative to the current module by explicily trying `use self::foo::bar::baz`
- - `foo::bar::baz` within your code[^2] resolves `foo` relative to the current module
+ - `foo::bar::baz` within your code[^3] resolves `foo` relative to the current module
    - You can resolve relative to the root by explicitly using `::foo::bar::baz`
 
 
@@ -160,7 +161,7 @@ constitutes as "being within a module".
 Let's take a pretty standard setup, where `extern crate` declarations are placed in the the root
 module:
 
- [^2]: When I say "within your code", I mean "anywhere but a `use` statement". I may also term these as "inline paths".
+ [^3]: When I say "within your code", I mean "anywhere but a `use` statement". I may also term these as "inline paths".
 
 ```rust
 extern crate regex;
@@ -401,7 +402,7 @@ mod foo {
 ```
 
 It's important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works[^3]:
+path works is a function of where you are. For example, this works[^4]:
 
 ```rust
 pub mod foo {
@@ -421,7 +422,7 @@ We are able to write the path `foo::bar::baz::bazfunc` even though `bar` is priv
 This is because we still have _access_ to the module `bar`, by being a descendent module.
 
 
- [^3]: Example adapted from [this discussion](https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/)
+ [^4]: Example adapted from [this discussion](https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/)
 
 
 ------
