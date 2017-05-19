@@ -3,7 +3,7 @@ layout: post
 title: "Mentally modelling modules"
 date: 2017-05-14 19:38:15 -0700
 comments: true
-categories: 
+categories: programming rust mozilla tidbits
 ---
 
 The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
