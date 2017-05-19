@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-05-16T00:06:27+00:00</updated>
+  <updated>2017-05-19T01:17:39+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,604 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Teaching Programming: Proactive vs Reactive]]></title>
+    <link href="http://manishearth.github.io/blog/2017/05/18/teaching-programming-proactive-vs-reactive/"/>
+    <updated>2017-05-18T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2017/05/18/teaching-programming-proactive-vs-reactive</id>
+    <content type="html"><![CDATA[<p>I&rsquo;ve been thinking about this a lot these days. In part because of <a href="https://github.com/Manishearth/rust-clippy/issues/1737">an idea I had</a>
+but also due to <a href="https://twitter.com/sehurlburt/status/863829482645340160">this twitter discussion</a>.</p>
+
+<p>When teaching most things, there are two non-mutually-exclusive ways of approaching the problem. One
+is &ldquo;proactive&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, which is where the teacher decide a learning path beforehand, and executes it. The
+other is &ldquo;reactive&rdquo;, where the teacher reacts to the student trying things out and dynamically
+tailors the teaching experience.</p>
+
+<p>Most in-person teaching experiences are a mix of both. Planning beforehand is very important whilst teaching,
+but tailoring the experience to the student&rsquo;s reception of the things being taught is important too.</p>
+
+<p>In person, you <em>can</em> mix these two, and in doing so you get a &ldquo;best of both worlds&rdquo; situation. Yay!</p>
+
+<p>But &hellip; we don&rsquo;t really learn much programming in person in a classroom setup.
+Sure, some folks learn the basics in college for a few years, but everything
+they learn after that isn&rsquo;t in a classroom situation where this can work<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>.
+I&rsquo;m an autodidact,
+and while I have taken a few programming courses for random interesting things, I&rsquo;ve taught myself most of what I know
+using various sources. Because of this, I care a lot about improving the situation here.</p>
+
+<p>With self-driven learning we have a similar divide. The &ldquo;proactive&rdquo; model corresponds to reading books
+and docs. Various people have proactively put forward a path for learning in the form of a book
+or tutorial. It&rsquo;s up to you to pick one, and follow it.</p>
+
+<p>The &ldquo;reactive&rdquo; model is not so well-developed. In the context of self-driven learning in programming,
+it&rsquo;s basically &ldquo;do things, make mistakes, hope that google/stackoverflow help&rdquo;. It&rsquo;s how
+a lot of people learn programming; and it&rsquo;s how I prefer to learn programming.</p>
+
+<p>It&rsquo;s very nice to be able to &ldquo;learn along the way&rdquo;. And while this is a long and arduous process,
+involving many false starts and a lack of a sense of progress, it can be worth it in terms of
+the kind of experience this gets you.</p>
+
+<p>But as I mentioned, this isn&rsquo;t as well-developed. With the proactive approach, there still
+is a teacher &ndash; the author of the book! That teacher may not be able to respond in real time,
+but they&rsquo;re able to set forth a path for you to work through.</p>
+
+<p>On the other hand, with the &ldquo;reactive&rdquo; approach, there is no teacher. Sure, there are
+Random Answers on the Internet, which are great, but they don&rsquo;t form a coherent story.
+Neither can you really be your own teacher for a topic you do not understand.</p>
+
+<p>Yet plenty of folks do this. Plenty of folks approach things like learning a new language by reading
+at most two pages of docs and then just diving straight in and trying stuff out. The only language I
+have not done this for is the first language I learned<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>&nbsp;<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+
+<p>I think it&rsquo;s unfortunate that folks who prefer this approach don&rsquo;t get the benefit of a teacher.
+In the reactive approach, teachers can still tell you what you&rsquo;re doing wrong and steer you away from
+tarpits of misunderstanding. They can get you immediate answers and guidance. When we look
+for answers on stackoverflow, we get some of this, but it also involves a lot of pattern-matching
+on the part of the student, and we end up with a bad facsimile of what a teacher can do for you.</p>
+
+<p>But it&rsquo;s possible to construct a better teacher for this!</p>
+
+<p>In fact, examples of this exist in the wild already!</p>
+
+<p>The Elm compiler is my favorite example of this. <a href="http://elm-lang.org/blog/compilers-as-assistants">It has amazing error messages</a></p>
+
+<p><img class="center" src="/images/post/elm-error.png">
+<img class="center" src="/images/post/elm-error2.png"></p>
+
+<p>The error messages tell you what you did wrong, sometimes suggest fixes, and help
+correct potential misunderstandings.</p>
+
+<p>Rust does this too. Many compilers do. (Elm is exceptionally good at it)</p>
+
+<p><img class="center" src="/images/post/rust-error.png" width="700"></p>
+
+<p>One thing I particularly like about Rust is that from that error you can
+try <code>rustc --explain E0373</code> and get a terminal-friendly version
+of <a href="https://doc.rust-lang.org/nightly/error-index.html#E0373">this help text</a>.</p>
+
+<p>Anyway, diagnostics basically provide a reactive component to learning programming. I&rsquo;ve cared about
+diagnostics in Rust for a long time, and I often remind folks that many things taught through the
+docs can/should be taught through diagnostics too. Especially because diagnostics are a kind of soapbox
+for compiler writers &mdash; you can&rsquo;t guarantee that your docs will be read, but you can guarantee
+that your error messages will. These days, while I don&rsquo;t have much time to work on stuff myself I&rsquo;m
+very happy to mentor others working on improving diagnostics in Rust.</p>
+
+<p>Only recently did I realize <em>why</em> I care about them so much &ndash; they cater exactly to my approach
+to learning programming languages! If I&rsquo;m not going to read the docs when I get started and try the
+reactive approach, having help from the compiler is invaluable.</p>
+
+<p>I think this space is relatively unexplored. Elm might have the best diagnostics out there,
+and as diagnostics (helping all users of a language &ndash; new and experienced), they&rsquo;re great,
+but as a teaching tool for newcomers; they still have a long way to go. Of course, compilers
+like Rust are even further behind.</p>
+
+<p>One thing I&rsquo;d like to experiment with is a first-class tool for reactive teaching. In a sense,
+<a href="https://github.com/Manishearth/rust-clippy">clippy</a> is already something like this. Clippy looks out for antipatterns, and tries to help
+teach. But it also does many other things, and not all teaching moments are antipatterns.</p>
+
+<p>For example, in C, this isn&rsquo;t necessarily an antipattern:</p>
+
+<pre><code class="c">struct thingy *result;
+if (result = do_the_thing()) {
+    frob(*result)
+}
+</code></pre>
+
+<p>Many C codebases use <code>if (foo = bar())</code>. It is a potential footgun if you confuse it with <code>==</code>,
+but there&rsquo;s no way to be sure. Many compilers now have a warning for this that you can silence by
+doubling the parentheses, though.</p>
+
+<p>In Rust, this isn&rsquo;t an antipattern either:</p>
+
+<pre><code class="rust">fn add_one(mut x: u8) {
+    x += 1;
+}
+
+let num = 0;
+add_one(num);
+// num is still 0
+</code></pre>
+
+<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code>num</code>) passed to it
+is to use something like <code>mut x: u8</code>. What this actually does is copies <code>num</code> (because <code>u8</code> is a <code>Copy</code> type),
+and allows you to mutate the copy within the scope of the function. The right way to make a function that
+mutates arguments passed to it by-reference would be to do something like <code>fn add_one(x: &amp;mut u8)</code>.
+If you try the <code>mut x</code> thing for non-Copy values, you&rsquo;d get a &ldquo;reading out of moved value&rdquo; error
+when you try to access <code>num</code> after calling <code>add_one</code>. This would help you figure out what you did wrong,
+and potentially that error could detect this situation and provide more specific help.</p>
+
+<p>But for <code>Copy</code> types, this will just compile. And it&rsquo;s not an antipattern &ndash; the way this works
+makes complete sense in the context of how Rust variables work, and is something that you do need
+to use at times.</p>
+
+<p>So we can&rsquo;t even warn on this. Perhaps in &ldquo;pedantic clippy&rdquo; mode, but really, it&rsquo;s not
+a pattern we want to discourage. (At least in the C example that pattern is one
+that many people prefer to forbid from their codebase)</p>
+
+<p>But it would be nice if we could tell a learning programmer &ldquo;hey, btw, this is what this syntax
+means, are you sure you want to do this?&rdquo;. With explanations and the ability to dismiss the error.</p>
+
+<p>In fact, you don&rsquo;t even need to restrict this to potential footguns!</p>
+
+<p>You can detect various things the learner is trying to do. Are they probably mixing up <code>String</code>
+and <code>&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
+
+<p>This is beginning to remind me of the original &ldquo;office assistant&rdquo; <a href="https://en.wikipedia.org/wiki/Office_Assistant">Clippy</a>, which was super annoying.
+But an opt-in tool or IDE feature which gives helpful suggestions could still be nice, especially
+if you can strike a balance between being so dense it is annoying and so sparse it is useless.</p>
+
+<p>It also reminds me of well-designed tutorial modes in games. Some games have a tutorial mode that guides you
+through a set path of doing things. Other games, however, have a tutorial mode that will give you hints even
+if you stray off the beaten path.</p>
+
+<p>This really feels like it fits the &ldquo;reactive&rdquo; model I prefer. The student gets to mold their own
+journey, but gets enough helpful hints and nudges from the &ldquo;teacher&rdquo; (the tool) so that they
+don&rsquo;t end up wasting too much time and can make informed decisions on how to proceed learning.</p>
+
+<p>Now, rust-clippy isn&rsquo;t exactly the place for this kind of tool. This tool needs the ability to globally
+&ldquo;silence&rdquo; a hint once you&rsquo;ve learned it. rust-clippy is a linter, and while you can silence lints in
+your code, you can&rsquo;t silence them globally for the current user. Nor does that really make sense.</p>
+
+<p>But rust-clippy does have the infrastructure for writing stuff like this, so it&rsquo;s an ideal prototyping
+point. I&rsquo;ve filed <a href="https://github.com/Manishearth/rust-clippy/issues/1737">this issue</a> to discuss this topic.</p>
+
+<p>Ultimately, I&rsquo;d love to see this as an IDE feature.</p>
+
+<p>I&rsquo;d also like to see more experimentation in the department of &ldquo;reactive&rdquo; teaching &mdash; not just tools like this.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>This is how I&rsquo;m using these terms. There seems to be precedent in pedagogy for the proactive/reactive classification, but it might not be exactly the same as the way I&rsquo;m using it.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This is true for everything, but I&rsquo;m focusing on programming (in particular programming <em>languages</em>) here.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>And when I learned Rust, it only <em>had</em> two pages of docs, aka &ldquo;The Tutorial&rdquo;. Good times.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>I do eventually get around to doing a full read of the docs or a book but this is after I&rsquo;m already able to write nontrivial things in the language, and it takes a lot of time to get there.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Mentally Modelling Modules]]></title>
+    <link href="http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/"/>
+    <updated>2017-05-14T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules</id>
+    <content type="html"><![CDATA[<p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
+learning the language. A lot of these confusions stem from a misunderstanding of how it works.
+In explaining this I&rsquo;ve seen that it&rsquo;s usually a common set of misunderstandings.</p>
+
+<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">&ldquo;You&rsquo;re doing it wrong&rdquo;</a>, I want to try and explain one
+&ldquo;right&rdquo; way of looking at it. You can go pretty far<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> without knowing this, but it&rsquo;s useful
+and helps avoid confusion.</p>
+
+<hr />
+
+<p><br></p>
+
+<p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
+&ldquo;look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents&rdquo;.
+It&rsquo;s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
+itself can be confusing at first, but it&rsquo;s not what I wish to focus on here. The Rust book explains this more
+in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
+
+<p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
+but keep in mind that the stuff here applies equally to multi-file crates.</p>
+
+<h3>Motivating examples</h3>
+
+<p>To start off, I&rsquo;m going to provide some examples of Rust code which compiles. Some of these may be
+counterintuitive, based on your existing model.</p>
+
+<pre><code class="rust">pub mod foo {
+    extern crate regex;
+
+    mod bar {
+        use foo::regex::Regex;
+    }
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
+
+<pre><code class="rust">use std::mem;
+
+
+pub mod foo {
+    // not std::mem::transmute!
+    use mem::transmute;
+
+    pub mod bar {
+        use foo::transmute;
+    }
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
+
+<pre><code class="rust">pub mod foo {
+    use bar;
+    use bar::bar_inner;
+
+    fn foo() {
+        // this works!
+        bar_inner();
+        bar::bar_inner();
+        // this doesn't
+        // baz::baz_inner();
+
+        // but these do!
+        ::baz::baz_inner();
+        super::baz::baz_inner();
+
+        // these do too!
+        ::bar::bar_inner();
+        super::bar::bar_inner();
+        self::bar::bar_inner();
+
+    }
+}
+
+pub mod bar {
+    pub fn bar_inner() {}
+}
+pub mod baz {
+    pub fn baz_inner() {}
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
+
+<pre><code class="rust">pub mod foo {
+    use bar::baz;
+    // this won't work
+    // use baz::inner();
+
+    // this will
+    use self::baz::inner;
+    // or
+    // use bar::baz::inner
+
+    pub fn foo() {
+        // but this will work!
+        baz::inner();
+    }
+}
+
+pub mod bar {
+    pub mod baz {
+        pub fn inner() {}
+    }
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
+
+<p>These examples remind me of the &ldquo;point at infinity&rdquo; in elliptic curve crypto or fake particles in
+physics or fake lattice elements in various fields of CS<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
+you add in things that don&rsquo;t normally exist. Similarly, these examples may contain code which
+is not traditional Rust style, but the import system
+still makes more sense when you include them.</p>
+
+<h3>Imports</h3>
+
+<p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
+
+<ul>
+<li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
+
+<ul>
+<li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
+</ul>
+</li>
+<li><code>foo::bar::baz</code> within your code<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
+
+<ul>
+<li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
+</ul>
+</li>
+</ul>
+
+
+<p>That&rsquo;s actually &hellip; it. There are no further caveats. The rest of this is modelling what
+constitutes as &ldquo;being within a module&rdquo;.</p>
+
+<p>Let&rsquo;s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
+module:</p>
+
+<pre><code class="rust">extern crate regex;
+
+mod foo {
+    use regex::Regex;
+
+    fn foo() {
+        // won't work
+        // let ex = regex::Regex::new("");
+        let ex = Regex::new("");
+    }
+}
+</code></pre>
+
+<p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
+pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we&rsquo;ve imported
+the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
+<code>use regex::Regex</code> works fine inside the module.</p>
+
+<p>Inline in code, <code>regex::Regex</code> won&rsquo;t work because as mentioned before inline paths are relative
+to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
+
+<p>Since we&rsquo;ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
+the module directly, so the code can just say <code>Regex::new()</code>.</p>
+
+<p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
+<code>blah</code> &ldquo;within the module&rdquo;, which is basically something like a symbolic link, saying
+&ldquo;yes this item named <code>blah</code> is actually elsewhere but we&rsquo;ll pretend it&rsquo;s within the module&rdquo;</p>
+
+<p>The error message from this code may further drive this home:</p>
+
+<pre><code class="rust">use foo::replace;
+
+pub mod foo {
+    use std::mem::replace;
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
+
+<p>The error I get is</p>
+
+<pre><code>error: function `replace` is private
+ --&gt; src/main.rs:3:5
+  |
+3 | use foo::replace;
+  |     ^^^^^^^^^^^^
+</code></pre>
+
+<p>There&rsquo;s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
+
+<p>That&rsquo;s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
+
+<pre><code class="rust">pub mod foo {
+    fn replace(...) -&gt; ... {
+        ...
+    }
+
+    // here we can refer to `replace` freely (in inline paths)
+    fn whatever() {
+        // ...
+        let something = replace(blah);
+        // ...
+    }
+}
+</code></pre>
+
+<p>except it&rsquo;s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
+are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
+a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
+any extra qualification in inline paths.</p>
+
+<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says &ldquo;make this symlink, but let
+others see it too&rdquo;:</p>
+
+<pre><code class="rust">// works now!
+use foo::replace;
+
+pub mod foo {
+    pub use std::mem::replace;
+}
+</code></pre>
+
+<hr />
+
+<p><br></p>
+
+<p>Folks often get annoyed when this doesn&rsquo;t work:</p>
+
+<pre><code class="rust">mod foo {
+    use std::mem;
+    // nope
+    // use mem::replace;
+}
+</code></pre>
+
+<p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
+in the root module, so this won&rsquo;t work. We can make it work via <code>self</code>, which I mentioned
+before:</p>
+
+<pre><code class="rust">mod foo {
+    use std::mem;
+    // yep!
+    use self::mem::replace;
+}
+</code></pre>
+
+<p>Note that this brings overloading of the <code>self</code> keyword up to a grand total of <em>four</em>! Two cases
+which occur in the import/path system:</p>
+
+<ul>
+<li><code>use self::foo</code> means &ldquo;find me <code>foo</code> within the current module&rdquo;</li>
+<li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
+<li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+<li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
+</ul>
+
+
+<p>Oh well, at least it&rsquo;s not <code>static</code>.</p>
+
+<hr />
+
+<p><br><br></p>
+
+<p>Going back to one of the examples I gave at the beginning:</p>
+
+<pre><code class="rust">use std::mem;
+
+
+pub mod foo {
+    use mem::transmute;
+
+    pub mod bar {
+        use foo::transmute;
+    }
+}
+</code></pre>
+
+<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
+
+<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone&rsquo;s point
+of view, there&rsquo;s an item called <code>mem</code> in the root.</p>
+
+<p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
+already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
+actually belonging to the module. (Non-child modules won&rsquo;t see it because of privacy, we
+saw an example of this already)</p>
+
+<p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
+of <code>foo</code> via <code>use foo::whatever</code>, since <code>foo</code> is a child of the root module, and <code>use</code> is relative
+to the root. <code>foo</code> already has an item named <code>transmute</code> inside it because it imported one.
+Nothing in the parent module is private from the child, so we can <code>use foo::transmute</code> from
+<code>bar</code>.</p>
+
+<p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
+or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
+This is why we rarely see shenanigans like the above; there&rsquo;s nothing in the root crate
+to import, aside from other crates specified by <code>extern crate</code>. The trick of
+&ldquo;reimport something from the parent module&rdquo; is also pretty rare because there&rsquo;s basically no
+point to using that (just import it directly!). So this is not the kind of code
+you&rsquo;ll see in the wild.</p>
+
+<hr />
+
+<p><br></p>
+
+<p>Basically, the way the import system works can be summed up as:</p>
+
+<ul>
+<li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+<li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
+<li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
+<li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+<li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+<li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+</ul>
+
+
+<p>Alright, on to the other half of this. Privacy.</p>
+
+<h3>Privacy</h3>
+
+<p>So how does privacy work?</p>
+
+<p>Privacy, too, follows some basic rules:</p>
+
+<ul>
+<li>If you can access a module, you can access all of its <code>pub</code> contents</li>
+<li>A module can always access its child modules, but not recursively
+
+<ul>
+<li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
+</ul>
+</li>
+<li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
+<li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it&rsquo;s experimental so we won&rsquo;t deal with it here</li>
+</ul>
+
+
+<p>Giving some examples,</p>
+
+<pre><code class="rust">mod foo {
+    mod bar {
+        // can access `foo::foofunc`, even though `foofunc` is private
+
+        pub fn barfunc() {}
+
+    }
+    // can access `foo::bar::barfunc()`, even though `bar` is private
+    fn foofunc() {}
+}
+</code></pre>
+
+<pre><code class="rust">mod foo {
+    mod bar {
+        // We can access our parent and _all_ its contents,
+        // so we have access to `foo::baz`. We can access
+        // all pub contents of modules we have access to, so we
+        // can access `foo::baz::bazfunc`
+        use foo::baz::bazfunc;
+    }
+    mod baz {
+        pub fn bazfunc() {}
+    }
+}
+</code></pre>
+
+<p>It&rsquo;s important to note that this is all contextual; whether or not a particular
+path works is a function of where you are. For example, this works<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>:</p>
+
+<pre><code class="rust">pub mod foo {
+    /* not pub */ mod bar {
+        pub mod baz {
+            pub fn bazfunc() {}
+        }
+        pub mod quux {
+            use foo::bar::baz::bazfunc;
+        }
+    }
+}
+</code></pre>
+
+<p>We are able to write the path <code>foo::bar::baz::bazfunc</code> even though <code>bar</code> is private!</p>
+
+<p>This is because we still have <em>access</em> to the module <code>bar</code>, by being a descendent module.</p>
+
+<hr />
+
+<p><br></p>
+
+<p>Hopefully this is helpful to some of you. I&rsquo;m not really sure how this can fit into the official
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn&rsquo;t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the &ldquo;empty lifetime&rdquo;</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can&rsquo;t exist, so we get a lifetime error.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>When I say &ldquo;within your code&rdquo;, I mean &ldquo;anywhere but a <code>use</code> statement&rdquo;. I may also term these as &ldquo;inline paths&rdquo;.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a><a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Prolonging Temporaries in Rust]]></title>
@@ -631,258 +1229,6 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
 </ol>
 </div>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mitigating Underhandedness: Fuzzing Your Code]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code/"/>
-    <updated>2017-03-02T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/02/mitigating-underhandedness-fuzzing-your-code</id>
-    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
-
-<p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
-let&rsquo;s talk more about how to keep your code working and free from bugs/underhandedness!</p>
-
-<p><a href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/">Previously, we talked about Clippy</a>.</p>
-
-<p>Now, really, underhanded bugs are just another form of bug. And how do we find bugs? We test!</p>
-
-<p>We write unit tests. We run the code under Valgrind, ASan, MSan, UBSan, TSan, and any other sanitizer
-we can get our hands on. Tests tests tests. More tests. Tests.</p>
-
-<p>But, there&rsquo;s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
-fed to your code after which you check whatever invariants your code has. There&rsquo;s
-no guarantee that the test cases you write will exercise all the code paths in your
-program. This applies for sanitizers too, sanitizers are limited to testing the code paths
-that your test cases hit.</p>
-
-<p>Of course, you can use code coverage tools to ensure that all these code paths will be hit.
-However, there&rsquo;s a conflict here &ndash; your code will have many code paths that are
-<em>not supposed to be hit ever</em>. Things like redundant bounds checks, null checks, etc.
-In Rust programs such code paths generally use panics.</p>
-
-<p>Now, these code paths are never <em>supposed</em> to be hit, so they&rsquo;ll never show up in your
-code coverage. But you don&rsquo;t have a guarantee that they can never be hit, short
-of formally verifying your program. The only solution here is writing more test cases.</p>
-
-<p>Aside from that, even ignoring those code paths, you still need to manually write
-test cases for everything. For each possible code path in your code, if you want to
-be sure.</p>
-
-<p>Who wants to manually write a million test cases?</p>
-
-<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400"></p>
-
-<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400"></p>
-
-<p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
-codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
-codepaths are taken. You write tests for the fuzzer such that they can accept arbitrary input, and
-the fuzzer will find cases where they crash or panic.</p>
-
-<p>One of the most popular fuzzers out there is <a href="http://lcamtuf.coredump.cx/afl/">AFL</a>, which takes a binary and feeds it random
-input. Rust <a href="https://github.com/rust-fuzz/afl.rs">has a library that you can use for running AFL</a>, however it currently needs
-to be run via a Docker image or needs a recompilation of rustc, since it adds a custom LLVM pass.
-We&rsquo;re working on making this step unnecessary.</p>
-
-<p>However, as of a few weeks ago, we now have bindings for <a href="http://llvm.org/docs/LibFuzzer.html">libFuzzer</a>, which uses existing
-instrumentation options built in to LLVM itself! libFuzzer works a bit differently; instead
-of giving it a binary, you write a function in a special way and give it a library containing
-that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
-inside the binary itself and it doesn&rsquo;t need to execute a new program each time.</p>
-
-<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
-
-<pre><code class="sh">$ cargo install cargo-fuzz
-</code></pre>
-
-<p>Now, within your crate, initialize the fuzz setup:</p>
-
-<pre><code class="sh">$ cargo fuzz init
-</code></pre>
-
-<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single &ldquo;fuzz target&rdquo;, <code>fuzzer_script_1</code>.
-You can add more such targets with <code>cargo fuzz add name_of_target</code>. Fuzz targets are small libraries
-with a single function in them; the function that will be called over and over again by the fuzzer.
-It is up to you to fill in the body of this function, such that the program will crash or panic
-if and only if something goes wrong.</p>
-
-<p>For example, for the <code>unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
-takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
-the new string is the same.</p>
-
-<pre><code class="rust">pub extern fn go(data: &amp;[u8]) {
-    // we only deal with unicode input
-    // bail early, *without panicking* if the input isn't utf8
-    if let Ok(s) = str::from_utf8(data) {
-        // split into graphemes, recollect
-        let result = UnicodeSegmentation::graphemes(s, true).flat_map(|s| s.chars()).collect::&lt;String&gt;();
-        // recollected string should be the same as the input, panic if not
-        assert_eq!(s, result);
-
-        // split into words, recollect
-        let result = s.split_word_bounds().flat_map(|s| s.chars()).collect::&lt;String&gt;();
-        // recollected string should be the same as the input, panic if not
-        assert_eq!(s, result);
-    }
-}
-</code></pre>
-
-<p>The other targets ensure that the forward and reverse word/grapheme
-iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
-(silently failing  &ndash; NOT panicking &ndash; if not possible), and then use the string as an input
-testcase.</p>
-
-<p>Now, these targets will panic if the test fails, and the fuzzer will try and force that panic to
-happen. But also, these targets put together exercise most of the API surface of the crate, so
-the fuzzer may also find panics (or even segmentation faults!) in the crate itself. For example,
-the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn&rsquo;t itself assert; all it does is try to parse the given
-string. The fuzzer will try to get the URL parser to panic.</p>
-
-<p>To run a fuzz script:</p>
-
-<pre><code class="sh">$ cargo fuzz run fuzzer_script_1
-</code></pre>
-
-<p>This will start the fuzzer, running until it finds a crash or panic. It may also
-find other things like inputs which make the code abnormally slow.</p>
-
-<p>Fuzzing can find some interesting bugs. For example, the unicode-segmentation
-fuzzers found <a href="https://github.com/unicode-rs/unicode-segmentation/issues/19">this bug</a>, where an emoji followed by <em>two</em> skin tone modifiers
-isn&rsquo;t handled correctly. We&rsquo;d probably never have been able to come up with this testcase on our
-own. But the fuzzer could find it!</p>
-
-<p>The Rust Cap&#8217;n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
-are more such examples <a href="https://github.com/rust-fuzz/cargo-fuzz#trophy-case">in the trophy case</a> (be sure to add any of your own findings
-to the trophy case, too!)</p>
-
-<p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
-But you can start taking it for a spin now, and finding bugs!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mitigating Underhandedness: Clippy!]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/"/>
-    <updated>2017-01-21T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy</id>
-    <content type="html"><![CDATA[<p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
-
-<p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
-writing seemingly-innocuous malicious code; code that is deliberately written to do some harm,
-but will pass a typical code review.</p>
-
-<p>It is inspired by the <a href="http://www.underhanded-c.org">Underhanded C</a> contest. Most of the underhanded C submissions have to do
-with hidden buffer overflows, pointer arithmetic fails, or misuse of C macros; and these problems
-largely don&rsquo;t occur in Rust programs. However, the ability to layer abstractions on each other does
-open up new avenues to introducing underhandedness by relying on sufficiently confusing abstraction
-sandwiches. There are probably other interesting avenues. Overall, I&rsquo;m pretty excited to see what
-kind of underhandedness folks come up with!</p>
-
-<p>Of course, underhandedness is not just about fun and games; we should be hardening our code against
-this kind of thing. Even if you trust your fellow programmers. Even if <em>you</em> are the sole programmer and you trust yourself.
-After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can&rsquo;t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
-Rust is about trusting <em>nobody</em>. Not even yourself.</p>
-
-<p><img src="/images/post/memes/trust-nobody.jpg" width="300"></p>
-
-<p>Rust protects you from your own mistakes when it comes to memory management. But we
-should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
-programming involve sleights of hand that could just as well be introduced in the code by accident, causing bugs.
-Not memory safety bugs (in Rust), but still, bugs. The existence of these sleights of hand is great for
-that very common situation
-<a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize">when you are feeling severely under-plushied and must win a competition to replenish your supply</a>
-but we really don&rsquo;t want these creeping into real-world code, either by accident or intentionally.</p>
-
-<hr />
-
-<p>Allow me to take a moment out of your busy underhanded-submission-writing schedules to talk to you about
-our Lord and Savior <a href="http://github.com/manishearth/rust-clippy/">Clippy</a>.</p>
-
-<p>Clippy is for those of you who have become desensitized to the constant whining of the Rust compiler
-and need a higher dosage of whininess to be kept on their toes. Clippy is for those perfectionists
-amongst you who want to know every minute thing wrong with their code so that they can fix it.
-But really, Clippy is for everyone.</p>
-
-<p>Clippy is simply a large repository of lints. As of the time of writing this post, there are
-<a href="https://github.com/manishearth/rust-clippy/#lints">183 lints</a> in it, though not all of them are enabled by default. These use the regular Rust lint
-system so you can pick and choose the ones you need via <code>#[allow(lint_name)]</code> and
-<code>#[warn(lint_name)]</code>. These lints cover a wide range of functions:</p>
-
-<ul>
-<li>Improving readability of the code (though <a href="https://github.com/rust-lang-nursery/rustfmt/">rustfmt</a> is the main tool you should use for this)</li>
-<li>Helping make the code more compact by reducing unnecessary things (my absolute favorite is <a href="https://github.com/Manishearth/rust-clippy/wiki#needless_lifetimes">needless_lifetimes</a>)</li>
-<li>Helping make the code more idiomatic</li>
-<li>Making sure you don&rsquo;t do things that you&rsquo;re not supposed to</li>
-<li>Catching mistakes and cases where the code may not work as expected</li>
-</ul>
-
-
-<p>The last two really are the ones which help with underhanded code. Just to give an example,
-we have lints like:</p>
-
-<ul>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#cmp_nan">cmp_nan</a>, which disallows things like <code>x == NaN</code></li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#clone_double_ref">clone_double_ref</a>, which disallows calling <code>.clone()</code> on double-references (<code>&amp;&amp;T</code>), since that&rsquo;s a straightforward copy and you probably meant to do something like <code>(*x).clone()</code></li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#for_loop_over_option">for_loop_over_option</a>: <code>Option&lt;T&gt;</code> is iterable, and while this is useful when composing iterators, directly iterating over an option is usually an indication of a mistake.</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#match_same_arms">match_same_arms</a>, which checks for identical match arm bodies (strong indication of a typo)</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#suspicious_assignment_formatting">suspicious_assignment_formatting</a>, which checks for possible typos with the <code>+=</code> and <code>-=</code> operators</li>
-<li><a href="https://github.com/Manishearth/rust-clippy/wiki#unused_io_amount">unused_io_amount</a>, which ensures that you don&rsquo;t forget that some I/O APIs may not write all bytes in the span of a single call</li>
-</ul>
-
-
-<p>These catch many of the gotchas that might crop up in Rust code. In fact,
-I based <a href="https://www.reddit.com/r/rust/comments/3hb0wm/underhanded_rust_contest/cu5yuhr/">my solution of an older, more informal Underhanded Rust contest</a> on one of these.</p>
-
-<h2>Usage</h2>
-
-<p>Clippy is still nightly-only. We hook straight into the compiler&rsquo;s guts to obtain
-the information we need, and like most internal compiler APIs, this is completely unstable. This
-does mean that you usually need a latest or near-latest nightly for clippy to work, and there will
-be times when it won&rsquo;t compile while we&rsquo;re working to update it.</p>
-
-<p>There is a plan to ship clippy as an optional component of rustc releases, which will fix all of
-these issues (yay!).</p>
-
-<p>But, for now, you can use clippy via:</p>
-
-<pre><code class="sh">rustup install nightly
-# +nightly not necessary if nightly is your default toolchain
-cargo +nightly install clippy
-# in your project folder
-cargo +nightly clippy
-</code></pre>
-
-<p>If you&rsquo;re going to be making it part of the development procedures of a crate
-you maintain, you can also <a href="https://github.com/manishearth/rust-clippy/#optional-dependency">make it an optional dependency</a>.</p>
-
-<p>If you&rsquo;re on windows, there&rsquo;s currently a rustup/cargo <a href="https://github.com/rust-lang-nursery/rustup.rs/issues/876">bug</a> where you may have to add
-the rustc libs path in your <code>PATH</code> for <code>cargo clippy</code> to work.</p>
-
-<p>There&rsquo;s an experimental project called <a href="https://github.com/killercup/rustfix">rustfix</a> which can automatically apply suggestions from
-clippy and rustc to your code. This may help in clippy-izing a large codebase, but it may
-also eat your code and/or laundry, so beware.</p>
-
-<h2>Contributing</h2>
-
-<p>There&rsquo;s a <em>lot</em> of work that can be done on clippy. A hundred and eighty lints is just
-a start, there are <a href="https://github.com/manishearth/rust-clippy/issues">hundreds more lint ideas filed on the issue tracker</a>. We&rsquo;re
-willing to mentor anyone who wants to get involved; and have
-<a href="https://github.com/manishearth/rust-clippy/issues?q=is%3Aissue+is%3Aopen+label%3AE-easy">specially tagged &ldquo;easy&rdquo; issues</a> for folks new to compiler internals. In general,
-contributing to clippy is a great way to gain an understanding of compiler internals
-if you want to contribute to the compiler itself.</p>
-
-<p>If you don&rsquo;t want to write code for clippy, you can also run it on random crates,
-open pull requests with fixes, and file bugs on clippy for any false positives that appear.</p>
-
-<p>There are more tips about contributing in <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">our CONTRIBUTING.md</a>.</p>
-
-<hr />
-
-<p>I hope this helps reduce mistakes and underhandedness in your code!</p>
-
-<p>..unless you&rsquo;re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
 ]]></content>
   </entry>
   
