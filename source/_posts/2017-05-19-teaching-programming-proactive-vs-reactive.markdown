@@ -1,12 +1,10 @@
 ---
 layout: post
 title: "Teaching programming: Proactive vs reactive"
-date: 2017-05-18 16:33:40 -0700
+date: 2017-05-19 10:10:57 -0700
 comments: true
-categories: [programming, rust, mozilla]
+categories: programming rust mozilla
 ---
-
-
 
 I've been thinking about this a lot these days. In part because of [an idea I had][clippy-newbie]
 but also due to [this twitter discussion][twitter-discussion].
@@ -15,7 +13,7 @@ but also due to [this twitter discussion][twitter-discussion].
  [twitter-discussion]: https://twitter.com/sehurlburt/status/863829482645340160
 
 When teaching most things, there are two non-mutually-exclusive ways of approaching the problem. One
-is "proactive"[^1], which is where the teacher decide a learning path beforehand, and executes it. The
+is "proactive"[^1], which is where the teacher decides a learning path beforehand, and executes it. The
 other is "reactive", where the teacher reacts to the student trying things out and dynamically
 tailors the teaching experience.
 
@@ -28,7 +26,7 @@ but tailoring the experience to the student's reception of the things being taug
 In person, you _can_ mix these two, and in doing so you get a "best of both worlds" situation. Yay!
 
 
-But ... we don't really learn much programming in person in a classroom setup.
+But ... we don't really learn much programming in a classroom setup.
 Sure, some folks learn the basics in college for a few years, but everything
 they learn after that isn't in a classroom situation where this can work[^2].
 I'm an autodidact,
@@ -42,10 +40,10 @@ and docs. Various people have proactively put forward a path for learning in the
 or tutorial. It's up to you to pick one, and follow it.
 
 The "reactive" model is not so well-developed. In the context of self-driven learning in programming,
-it's basically "do things, make mistakes, hope that google/stackoverflow help". It's how
+it's basically "do things, make mistakes, hope that Google/Stackoverflow help". It's how
 a lot of people learn programming; and it's how I prefer to learn programming.
 
-It's very nice to be able to "learn along the way". And while this is a long and arduous process,
+It's very nice to be able to "learn along the way". While this is a long and arduous process,
 involving many false starts and a lack of a sense of progress, it can be worth it in terms of
 the kind of experience this gets you.
 
@@ -176,7 +174,10 @@ if you can strike a balance between being so dense it is annoying and so sparse 
 
 It also reminds me of well-designed tutorial modes in games. Some games have a tutorial mode that guides you
 through a set path of doing things. Other games, however, have a tutorial mode that will give you hints even
-if you stray off the beaten path.
+if you stray off the beaten path. [Michael](https://twitter.com/mgattozzi) tells me that [Prey] is
+a recent example of such a game.
+
+ [Prey]: http://store.steampowered.com/app/480490/Prey/
 
 This really feels like it fits the "reactive" model I prefer. The student gets to mold their own
 journey, but gets enough helpful hints and nudges from the "teacher" (the tool) so that they
@@ -194,6 +195,8 @@ Ultimately, I'd love to see this as an IDE feature.
 I'd also like to see more experimentation in the department of "reactive" teaching &mdash; not just tools like this.
 
 Thoughts? Ideas? Let me know!
+
+_thanks to Andre (llogiq) and Michael Gattozzi for reviewing this_
 
  [clippit]: https://en.wikipedia.org/wiki/Office_Assistant
  [issue]: https://github.com/Manishearth/rust-clippy/issues/1737
