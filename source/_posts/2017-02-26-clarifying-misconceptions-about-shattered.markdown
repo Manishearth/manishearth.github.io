@@ -46,7 +46,7 @@ when two inputs hash to the same value, this is called a collision. As mentioned
 _a_ collision, over finding a colliding alternate input for a known input.
 
 SHA-1 is one such hash function. It's been known for a while that it's insecure, and the industry has
-largely moved off of it, but it's still used,
+largely moved off of it, but it's still used, so it can still be a problem.
 
 
  [zkp]: http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/
