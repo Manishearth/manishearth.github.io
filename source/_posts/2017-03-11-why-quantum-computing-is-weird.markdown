@@ -3,7 +3,7 @@ layout: post
 title: "Why quantum computing is weird"
 date: 2017-03-11 14:25:18 -0800
 comments: true
-categories: 
+categories: physics 
 ---
 
 
