@@ -117,7 +117,7 @@
 
 <p>&ldquo;But it&rsquo;s just a number&rdquo;, you say. &ldquo;How can that be complicated?&rdquo;</p>
 
-<p>I too felt that way one time. And then I had to implement it for <a href="https://wiki.mozilla.org/Quantum/Stylo">stylo</a>.</p>
+<p>I too felt that way one time. And then I worked on implementing it for <a href="https://wiki.mozilla.org/Quantum/Stylo">stylo</a>.</p>
 
 <p>Stylo is the project to integrate <a href="http://github.com/servo/servo/">Servo</a>&rsquo;s styling system into Firefox. The styling system handles
 parsing CSS, determining which rules apply to which elements, running this through the cascade,
@@ -129,9 +129,12 @@ and is a nontrivial portion of pageload and interaction times.</p>
 styling. Stylo has the potential to bring these speedups into Firefox, along with the added safety
 of the code being in a safer systems language.</p>
 
-<p>Anyway, as far as the styling system is concerned, I feel like font-size is the most complex
+<p>Anyway, as far as the styling system is concerned, I believe that font-size is the most complex
 property it has to handle. Some properties may be more complicated when it comes to layout or
 rendering, but font-size is probably the most complex one in the department of styling.</p>
+
+<p>I&rsquo;m hoping this post can give an idea of how complex the Web can <em>get</em>, and also serve as documentation
+for some of these complexities. I&rsquo;ll also try to give an idea of how the styling system works throughout this post.</p>
 
 <p>Alright. Let&rsquo;s see what is so complex about font-size.</p>
 
@@ -159,7 +162,7 @@ this has changed. I&rsquo;ll get to that too.</p>
 
 <h2>em and rem units</h2>
 
-<p>First up: em units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code>em</code> or <code>rem</code>
+<p>First up: <code>em</code> units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code>em</code> or <code>rem</code>
 unit.</p>
 
 <p><code>5em</code> means &ldquo;5 times the <code>font-size</code> of the element this is applied to&rdquo;. <code>5rem</code> means &ldquo;5 times the font-size of the root element&rdquo;</p>
@@ -183,15 +186,15 @@ but the text will be clamped to the minimum size.</p>
 is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
 know the font-size (e.g. to compute an <code>em</code> unit.)</p>
 
-<p>This gets slightly more complicated when ruby is involved. In ideographic scripts (usually, Han-
+<p>This gets slightly more complicated when <a href="https://en.wikipedia.org/wiki/Ruby_character">ruby</a> is involved. In ideographic scripts (usually, Han-
 derived scripts like Kanji, Hanzi, or Hanja) it&rsquo;s sometimes useful to have the pronunciation of each character
-above it in a phonetic script, for the aid of readers without proficiency in that script. Because these scripts are
+above it in a phonetic script, for the aid of readers without proficiency in that script, and this is known as &ldquo;ruby&rdquo; (&ldquo;furigana&rdquo; in Japanese). Because these scripts are
 ideographic, it&rsquo;s not uncommon for learners to know the pronunciation of a word but have no idea how to write it. An example
 would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 (&ldquo;nihon&rdquo;, i.e. &ldquo;Japan&rdquo;) in Kanji
-with ruby にほん (also known as &ldquo;furigana&rdquo;) in the phonetic Hiragana script above it.</p>
+with ruby にほん in the phonetic Hiragana script above it.</p>
 
 <p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
-size of the main text). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
+size of the main text<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
 is supposed to be <code>50%</code> of the size of the text, the minimum font size for the ruby is <code>50%</code> of the
 original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
 the same size), which is pretty ugly.</p>
@@ -209,6 +212,8 @@ size (and may have some relation to the text), so if that size has changed so sh
 
 <p>This is actually pretty straightforward to implement. When computing absolute font sizes (including
 keywords), zoom them if text zoom is on. For everything else continue as normal.</p>
+
+<p>Text zoom is also disabled within <code>&lt;svg:text&gt;</code> elements, which leads to some trickiness here.</p>
 
 <h2>Interlude: How the style system works</h2>
 
@@ -230,7 +235,7 @@ cleaned up form of the specified value.</p>
 and in which order &ndash; some declarations have precedence over others. Then it will compute each relevant declaration against the element&rsquo;s style (and parent style, among other bits of info),
 and store this value in the element&rsquo;s &ldquo;computed style&rdquo;.</p>
 
-<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. There&rsquo;s a
+<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. There&rsquo;s a
 bloom filter for quickly checking if deep descendent selectors apply to a subtree. There&rsquo;s a &ldquo;rule
 tree&rdquo; that helps cache effort from determining applicable declarations. Computed styles are
 reference counted and shared very often (since the default state is to inherit from the parent or
@@ -255,7 +260,7 @@ from the default style).</p>
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>you get</p>
+<p>you get (<a href="https://codepen.io/anon/pen/RZgxjw">codepen</a>)</p>
 
 <div style="border: 1px solid black; display: inline-block; padding: 15px;">
 <span style="font: medium monospace">text</span>
@@ -272,9 +277,11 @@ is scaled so that they have similar widths, and all other keyword font sizes get
 
 <p><img class="center" src="/images/post/font-size-table.png" width="600"></p>
 
-<p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute font-size keywords
-based on the &ldquo;base size&rdquo; (i.e. the computed of <code>font-size: medium</code>). Actually, Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a>
-to support some legacy use cases. We query other parts of the browser for what the &ldquo;base size&rdquo; is based on the language and font family.</p>
+<p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute
+font-size keywords based on the &ldquo;base size&rdquo; (i.e. the computed of <code>font-size: medium</code>). Actually,
+Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a> to support some legacy use cases like quirks mode (Servo has
+yet to add support for these tables). We query other parts of the browser for what the &ldquo;base size&rdquo;
+is based on the language and font family.</p>
 
 <p>Wait, but what does the language have to do with this anyway? How does the language impact font-size?</p>
 
@@ -316,11 +323,11 @@ Firefox since it inherits, and it must be computed earlier as well.</p>
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>For a normal inherited CSS property<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, if the parent has a computed value of <code>16px</code>,
+<p>For a normal inherited CSS property<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, if the parent has a computed value of <code>16px</code>,
 and the child has no additional values specified, the child will inherit a value of <code>16px</code>.
 <em>Where</em> the parent got that computed value from doesn&rsquo;t matter.</p>
 
-<p>Here, <code>font-size</code> &ldquo;inherits&rdquo; a value of <code>13px</code>. You can see this below:</p>
+<p>Here, <code>font-size</code> &ldquo;inherits&rdquo; a value of <code>13px</code>. You can see this below (<a href="https://codepen.io/anon/pen/MvorQQ">codepen</a>):</p>
 
 <div style="border: 1px solid black; display: inline-block; padding: 15px;">
 <div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
@@ -339,7 +346,7 @@ change, font-size is recomputed from the original keyword with the new font fami
 is <code>medium</code>, so basically the root element gets a <code>font-size: medium</code> and all elements inherit from it. If you change
 to monospace or a different language in the document you need the font-size recomputed.</p>
 
-<p>But it doesn&rsquo;t stop here. This even inherits <em>through relative units</em> (Not in IE though).</p>
+<p>But it doesn&rsquo;t stop here. This even inherits <em>through relative units</em> (Not in IE).</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -362,7 +369,7 @@ to monospace or a different language in the document you need the font-size reco
 </span></code></pre></td></tr></table></div></figure>
 
 
-
+<p>(<a href="https://codepen.io/anon/pen/oewpER">codepen</a>)</p>
 
 <div style="border: 1px solid black; display: inline-block; padding: 15px;">
 <div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
@@ -377,7 +384,7 @@ to monospace or a different language in the document you need the font-size reco
 </div>
 
 
-<p>So we&rsquo;re actually inheriting a font-size of &ldquo;0.9*medium&rdquo; when we inherit from the second div, not &ldquo;14.4px&rdquo;.</p>
+<p>So we&rsquo;re actually inheriting a font-size of <code>0.9*medium</code> when we inherit from the second div, not <code>14.4px</code>.</p>
 
 <p>Another way of looking at it is whenever the font family or language changes, you should recompute the font-size as if the language and family <em>were always that way</em> up the tree.</p>
 
@@ -387,9 +394,11 @@ different. I suspect this is inefficient, but the rule tree seems to be involved
 more efficient</p>
 
 <p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
-stores the equivalent of saying &ldquo;Yes, this font was computed from a keyword. The keyword was <code>medium</code>, and after that we applied a factor of 0.9 to it.&rdquo;<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup></p>
+stores the equivalent of saying &ldquo;Yes, this font was computed from a keyword. The keyword was <code>medium</code>, and after that we applied a factor of 0.9 to it.&rdquo;<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup></p>
 
 <p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
+
+<p>In Servo, <em>most</em> of this gets handled <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/longhand/font.mako.rs#L964-L1061">via custom cascading functions for font-size</a>.</p>
 
 <h2>Larger/smaller</h2>
 
@@ -413,18 +422,235 @@ used simple ratios here.</p>
 
 <h2>MathML</h2>
 
-<p>TODO</p>
+<p>Firefox and Safari support MathML, a markup language for math. It doesn&rsquo;t get used much on the Web these days, but it exists.</p>
 
-<p><em>screams internally</em></p>
+<p>MathML has its own complexities when it comes to font-size. Specifically, <code>scriptminsize</code>, <code>scriptlevel</code>, and <code>scriptsizemultiplier</code>.</p>
+
+<p>For example, in MathML, the text in the numerator/denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
+the default script size multiplier for MathML elements is 0.71, and these specific elements all get a default scriptlevel of <code>+1</code>.</p>
+
+<p>Basically, <code>scriptlevel=+1</code> means &ldquo;multiply the font size by the script size multiplier&rdquo;, and
+<code>scriptlevel=-1</code> is for dividing. This can be specified via a <code>scriptlevel</code> HTML attribute on an <code>mstyle</code> element. You can
+similarly tweak the (inherited) multiplier via the <code>scriptsizemultiplier</code> HTML attribute, and the minimum size via <code>scriptminsize</code>.</p>
+
+<p>So, for example:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;math&gt;&lt;msup&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;mi&gt;</span>text<span class="nt">&lt;/mi&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;mn&gt;</span>small superscript<span class="nt">&lt;/mn&gt;</span>
+</span><span class='line'><span class="nt">&lt;/msup&gt;&lt;/math&gt;&lt;br&gt;</span>
+</span><span class='line'><span class="nt">&lt;math&gt;</span>
+</span><span class='line'>    text
+</span><span class='line'>    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
+</span><span class='line'>        small
+</span><span class='line'>        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
+</span><span class='line'>            smaller
+</span><span class='line'>            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">-1</span><span class="nt">&gt;</span>
+</span><span class='line'>                small again
+</span><span class='line'>            <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'><span class="nt">&lt;/math&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>will show as (you will need Firefox to see the rendered version, Safari supports MathML too but the support isn&rsquo;t as good):</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<math><msup><mi>text</mi><mn>small superscript</mn></msup></math><br>
+<math>text<mstyle scriptlevel=+1> small <mstyle scriptlevel=+1> smaller <mstyle scriptlevel=-1> small again </mstyle></mstyle></mstyle></math>
+</div>
+
+
+<p>(<a href="https://codepen.io/anon/pen/BdZJgR">codepen</a>)</p>
+
+<p>So this isn&rsquo;t as bad. It&rsquo;s as if <code>scriptlevel</code> is a weird <code>em</code> unit. No biggie, we know how to deal with those already.</p>
+
+<p>Except you also have <code>scriptminsize</code>. This lets you set the minimum font size <em>for changes caused by <code>scriptlevel</code></em>.</p>
+
+<p>This means that <code>scriptminsize</code> will make sure <code>scriptlevel</code> never causes changes that make the font smaller than the min size,
+but it will ignore cases where you deliberately specify an <code>em</code> unit or a pixel value.</p>
+
+<p>There&rsquo;s already a subtle bit of complexity introduced here, <code>scriptlevel</code> now becomes another thing
+that tweaks how <code>font-size</code> inherits. Fortunately, in Firefox/Servo internally <code>scriptlevel</code> (as are
+<code>scriptminsize</code> and <code>scriptsizemultiplier</code>) is also handled as a CSS property, which means that we
+can use the same framework we used for font-family and language here &ndash; compute the script
+properties before font-size, and if <code>scriptlevel</code> is set, force-recalculate the font size even if
+font-size itself was not set.</p>
+
+<h3>Interlude: early and late computed properties</h3>
+
+<p>In Servo the way we handle dependencies in properties is to have a set of &ldquo;early&rdquo; properties and a
+set of &ldquo;late&rdquo; properties (which are allowed to depend on early properties). We iterate the
+declarations twice, once looking for early properties, and once for late. However, now we have a
+pretty intricate set of dependencies, where font-size must be calculated after language, font-family,
+and the script properties, but before everything else that involves lengths. Additionally, font-family
+has to be calculated after all the other early properties due to another font complexity I&rsquo;m not covering here.</p>
+
+<p>The way we handle this is to <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3195-L3204">pull font-size and font-family</a> out during the early computation,
+but not deal with them until <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3211-L3327">after the early computation is done</a>.</p>
+
+<p>At that stage we first <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3219-L3233">handle the disabling of text-zoom</a>, and then handle <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3235-L3277">the complexities of font-family</a>.</p>
+
+<p>We then <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3280-L3303">compute the font family</a>. If a font size was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3305-L3309">just compute that</a>. If it
+was not, but a font family, lang, or scriptlevel was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3310-L3324">force compute as inherited</a>, which handles all the constraints.</p>
+
+<h3>Why scriptminsize gets complicated</h3>
+
+<p>Unlike with the other &ldquo;minimum font size&rdquo;, using an <code>em</code> unit in any property will calculate the
+length with the clamped value, not the &ldquo;if nothing had been clamped&rdquo; value, when the font size has
+been clamped with scriptminsize. So at first glance handling this seems straightforward; only
+consider the script min size when deciding to scale because of scriptlevel.</p>
+
+<p>As always, it&rsquo;s not that simple 😀:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;math&gt;</span>
+</span><span class='line'><span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">&quot;10px&quot;</span> <span class="na">scriptsizemultiplier=</span><span class="s">&quot;0.75&quot;</span> <span class="na">style=</span><span class="s">&quot;font-size:20px&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>    20px
+</span><span class='line'>    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;+1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>        15px
+</span><span class='line'>        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;+1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>            11.25px
+</span><span class='line'>                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;+1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                    would be 8.4375, but is clamped at 10px
+</span><span class='line'>                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;+1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                            would be 6.328125, but is clamped at 10px
+</span><span class='line'>                                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;-1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                                    This is not 10px/0.75=13.3, rather it is still clamped at 10px
+</span><span class='line'>                                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;-1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                                            This is not 10px/0.75=13.3, rather it is still clamped at 10px
+</span><span class='line'>                                            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;-1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                                                This is 11.25px again
+</span><span class='line'>                                                    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;-1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>                                                        This is 15px again
+</span><span class='line'>                                                    <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>                                            <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>                                        <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>                                <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>                        <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>                <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'><span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'><span class="nt">&lt;/math&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>(<a href="https://codepen.io/anon/pen/wqepjo">codepen</a>)</p>
+
+<p>Basically, if you increase the level a bunch of times after hitting the min size, decreasing it by one should not immediately
+compute <code>min size / multiplier</code>. That would make things asymmetric; something with a net script level of <code>+5</code> should
+have the same size as something with a net script level of <code>+6 -1</code>, provided the multiplier hasn&rsquo;t changed.</p>
+
+<p>So what happens is that the script level is calculated against the font size <em>as if scriptminsize had never applied</em>,
+and we only use that size if it is greater than the min size.</p>
+
+<p>It&rsquo;s not just a matter of keeping track of the script level at which clamping happened &ndash; the multiplier could change
+in the process and you need to keep track of that too. So this ends up in creating <em>yet another font-size value to inherit</em>.</p>
+
+<p>To recap, we are now at <em>four</em> different notions of font size being inherited:</p>
+
+<ul>
+<li>The main font size used by styling</li>
+<li>The &ldquo;actual&rdquo; font size, i.e. the main font size but clamped by the min size</li>
+<li>(In servo only) The &ldquo;keyword&rdquo; size; i.e. the size stored as a keyword and ratio, if it was derived from a keyword</li>
+<li>The &ldquo;script unconstrained&rdquo; size; the font size as if scriptminsize never existed.</li>
+</ul>
+
+
+<p>Another complexity here is that the following should still work:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;math&gt;</span>
+</span><span class='line'><span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">&quot;10px&quot;</span> <span class="na">scriptsizemultiplier=</span><span class="s">&quot;0.75&quot;</span> <span class="na">style=</span><span class="s">&quot;font-size: 5px&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>    5px
+</span><span class='line'>    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">&quot;-1&quot;</span><span class="nt">&gt;</span>
+</span><span class='line'>        6.666px
+</span><span class='line'>    <span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'><span class="nt">&lt;/mstyle&gt;</span>
+</span><span class='line'><span class="nt">&lt;/math&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>(<a href="https://codepen.io/anon/pen/prwpVd">codepen</a>)</p>
+
+<p>Basically, if you were already below the scriptminsize, reducing the script level (to increase the font size) should not get clamped, since then you&rsquo;d get something too large.</p>
+
+<p>This basically means you only apply scriptminsize if you are applying the script level to a value <em>greater than</em> the script min size.</p>
+
+<p>In Servo, all of the MathML handling culminates in <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/gecko.mako.rs#L2304-L2403">this wonderful function that is more comment than code</a>, and
+some code in the functions near it.</p>
+
+<hr />
+
+<p>So there you have it. <code>font-size</code> is actually pretty complicated. A lot of the web platform has hidden complexities like this, and it&rsquo;s always fun to encounter more of them.</p>
+
+<p>(Perhaps less fun when I have to implement them 😂)</p>
+
+<p><em>Thanks to mystor and mgattozzi for reviewing drafts of this post</em></p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p>Other browser engines have other optimizations, I&rsquo;m just less familiar with them<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>Interestingly, in Firefox, this number is 50% for all ruby <em>except</em> for when the language is Taiwanese Mandarin (where it is 30%), because Taiwan uses a phonetic script called Bopomofo whose characters I believe are slightly larger and need to be scaled down more, as compared to hiragana or pinyin.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
-<p>Some properties are inherited, some are &ldquo;reset&rdquo;. For example, <code>font-family</code> is inherited &mdash; child elements inherit font family from the parent unless otherwise specified. However <code>transform</code> is not, if you transform an element that does not further transform the children.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<p>Other browser engines have other optimizations, I&rsquo;m just less familiar with them<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p>This won&rsquo;t handle <code>calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>Some properties are inherited, some are &ldquo;reset&rdquo;. For example, <code>font-family</code> is inherited &mdash; child elements inherit font family from the parent unless otherwise specified. However <code>transform</code> is not, if you transform an element that does not further transform the children.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>This won&rsquo;t handle <code>calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
