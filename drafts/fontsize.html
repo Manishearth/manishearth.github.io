@@ -1,0 +1,561 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Font-size: An Unexpectedly Complex CSS Property - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="font-size is the worst. It&rsquo;s a CSS property probably everyone who writes CSS has used at some point. It&rsquo;s pretty ubiquitous. And it&rsquo &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="font-size: An unexpectedly complex CSS property">
+      <meta property="twitter:description" content="font-size is the worst. It&rsquo;s a CSS property probably everyone who writes CSS has used at some point. It&rsquo;s pretty ubiquitous. And it&rsquo;s super complicated. &ldquo;But it&rsquo;s just a &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/fontsize.html">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Font-size: An Unexpectedly Complex CSS Property</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-08-09T00:00:00+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><a href="https://developer.mozilla.org/en/docs/Web/CSS/font-size"><code>font-size</code></a> is the worst.</p>
+
+<p>It&rsquo;s a CSS property probably everyone who writes CSS has used at some point. It&rsquo;s pretty ubiquitous.</p>
+
+<p>And it&rsquo;s <em>super</em> complicated.</p>
+
+<p>&ldquo;But it&rsquo;s just a number&rdquo;, you say. &ldquo;How can that be complicated?&rdquo;</p>
+
+<p>I too felt that way one time. And then I had to implement it for <a href="https://wiki.mozilla.org/Quantum/Stylo">stylo</a>.</p>
+
+<p>Stylo is the project to integrate <a href="http://github.com/servo/servo/">Servo</a>&rsquo;s styling system into Firefox. The styling system handles
+parsing CSS, determining which rules apply to which elements, running this through the cascade,
+and eventually computing and assigning styles to individual elements in the tree. This happens not
+only on page load, but also whenever various kinds of events (including DOM manipulation) occur,
+and is a nontrivial portion of pageload and interaction times.</p>
+
+<p>Servo is in <a href="https://rust-lang.org">Rust</a>, and makes use of Rust&rsquo;s safe parallelism in many places, one of them being
+styling. Stylo has the potential to bring these speedups into Firefox, along with the added safety
+of the code being in a safer systems language.</p>
+
+<p>Anyway, as far as the styling system is concerned, I feel like font-size is the most complex
+property it has to handle. Some properties may be more complicated when it comes to layout or
+rendering, but font-size is probably the most complex one in the department of styling.</p>
+
+<p>Alright. Let&rsquo;s see what is so complex about font-size.</p>
+
+<h2>The basics</h2>
+
+<p>The syntax of the property is pretty straightforward. You can specify it as:</p>
+
+<ul>
+<li>A length (<code>12px</code>, <code>15pt</code>, <code>13em</code>, <code>4in</code>, <code>8rem</code>)</li>
+<li>A percentage (<code>50%</code>)</li>
+<li>A compound of the above, via a calc (<code>calc(12px + 4em + 20%)</code>)</li>
+<li>An absolute keyword (<code>medium</code>, <code>small</code>, <code>large</code>, <code>x-large</code>, etc)</li>
+<li>A relative keyword (<code>larger</code>, <code>smaller</code>)</li>
+</ul>
+
+
+<p>The first three are common amongst quite a few length-related properties. Nothing abnormal in the syntax.</p>
+
+<p>The next two are interesting. Essentially, the absolute keywords map to various pixel valeus, and match
+the result of <code>&lt;font size=foo&gt;</code> (e.g. <code>size=3</code> is the same as <code>font-size: medium</code>). The <em>actual</em> value they map to
+is not straightforward, and I&rsquo;ll get to that later in this post.</p>
+
+<p>The relative keywords basically scale the size up or down. The mechanism of the scaling was also complex, however
+this has changed. I&rsquo;ll get to that too.</p>
+
+<h2>em and rem units</h2>
+
+<p>First up: em units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code>em</code> or <code>rem</code>
+unit.</p>
+
+<p><code>5em</code> means &ldquo;5 times the <code>font-size</code> of the element this is applied to&rdquo;. <code>5rem</code> means &ldquo;5 times the font-size of the root element&rdquo;</p>
+
+<p>The implications of this are that font-size needs to be computed before all the other properties (well, not quite, but we&rsquo;ll get to that!)
+so that it is available during that time.</p>
+
+<p>You can also use <code>em</code> units within <code>font-size</code> itself. In this case, it computed relative to the font-size of the <em>parent</em> element, since
+you can&rsquo;t use the font-size of the element to compute itself.</p>
+
+<h2>Minimum font size</h2>
+
+<p>Browsers let you set a &ldquo;minimum&rdquo; font size in their preferences, and text will not be scaled below it. It&rsquo;s useful for those with
+trouble seeing small text.</p>
+
+<p>However, this doesn&rsquo;t affect properties which depend on font-size via <code>em</code> units. So if you&rsquo;re using a minimum font size,
+<code>&lt;div style="font-size: 1px; height: 1em; background-color: red"&gt;</code> will have a very tiny height (which you&rsquo;ll notice from the color),
+but the text will be clamped to the minimum size.</p>
+
+<p>What this effectively means is that you need to keep track of <em>two</em> separate computed font size values. There&rsquo;s one value that
+is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
+know the font-size (e.g. to compute an <code>em</code> unit.)</p>
+
+<p>This gets slightly more complicated when ruby is involved. In ideographic scripts (usually, Han-
+derived scripts like Kanji, Hanzi, or Hanja) it&rsquo;s sometimes useful to have the pronunciation of each character
+above it in a phonetic script, for the aid of readers without proficiency in that script. Because these scripts are
+ideographic, it&rsquo;s not uncommon for learners to know the pronunciation of a word but have no idea how to write it. An example
+would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 (&ldquo;nihon&rdquo;, i.e. &ldquo;Japan&rdquo;) in Kanji
+with ruby にほん (also known as &ldquo;furigana&rdquo;) in the phonetic Hiragana script above it.</p>
+
+<p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
+size of the main text). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
+is supposed to be <code>50%</code> of the size of the text, the minimum font size for the ruby is <code>50%</code> of the
+original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
+the same size), which is pretty ugly.</p>
+
+<h2>Text zoom</h2>
+
+<p>Firefox additionally lets you zoom text only when zooming. If you have trouble reading small things, it&rsquo;s great to
+be able to just blow up the text on the page without having the whole page get zoomed (which means you need to scroll
+around a lot).</p>
+
+<p>In this case, <code>em</code> units of other properties <em>do</em> get zoomed as well. After all, they&rsquo;re supposed to be relative to the text&rsquo;s font
+size (and may have some relation to the text), so if that size has changed so should they.</p>
+
+<p>(Of course, that argument could also apply to the min font size stuff. I don&rsquo;t have an answer for why it doesn&rsquo;t.)</p>
+
+<p>This is actually pretty straightforward to implement. When computing absolute font sizes (including
+keywords), zoom them if text zoom is on. For everything else continue as normal.</p>
+
+<h2>Interlude: How the style system works</h2>
+
+<p>Before I go ahead it&rsquo;s probably worth giving a quick overview of how everything works.</p>
+
+<p>The responsibiltiy of a style system is to take in CSS code and a DOM tree, and assign computed styles to each element.</p>
+
+<p>There&rsquo;s a distinction between &ldquo;specified&rdquo; and &ldquo;computed&rdquo; here. &ldquo;specified&rdquo; styles are in the format
+you specify in CSS, whereas computed styles are those that get attached to the elements, sent to
+layout, and inherited from. A given specified style may compute to different values when applied to
+different elements.</p>
+
+<p>So while you can <em>specify</em> <code>width: 5em</code>, it will compute to something like <code>width: 80px</code>. Computed values are usually a
+cleaned up form of the specified value.</p>
+
+<p>The style system will first parse the CSS, producing a bunch of rules usually containing declarations (a declaration is like <code>width: 20%;</code>; i.e. a property name and a specified value)</p>
+
+<p>It then goes through the tree in top-down order (this is parallelized in Stylo), figuring out which declarations <em>apply</em> to each element
+and in which order &ndash; some declarations have precedence over others. Then it will compute each relevant declaration against the element&rsquo;s style (and parent style, among other bits of info),
+and store this value in the element&rsquo;s &ldquo;computed style&rdquo;.</p>
+
+<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. There&rsquo;s a
+bloom filter for quickly checking if deep descendent selectors apply to a subtree. There&rsquo;s a &ldquo;rule
+tree&rdquo; that helps cache effort from determining applicable declarations. Computed styles are
+reference counted and shared very often (since the default state is to inherit from the parent or
+from the default style).</p>
+
+<p>But ultimately, this is the gist of what happens.</p>
+
+<h2>Keyword values</h2>
+
+<p>Alright, this is where it gets complicated.</p>
+
+<p>Remember when I said <code>font-size: medium</code> was a thing that mapped to a value?</p>
+
+<p>So what does it map to?</p>
+
+<p>Well, it turns out, it depends on the font family. For the following HTML:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">&quot;font: medium monospace&quot;</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+</span><span class='line'><span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">&quot;font: medium sans-serif&quot;</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>you get</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<span style="font: medium monospace">text</span>
+<span style="font: medium sans-serif">text</span>
+</div>
+
+
+<p>where the first one computes to a font-size of 13px, and the second one computes to a font-size of
+16px. You can check this in the computed style pane of your devtools, or by using
+<code>getComputedStyle()</code>.</p>
+
+<p>I <em>think</em> the reason behind this is that monospace fonts tend to be wider, so the default font size (medium)
+is scaled so that they have similar widths, and all other keyword font sizes get shifted as well. The final result is something like this:</p>
+
+<p><img class="center" src="/images/post/font-size-table.png" width="600"></p>
+
+<p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute font-size keywords
+based on the &ldquo;base size&rdquo; (i.e. the computed of <code>font-size: medium</code>). Actually, Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a>
+to support some legacy use cases. We query other parts of the browser for what the &ldquo;base size&rdquo; is based on the language and font family.</p>
+
+<p>Wait, but what does the language have to do with this anyway? How does the language impact font-size?</p>
+
+<p>It turns out that the base size depends on the font family <em>and</em> the language, and you can configure this.</p>
+
+<p>Both Firefox and Chrome (using an extension) actually let you tweak which fonts get used on a per-language basis,
+<em>as well as the default (base) font-size</em>.</p>
+
+<p>This is not as obscure as one might think. Default system fonts are often really ugly for non-Latin-
+using scripts. I have a separate font installed that produces better-looking Devanagari ligatures.</p>
+
+<p>Similarly, some scripts are just more intricate than Latin. My default font size for Devanagari is
+set to 18 instead of 16. I&rsquo;ve started learning Mandarin and I&rsquo;ve set that font size to 18 as well. Hanzi glyphs
+can get pretty complicated and I still struggle to learn (and later recognize) them. A larger font size is great for this.</p>
+
+<p>Anyway, this doesn&rsquo;t complicate things too much.  This does mean that the font family needs to be
+computed before font-size, which already needs to be computed before most other properties. The
+language, which can be set using a <code>lang</code> HTML attribute, is internally treated as a CSS property by
+Firefox since it inherits, and it must be computed earlier as well.</p>
+
+<p>Not too bad. So far.</p>
+
+<p>Now here&rsquo;s the kicker. This <em>dependence</em> on the language and family <em>inherits</em>.</p>
+
+<p>Quick, what&rsquo;s the font-size of the inner <code>div</code>?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">&quot;font-size: medium; font-family: sans-serif;&quot;</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
+</span><span class='line'>    font size is 16px
+</span><span class='line'>    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">&quot;font-family: monospace&quot;</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
+</span><span class='line'>        font size is ??
+</span><span class='line'>    <span class="nt">&lt;/div&gt;</span>
+</span><span class='line'><span class="nt">&lt;/div&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For a normal inherited CSS property<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, if the parent has a computed value of <code>16px</code>,
+and the child has no additional values specified, the child will inherit a value of <code>16px</code>.
+<em>Where</em> the parent got that computed value from doesn&rsquo;t matter.</p>
+
+<p>Here, <code>font-size</code> &ldquo;inherits&rdquo; a value of <code>13px</code>. You can see this below:</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
+    font size is 16px
+    <div style="font-family: monospace"> <!-- base size 13 -->
+        font size is ??
+    </div>
+</div>
+</div>
+
+
+<p>Basically, if the computed value originated from a keyword, whenever the font family or language
+change, font-size is recomputed from the original keyword with the new font family and language.</p>
+
+<p>The reason this exists is because otherwise the differing font sizes wouldn&rsquo;t work anyway! The default font size
+is <code>medium</code>, so basically the root element gets a <code>font-size: medium</code> and all elements inherit from it. If you change
+to monospace or a different language in the document you need the font-size recomputed.</p>
+
+<p>But it doesn&rsquo;t stop here. This even inherits <em>through relative units</em> (Not in IE though).</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">&quot;font-size: medium; font-family: sans-serif;&quot;</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
+</span><span class='line'>    font size is 16px
+</span><span class='line'>    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">&quot;font-size: 0.9em&quot;</span><span class="nt">&gt;</span> <span class="c">&lt;!-- could also be font-size: 50%--&gt;</span>
+</span><span class='line'>        font size is 14.4px (16 * 0.9)
+</span><span class='line'>        <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">&quot;font-family: monospace&quot;</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
+</span><span class='line'>            font size is 11.7px! (13 * 0.9)
+</span><span class='line'>        <span class="nt">&lt;/div&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;/div&gt;</span>
+</span><span class='line'><span class="nt">&lt;/div&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
+    font size is 16px
+    <div style="font-size: 0.9em"> <!-- could also be font-size: 90%-->
+        font size is 14.4px (16 * 0.9)
+        <div style="font-family: monospace"> <!-- base size 13 -->
+            font size is 11.7px! (13 * 0.9)
+        </div>
+    </div>
+</div>
+</div>
+
+
+<p>So we&rsquo;re actually inheriting a font-size of &ldquo;0.9*medium&rdquo; when we inherit from the second div, not &ldquo;14.4px&rdquo;.</p>
+
+<p>Another way of looking at it is whenever the font family or language changes, you should recompute the font-size as if the language and family <em>were always that way</em> up the tree.</p>
+
+<p>Firefox code uses both of these strategies. The original Gecko style system handles this by actually
+going back to the top of the tree and recalculating the font size as if the language/family were
+different. I suspect this is inefficient, but the rule tree seems to be involved in making this slightly
+more efficient</p>
+
+<p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
+stores the equivalent of saying &ldquo;Yes, this font was computed from a keyword. The keyword was <code>medium</code>, and after that we applied a factor of 0.9 to it.&rdquo;<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup></p>
+
+<p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
+
+<h2>Larger/smaller</h2>
+
+<p>So I mentioned that <code>font-size: larger</code> and <code>smaller</code> scale the size, but didn&rsquo;t mention by what fraction.</p>
+
+<p>According <a href="https://drafts.csswg.org/css-fonts-3/#relative-size-value">to the spec</a>, if the font-size currently matches the value of an absolute keyword size (medium/large/etc),
+you should pick the value of the next/previous keyword sizes respectively.</p>
+
+<p>If it is <em>between</em> two, find the same point between the next/previous two sizes.</p>
+
+<p>This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In gecko&rsquo;s model this isn&rsquo;t too hard,
+since Gecko recalculates things anyway. In Servo&rsquo;s model we&rsquo;d have to store a sequence of applications of <code>larger</code>/<code>smaller</code> and relative
+units, instead of storing just a relative unit.</p>
+
+<p>Additionally, when computing this during text-zoom, you have to unzoom before looking it up in the table, and then rezoom.</p>
+
+<p>Overall, a bunch of complexity for not much gain &mdash; turns out only Gecko actually followed the spec here! All other browser engines
+used simple ratios here.</p>
+
+<p>So my fix here <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1361550">was simply to remove this behavior from Gecko</a>. That simplified things.</p>
+
+<h2>MathML</h2>
+
+<p>TODO</p>
+
+<p><em>screams internally</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Other browser engines have other optimizations, I&rsquo;m just less familiar with them<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>Some properties are inherited, some are &ldquo;reset&rdquo;. For example, <code>font-family</code> is inherited &mdash; child elements inherit font family from the parent unless otherwise specified. However <code>transform</code> is not, if you transform an element that does not further transform the children.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>This won&rsquo;t handle <code>calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2017-08-09T00:00:00+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/fontsize.html" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/fontsize.html" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2017/05/19/teaching-programming-proactive-vs-reactive/">Teaching Programming: Proactive vs Reactive</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/05/14/mentally-modelling-modules/">Mentally Modelling Modules</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2017 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
