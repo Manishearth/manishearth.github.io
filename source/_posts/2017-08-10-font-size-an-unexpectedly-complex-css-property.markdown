@@ -1,9 +1,9 @@
 ---
 layout: post
 title: "font-size: An unexpectedly complex CSS property"
-date: 2017-08-09 14:53:03 -0700
+date: 2017-08-10 15:38:14 -0700
 comments: true
-categories: ["programming", "mozilla"]
+categories: 
 ---
 
 [`font-size`][mdn-size] is the worst.
