@@ -55,7 +55,7 @@ The syntax of the property is pretty straightforward. You can specify it as:
 
 The first three are common amongst quite a few length-related properties. Nothing abnormal in the syntax.
 
-The next two are interesting. Essentially, the absolute keywords map to various pixel valeus, and match
+The next two are interesting. Essentially, the absolute keywords map to various pixel values, and match
 the result of `<font size=foo>` (e.g. `size=3` is the same as `font-size: medium`). The _actual_ value they map to
 is not straightforward, and I'll get to that later in this post.
 
@@ -88,12 +88,13 @@ What this effectively means is that you need to keep track of _two_ separate com
 is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
 know the font-size (e.g. to compute an `em` unit.)
 
-This gets slightly more complicated when [ruby] is involved. In ideographic scripts (usually, Han-
-derived scripts like Kanji, Hanzi, or Hanja) it's sometimes useful to have the pronunciation of each character
-above it in a phonetic script, for the aid of readers without proficiency in that script, and this is known as "ruby" ("furigana" in Japanese). Because these scripts are
-ideographic, it's not uncommon for learners to know the pronunciation of a word but have no idea how to write it. An example
-would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 ("nihon", i.e. "Japan") in Kanji
-with ruby にほん in the phonetic Hiragana script above it.
+This gets slightly more complicated when [ruby] is involved. In ideographic scripts (usually, Han
+and Han-based scripts like Kanji or Hanja) it's sometimes useful to have the pronunciation
+of each character above it in a phonetic script, for the aid of readers without proficiency in that
+script, and this is known as "ruby" ("furigana" in Japanese). Because these scripts are ideographic,
+it's not uncommon for learners to know the pronunciation of a word but have no idea how to write it.
+An example would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 ("nihon",
+i.e. "Japan") in Kanji with ruby にほん in the phonetic Hiragana script above it.
 
 
 As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
@@ -337,10 +338,10 @@ Firefox and Safari support MathML, a markup language for math. It doesn't get us
 
 MathML has its own complexities when it comes to font-size. Specifically, `scriptminsize`, `scriptlevel`, and `scriptsizemultiplier`.
 
-For example, in MathML, the text in the numerator/denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
-the default script size multiplier for MathML elements is 0.71, and these specific elements all get a default scriptlevel of `+1`.
+For example, in MathML, the text in the numerator or denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
+the default `scriptsizemultiplier` for MathML elements is 0.71, and these specific elements all get a default scriptlevel of `+1`.
 
-Basically, `scriptlevel=+1` means "multiply the font size by the script size multiplier", and
+Basically, `scriptlevel=+1` means "multiply the font size by `scriptsizemultiplier`", and
 `scriptlevel=-1` is for dividing. This can be specified via a `scriptlevel` HTML attribute on an `mstyle` element. You can
 similarly tweak the (inherited) multiplier via the `scriptsizemultiplier` HTML attribute, and the minimum size via `scriptminsize`.
 
@@ -510,4 +511,4 @@ So there you have it. `font-size` is actually pretty complicated. A lot of the w
 
 (Perhaps less fun when I have to implement them 😂)
 
-_Thanks to mystor and mgattozzi for reviewing drafts of this post_
+_Thanks to mystor, mgattozzi, bstrie, and projektir for reviewing drafts of this post_
