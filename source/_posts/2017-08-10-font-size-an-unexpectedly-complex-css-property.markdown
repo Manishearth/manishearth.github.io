@@ -104,7 +104,7 @@ original minimum font size. This avoids clamped text from looking like <ruby><rb
 the same size), which is pretty ugly.
 
  [ruby]: https://en.wikipedia.org/wiki/Ruby_character
- [^5]: Interestingly, in Firefox, this number is 50% for all ruby _except_ for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiranaga up to (I think) 5, and the corresponding "no overflow" scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. (h/t @upsuper for pointing this out)
+ [^5]: Interestingly, in Firefox, this number is 50% for all ruby _except_ for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiranaga up to (I think) 5, and the corresponding "no overflow" scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. Additionally, Bopomofo ruby is often set on the side of the glyph instead of on top, and 30% works better there. (h/t @upsuper for pointing this out)
  
 
 ## Text zoomm
