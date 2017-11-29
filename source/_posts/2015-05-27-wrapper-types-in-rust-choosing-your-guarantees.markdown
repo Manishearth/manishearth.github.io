@@ -307,7 +307,7 @@ At runtime each borrow causes a modification/check of the refcount.
 [cell-mod]: http://doc.rust-lang.org/doc/std/cell/
 [cell]: http://doc.rust-lang.org/doc/std/cell/struct.Cell.html
 [refcell]: http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html
-[ctxt]: http://doc.rust-lang.org/rustc/middle/ty/struct.ctxt.html
+[ctxt]: https://github.com/rust-lang/rust/blob/620d1ee5346bee10ba7ce129b2e20d6e59f0377d/src/librustc/middle/ty.rs#L803-L987
 
 # Synchronous types
 
