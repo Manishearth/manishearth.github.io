@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2017-11-29T02:16:37+00:00</updated>
+  <updated>2017-12-24T09:10:08+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,135 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Undefined vs Unsafe in Rust]]></title>
+    <link href="http://manishearth.github.io/blog/2017/12/24/undefined-vs-unsafe-in-rust/"/>
+    <updated>2017-12-24T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2017/12/24/undefined-vs-unsafe-in-rust</id>
+    <content type="html"><![CDATA[<p>Recently Julia Evans wrote an <a href="https://jvns.ca/blog/2017/12/23/segfault-debugging/">excellent post</a> about debugging a segfault in Rust. (Go read it, it&rsquo;s good)</p>
+
+<p>One thing it mentioned was</p>
+
+<blockquote><p>I think “undefined” and “unsafe” are considered to be synonyms.</p></blockquote>
+
+<p>This is &hellip; incorrect. However, we in the Rust community have never really explicitly outlined the
+distinction, so that confusion is on us! This blog post is an attempt to clarify the difference of
+terminology as used within the Rust community. It&rsquo;s a very useful but subtle distinction and I feel we&rsquo;d be
+able to talk about safety more expressively if this was well known.</p>
+
+<h2>Unsafe means two things in Rust, yay</h2>
+
+<p>So, first off, the waters are a bit muddied by the fact that Rust uses <code>unsafe</code> to both mean &ldquo;within
+an <code>unsafe {}</code> block&rdquo; block and &ldquo;something Bad is happening here&rdquo;. It&rsquo;s possible to have safe code
+within an <code>unsafe</code> block; indeed this is the <em>primary function</em> of an <code>unsafe</code> block. Somewhat
+counterintutively, the <code>unsafe</code> block&rsquo;s purpose is to actually tell the compiler &ldquo;I know you don&rsquo;t
+like this code but trust me, it&rsquo;s safe!&rdquo; (where &ldquo;safe&rdquo; is the negation of the <em>second</em> meaning of &ldquo;unsafe&rdquo;,
+i.e. &ldquo;something Bad is not happening here&rdquo;).</p>
+
+<p>Similarly, we use &ldquo;safe code&rdquo; to mean &ldquo;code not using <code>unsafe{}</code> blocks&rdquo; but also &ldquo;code that is not unsafe&rdquo;,
+i.e. &ldquo;code where nothing bad happens&rdquo;.</p>
+
+<p>This blog post is primarily about the &ldquo;something bad is happening here&rdquo; meaning of &ldquo;unsafe&rdquo;. When referring
+to the other kind I&rsquo;ll specifically say &ldquo;code within <code>unsafe</code> blocks&rdquo; or something like that.</p>
+
+<h2>Undefined behavior</h2>
+
+<p>In languages like C, C++, and Rust, undefined behavior is when you reach a point where
+the compiler is allowed to do anything with your code. This is distinct from implementation-defined
+behavior, where usually a given compiler/library will do a deterministic thing, however they have some
+freedom from the spec in deciding what that thing is.</p>
+
+<p>Undefined behavior can be pretty scary. This is usually because in practice it causes problems when
+the compiler assumes &ldquo;X won&rsquo;t happen because it is undefined behavior&rdquo;, and X ends up happening,
+breaking the assumptions. In some cases this does nothing dangerous, but often the compiler will
+end up doing wacky things to your code. Dereferencing a null pointer will <em>sometimes</em> cause segfaults
+(which is the compiler generating code that actually dereferences the pointer, making the kernel
+complain), but sometimes it will be optimized in a way that assumes it won&rsquo;t and moves around code
+such that you have major problems.</p>
+
+<p>Undefined behavior is a global property, based on how your code is <em>used</em>. The following function
+in C++ or Rust may or may not exhibit undefined behavior, based on how it gets used:</p>
+
+<pre><code class="cpp">int deref(int* x) {
+    return *x;
+}
+</code></pre>
+
+<pre><code class="rust">// do not try this at home
+fn deref(x: *mut u32) -&gt; u32 {
+    unsafe { *x }
+}
+</code></pre>
+
+<p>As long as you always call it with a valid pointer to an integer, there is no undefined behavior
+involved.</p>
+
+<p>But in either language, if you use it with some pointer conjured out of thin air (or, like <code>0x01</code>), that&rsquo;s
+probably undefined behavior.</p>
+
+<p>As it stands, UB is a property of the entire program and its execution. Sometimes you may have snippets of code
+that will always exhibit undefined behavior regardless of how they are called, but in general UB
+is a global property.</p>
+
+<h2>Unsafe behavior</h2>
+
+<p>Rust&rsquo;s concept of &ldquo;unsafe behavior&rdquo; (I&rsquo;m coining this term because &ldquo;unsafety&rdquo; and &ldquo;unsafe code&rdquo; can
+be a bit confusing) is far more scoped. Here, <code>fn deref</code> <em>is</em> &ldquo;unsafe&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, even if you <em>always</em>
+call it with a valid pointer. The reason it is still unsafe is because it&rsquo;s possible to trigger UB by only
+changing the &ldquo;safe&rdquo; caller code. I.e. &ldquo;changes to code outside unsafe blocks can trigger UB if they include
+calls to this function&rdquo;.</p>
+
+<p>Basically, in Rust a bit of code is &ldquo;safe&rdquo; if it cannot exhibit undefined behavior under all circumstances of
+that code being used. The following code exhibits &ldquo;safe behavior&rdquo;:</p>
+
+<pre><code class="rust">unsafe {
+    let x = 1;
+    let raw = &amp;x as *const u32;
+    println!("{}", *raw);
+}
+</code></pre>
+
+<p>We dereferenced a raw pointer, but we knew it was valid. Of course, actual <code>unsafe</code> blocks will
+usually be &ldquo;actually totally safe&rdquo; for less obvious reasons, and part of this is because
+<a href="https://doc.rust-lang.org/nomicon/working-with-unsafe.html#working-with-unsafe"><code>unsafe</code> blocks pollute the entire module</a>.</p>
+
+<p>Basically, &ldquo;safe&rdquo; in Rust is a more local property. Code isn&rsquo;t safe just because you only use it in
+a way that doesn&rsquo;t trigger UB, it is safe because there is literally <em>no way<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> to use it such that it
+will do so</em>. No way to do so without using <code>unsafe</code> blocks, that is[^2].</p>
+
+<p>This is a distinction that&rsquo;s <em>possible</em> to draw in Rust because it gives us the ability
+to compartmentalize safety. Trying to apply this definition to C++ is problematic; you can
+ask &ldquo;is <code>std::unique_ptr&lt;T&gt;</code> safe?&rdquo;, but you can <em>always</em> use it within code in a way that you trigger
+undefined behavior, because C++ does not have the tools for compartmentalizing safety. The distinction
+between &ldquo;code which doesn&rsquo;t need to worry about safety&rdquo; and &ldquo;code which does need to worry about safety&rdquo;
+exists in Rust in the form of &ldquo;code outside of <code>unsafe {}</code>&rdquo; and &ldquo;code within <code>unsafe {}</code>&rdquo;, whereas in
+C++ it&rsquo;s a lot fuzzier and based on expectations (and documentation/the spec).</p>
+
+<p>So C++&rsquo;s <code>std::unique_ptr&lt;T&gt;</code> is &ldquo;safe&rdquo; in the sense that it does what you expect but
+if you use it in a way counter to how it&rsquo;s <em>supposed</em> to be used (constructing one from an invalid pointer, for example)
+it can blow up. This is still a useful sense of safety, and is how one regularly reasons about safety in C++. However it&rsquo;s not
+the same sense of the term as used in Rust, which can be a bit more formal about what the expectations
+actually are.</p>
+
+<p>So <code>unsafe</code> in Rust is a strictly more general concept &ndash; all code exhibiting undefined behavior in Rust is also &ldquo;unsafe&rdquo;,
+however not all &ldquo;unsafe&rdquo; code in Rust exhibits undefined behavior as written in the current program.</p>
+
+<p>Rust furthermore attempts to guarantee that you will not trigger undefined behavior if you do not use <code>unsafe {}</code> blocks.
+This of course depends on the correctness of the compiler (it has bugs) and of the libraries you use (they may also have bugs)
+but this compartmentalization gets you most of the way there in having UB-free programs.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Once again in we have a slight difference between an &ldquo;<code>unsafe fn</code>&rdquo;, i.e. a function that needs an <code>unsafe</code> block to call and probably is unsafe, and an &ldquo;unsafe function&rdquo;, a function that exhibits unsafe behavior.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This caveat and the confusing dual-usage of the term &ldquo;safe&rdquo; lead to the rather tautological-sounding sentence &ldquo;Safe Rust code is Rust code that cannot cause undefined behavior when used in safe Rust code&rdquo;<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Teaching Programming: Proactive vs Reactive]]></title>
@@ -839,401 +968,6 @@ making new community members feel like outsiders.</p>
 
 <p>But that post is amazing and I&rsquo;d hate to see it drop out of the collective
 memory of the Rust community.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
-    <updated>2017-03-04T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
-    <content type="html"><![CDATA[<p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
-
-<p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
-or &ldquo;Sum types are cool&rdquo;.</p>
-
-<p>Much like fezzes and bow ties, sum types are indeed cool.</p>
-
-<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400"></p>
-
-<p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
-
-<p>But what does &ldquo;sum type&rdquo; mean? And why is it called that? And what, in the name of sanity, is
-a Pi type?</p>
-
-<p>Before I start, I&rsquo;ll mention that while I will be covering some type theory to explain the names
-&ldquo;sum&rdquo; and &ldquo;product&rdquo;, you don&rsquo;t need to understand these names to use these things! Far too often
-do people have trouble understanding relatively straightforward concepts in languages because
-they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
-
-<h2>So what&rsquo;s a sum type? (the no-type-theory version)</h2>
-
-<p>In it&rsquo;s essence, a sum type is basically an &ldquo;or&rdquo; type. Let&rsquo;s first look at structs.</p>
-
-<pre><code class="rust">struct Foo {
-    x: bool,
-    y: String,
-}
-</code></pre>
-
-<p><code>Foo</code> is a <code>bool</code> AND a <code>String</code>. You need one of each to make one.
-This is an &ldquo;and&rdquo; type, or a &ldquo;product&rdquo; type (I&rsquo;ll explain the name later).</p>
-
-<p>So what would an &ldquo;or&rdquo; type be? It would be one where the value can be a
-<code>bool</code> OR a <code>String</code>. You can achieve this with C++ with a union:</p>
-
-<pre><code class="cpp">union Foo {
-    bool x;
-    string y;
-}
-
-foo.x = true; // set it to a bool
-foo.y = "blah"; // set it to a string
-</code></pre>
-
-<p>However, this isn&rsquo;t <em>exactly</em> right, since the value doesn&rsquo;t store the information
-of which variant it is. You could store <code>false</code> and the reader wouldn&rsquo;t know
-if you had stored an empty <code>string</code> or a <code>false</code> <code>bool</code>.</p>
-
-<p>There&rsquo;s a pattern called &ldquo;tagged union&rdquo; (or &ldquo;discriminated union&rdquo;) in C++ which bridges this gap.</p>
-
-<pre><code class="cpp">union FooUnion {
-    bool x;
-    string y;
-}
-
-enum FooTag {
-    BOOL, STRING
-}
-
-struct Foo {
-    FooUnion data;
-    FooTag tag;
-}
-
-// set it to a bool
-foo.data.x = true;
-foo.tag = BOOL;
-
-// set it to a string
-foo.data.y = "blah";
-foo.tag = STRING;
-</code></pre>
-
-<p>Here, you manually set the tag when setting the value. C++ also has <code>std::variant</code> (or
-<code>boost::variant</code>) that encapsulates this pattern with a better API.</p>
-
-<p>While I&rsquo;m calling these &ldquo;or&rdquo; types here, the technical term for such types is &ldquo;sum&rdquo; types.
-Other languages have built-in sum types.</p>
-
-<p>Rust has them and calls them &ldquo;enums&rdquo;. These are a more generalized version of the
-enums you see in other languages.</p>
-
-<pre><code class="rust">enum Foo {
-    Str(String),
-    Bool(bool)
-}
-
-let foo = Foo::Bool(true);
-
-// "pattern matching"
-match foo {
-    Str(s) =&gt; /* do something with string `s` */,
-    Bool(b) =&gt; /* do something with bool `b` */,
-}
-</code></pre>
-
-<p>Swift is similar, and also calls them enums
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">str</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">boolean</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-</span><span class='line'><span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="k">let</span> <span class="n">s</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with string &lt;code&gt;s&lt;/code&gt;</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="k">let</span> <span class="n">b</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with boolean &lt;code&gt;b&lt;/code&gt;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></p>
-
-<p>You can fake these in Go using interfaces, as well. Typescript has built-in
-unions which can be typechecked without any special effort, but you need
-to add a tag (like in C++) to pattern match on them.</p>
-
-<p>Of course, Haskell has them:</p>
-
-<pre><code class="haskell">data Foo = B Bool | S String
-
--- define a function
-doThing :: Foo -&gt; SomeReturnType
-doThing (B b) = -- do something with boolean b
-doThing (S s) = -- do something with string s
-
--- call it
-doThing (S "blah")
-doThing (B True)
-</code></pre>
-
-<p>One of the very common things that languages with sum types do is express nullability
-as a sum type;</p>
-
-<pre><code class="rust">// an Option is either "something", containing a type, or "nothing"
-enum Option&lt;T&gt; {
-    Some(T),
-    None
-}
-
-let x = Some("hello");
-match x {
-    Some(s) =&gt; println!("{}", s),
-    None =&gt; println!("no string for you"),
-}
-</code></pre>
-
-<p>Generally, these languages have &ldquo;pattern matching&rdquo;, which is like a <code>switch</code>
-statement on steroids. It lets you match on and destructure all kinds of things,
-sum types being one of them. Usually, these are &ldquo;exhaustive&rdquo;, which means that
-you are forced to handle all possible cases. In Rust, if you remove that <code>None</code>
-branch, the program won&rsquo;t compile. So you&rsquo;re forced to deal with the none case,
-<em>somehow</em>.</p>
-
-<p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
-tend to make heavy use of them, almost as much as they use structs.</p>
-
-<h2>Why do we call it a sum type?</h2>
-
-<p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
-
-<p>Let&rsquo;s step back a bit and figure out what a type is.</p>
-
-<p>It&rsquo;s really a restriction on the values allowed. It can have things like methods and whatnot
-dangling off it, but that&rsquo;s not so important here.</p>
-
-<p></p>
-
-<p>In other words, it&rsquo;s like<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set &#92;(\{\mathtt{true}, \mathtt{false}\}&#92;). An 8-bit unsigned integer
-(<code>u8</code> in Rust) is the set &#92;(\{0, 1, 2, 3, &hellip;. 254, 255\}&#92;). A string is a set with
-infinite elements, containing all possible valid strings<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
-
-<p>What&rsquo;s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
-
-<pre><code class="rust">struct Foo {
-    x: bool,
-    y: u8,
-}
-</code></pre>
-
-<p>The set of possible values of <code>Foo</code> is</p>
-
-<p>&#92;[\{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}\}&#92;]</p>
-
-<p>(Read as &ldquo;The set of all &#92;((\mathtt{x}, \mathtt{y})&#92;) where &#92;(\tt x&#92;) is in &#92;(\mathtt{bool}&#92;) and &#92;(\tt y&#92;) is in &#92;(\mathtt{u8}&#92;)&rdquo;)</p>
-
-<p>This is called a <em>Cartesian product</em>, and is often represented as &#92;(\tt Foo = bool \times u8&#92;).
-An easy way to view this as a product is to count the possible values: The number of possible values
-of <code>Foo</code> is the number of possible values of <code>bool</code> (2) <em>times</em> the number of possible values of <code>u8</code> (256).</p>
-
-<p>A general struct would be a &ldquo;product&rdquo; of the types of each field, so something like</p>
-
-<pre><code class="rust">struct Bar {
-    x: bool,
-    y: u8,
-    z: bool,
-    w: String
-}
-</code></pre>
-
-<p>is &#92;(\mathtt{Bar = bool \times u8 \times bool \times String}&#92;)</p>
-
-<p>This is why structs are called &ldquo;product types&rdquo;<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>.</p>
-
-<p>You can probably guess what comes next &ndash; Rust/Swift enums are &ldquo;sum types&rdquo;, because they are the
-<em>sum</em> of the two sets.</p>
-
-<pre><code class="rust">enum Foo {
-    Bool(bool),
-    Integer(u8),
-}
-</code></pre>
-
-<p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
-is a sum of sets, &#92;(\tt Foo = bool + u8&#92;). More accurately, it&rsquo;s a <em>disjoint union</em>, where if the input
-sets have overlap, the overlap is &ldquo;discriminated&rdquo; out.</p>
-
-<p>An example of this being a disjoint union is:</p>
-
-<pre><code class="rust">enum Bar {
-    Bool1(bool),
-    Bool2(bool),
-    Integer(u8).
-}
-</code></pre>
-
-<p>This is not &#92;(\tt Bar = bool + bool + u8&#92;), because &#92;(\tt bool + bool = bool&#92;), (regular set addition doesn&rsquo;t duplicate the overlap).</p>
-
-<p>Instead, it&rsquo;s something like</p>
-
-<p>&#92;[\tt Bar = bool + otherbool + u8&#92;]</p>
-
-<p>where &#92;(\tt otherbool&#92;) is also a set &#92;(\tt \{true, false\}&#92;),
-except that these elements are <em>different</em> from those in &#92;(\tt bool&#92;). You can look at it as if</p>
-
-<p>&#92;[\tt otherbool = \{true_2, false_2\}&#92;]</p>
-
-<p>so that</p>
-
-<p>&#92;[\mathtt{bool + otherbool} = \{\mathtt{true, false, true_2, false_2}\}&#92;]</p>
-
-<p>For sum types, the number of possible values is the sum of the number of possible values of
-each of its component types.</p>
-
-<p>So, Rust/Swift enums are &ldquo;sum types&rdquo;.</p>
-
-<p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
-talking about sum and product types together &ndash; a language with ADTs will have both.</p>
-
-<p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
-it&rsquo;s the set of all possible mappings from &#92;(B&#92;) to &#92;(A&#92;). The number of elements is &#92;(N_A^{N_B}&#92;). So
-basically, the type of a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
-an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
-
-<pre><code class="rust">// the type
-fn my_func(b: B) -&gt; A;
-
-// is conceptually (each possible my_func can be written as an instance of)
-
-struct my_func {
-    b1: A, // value for first element in B
-    b2: A, // value for second element in B
-    b3: A,
-    // ... 
-}
-</code></pre>
-
-<p>given a value of the input <code>b</code>, the function will find the right field of <code>my_func</code> and return
-the mapping. Since a struct is a product type, this is</p>
-
-<p>&#92;[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots&#92;]</p>
-
-<p>making it an exponential type.</p>
-
-<p><a href="http://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
-
-<p></p>
-
-<h2>What, in the name of sanity, is a Pi type?</h2>
-
-<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400"></p>
-
-<p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
-can depend on a value. An example of this is integer generics, where you
-can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
-
-<p>Note that the type signature contains a <em>type</em> dependent on an integer, being generic over multiple
-different array lengths.</p>
-
-<p>The name comes from how a constructor for these types would look:</p>
-
-<pre><code class="rust">// create an array of booleans from a given integer
-// I made up this syntax, this is _not_ from the Rust Pi type RFC
-fn make_array(x: u8) -&gt; Array&lt;bool, x&gt; {
-    // ...
-}
-
-// or
-// (the proposed rust syntax)
-fn make_array&lt;const x: u8&gt;() -&gt; Array&lt;bool, x&gt; {
-   // ... 
-}
-</code></pre>
-
-<p>What&rsquo;s the type of <code>make_array</code> here? It&rsquo;s a function which can accept any integer
-and return a different type in each case. You can view it as a set of functions,
-where each function corresponds to a different integer input. It&rsquo;s basically:</p>
-
-<pre><code class="rust">struct make_array {
-    make_array_0: fn() -&gt; Array&lt;bool, 0&gt;,
-    make_array_1: fn() -&gt; Array&lt;bool, 1&gt;,
-    make_array_2: fn() -&gt; Array&lt;bool, 2&gt;,
-    make_array_3: fn() -&gt; Array&lt;bool, 3&gt;,
-    make_array_4: fn() -&gt; Array&lt;bool, 4&gt;,
-    make_array_5: fn() -&gt; Array&lt;bool, 5&gt;,
-    // ... 
-}
-</code></pre>
-
-<p>Given an input, the function chooses the right child function here, and calls it.</p>
-
-<p></p>
-
-<p>This is a struct, or a product type! But it&rsquo;s a product of an infinite number of types<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
-
-<p>We can look at it as</p>
-
-<p>&#92;[\texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
-
-<p>The usage of the &#92;(\Pi&#92;) symbol to denote an iterative product gives this the name &ldquo;Pi type&rdquo;.</p>
-
-<p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
-that can give you a value, and actually having the value. So, the type of <code>make_array</code> is the type
-of <code>Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
-
-<p>There&rsquo;s also a notion of a &ldquo;sigma&rdquo; type, which is basically</p>
-
-<p>&#92;[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]</p>
-
-<p>With the Pi type, we had &ldquo;for all N we can
-construct an array&rdquo;, with the sigma type we have &ldquo;there exists some N for which we can construct this array&rdquo;.
-As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
-are basically instances of <code>Array&lt;bool, N&gt;</code> for some specific <code>N</code> where the <code>N</code> is only known at runtime.
-(much like how regular sum types are instances of one amongst multiple types, where the exact type
-is only known at runtime). <code>Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code>Array&lt;bool, ?&gt;</code>,
-as is <code>&amp;[bool]</code>.</p>
-
-<p></p>
-
-<h2>Wrapping up</h2>
-
-<p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
-
-<p>Let&rsquo;s try to avoid using confusing terminology, however. If Rust <em>does</em> get &ldquo;pi types&rdquo;,
-let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generics&rdquo; :)</p>
-
-<p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Lookin&#8217; at you, Go.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Moooooooooooooooonads<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it&rsquo;s still a finite set.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>Like with strings, in practice this would probably be bounded by the integer type chosen<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
 ]]></content>
   </entry>
   
