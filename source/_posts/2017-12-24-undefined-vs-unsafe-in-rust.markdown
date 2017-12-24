@@ -105,7 +105,7 @@ usually be "actually totally safe" for less obvious reasons, and part of this is
  [nomicon-module]: https://doc.rust-lang.org/nomicon/working-with-unsafe.html#working-with-unsafe
 
 Basically, "safe" in Rust is a more local property. Code isn't safe just because you only use it in
-a way that doesn't trigger UB, it is safe because there is literally _no way[^2] to use it such that it
+a way that doesn't trigger UB, it is safe because there is literally _no way to use it such that it
 will do so_. No way to do so without using `unsafe` blocks, that is[^2].
 
  [^2]: This caveat and the confusing dual-usage of the term "safe" lead to the rather tautological-sounding sentence "Safe Rust code is Rust code that cannot cause undefined behavior when used in safe Rust code"
