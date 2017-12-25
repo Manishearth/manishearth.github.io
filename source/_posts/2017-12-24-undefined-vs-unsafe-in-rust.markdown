@@ -99,7 +99,7 @@ unsafe {
 
 We dereferenced a raw pointer, but we knew it was valid. Of course, actual `unsafe` blocks will
 usually be "actually totally safe" for less obvious reasons, and part of this is because
-[`unsafe` blocks pollute the entire module][nomicon-module].
+[`unsafe` blocks sometimes can pollute the entire module][nomicon-module].
 
  [^1]: Once again in we have a slight difference between an "`unsafe fn`", i.e. a function that needs an `unsafe` block to call and probably is unsafe, and an "unsafe function", a function that exhibits unsafe behavior.
  [nomicon-module]: https://doc.rust-lang.org/nomicon/working-with-unsafe.html#working-with-unsafe
