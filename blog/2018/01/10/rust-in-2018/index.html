@@ -1,0 +1,332 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Rust in 2018 - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="A week ago we put out a call for blog posts for what folks think Rust should do in 2018. This is mine. Overall focus I think 2017 was a great year &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Rust in 2018">
+      <meta property="twitter:description" content="A week ago we put out a call for blog posts for what folks think Rust should do in 2018. This is mine. Overall focus I think 2017 was a great year for Rust. Near the beginning of the year, after &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/blog/2018/01/10/rust-in-2018/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Rust in 2018</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2018-01-10T00:00:00+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>A week ago <a href="https://blog.rust-lang.org/2018/01/03/new-years-rust-a-call-for-community-blogposts.html">we put out a call for blog posts for what folks think Rust should do in 2018</a>.</p>
+
+<p>This is mine.</p>
+
+<h2>Overall focus</h2>
+
+<p>I think 2017 was a great year for Rust. Near the beginning of the year, after custom derive
+and a bunch of things stabilized, I had a strong feeling that Rust was &ldquo;complete&rdquo;. Not really &ldquo;finished&rdquo;,
+there&rsquo;s still tons of stuff to improve, but this was the first time stable Rust was the language
+I wanted it to be, and was something I could recommend for most kinds of work without reservations.</p>
+
+<p>I think this is a good signal to wind down the frightening pace of new features Rust has been getting.
+And that happened! We had the impl period, which took some time to focus on <em>getting things done</em> before
+proposing new things. And Rust is feeling more polished than ever.</p>
+
+<p>Like <a href="https://www.ncameron.org/blog/rust-2018/">Nick</a>, I feel like 2018 should be boring. I feel like we should focus on polishing what
+we have, implementing all the things, and improving our approachability as a language.</p>
+
+<p>Basically, I want to see this as an extended impl period.</p>
+
+<p>This doesn&rsquo;t mean I&rsquo;m looking for a moratorium on RFCs, really. Hell, in the past few days I&rsquo;ve posted
+one pre-pre-RFC<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, one pre-RFC, and one RFC (from the pre-RFC). I&rsquo;m mostly looking for <em>prioritizing</em> impl
+work over designing new things, but still having <em>some</em> focus on design.</p>
+
+<h2>Language</h2>
+
+<p>I think Rust still has some &ldquo;missing bits&rdquo; which make it hard to justify for some use cases. Rust&rsquo;s
+async story is being fleshed out. We don&rsquo;t yet have stable SIMD or stable inline ASM. The microcontroller
+story is kinda iffy. RLS/clippy need nightly. I&rsquo;d like to see these crystallize and stabilize this year.</p>
+
+<p>I think this year we need to continue to take a critical look at Rust&rsquo;s ergonomics. Last year the
+ergonomics initiative was really good for Rust, and I&rsquo;d like to see more of that. This is kind of at
+odds with my &ldquo;focus on polishing Rust&rdquo; statement, but fixing ergonomics is not just new features. It&rsquo;s
+also about figuring out barriers in Rust, polishing mental models, improving docs/diagnostics, and in
+general figuring out how to best present Rust&rsquo;s features. Starting dialogues about confusing bits of
+the language and figuring out the best mental model to present them with is something we should
+continue doing. Sometimes this may need new features, indeed, but not always. We must continue
+to take a critical look at how our language presents itself to newcomers.</p>
+
+<h2>Community</h2>
+
+<p>I&rsquo;d like to see a stronger focus in mentoring. Mentoring on rustc, mentoring on major libraries, mentoring on
+Rust tooling, mentoring everywhere. This includes not just the mentors, but the associated infrastructure &ndash;
+contribution docs, sites like <a href="http://starters.servo.org/">servo-starters</a> and <a href="https://www.rustaceans.org/findwork">findwork</a>, and similar tooling.</p>
+
+<p>I&rsquo;m also hoping for more companies to invest back into Rust. This year <a href="http://buoyant.io/">Buoyant</a> became pretty well
+known within the community, and many of their employees are paid to work on various important parts
+of the Rust ecosystem. There are also multiple consulting groups that contribute to the ecosystem.
+It&rsquo;s nice to see that &ldquo;paid to work on Rust&rdquo; is no longer limited to Mozilla, and this is crucial
+for the health of the language. I hope this trend continues.</p>
+
+<p>Finally, I want to see more companies <em>talk</em> about Rust. Success stories are really nice to hear.
+I&rsquo;ve heard many amazing success stories this year, but a lot of them are things which can&rsquo;t be shared.</p>
+
+<h2>Governance</h2>
+
+<p>Last year we started seeing the limits of the RFC process. Large RFCs were stressful for both the RFC authors
+and participating community members, and rather opaque for newer community members wishing to participate.
+Alternative models have been discussed; I&rsquo;d like to see more movement on this front.</p>
+
+<p>I&rsquo;d also like to grow the moderation team; it is currently rather small and doesn&rsquo;t have the capacity to handle
+incidents in a timely fashion.</p>
+
+<h2>Docs / Learning</h2>
+
+<p>I&rsquo;d like to see a focus on improving Rust for folks who learn the language by <em>trying things</em> over reading books <sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>&nbsp;<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+
+<p>This means better diagnostics, better alternative resources like rustbyexample, etc. Improving mentorship helps here
+as well.</p>
+
+<p>Of course, I&rsquo;d like to see our normal docs work continue to happen.</p>
+
+<hr />
+
+<p>I&rsquo;m overall really excited for 2018. I think we&rsquo;re doing great on most fronts so far, and if we
+maintain the momentum we&rsquo;ll have an even-more-awesome Rust by the end of this year!</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>This isn&rsquo;t a &ldquo;pre rfc&rdquo; because I&rsquo;ve written it as a much looser sketch of the problem and a solution<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>There is literally no programming language I&rsquo;ve personally learned through a book or formal teaching. I&rsquo;ve often read books after I know a language because it&rsquo;s fun and instructive, but it&rsquo;s always started out as &ldquo;learn extreme basics&rdquo; followed by &ldquo;look at existing code, tweak stuff, and write your own code&rdquo;.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>Back in <em>my</em> day Rust didn&rsquo;t have a book, just this tiny thing called &ldquo;The Tutorial&rdquo;. <em>grouches incessantly</em><a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2018-01-10T00:00:00+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2018/01/10/rust-in-2018/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2018/01/10/rust-in-2018/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2017/12/24/undefined-vs-unsafe-in-rust/" title="Previous Post: Undefined vs Unsafe in Rust">&laquo; Undefined vs Unsafe in Rust</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2018/01/10/rust-in-2018/">Rust in 2018</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/12/24/undefined-vs-unsafe-in-rust/">Undefined vs Unsafe in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/">Font-size: An Unexpectedly Complex CSS Property</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/05/19/teaching-programming-proactive-vs-reactive/">Teaching Programming: Proactive vs Reactive</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2017/05/14/mentally-modelling-modules/">Mentally Modelling Modules</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2018 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
