@@ -25,12 +25,12 @@ large amount of I/O bound tasks -- the kind of concurrency found in Go, Elixir, 
 from Rust.
 
 Let's say you want to build something like a web service. It's going to be handling thousands of
-requests at any point in time. In general, the problem we're considering is having a huge number
-of I/O bound (usually network I/O) tasks.
+requests at any point in time (known as the "[c10k] problem"). In general, the problem we're
+considering is having a huge number of I/O bound (usually network I/O) tasks.
 
 "Handling N things at once" is best done by using threads. But ... _thousands_ of threads? That
 sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack,
-setting up a thread involved a bunch of syscalls, and context switching is expensive.
+setting up a thread involves a bunch of syscalls, and context switching is expensive.
 
 Of course, thousands of threads _all doing work_ at once is not going to work anyway. You only
 have a fixed number of cores, and at any one time only one thread will be running on a core.
@@ -46,7 +46,12 @@ thread back when its I/O operation is finished (i.e. it's "unblocked"). Without 
 this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
 scheduling based on I/O.
 
-But, as we already discovered, threads don't scale well for things like this. We need "lighter" threads.
+But, as we already discovered, threads don't scale well for things like this[^1].
+
+We need "lighter" threads.
+
+ [c10k]: https://en.wikipedia.org/wiki/C10k_problem
+ [^1]: Note that this isn't necessarily true for _all_ network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job.
 
 ## Lightweight threading
 
@@ -91,10 +96,11 @@ the program counter will switch to the new goroutine.
 But what about its stack? OS threads have a large stack with them, and you kinda need a stack for functions
 and stuff to work.
 
-What Go used to do was segmented stacks. The reason a thread needs a large stack is that generally
-we expect the stack to be contiguous, and stacks can't just be "reallocated" like we do with
-growable buffers since we expect stack data to stay put so that pointers to stack data to continue
-to work. So we allocate all the stack we think we'll ever need (~8MB), and hope we don't need more.
+What Go used to do was segmented stacks. The reason a thread needs a large stack is that most
+programming languages, including C, expect the stack to be contiguous, and stacks can't just be
+"reallocated" like we do with growable buffers since we expect stack data to stay put so that
+pointers to stack data to continue to work. So we reserve all the stack we think we'll ever need
+(~8MB), and hope we don't need more.
 
 But the expectation of stacks being contiguous isn't strictly necessary. In Go, stacks are made of tiny
 chunks. When a function is called, it checks if there's enough space on the stack for it to run, and if not,
@@ -121,11 +127,11 @@ aren't using green threads, and it was removed pre-1.0.
 
 ## Async I/O
 
-A core building block of this is Async I/O. I kind of glossed over it in the previous section, but
+A core building block of this is Async I/O. As mentioned in the previous section, but
 with regular blocking I/O, the moment you do the operation your thread will not be allowed to run
-("blocked") until the operation is done. This is perfect when working with OS threads, but if you
-have lightweight threads you instead want to replace the lightweight thread running on the OS thread
-with a different one.
+("blocked") until the operation is done. This is perfect when working with OS threads (the OS
+scheduler does all the work for you!), but if you have lightweight threads you instead want to
+replace the lightweight thread running on the OS thread with a different one.
 
 Instead, you use non-blocking I/O, where the OS registers the thread's desire for I/O but
 immediately returns control to the thread before the I/O has completed. The thread needs to ask the
@@ -155,10 +161,11 @@ model like Go does. But we can get there.
 These are another building block. A [`Future`] is basically the promise of eventually having a value
 (in fact, in Javascript these are called `Promise`s).
 
-So for example, you can ask to listen on a network socket, and get a `Future` back. This `Future` won't
-contain the response _yet_, but will know when it's ready. You can `wait()` on a `Future`,
-which will block until you have a result, and you can also `poll()` it, asking it if it's done
-yet (it will give you the result if it is).
+So for example, you can ask to listen on a network socket, and get a `Future` back  (actually, a
+`Stream`, which is like a future but for a sequence of values). This `Future` won't contain the
+response _yet_, but will know when it's ready. You can `wait()` on a `Future`, which will block
+until you have a result, and you can also `poll()` it, asking it if it's done yet (it will give you
+the result if it is).
 
 Futures can also be chained, so you can do stuff like `future.then(|result| process(result))`.
 The closure passed to `then` itself can produce another future, so you can chain together
@@ -179,7 +186,7 @@ very similar to a tiny stack!
 
 Tokio's basically a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
-use run all the closures you feed it, use mio to efficiently figure out which futures
+run all the closures you feed it, use mio to efficiently figure out which futures
 are ready to make a step[^3], and make progress on them (by calling `poll()`).
 
 This actually is already pretty similar to what Go was doing, at a conceptual level.
@@ -187,9 +194,11 @@ You have to manually set up the Tokio event loop (the "scheduler"), but once you
 you can feed it tasks which intermittently do I/O, and the event loop takes
 care of swapping over to a new task when one is blocked on I/O. A crucial difference is
 that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads
-for execution.
+for execution. However, you can offload CPU-critical tasks onto other OS threads and
+use channels to coordinate so this isn't that big a deal.
 
-However, code-wise this doesn't look so pretty. For the following Go code:
+While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-
+wise this doesn't look so pretty. For the following Go code:
 
 ```go
 // error handling ignored for simplicity
@@ -217,11 +226,12 @@ fn foo(...) -> Future<ReturnType, ErrorType> {
 ```
 
 
-Not pretty. The code gets worse if you introduce branches and loops. The problem is that in Go we
+Not pretty. [The code gets worse if you introduce branches and loops][loop-fn]. The problem is that in Go we
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
 into a kind of state machine. Ew.
 
  [^3]: In general future combinators aren't really aware of tokio or even I/O, so there's no easy way to ask a combinator "hey, what I/O operation are you waiting for?". Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when `epoll` tells it that that I/O operation is ready.
+ [loop-fn]: http://alexcrichton.com/futures-rs/futures/future/fn.loop_fn.html#examples
 
 ## Generators and async/await
 
