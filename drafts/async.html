@@ -133,7 +133,7 @@ considering is having a huge number of I/O bound (usually network I/O) tasks.</p
 
 <p>&ldquo;Handling N things at once&rdquo; is best done by using threads. But &hellip; <em>thousands</em> of threads? That
 sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack,
-setting up a thread involved a bunch of syscalls, and context switching is expensive.</p>
+setting up a thread involves a bunch of syscalls, and context switching is expensive.</p>
 
 <p>Of course, thousands of threads <em>all doing work</em> at once is not going to work anyway. You only
 have a fixed number of cores, and at any one time only one thread will be running on a core.</p>
@@ -229,7 +229,7 @@ aren&rsquo;t using green threads, and it was removed pre-1.0.</p>
 
 <h2>Async I/O</h2>
 
-<p>A core building block of this is Async I/O. I kind of glossed over it in the previous section, but
+<p>A core building block of this is Async I/O. As mentioned in the previous section, but
 with regular blocking I/O, the moment you do the operation your thread will not be allowed to run
 (&ldquo;blocked&rdquo;) until the operation is done. This is perfect when working with OS threads (the OS
 scheduler does all the work for you!), but if you have lightweight threads you instead want to
@@ -258,10 +258,11 @@ model like Go does. But we can get there.</p>
 <p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code>Future</code></a> is basically the promise of eventually having a value
 (in fact, in Javascript these are called <code>Promise</code>s).</p>
 
-<p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back. This <code>Future</code> won&rsquo;t
-contain the response <em>yet</em>, but will know when it&rsquo;s ready. You can <code>wait()</code> on a <code>Future</code>,
-which will block until you have a result, and you can also <code>poll()</code> it, asking it if it&rsquo;s done
-yet (it will give you the result if it is).</p>
+<p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back  (actually, a
+<code>Stream</code>, which is like a future but for a sequence of values). This <code>Future</code> won&rsquo;t contain the
+response <em>yet</em>, but will know when it&rsquo;s ready. You can <code>wait()</code> on a <code>Future</code>, which will block
+until you have a result, and you can also <code>poll()</code> it, asking it if it&rsquo;s done yet (it will give you
+the result if it is).</p>
 
 <p>Futures can also be chained, so you can do stuff like <code>future.then(|result| process(result))</code>.
 The closure passed to <code>then</code> itself can produce another future, so you can chain together
@@ -279,7 +280,7 @@ very similar to a tiny stack!</p>
 
 <p>Tokio&rsquo;s basically a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
-use run all the closures you feed it, use mio to efficiently figure out which futures
+run all the closures you feed it, use mio to efficiently figure out which futures
 are ready to make a step<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
@@ -287,9 +288,11 @@ You have to manually set up the Tokio event loop (the &ldquo;scheduler&rdquo;), 
 you can feed it tasks which intermittently do I/O, and the event loop takes
 care of swapping over to a new task when one is blocked on I/O. A crucial difference is
 that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads
-for execution.</p>
+for execution. However, you can offload CPU-critical tasks onto other OS threads and
+use channels to coordinate so this isn&rsquo;t that big a deal.</p>
 
-<p>However, code-wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
+<p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-
+wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -333,7 +336,7 @@ for execution.</p>
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>Not pretty. The code gets worse if you introduce branches and loops. The problem is that in Go we
+<p>Not pretty. <a href="http://alexcrichton.com/futures-rs/futures/future/fn.loop_fn.html#examples">The code gets worse if you introduce branches and loops</a>. The problem is that in Go we
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
 into a kind of state machine. Ew.</p>
 
