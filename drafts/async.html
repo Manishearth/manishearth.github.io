@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>What&#8217;s Tokio/Async IO All About? - In Pursuit of Laziness</title>
+  <title>What&#8217;s Tokio and Async IO All About? - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
@@ -17,7 +17,7 @@ project. This is pretty great! But for many in the &hellip;">
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="What's Tokio/Async IO all about?">
+      <meta property="twitter:title" content="What's Tokio and Async IO all about?">
       <meta property="twitter:description" content="The Rust community lately has been focusing a lot on &ldquo;async I/O&rdquo; through the tokio
 project. This is pretty great! But for many in the community who haven&rsquo;t worked with web servers &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
@@ -95,7 +95,7 @@ project. This is pretty great! But for many in the community who haven&rsquo;t w
   
   <header>
     
-      <h1 class="entry-title">What&#8217;s Tokio/Async IO All About?</h1>
+      <h1 class="entry-title">What&#8217;s Tokio and Async IO All About?</h1>
     
     
       <p class="meta">
@@ -121,32 +121,40 @@ I was pretty lost as well, having never worked with this stuff before.</p>
 <p>What&rsquo;s all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How
 does this all fit together?</p>
 
-<h2>Lightweight threading</h2>
+<h2>What problem are we trying to solve?</h2>
 
-<p>A couple months ago, <a href="https://twitter.com/arshia__">Arshia</a> asked me a bunch of questions about lightweight threading that
-essentially grew into a more ad-hoc version of what I&rsquo;m about to explain in this post.</p>
-
-<p>I think the best way to understand lightweight threading is to forget about Rust for a moment
-and look at a language that does this well, Go.</p>
+<p>One of Rust&rsquo;s key features is &ldquo;fearless concurrency&rdquo;. But the kind of concurrency required for handling a
+large amount of I/O bound tasks &ndash; the kind of concurrency found in Go, Elixir, Erlang &ndash; is absent
+from Rust.</p>
 
 <p>Let&rsquo;s say you want to build something like a web service. It&rsquo;s going to be handling thousands of
-requests at any point in time.</p>
+requests at any point in time. In general, the problem we&rsquo;re considering is having a huge number
+of I/O bound (usually network I/O) tasks.</p>
 
 <p>&ldquo;Handling N things at once&rdquo; is best done by using threads. But &hellip; <em>thousands</em> of threads? That
-sounds a bit much. Each thread needs to allocate a large stack, and they each have a lot of
-extra context maintained by the OS. Switching between threads is somewhat expensive.</p>
+sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack,
+setting up a thread involved a bunch of syscalls, and context switching is expensive.</p>
 
 <p>Of course, thousands of threads <em>all doing work</em> at once is not going to work anyway. You only
-have a fixed number of processors, and at any one time only one thread will be running on a processor<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+have a fixed number of cores, and at any one time only one thread will be running on a core.</p>
 
 <p>But for cases like web servers, most of these threads won&rsquo;t be doing work. They&rsquo;ll be waiting on the
 network. Most of these threads will either be listening for a request, or waiting for their response
 to get sent.</p>
 
-<p>With regular threads, the operating system notices when a thread is blocked on I/O (like network operations),
-and uses that as an opportunity to let a different thread run.</p>
+<p>With regular threads, when you perform a blocking I/O operation, the syscall returns control
+to the kernel, which won&rsquo;t yield control back, because the I/O operation is probably not finished.
+Instead, it will use this as an opportunity to swap in a different thread, and will swap the original
+thread back when its I/O operation is finished (i.e. it&rsquo;s &ldquo;unblocked&rdquo;). Without Tokio and friends,
+this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
+scheduling based on I/O.</p>
 
-<p>But, as we already discovered, threads don&rsquo;t scale well for things like this.</p>
+<p>But, as we already discovered, threads don&rsquo;t scale well for things like this. We need &ldquo;lighter&rdquo; threads.</p>
+
+<h2>Lightweight threading</h2>
+
+<p>I think the best way to understand lightweight threading is to forget about Rust for a moment
+and look at a language that does this well, Go.</p>
 
 <p>So instead, Go has lightweight threads, called &ldquo;goroutines&rdquo;. You spawn these with the <code>go</code>
 keyword. A web server might do something like this:</p>
@@ -180,7 +188,7 @@ a different goroutine.</p>
 <p>So if these aren&rsquo;t &ldquo;real&rdquo; (operating system) threads, what&rsquo;s going on?</p>
 
 <p>A goroutine is an example of a &ldquo;lightweight&rdquo; thread. The operating system doesn&rsquo;t know about these,
-it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, swapping
+it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, swapping
 goroutines in and out much like the operating system scheduler. It&rsquo;s able to do this because
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.</p>
@@ -219,13 +227,14 @@ aren&rsquo;t using green threads, and it was removed pre-1.0.</p>
 <h2>Async I/O</h2>
 
 <p>A core building block of this is Async I/O. I kind of glossed over it in the previous section, but
-with regular blocking I/O, the moment you do the operation your thread is blocked until it&rsquo;s done.
-This is perfect when working with OS threads, but if you have lightweight threads you instead want
-to replace the lightweight thread running on the OS thread with a different one.</p>
+with regular blocking I/O, the moment you do the operation your thread will not be allowed to run
+(&ldquo;blocked&rdquo;) until the operation is done. This is perfect when working with OS threads, but if you
+have lightweight threads you instead want to replace the lightweight thread running on the OS thread
+with a different one.</p>
 
 <p>Instead, you use non-blocking I/O, where the OS registers the thread&rsquo;s desire for I/O but
 immediately returns control to the thread before the I/O has completed. The thread needs to ask the
-OS &ldquo;are you done yet?&rdquo; before looking at the result of the I/O.</p>
+OS &ldquo;are you ready yet?&rdquo; before looking at the result of the I/O.</p>
 
 <p>Of course, repeatedly asking the OS if it&rsquo;s done can be tedious and consume resources. This is why
 there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code>epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
@@ -246,8 +255,8 @@ model like Go does. But we can get there.</p>
 <p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code>Future</code></a> is basically the promise of eventually having a value
 (in fact, in Javascript these are called <code>Promise</code>s).</p>
 
-<p>So for example, you can ask for a file to be read, and get a <code>Future</code> back. This <code>Future</code> won&rsquo;t
-contain the file contents <em>yet</em>, but will know when it&rsquo;s ready. You can <code>wait()</code> on a <code>Future</code>,
+<p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back. This <code>Future</code> won&rsquo;t
+contain the response <em>yet</em>, but will know when it&rsquo;s ready. You can <code>wait()</code> on a <code>Future</code>,
 which will block until you have a result, and you can also <code>poll()</code> it, asking it if it&rsquo;s done
 yet (it will give you the result if it is).</p>
 
@@ -258,17 +267,24 @@ you call it it will move on to the next future provided the existing one is read
 
 <p>This is a pretty good abstraction over things like non-blocking I/O.</p>
 
+<p>Chaining futures works much like chaining iterators. Each <code>and_then</code> (or whatever combinator)
+call returns a struct wrapping around the inner future, which may contain an additional closure.
+Closures themselves carry their references and data with them, so this really ends up being
+very similar to a tiny stack!</p>
+
 <h2>🗼 Tokio 🗼</h2>
 
 <p>Tokio&rsquo;s basically a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 use run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step, and make progress on them (by calling <code>poll()</code>).</p>
+are ready to make a step<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
 You have to manually set up the Tokio event loop (the &ldquo;scheduler&rdquo;), but once you do
 you can feed it tasks which intermittently do I/O, and the event loop takes
-care of swapping over to a new task when one is blocked on I/O.</p>
+care of swapping over to a new task when one is blocked on I/O. A crucial difference is
+that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads
+for execution.</p>
 
 <p>However, code-wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
 
@@ -433,30 +449,39 @@ the above function as</p>
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code>await!()</code> calls.</p>
+<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code>await!()</code> calls. These
+await calls are basically providing the same function as the interruption points that Go code
+gets implicitly.</p>
 
 <p>And, of course, since it&rsquo;s using a generator under the hood, you can loop and branch and do whatever
 else you want as normal, and the code will still be clean.</p>
 
 <h2>Tying it together</h2>
 
-<p>So basically, the &ldquo;async I/O&rdquo; story in Rust is:</p>
+<p>So basically, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
+you can neatly write these future chains, and <code>await</code> provides explicit interruption points on each I/O operation.
+Tokio provides an event loop &ldquo;scheduler&rdquo; abstraction, which you can feed async functions to, and under the hood it
+uses mio to abstract over low level non-blocking I/O primitives.</p>
 
-<ul>
-<li>mio is used for abstracting over low level non-blocking I/O primitives</li>
-<li>tokio provides an event loop that acts as a scheduler for futures</li>
-<li>async/await let you write future-based tasks in a neat, linear fashion</li>
-</ul>
+<p>These are components which can be used independently &mdash; you can use tokio with futures without
+using async/await. You can use async/await without using Tokio. In fact, I think that would be
+useful for Servo&rsquo;s networking stack, which doesn&rsquo;t need to do <em>much</em> parallel I/O (not at the order
+of thousands of threads), so can just use multiplexed OS threads, however the way data gets
+pipelined over would be neater to do via async/await.</p>
 
+<p>Put together, all these components get something almost as clean as the Go stuff, with a little more
+explicit boilerplate. Because generators (and thus async/await) play nice with the borrow checker
+(they&rsquo;re just enum state machines under the hood), Rust&rsquo;s safety guarantees are all still in play,
+and we get to have &ldquo;fearless concurrency&rdquo; for programs having a huge quantity of I/O bound tasks!</p>
 
-<p>Put together, you get something almost as clean as the Go stuff, with a little more boilerplate.</p>
+<p><em>Thanks to Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post</em></p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p>Well, two threads, if you account for hyperthreading.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>Lightweight threading is also often called M:N threading (also &ldquo;green threading&rdquo;)<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
-<p>Lightweight threading is also often called M:N threading (also &ldquo;green threading&rdquo;)<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<p>In general future combinators aren&rsquo;t really aware of tokio or even I/O, so there&rsquo;s no easy way to ask a combinator &ldquo;hey, what I/O operation are you waiting for?&rdquo;. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
