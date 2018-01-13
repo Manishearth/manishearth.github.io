@@ -1,0 +1,307 @@
+---
+layout: post
+title: "What's Tokio/Async IO all about?"
+date: 2018-01-10 14:16:43 +0530
+comments: true
+categories: rust programming mozilla
+---
+
+The Rust community lately has been focusing a lot on "async I/O" through the [tokio]
+project. This is pretty great!
+
+But for many in the community who haven't worked with web servers and related things it's pretty
+confusing as to what we're trying to achieve there. When this stuff was being discussed around 1.0,
+I was pretty lost as well, having never worked with this stuff before.
+
+What's all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How
+does this all fit together?
+
+
+## Lightweight threading
+
+A couple months ago, [Arshia] asked me a bunch of questions about lightweight threading that
+essentially grew into a more ad-hoc version of what I'm about to explain in this post.
+
+I think the best way to understand lightweight threading is to forget about Rust for a moment
+and look at a language that does this well, Go.
+
+Let's say you want to build something like a web service. It's going to be handling thousands of
+requests at any point in time.
+
+"Handling N things at once" is best done by using threads. But ... _thousands_ of threads? That
+sounds a bit much. Each thread needs to allocate a large stack, and they each have a lot of
+extra context maintained by the OS. Switching between threads is somewhat expensive.
+
+Of course, thousands of threads _all doing work_ at once is not going to work anyway. You only
+have a fixed number of processors, and at any one time only one thread will be running on a processor[^1].
+
+But for cases like web servers, most of these threads won't be doing work. They'll be waiting on the
+network. Most of these threads will either be listening for a request, or waiting for their response
+to get sent.
+
+With regular threads, the operating system notices when a thread is blocked on I/O (like network operations),
+and uses that as an opportunity to let a different thread run.
+
+But, as we already discovered, threads don't scale well for things like this.
+
+So instead, Go has lightweight threads, called "goroutines". You spawn these with the `go`
+keyword. A web server might do something like this:
+
+```go
+listener, err = net.Listen(...)
+// handle err
+for {
+    conn, err := listener.Accept()
+    // handle err
+
+    // spawn goroutine:
+    go handler(conn)
+}
+```
+
+This is a loop which waits for new TCP connections, and spawns a goroutine with the connection
+and the function `handler`. Each connection will be a new goroutine, and the goroutine will shut down
+when `handler` finishes. In the meantime, the main loop continues executing, because it's running in
+a different goroutine.
+
+So if these aren't "real" (operating system) threads, what's going on?
+
+A goroutine is an example of a "lightweight" thread. The operating system doesn't know about these,
+it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them[^2], swapping
+goroutines in and out much like the operating system scheduler. It's able to do this because
+Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
+to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.
+
+Basically, Go bytecode has a bunch of points scattered throughout it where it tells the scheduler and GC
+"take over if you want" (and also "I'm waiting on stuff, please take over").
+
+When a goroutine is swapped on an OS thread, basically some registers will be saved (probably), and
+the program counter will switch to the new goroutine.
+
+But what about its stack? OS threads have a large stack with them, and you kinda need a stack for functions
+and stuff to work.
+
+What Go used to do was segmented stacks. The reason a thread needs a large stack is that generally
+we expect the stack to be contiguous, and stacks can't just be "reallocated" like we do with
+growable buffers since we expect stack data to stay put so that pointers to stack data to continue
+to work. So we allocate all the stack we think we'll ever need (~8MB), and hope we don't need more.
+
+But the expectation of stacks being contiguous isn't strictly necessary. In Go, stacks are made of tiny
+chunks. When a function is called, it checks if there's enough space on the stack for it to run, and if not,
+allocates a new chunk of stack and runs on it. So if you have thousands of threads doing a small amount of work,
+they'll all get thousands of tiny stacks and it will be fine.
+
+These days, Go actually does something different; it [copies stacks]. I mentioned that stacks can't
+just be "reallocated" we expect stack data to stay put. But that's not necessarily true &mdash;
+because Go has a GC it knows what all the pointers are _anyway_, and it can rewrite pointers to
+stack data on demand.
+
+Either way, Go's rich runtime lets it handle this stuff well. Goroutines are super cheap, and you can spawn
+thousands without your computer having problems.
+
+Rust _used_ to support lightweight/"green" threads (I believe it used segmented stacks). However, Rust cares
+a lot about not paying for things you don't use, and this imposes a penalty on all your code even if you
+aren't using green threads, and it was removed pre-1.0.
+
+
+ [tokio]: https://github.com/tokio-rs/
+ [Arshia]: https://twitter.com/arshia__
+ [^1]: Well, two threads, if you account for hyperthreading.
+ [^2]: Lightweight threading is also often called M:N threading (also "green threading")
+ [copies stacks]: https://blog.cloudflare.com/how-stacks-are-handled-in-go/
+
+## Async I/O
+
+A core building block of this is Async I/O. I kind of glossed over it in the previous section, but
+with regular blocking I/O, the moment you do the operation your thread is blocked until it's done.
+This is perfect when working with OS threads, but if you have lightweight threads you instead want
+to replace the lightweight thread running on the OS thread with a different one.
+
+Instead, you use non-blocking I/O, where the OS registers the thread's desire for I/O but
+immediately returns control to the thread before the I/O has completed. The thread needs to ask the
+OS "are you done yet?" before looking at the result of the I/O.
+
+Of course, repeatedly asking the OS if it's done can be tedious and consume resources. This is why
+there are system calls like [`epoll`]. Here, you can bundle together a bunch of unfinished I/O requests,
+and then ask the OS to wake up your thread when _any_ of these completes. So you can have a scheduler
+thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there's nothing
+else happening it can itself go to sleep with an `epoll` call until the OS wakes it up (when one of the I/O
+requests completes).
+
+(The exact mechanism involved here is probably more complex)
+
+So, bringing this to Rust, Rust has the [mio] library, which is basically a platform-agnostic
+wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It's a building block; and while
+those used to directly using `epoll` in C may find it helpful, it doesn't provide a nice programming
+model like Go does. But we can get there.
+
+
+ [`epoll`]: https://en.wikipedia.org/wiki/Epoll
+ [mio]: https://github.com/carllerche/mio
+
+
+## Futures
+
+These are another building block. A [`Future`] is basically the promise of eventually having a value
+(in fact, in Javascript these are called `Promise`s).
+
+So for example, you can ask for a file to be read, and get a `Future` back. This `Future` won't
+contain the file contents _yet_, but will know when it's ready. You can `wait()` on a `Future`,
+which will block until you have a result, and you can also `poll()` it, asking it if it's done
+yet (it will give you the result if it is).
+
+Futures can also be chained, so you can do stuff like `future.then(|result| process(result))`.
+The closure passed to `then` itself can produce another future, so you can chain together
+things like I/O operations. With chained futures, `poll()` is how you make progress; each time
+you call it it will move on to the next future provided the existing one is ready.
+
+This is a pretty good abstraction over things like non-blocking I/O.
+
+ [`Future`]: https://docs.rs/futures/0.1.17/futures/future/trait.Future.html
+
+
+## 🗼 Tokio 🗼
+
+Tokio's basically a nice wrapper around mio that uses futures. Tokio has a core
+event loop, and you feed it closures that return futures. What it will do is
+use run all the closures you feed it, use mio to efficiently figure out which futures
+are ready to make a step, and make progress on them (by calling `poll()`).
+
+This actually is already pretty similar to what Go was doing, at a conceptual level.
+You have to manually set up the Tokio event loop (the "scheduler"), but once you do
+you can feed it tasks which intermittently do I/O, and the event loop takes
+care of swapping over to a new task when one is blocked on I/O.
+
+However, code-wise this doesn't look so pretty. For the following Go code:
+
+```go
+// error handling ignored for simplicity
+
+func foo(...) ReturnType {
+    data := doIo()
+    result := compute(data)
+    moreData = doMoreIo(result)
+    moreResult := moreCompute(data)
+    // ...
+    return someFinalResult
+}
+```
+
+The Rust code will look something like
+
+```rust
+// error handling ignored for simplicity
+
+fn foo(...) -> Future<ReturnType, ErrorType> {
+    do_io().and_then(|data| do_more_io(compute(data)))
+          .and_then(|more_data| do_even_more_io(more_compute(more_data)))
+    // ......
+}
+```
+
+
+Not pretty. The code gets worse if you introduce branches and loops. The problem is that in Go we
+got the interruption points for free, but in Rust we have to encode this by chaining up combinators
+into a kind of state machine. Ew.
+
+## Generators and async/await
+
+This is where generators (also called coroutines) come in.
+
+[Generators] are an experimental feature in Rust. Here's an example:
+
+```rust
+let mut generator = || {
+    let i = 0;
+    loop {
+        yield i;
+        i += 1;
+    }
+};
+assert_eq!(generator.resume(), GeneratorState::Yielded(0));
+assert_eq!(generator.resume(), GeneratorState::Yielded(1));
+assert_eq!(generator.resume(), GeneratorState::Yielded(2));
+```
+
+Functions are things which execute a task and return once. On the other hand, generators
+return multiple times; they basically pause execution to "yield" some data, and can be resumed
+at which point they will run until the next yield. While my example doesn't show this, generators
+can also finish executing like regular functions.
+
+Closures in Rust are
+[basically sugar for a struct containing captured data, plus an implementation of one of the `Fn` traits to make it callable][closure-huon].
+
+Generators are similar, except they implement the `Generator` trait, and usually store an enum representing various states.
+The [unstable book] has some examples on what this state machine enum will look like.
+
+This is much closer to what we were looking for! Now our code can look like this:
+
+```rust
+fn foo(...) -> Future<ReturnType, ErrorType> {
+    let generator = || {
+        let mut future = do_io();
+        let data;
+        loop {
+            // poll the future, yielding each time it fails,
+            // but if it succeeds then move on
+            match future.poll() {
+                Ok(Async::Ready(d)) => { data = d; break },
+                Ok(Async::NotReady(d)) => (),
+                Err(..) => ...
+            };
+            yield future.polling_info();
+        }
+        let result = compute(data);
+        // do the same thing for `doMoreIo()`, etc
+    }
+
+    futurify(generator)
+}
+```
+
+where `futurify` is a function that takes a generator and returns a future which on
+each `poll` call will `resume()` the generator, and return `NotReady` until the generator
+finishes executing.
+
+But wait, this is even _more_ ugly! What was the point of converting our relatively
+clean callback-chaining code into this mess?
+
+Well, if you look at it, this code now looks _linear_. We've converted our callback
+code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate
+and the `futurify` function and is overall not very neat.
+
+And that's where [futures-await] comes in. `futures-await` is a procedural macro that
+does the last-mile work of packaging away this boilerplate. It essentially lets you write
+the above function as
+
+
+```rust
+#[async]
+fn foo(...) -> Result<ReturnType, ErrorType> {
+    let data = await!(do_io());
+    let result = compute(data);
+    let more_data = await!(do_more_io());
+    // ....
+```
+
+Nice and clean. Almost as clean as the Go code, just that we have explicit `await!()` calls.
+
+And, of course, since it's using a generator under the hood, you can loop and branch and do whatever
+else you want as normal, and the code will still be clean.
+
+
+ [Generators]: https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html
+ [closure-huon]: http://huonw.github.io/blog/2015/05/finding-closure-in-rust/
+ [unstable book]: https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines
+ [futures-await]: https://github.com/alexcrichton/futures-await
+
+## Tying it together
+
+So basically, the "async I/O" story in Rust is:
+
+ - mio is used for abstracting over low level non-blocking I/O primitives
+ - tokio provides an event loop that acts as a scheduler for futures
+ - async/await let you write future-based tasks in a neat, linear fashion
+
+Put together, you get something almost as clean as the Go stuff, with a little more boilerplate.
+
