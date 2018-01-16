@@ -87,10 +87,10 @@ goroutines in and out much like the operating system scheduler. It's able to do 
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.
 
-Basically, Go bytecode has a bunch of points scattered throughout it where it tells the scheduler and GC
+Essentialy, Go bytecode has a bunch of points scattered throughout it where it tells the scheduler and GC
 "take over if you want" (and also "I'm waiting on stuff, please take over").
 
-When a goroutine is swapped on an OS thread, basically some registers will be saved (probably), and
+When a goroutine is swapped on an OS thread, some registers will be saved, and
 the program counter will switch to the new goroutine.
 
 But what about its stack? OS threads have a large stack with them, and you kinda need a stack for functions
@@ -127,15 +127,15 @@ aren't using green threads, and it was removed pre-1.0.
 
 ## Async I/O
 
-A core building block of this is Async I/O. As mentioned in the previous section, but
-with regular blocking I/O, the moment you do the operation your thread will not be allowed to run
+A core building block of this is Async I/O. As mentioned in the previous section,
+with regular blocking I/O, the moment you request I/O your thread will not be allowed to run
 ("blocked") until the operation is done. This is perfect when working with OS threads (the OS
 scheduler does all the work for you!), but if you have lightweight threads you instead want to
 replace the lightweight thread running on the OS thread with a different one.
 
-Instead, you use non-blocking I/O, where the OS registers the thread's desire for I/O but
-immediately returns control to the thread before the I/O has completed. The thread needs to ask the
-OS "are you ready yet?" before looking at the result of the I/O.
+Instead, you use non-blocking I/O, where the thread queues a request for I/O with the OS and continues
+execution. The I/O request is executed at some later point by the kernel. The thread then needs to ask the
+OS "Is this I/O request ready yet?" before looking at the result of the I/O.
 
 Of course, repeatedly asking the OS if it's done can be tedious and consume resources. This is why
 there are system calls like [`epoll`]. Here, you can bundle together a bunch of unfinished I/O requests,
@@ -146,7 +146,7 @@ requests completes).
 
 (The exact mechanism involved here is probably more complex)
 
-So, bringing this to Rust, Rust has the [mio] library, which is basically a platform-agnostic
+So, bringing this to Rust, Rust has the [mio] library, which is a platform-agnostic
 wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It's a building block; and while
 those used to directly using `epoll` in C may find it helpful, it doesn't provide a nice programming
 model like Go does. But we can get there.
@@ -158,7 +158,7 @@ model like Go does. But we can get there.
 
 ## Futures
 
-These are another building block. A [`Future`] is basically the promise of eventually having a value
+These are another building block. A [`Future`] is the promise of eventually having a value
 (in fact, in Javascript these are called `Promise`s).
 
 So for example, you can ask to listen on a network socket, and get a `Future` back  (actually, a
@@ -184,7 +184,7 @@ very similar to a tiny stack!
 
 ## 🗼 Tokio 🗼
 
-Tokio's basically a nice wrapper around mio that uses futures. Tokio has a core
+Tokio's essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
 are ready to make a step[^3], and make progress on them (by calling `poll()`).
@@ -253,15 +253,16 @@ assert_eq!(generator.resume(), GeneratorState::Yielded(2));
 ```
 
 Functions are things which execute a task and return once. On the other hand, generators
-return multiple times; they basically pause execution to "yield" some data, and can be resumed
+return multiple times; they pause execution to "yield" some data, and can be resumed
 at which point they will run until the next yield. While my example doesn't show this, generators
 can also finish executing like regular functions.
 
 Closures in Rust are
-[basically sugar for a struct containing captured data, plus an implementation of one of the `Fn` traits to make it callable][closure-huon].
+[sugar for a struct containing captured data, plus an implementation of one of the `Fn` traits to make it callable][closure-huon].
 
-Generators are similar, except they implement the `Generator` trait, and usually store an enum representing various states.
-The [unstable book] has some examples on what this state machine enum will look like.
+Generators are similar, except they implement the `Generator` trait[^5], and usually store an enum representing various states.
+
+The [unstable book] has some examples on what the generator state machine enum will look like.
 
 This is much closer to what we were looking for! Now our code can look like this:
 
@@ -325,19 +326,20 @@ else you want as normal, and the code will still be clean.
  [closure-huon]: http://huonw.github.io/blog/2015/05/finding-closure-in-rust/
  [unstable book]: https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines
  [futures-await]: https://github.com/alexcrichton/futures-await
+ [^5]: The `Generator` trait has a `resume()` function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running.
 
 ## Tying it together
 
-So basically, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
+So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
 you can neatly write these future chains, and `await` provides explicit interruption points on each I/O operation.
 Tokio provides an event loop "scheduler" abstraction, which you can feed async functions to, and under the hood it
 uses mio to abstract over low level non-blocking I/O primitives.
 
 These are components which can be used independently &mdash; you can use tokio with futures without
-using async/await. You can use async/await without using Tokio. In fact, I think that would be
-useful for Servo's networking stack, which doesn't need to do _much_ parallel I/O (not at the order
-of thousands of threads), so can just use multiplexed OS threads, however the way data gets
-pipelined over would be neater to do via async/await.
+using async/await. You can use async/await without using Tokio. For example, I think this would be
+useful for Servo's networking stack. It doesn't need to do _much_ parallel I/O (not at the order
+of thousands of threads), so it can just use multiplexed OS threads. However, we'd still want
+to pool threads and pipeline data well, and async/await would help here.
 
 
 Put together, all these components get something almost as clean as the Go stuff, with a little more
@@ -345,4 +347,4 @@ explicit boilerplate. Because generators (and thus async/await) play nice with t
 (they're just enum state machines under the hood), Rust's safety guarantees are all still in play,
 and we get to have "fearless concurrency" for programs having a huge quantity of I/O bound tasks!
 
-_Thanks to Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post_
+_Thanks to Arshia Mufti, Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post_
