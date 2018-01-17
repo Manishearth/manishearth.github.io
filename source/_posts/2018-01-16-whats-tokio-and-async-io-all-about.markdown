@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "What's Tokio and Async IO all about?"
+title: "What are Tokio and Async IO all about?"
 date: 2018-01-10 14:16:43 +0530
 comments: true
 categories: [rust, programming, mozilla]
