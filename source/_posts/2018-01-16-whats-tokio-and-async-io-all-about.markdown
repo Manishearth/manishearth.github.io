@@ -87,8 +87,9 @@ goroutines in and out much like the operating system scheduler. It's able to do 
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.
 
-Essentialy, Go bytecode has a bunch of points scattered throughout it where it tells the scheduler and GC
-"take over if you want" (and also "I'm waiting on stuff, please take over").
+Essentialy, a compiled Go function will have a bunch of points scattered throughout it where it
+tells the scheduler and GC "take over if you want" (and also "I'm waiting on stuff, please take
+over").
 
 When a goroutine is swapped on an OS thread, some registers will be saved, and
 the program counter will switch to the new goroutine.
