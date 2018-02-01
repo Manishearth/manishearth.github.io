@@ -1,9 +1,9 @@
 ---
 layout: post
 title: "A rough proposal for sum types in Go"
-date: 2018-02-01 18:16:43 +0530
+date: 2018-02-01 20:26:26 +0530
 comments: true
-categories: [rust, programming, mozilla]
+categories: rust programming mozilla
 ---
 
 Sum types are pretty cool. Just like how a struct is basically "This contains one of these _and_ one of these",
