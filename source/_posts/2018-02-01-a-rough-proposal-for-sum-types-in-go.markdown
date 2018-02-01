@@ -39,7 +39,8 @@ of type safety -- if you add a message to your message passing system, you'll kn
 
 Go doesn't have these. Go _does_ have interfaces, which are dynamically dispatched. The drawback here
 is that you do not get the exhaustiveness condition, and consumers of your library can even add further
-cases. (And, of course, dynamic dispatch can be slow).
+cases. (And, of course, dynamic dispatch can be slow). You _can_ get exhaustiveness in Go with [external tools],
+but it's preferable to have such things in the language IMO.
 
 Many years ago when I was learning Go I wrote a [blog post] about what I liked and disliked
 as a Rustacean learning Go. Since then, I've spent a lot more time with Go, and I've learned to like each Go design decision that I initially
@@ -59,6 +60,7 @@ I think this "fits well" with the existing Go language design.
 
  [blog post]: http://inpursuitoflaziness.blogspot.in/2015/02/thoughts-of-rustacean-learning-go.html
  [go-sum-types-issue]: https://github.com/golang/go/issues/19412
+ [external tools]: https://github.com/haya14busa/gosum
 
 ## The proposal
 
