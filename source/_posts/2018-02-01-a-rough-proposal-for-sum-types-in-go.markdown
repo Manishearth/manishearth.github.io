@@ -77,6 +77,9 @@ type Foo interface {
 
 It doesn't even need to have functions defined on it.
 
+(I'm not strongly for the `for` keyword syntax, it's just a suggestion. The core idea is that
+you define an interface and you define the types it closes over. Somehow.)
+
 
 A better example would be an interface for a message-passing system for Raft:
 
