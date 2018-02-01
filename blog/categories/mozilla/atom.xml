@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mozilla | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/mozilla/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2018-02-01T13:07:32+00:00</updated>
+  <updated>2018-02-01T14:57:11+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,159 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[A Rough Proposal for Sum Types in Go]]></title>
+    <link href="http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go/"/>
+    <updated>2018-02-01T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go</id>
+    <content type="html"><![CDATA[<p>Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these <em>and</em> one of these&rdquo;,
+a sum type is &ldquo;This contains one of these <em>or</em> one of these&rdquo;.</p>
+
+<p>So for example, the following sum type in Rust:</p>
+
+<pre><code class="rust">enum Foo {
+    Stringy(String),
+    Numerical(u32)
+}
+</code></pre>
+
+<p>or Swift:</p>
+
+<pre><code class="swift">enum Foo {
+    case stringy(String),
+    case numerical(Int)
+}
+</code></pre>
+
+<p>would be one where it&rsquo;s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
+<em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
+
+<p>This can be pretty useful. For example, messages between threads are often of a &ldquo;this or that or that or that&rdquo;
+form.</p>
+
+<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> &ndash; you must list all
+the cases (or include a default arm) for your code to compile. This leads to a useful component
+of type safety &ndash; if you add a message to your message passing system, you&rsquo;ll know where to update it.</p>
+
+<p>Go doesn&rsquo;t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
+is that you do not get the exhaustiveness condition, and consumers of your library can even add further
+cases. (And, of course, dynamic dispatch can be slow).</p>
+
+<p>Many years ago when I was learning Go I wrote a <a href="http://inpursuitoflaziness.blogspot.in/2015/02/thoughts-of-rustacean-learning-go.html">blog post</a> about what I liked and disliked
+as a Rustacean learning Go. Since then, I&rsquo;ve spent a lot more time with Go, and I&rsquo;ve learned to like each Go design decision that I initially
+disliked, <em>except</em> for the lack of sum types. Most of my issues arose from &ldquo;trying to program Rust in Go&rdquo;,
+i.e. using idioms that are natural to Rust (or other languages I&rsquo;d used previously). Once I got used to the
+programming style, I realized that aside from the lack of sum types I really didn&rsquo;t find much missing
+from the language. Perhaps improvements to error handling.</p>
+
+<p>Now, my intention here isn&rsquo;t really to sell sum types. They&rsquo;re somewhat controversial for Go, and
+there are good arguments on both sides. You can see one discussion on this topic <a href="https://github.com/golang/go/issues/19412">here</a>.
+If I were to make a more concrete proposal I&rsquo;d probably try to motivate this in much more depth. But even
+I&rsquo;m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
+
+<p>Instead, I&rsquo;m going to try and sketch this proposal for sum types that has been floating around my
+mind for a while. I end up mentioning it often and it&rsquo;s nice to have something to link to. Overall,
+I think this &ldquo;fits well&rdquo; with the existing Go language design.</p>
+
+<h2>The proposal</h2>
+
+<p>The essence is pretty straightforward: Extend interfaces to allow for &ldquo;closed interfaces&rdquo;. These are
+interfaces that are only implemented for a small list of types.</p>
+
+<p>Writing the <code>Foo</code> sum type above would be:</p>
+
+<pre><code class="go">type Foo interface {
+    SomeFunction()
+    OtherFunction()
+    for string, int
+}
+</code></pre>
+
+<p>It doesn&rsquo;t even need to have functions defined on it.</p>
+
+<p>A better example would be an interface for a message-passing system for Raft:</p>
+
+<pre><code class="go">type VoteRequest struct {
+    CandidateId uint
+    Term uint
+    // ...
+}
+
+type VoteResponse struct {
+    Term uint
+    VoteGranted bool
+    VoterId uint
+}
+
+type AppendRequest struct {
+    //...
+}
+
+type AppendResponse struct {
+    //...
+}
+// ...
+type RaftMessage interface {
+    for VoteRequest, VoteResponse, AppendRequest, AppendResponse
+}
+</code></pre>
+
+<p>Now, you use type switches for dealing with these:</p>
+
+<pre><code class="go">switch value := msg.(type) {
+    case VoteRequest:
+        if value.Term &lt;= me.Term {
+            me.reject_vote(value.CandidateId)
+        } else {
+            me.accept_vote(value.CandidateId, value.Term)
+        }
+    case VoteResponse: // ...
+    case AppendRequest: // ...
+    case AppendResponse: // ...
+}
+</code></pre>
+
+<p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
+
+<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I&rsquo;m not sure
+what this entails for the GC design, but I&rsquo;d love to hear thoughts on this.</p>
+
+<p>We also make it possible to add methods to closed interfaces. This is in the spirit of
+<a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
+
+<pre><code class="go">func (message RaftMessage) Process(me Me) error {
+    // message handling logic
+}
+</code></pre>
+
+<p>for closed interfaces.</p>
+
+<p>This aligns more with how sum types are written and used in other languages; instead of assuming
+that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
+on the type but it can also just call other methods. This is really nice because you can write
+methods in <em>both</em> ways &ndash; if it&rsquo;s a &ldquo;responsibility of the inner type&rdquo; kind of method, require it in
+the interface and delegate it to the individual types. If it&rsquo;s a &ldquo;responsibility of the interface&rdquo;
+method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
+you sometimes end up writing things like:</p>
+
+<pre><code class="rust">match foo {
+    Foo::Stringy(s) =&gt; s.process(),
+    Foo::Numerical(n) =&gt; n.process(),
+    // ...
+}
+</code></pre>
+
+<p>Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
+proposal Go can have it both ways.</p>
+
+<hr />
+
+<p>Anyway, thoughts? This is a really rough proposal, and I&rsquo;m not sure how receptive other Gophers will be
+to this, nor how complex its implementation would be. I don&rsquo;t really intend to submit this as a formal proposal,
+but if someone else wants to they are more than welcome to build on this idea.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[What Are Tokio and Async IO All About?]]></title>
@@ -744,423 +897,6 @@ point. I&rsquo;ve filed <a href="https://github.com/Manishearth/rust-clippy/issu
 <p>And when I learned Rust, it only <em>had</em> two pages of docs, aka &ldquo;The Tutorial&rdquo;. Good times.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
 <p>I do eventually get around to doing a full read of the docs or a book but this is after I&rsquo;m already able to write nontrivial things in the language, and it takes a lot of time to get there.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mentally Modelling Modules]]></title>
-    <link href="http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/"/>
-    <updated>2017-05-14T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules</id>
-    <content type="html"><![CDATA[<p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
-learning the language. A lot of these confusions stem from a misunderstanding of how it works.
-In explaining this I&rsquo;ve seen that it&rsquo;s usually a common set of misunderstandings.</p>
-
-<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">&ldquo;You&rsquo;re doing it wrong&rdquo;</a>, I want to try and explain one
-&ldquo;right&rdquo; way of looking at it. You can go pretty far<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> without knowing this, but it&rsquo;s useful
-and helps avoid confusion.</p>
-
-<hr />
-
-<p><br></p>
-
-<p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
-&ldquo;look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents&rdquo;.
-It&rsquo;s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
-itself can be confusing at first, but it&rsquo;s not what I wish to focus on here. The Rust book explains this more
-in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
-
-<p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
-but keep in mind that the stuff here applies equally to multi-file crates.</p>
-
-<h3>Motivating examples</h3>
-
-<p>To start off, I&rsquo;m going to provide some examples of Rust code which compiles. Some of these may be
-counterintuitive, based on your existing model.</p>
-
-<pre><code class="rust">pub mod foo {
-    extern crate regex;
-
-    mod bar {
-        use foo::regex::Regex;
-    }
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
-
-<pre><code class="rust">use std::mem;
-
-
-pub mod foo {
-    // not std::mem::transmute!
-    use mem::transmute;
-
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
-
-<pre><code class="rust">pub mod foo {
-    use bar;
-    use bar::bar_inner;
-
-    fn foo() {
-        // this works!
-        bar_inner();
-        bar::bar_inner();
-        // this doesn't
-        // baz::baz_inner();
-
-        // but these do!
-        ::baz::baz_inner();
-        super::baz::baz_inner();
-
-        // these do too!
-        ::bar::bar_inner();
-        super::bar::bar_inner();
-        self::bar::bar_inner();
-
-    }
-}
-
-pub mod bar {
-    pub fn bar_inner() {}
-}
-pub mod baz {
-    pub fn baz_inner() {}
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
-
-<pre><code class="rust">pub mod foo {
-    use bar::baz;
-    // this won't work
-    // use baz::inner();
-
-    // this will
-    use self::baz::inner;
-    // or
-    // use bar::baz::inner
-
-    pub fn foo() {
-        // but this will work!
-        baz::inner();
-    }
-}
-
-pub mod bar {
-    pub mod baz {
-        pub fn inner() {}
-    }
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
-
-<p>These examples remind me of the &ldquo;point at infinity&rdquo; in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
-you add in things that don&rsquo;t normally exist. Similarly, these examples may contain code which
-is not traditional Rust style, but the import system
-still makes more sense when you include them.</p>
-
-<h3>Imports</h3>
-
-<p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
-
-<ul>
-<li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
-
-<ul>
-<li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
-</ul>
-</li>
-<li><code>foo::bar::baz</code> within your code<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
-
-<ul>
-<li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
-</ul>
-</li>
-</ul>
-
-
-<p>That&rsquo;s actually &hellip; it. There are no further caveats. The rest of this is modelling what
-constitutes as &ldquo;being within a module&rdquo;.</p>
-
-<p>Let&rsquo;s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
-module:</p>
-
-<pre><code class="rust">extern crate regex;
-
-mod foo {
-    use regex::Regex;
-
-    fn foo() {
-        // won't work
-        // let ex = regex::Regex::new("");
-        let ex = Regex::new("");
-    }
-}
-</code></pre>
-
-<p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
-pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we&rsquo;ve imported
-the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
-<code>use regex::Regex</code> works fine inside the module.</p>
-
-<p>Inline in code, <code>regex::Regex</code> won&rsquo;t work because as mentioned before inline paths are relative
-to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
-
-<p>Since we&rsquo;ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
-the module directly, so the code can just say <code>Regex::new()</code>.</p>
-
-<p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
-<code>blah</code> &ldquo;within the module&rdquo;, which is basically something like a symbolic link, saying
-&ldquo;yes this item named <code>blah</code> is actually elsewhere but we&rsquo;ll pretend it&rsquo;s within the module&rdquo;</p>
-
-<p>The error message from this code may further drive this home:</p>
-
-<pre><code class="rust">use foo::replace;
-
-pub mod foo {
-    use std::mem::replace;
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
-
-<p>The error I get is</p>
-
-<pre><code>error: function `replace` is private
- --&gt; src/main.rs:3:5
-  |
-3 | use foo::replace;
-  |     ^^^^^^^^^^^^
-</code></pre>
-
-<p>There&rsquo;s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
-
-<p>That&rsquo;s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
-
-<pre><code class="rust">pub mod foo {
-    fn replace(...) -&gt; ... {
-        ...
-    }
-
-    // here we can refer to `replace` freely (in inline paths)
-    fn whatever() {
-        // ...
-        let something = replace(blah);
-        // ...
-    }
-}
-</code></pre>
-
-<p>except it&rsquo;s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
-are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
-a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
-any extra qualification in inline paths.</p>
-
-<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says &ldquo;make this symlink, but let
-others see it too&rdquo;:</p>
-
-<pre><code class="rust">// works now!
-use foo::replace;
-
-pub mod foo {
-    pub use std::mem::replace;
-}
-</code></pre>
-
-<hr />
-
-<p><br></p>
-
-<p>Folks often get annoyed when this doesn&rsquo;t work:</p>
-
-<pre><code class="rust">mod foo {
-    use std::mem;
-    // nope
-    // use mem::replace;
-}
-</code></pre>
-
-<p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
-in the root module, so this won&rsquo;t work. We can make it work via <code>self</code>, which I mentioned
-before:</p>
-
-<pre><code class="rust">mod foo {
-    use std::mem;
-    // yep!
-    use self::mem::replace;
-}
-</code></pre>
-
-<p>Note that this brings overloading of the <code>self</code> keyword up to a grand total of <em>four</em>! Two cases
-which occur in the import/path system:</p>
-
-<ul>
-<li><code>use self::foo</code> means &ldquo;find me <code>foo</code> within the current module&rdquo;</li>
-<li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
-<li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-<li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
-</ul>
-
-
-<p>Oh well, at least it&rsquo;s not <code>static</code>.</p>
-
-<hr />
-
-<p><br><br></p>
-
-<p>Going back to one of the examples I gave at the beginning:</p>
-
-<pre><code class="rust">use std::mem;
-
-
-pub mod foo {
-    use mem::transmute;
-
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
-
-<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
-
-<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone&rsquo;s point
-of view, there&rsquo;s an item called <code>mem</code> in the root.</p>
-
-<p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
-already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
-actually belonging to the module. (Non-child modules won&rsquo;t see it because of privacy, we
-saw an example of this already)</p>
-
-<p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
-of <code>foo</code> via <code>use foo::whatever</code>, since <code>foo</code> is a child of the root module, and <code>use</code> is relative
-to the root. <code>foo</code> already has an item named <code>transmute</code> inside it because it imported one.
-Nothing in the parent module is private from the child, so we can <code>use foo::transmute</code> from
-<code>bar</code>.</p>
-
-<p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
-or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
-This is why we rarely see shenanigans like the above; there&rsquo;s nothing in the root crate
-to import, aside from other crates specified by <code>extern crate</code>. The trick of
-&ldquo;reimport something from the parent module&rdquo; is also pretty rare because there&rsquo;s basically no
-point to using that (just import it directly!). So this is not the kind of code
-you&rsquo;ll see in the wild.</p>
-
-<hr />
-
-<p><br></p>
-
-<p>Basically, the way the import system works can be summed up as:</p>
-
-<ul>
-<li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-<li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
-<li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
-<li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-<li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-<li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
-</ul>
-
-
-<p>Alright, on to the other half of this. Privacy.</p>
-
-<h3>Privacy</h3>
-
-<p>So how does privacy work?</p>
-
-<p>Privacy, too, follows some basic rules:</p>
-
-<ul>
-<li>If you can access a module, you can access all of its <code>pub</code> contents</li>
-<li>A module can always access its child modules, but not recursively
-
-<ul>
-<li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
-</ul>
-</li>
-<li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-<li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it&rsquo;s experimental so we won&rsquo;t deal with it here</li>
-</ul>
-
-
-<p>Giving some examples,</p>
-
-<pre><code class="rust">mod foo {
-    mod bar {
-        // can access `foo::foofunc`, even though `foofunc` is private
-
-        pub fn barfunc() {}
-
-    }
-    // can access `foo::bar::barfunc()`, even though `bar` is private
-    fn foofunc() {}
-}
-</code></pre>
-
-<pre><code class="rust">mod foo {
-    mod bar {
-        // We can access our parent and _all_ its contents,
-        // so we have access to `foo::baz`. We can access
-        // all pub contents of modules we have access to, so we
-        // can access `foo::baz::bazfunc`
-        use foo::baz::bazfunc;
-    }
-    mod baz {
-        pub fn bazfunc() {}
-    }
-}
-</code></pre>
-
-<p>It&rsquo;s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>:</p>
-
-<pre><code class="rust">pub mod foo {
-    /* not pub */ mod bar {
-        pub mod baz {
-            pub fn bazfunc() {}
-        }
-        pub mod quux {
-            use foo::bar::baz::bazfunc;
-        }
-    }
-}
-</code></pre>
-
-<p>We are able to write the path <code>foo::bar::baz::bazfunc</code> even though <code>bar</code> is private!</p>
-
-<p>This is because we still have <em>access</em> to the module <code>bar</code>, by being a descendent module.</p>
-
-<hr />
-
-<p><br></p>
-
-<p>Hopefully this is helpful to some of you. I&rsquo;m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn&rsquo;t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the &ldquo;empty lifetime&rdquo;</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can&rsquo;t exist, so we get a lifetime error.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>When I say &ldquo;within your code&rdquo;, I mean &ldquo;anywhere but a <code>use</code> statement&rdquo;. I may also term these as &ldquo;inline paths&rdquo;.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a><a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
