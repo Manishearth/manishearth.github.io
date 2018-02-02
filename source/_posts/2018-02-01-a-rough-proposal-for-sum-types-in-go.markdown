@@ -79,9 +79,11 @@ type Foo interface {
 
 It doesn't even need to have functions defined on it.
 
+The interface functions can only be called if you have an interface object; they are not directly available
+on variant types without explicitly casting (`Foo("...").SomeFunction()`).
+
 (I'm not strongly for the `for` keyword syntax, it's just a suggestion. The core idea is that
 you define an interface and you define the types it closes over. Somehow.)
-
 
 A better example would be an interface for a message-passing system for Raft:
 
@@ -165,6 +167,7 @@ match foo {
 
 Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
 proposal Go can have it both ways.
+
 
 
 ------
