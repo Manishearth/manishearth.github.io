@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Unicode | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/unicode/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2018-02-15T18:44:42+00:00</updated>
+  <updated>2018-02-15T18:48:19+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,179 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Picking Apart the Crashing iOS String]]></title>
+    <link href="http://manishearth.github.io/blog/2018/02/15/picking-apart-the-crashing-ios-string/"/>
+    <updated>2018-02-15T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2018/02/15/picking-apart-the-crashing-ios-string</id>
+    <content type="html"><![CDATA[<p>So there&rsquo;s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system text box (and other places), it crashes that
+process. I&rsquo;ve been testing it by copy-pasting characters into Spotlight so I don&rsquo;t end up crashing
+my browser.</p>
+
+<p>The original sequence is U+0C1C U+0C4D U+0C1E U+200C U+0C3E, which is a sequence of Telugu
+characters: the consonant ja (జ), a virama (్), the consonant nya (ఞ), a zero-width non-joiner, and
+the vowel aa (ా).</p>
+
+<p>I was pretty interested in what made this sequence &ldquo;special&rdquo;, and started investigating.</p>
+
+<p>So first when looking into this, I thought that the &lt;ja, virama, nya&gt; sequence was the culprit.
+That sequence forms a special ligature in many Indic scripts (ज्ञ in Devanagari) which is often
+considered a letter of its own. However, the ligature for Telugu doesn&rsquo;t seem very &ldquo;special&rdquo;.</p>
+
+<p>Also, from some experimentation, this bug seemed to occur for <em>any</em> pair of Telugu consonants with
+a vowel, as long as the vowel is not ై (ai). Huh.</p>
+
+<p>The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
+pretty common sequence in any Indic script; but ZWNJ before a vowel isn&rsquo;t very useful for most
+scripts (except for Bengali and Oriya, but I&rsquo;ll get to that).</p>
+
+<p>And then I saw that <a href="https://twitter.com/FakeUnicode/status/963300865762254848">there was a sequence in Bengali</a> that also crashed.</p>
+
+<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant &ldquo;so&rdquo; (স), a virama (্),
+the consonant &ldquo;ro&rdquo; (র), a ZWNJ, and vowel u (ু).</p>
+
+<p>Before we get too into this, let&rsquo;s first take a little detour to learn how Indic scripts work:</p>
+
+<h2>Indic scripts and consonant clusters</h2>
+
+<p>Indic scripts are <em>abugidas</em>; which means that their &ldquo;letters&rdquo; are consonants, which you
+can attach diacritics to to change the vowel. By default, consonants have a base vowel.
+So, for example, क is &ldquo;kuh&rdquo; (kə, often transcribed as &ldquo;ka&rdquo;), but I can change the vowel to make it के
+(the &ldquo;ka&rdquo; in &ldquo;okay&rdquo;) का (&ldquo;kaa&rdquo;, like &ldquo;car&rdquo;).</p>
+
+<p>Usually, the default vowel is the ə sound, though not always (in Bengali it&rsquo;s more of an o sound).</p>
+
+<p>Because of the &ldquo;default&rdquo; vowel, you need a way to combine consonants. For example, if you wished to
+write the word &ldquo;ski&rdquo;, you can&rsquo;t write it as स + की (sa + ki = &ldquo;saki&rdquo;), you must write it as स्की.
+What&rsquo;s happened here is that the स got its vowel &ldquo;killed&rdquo;, and got tacked on to the की to form a
+consonant cluster ligature.</p>
+
+<p>You can <em>also</em> write this as स्&zwnj;की . That little tail you see on the स is known as a &ldquo;virama&rdquo;;
+it basically means &ldquo;remove this vowel&rdquo;. Explicit viramas are sometimes used when there&rsquo;s no easy way
+to form a ligature, e.g. in ङ्क because there is no simple way to ligatureify ङ into क. Some scripts
+also <em>prefer</em> explicit viramas, e.g. &ldquo;ski&rdquo; in Malyalam is written as സ്കീ, where the little crescent
+is the explicit virama.</p>
+
+<p>In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
+&lt;स, ्, क, ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
+as a ligature, otherwise it will use an explicit virama.</p>
+
+<p>For Devanagari and Bengali, <em>usually</em>, in a consonant cluster the first consonant is munged a bit and the second consonant stays intact.
+There are exceptions &ndash; sometimes they&rsquo;ll form an entirely new glyph (क + ष = क्ष), and sometimes both
+glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = द्ब). Those last ones should look like this in conjunct form:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/conjuncts.png" width="200"></p>
+
+<h2>Investigating the Bengali case</h2>
+
+<p>Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
+consonant is র (&ldquo;ro&rdquo;). However, I can trigger it for any choice of the first consonant or vowel, except
+when the vowel is ৌ (au).</p>
+
+<p>Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
+it looks like र (&ldquo;ra&rdquo;). However, it does all kinds of things when forming a cluster. If you&rsquo;re having it
+precede another consonant in a cluster, it forms a little feather-like stroke, like in र्क (rka). In Marathi,
+that stroke can also look like a tusk, as in र्&zwj;क. As a suffix consonant, it can provide a little
+&ldquo;extra leg&rdquo;, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
+ठ्र (thra).</p>
+
+<p>Basically, while most consonants retain some of their form when put inside a cluster, र does not. And
+a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster &ndash; as I mentioned
+before, for most consonant clusters the second consonant stays intact. While there are exceptions, they are usually
+specific to the cluster; it is only र for which this happens for all clusters.</p>
+
+<p>It&rsquo;s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
+প + র (po + ro) gives প্র (pro).</p>
+
+<p>But it&rsquo;s not just র that does this in Bengali, the consonant &ldquo;jo&rdquo; does as well. প + য (po + jo) forms প্য (pjo),
+and the য is transformed into a wavy line called a &ldquo;jophola&rdquo;.</p>
+
+<p>So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
+So the general Bengali case is &ltr;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  ৌ.</p>
+
+<h2>Suffix-joining consonants</h2>
+
+<p>So we&rsquo;re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
+combines with the first consonant without modifying its form much.</p>
+
+<p>In fact, this is the case for Telugu as well! Consonant clusters in Telugu are usually formed by preserving the
+original consonant, and tacking the second consonant on below!</p>
+
+<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn&rsquo;t
+really modified, but the second is.</p>
+
+<p>From this, we can guess that it will also occur for Devanagari with र. Indeed it does! U+0915 U+094D U+0930 U+200C U+093E, that is,
+&lt;क, ्, र, zwnj, ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
+
+<p>But this isn&rsquo;t really the whole story, is it? For example, the crash does occur for &ldquo;kro&rdquo; + zwnj + vowel in Bengali,
+and in &ldquo;kro&rdquo; (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
+the crash doesn&rsquo;t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
+
+<p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
+form &ldquo;suffix joining consonants&rdquo; (a term I made up) when preceded by a virama</p>
+
+<p>For example, the sequence virama + क gives ्क, i.e. it renders a virama with a placeholder followed by a क.</p>
+
+<p>But, for र, virama + र renders ्र, which for me looks like this:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/virama-ra.png" width="200"></p>
+
+<p>In fact, this is the case for the other consonants as well. For me, ्र ্র ্য ్ఞ ్క
+(Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
+all render as &ldquo;suffix joining consonants&rdquo;:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/virama-consonant.png" width="200"></p>
+
+<p>(This is true for all Telugu consonants, not just the ones listed).</p>
+
+<p>Kannada <em>also</em> has &ldquo;suffix joining consonants&rdquo;, but for some reason I cannot trigger the crash with it.</p>
+
+<h2>The ZWNJ</h2>
+
+<p>The ZWNJ is curious. The crash doesn&rsquo;t happen without it, but as I mentioned before a ZWNJ before a vowel
+doesn&rsquo;t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
+virama if used after the virama (I used it to write स्&zwnj;की in this post), however that&rsquo;s not how it&rsquo;s being used here.</p>
+
+<p>In Bengali and Oriya specifically, a ZWNJ can be used to force a different vowel form when used before a vowel
+(e.g. রু vs র&zwnj;ু), however this bug seems to apply to vowels for which there is only one form, and this bug
+also applies to other scripts where this isn&rsquo;t the case anyway.</p>
+
+<h2>Generalizing</h2>
+
+<p>So, ultimately, the full set of cases that cause the crash are:</p>
+
+<p>Any sequence <code>&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
+
+<ul>
+<li><code>consonant2</code> is suffix-joining &ndash; i.e. र, র, য, and all Telugu consonants</li>
+<li><code>vowel</code> is not ై or ৌ</li>
+</ul>
+
+
+<p>This leaves some questions open:</p>
+
+<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;.
+What&rsquo;s up with the exception vowels in Bengali and Telugu?</p>
+
+<h2>Conclusion</h2>
+
+<p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
+guess is that the &ldquo;affinity&rdquo; of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
+viramas into thinking the ZWNJ applies to the virama (it doesn&rsquo;t, there&rsquo;s a consonant in between), and this leads to some numbers
+not matching up and causing a buffer overflow or something.</p>
+
+<p>An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.</p>
+
+<p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which means that either
+the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m not sure what to think of either.</p>
+
+<p>I&rsquo;d love to hear if folks have further insight into this.</p>
+
+<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that&rsquo;s no fun 😂</small></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Breaking Our Latin-1 Assumptions]]></title>
