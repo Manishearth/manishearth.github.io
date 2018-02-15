@@ -3,7 +3,7 @@ layout: post
 title: "Picking apart the crashing iOS string"
 date: 2018-02-15 08:49:07 -0800
 comments: true
-categories: 
+categories: programming unicode
 ---
 
 So there's [yet another iOS text crash][article], where just looking at a particular string crashes
