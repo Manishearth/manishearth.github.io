@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these and one of these&rdquo;,
-a sum type is &ldquo;This &hellip;">
+  <meta name="description" content="So there&rsquo;s yet another iOS text crash, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +18,8 @@ a sum type is &ldquo;This &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these and one of these&rdquo;,
-a sum type is &ldquo;This contains one of these or one of these&rdquo;. So &hellip;">
+      <meta property="twitter:description" content="So there&rsquo;s yet another iOS text crash, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system text box (and other places), it crashes that &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -92,6 +92,199 @@ a sum type is &ldquo;This contains one of these or one of these&rdquo;. So &hell
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2018/02/15/picking-apart-the-crashing-ios-string/">Picking Apart the Crashing iOS String</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2018-02-15T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>So there&rsquo;s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system text box (and other places), it crashes that
+process. I&rsquo;ve been testing it by copy-pasting characters into Spotlight so I don&rsquo;t end up crashing
+my browser.</p>
+
+<p>The original sequence is U+0C1C U+0C4D U+0C1E U+200C U+0C3E, which is a sequence of Telugu
+characters: the consonant ja (జ), a virama (్), the consonant nya (ఞ), a zero-width non-joiner, and
+the vowel aa (ా).</p>
+
+<p>I was pretty interested in what made this sequence &ldquo;special&rdquo;, and started investigating.</p>
+
+<p>So first when looking into this, I thought that the &lt;ja, virama, nya&gt; sequence was the culprit.
+That sequence forms a special ligature in many Indic scripts (ज्ञ in Devanagari) which is often
+considered a letter of its own. However, the ligature for Telugu doesn&rsquo;t seem very &ldquo;special&rdquo;.</p>
+
+<p>Also, from some experimentation, this bug seemed to occur for <em>any</em> pair of Telugu consonants with
+a vowel, as long as the vowel is not ై (ai). Huh.</p>
+
+<p>The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
+pretty common sequence in any Indic script; but ZWNJ before a vowel isn&rsquo;t very useful for most
+scripts (except for Bengali and Oriya, but I&rsquo;ll get to that).</p>
+
+<p>And then I saw that <a href="https://twitter.com/FakeUnicode/status/963300865762254848">there was a sequence in Bengali</a> that also crashed.</p>
+
+<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant &ldquo;so&rdquo; (স), a virama (্),
+the consonant &ldquo;ro&rdquo; (র), a ZWNJ, and vowel u (ু).</p>
+
+<p>Before we get too into this, let&rsquo;s first take a little detour to learn how Indic scripts work:</p>
+
+<h2>Indic scripts and consonant clusters</h2>
+
+<p>Indic scripts are <em>abugidas</em>; which means that their &ldquo;letters&rdquo; are consonants, which you
+can attach diacritics to to change the vowel. By default, consonants have a base vowel.
+So, for example, क is &ldquo;kuh&rdquo; (kə, often transcribed as &ldquo;ka&rdquo;), but I can change the vowel to make it के
+(the &ldquo;ka&rdquo; in &ldquo;okay&rdquo;) का (&ldquo;kaa&rdquo;, like &ldquo;car&rdquo;).</p>
+
+<p>Usually, the default vowel is the ə sound, though not always (in Bengali it&rsquo;s more of an o sound).</p>
+
+<p>Because of the &ldquo;default&rdquo; vowel, you need a way to combine consonants. For example, if you wished to
+write the word &ldquo;ski&rdquo;, you can&rsquo;t write it as स + की (sa + ki = &ldquo;saki&rdquo;), you must write it as स्की.
+What&rsquo;s happened here is that the स got its vowel &ldquo;killed&rdquo;, and got tacked on to the की to form a
+consonant cluster ligature.</p>
+
+<p>You can <em>also</em> write this as स्&zwnj;की . That little tail you see on the स is known as a &ldquo;virama&rdquo;;
+it basically means &ldquo;remove this vowel&rdquo;. Explicit viramas are sometimes used when there&rsquo;s no easy way
+to form a ligature, e.g. in ङ्क because there is no simple way to ligatureify ङ into क. Some scripts
+also <em>prefer</em> explicit viramas, e.g. &ldquo;ski&rdquo; in Malyalam is written as സ്കീ, where the little crescent
+is the explicit virama.</p>
+
+<p>In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
+&lt;स, ्, क, ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
+as a ligature, otherwise it will use an explicit virama.</p>
+
+<p>For Devanagari and Bengali, <em>usually</em>, in a consonant cluster the first consonant is munged a bit and the second consonant stays intact.
+There are exceptions &ndash; sometimes they&rsquo;ll form an entirely new glyph (क + ष = क्ष), and sometimes both
+glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = द्ब). Those last ones should look like this in conjunct form:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/conjuncts.png" width="200"></p>
+
+<h2>Investigating the Bengali case</h2>
+
+<p>Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
+consonant is র (&ldquo;ro&rdquo;). However, I can trigger it for any choice of the first consonant or vowel, except
+when the vowel is ৌ (au).</p>
+
+<p>Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
+it looks like र (&ldquo;ra&rdquo;). However, it does all kinds of things when forming a cluster. If you&rsquo;re having it
+precede another consonant in a cluster, it forms a little feather-like stroke, like in र्क (rka). In Marathi,
+that stroke can also look like a tusk, as in र्&zwj;क. As a suffix consonant, it can provide a little
+&ldquo;extra leg&rdquo;, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
+ठ्र (thra).</p>
+
+<p>Basically, while most consonants retain some of their form when put inside a cluster, र does not. And
+a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster &ndash; as I mentioned
+before, for most consonant clusters the second consonant stays intact. While there are exceptions, they are usually
+specific to the cluster; it is only र for which this happens for all clusters.</p>
+
+<p>It&rsquo;s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
+প + র (po + ro) gives প্র (pro).</p>
+
+<p>But it&rsquo;s not just র that does this in Bengali, the consonant &ldquo;jo&rdquo; does as well. প + য (po + jo) forms প্য (pjo),
+and the য is transformed into a wavy line called a &ldquo;jophola&rdquo;.</p>
+
+<p>So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
+So the general Bengali case is &ltr;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  ৌ.</p>
+
+<h2>Suffix-joining consonants</h2>
+
+<p>So we&rsquo;re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
+combines with the first consonant without modifying its form much.</p>
+
+<p>In fact, this is the case for Telugu as well! Consonant clusters in Telugu are usually formed by preserving the
+original consonant, and tacking the second consonant on below!</p>
+
+<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn&rsquo;t
+really modified, but the second is.</p>
+
+<p>From this, we can guess that it will also occur for Devanagari with र. Indeed it does! U+0915 U+094D U+0930 U+200C U+093E, that is,
+&lt;क, ्, र, zwnj, ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
+
+<p>But this isn&rsquo;t really the whole story, is it? For example, the crash does occur for &ldquo;kro&rdquo; + zwnj + vowel in Bengali,
+and in &ldquo;kro&rdquo; (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
+the crash doesn&rsquo;t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
+
+<p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
+form &ldquo;suffix joining consonants&rdquo; (a term I made up) when preceded by a virama</p>
+
+<p>For example, the sequence virama + क gives ्क, i.e. it renders a virama with a placeholder followed by a क.</p>
+
+<p>But, for र, virama + र renders ्र, which for me looks like this:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/virama-ra.png" width="200"></p>
+
+<p>In fact, this is the case for the other consonants as well. For me, ्र ্র ্য ్ఞ ్క
+(Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
+all render as &ldquo;suffix joining consonants&rdquo;:</p>
+
+<p><img class="center" src="/images/post/unicode-crash/virama-consonant.png" width="200"></p>
+
+<p>(This is true for all Telugu consonants, not just the ones listed).</p>
+
+<p>Kannada <em>also</em> has &ldquo;suffix joining consonants&rdquo;, but for some reason I cannot trigger the crash with it.</p>
+
+<h2>The ZWNJ</h2>
+
+<p>The ZWNJ is curious. The crash doesn&rsquo;t happen without it, but as I mentioned before a ZWNJ before a vowel
+doesn&rsquo;t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
+virama if used after the virama (I used it to write स्&zwnj;की in this post), however that&rsquo;s not how it&rsquo;s being used here.</p>
+
+<p>In Bengali and Oriya specifically, a ZWNJ can be used to force a different vowel form when used before a vowel
+(e.g. রু vs র&zwnj;ু), however this bug seems to apply to vowels for which there is only one form, and this bug
+also applies to other scripts where this isn&rsquo;t the case anyway.</p>
+
+<h2>Generalizing</h2>
+
+<p>So, ultimately, the full set of cases that cause the crash are:</p>
+
+<p>Any sequence <code>&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
+
+<ul>
+<li><code>consonant2</code> is suffix-joining &ndash; i.e. र, র, য, and all Telugu consonants</li>
+<li><code>vowel</code> is not ై or ৌ</li>
+</ul>
+
+
+<p>This leaves some questions open:</p>
+
+<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;.
+What&rsquo;s up with the exception vowels in Bengali and Telugu?</p>
+
+<h2>Conclusion</h2>
+
+<p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
+guess is that the &ldquo;affinity&rdquo; of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
+viramas into thinking the ZWNJ applies to the virama (it doesn&rsquo;t, there&rsquo;s a consonant in between), and this leads to some numbers
+not matching up and causing a buffer overflow or something.</p>
+
+<p>An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.</p>
+
+<p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which means that either
+the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m not sure what to think of either.</p>
+
+<p>I&rsquo;d love to hear if folks have further insight into this.</p>
+
+<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that&rsquo;s no fun 😂</small></p>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -2801,96 +2994,6 @@ and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2017/04/05/youre-doing-it-wrong/">You&#8217;re Doing It Wrong</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-<time class='entry-date' datetime='2017-04-05T00:00:00+00:00'><span class='date'><span class='date-month'>Apr</span> <span class='date-day'>5</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>&ldquo;You&rsquo;re doing it wrong&rdquo;</p>
-
-<p>A common refrain in issue trackers and discussion forums everywhere. In isolation,
-it&rsquo;s a variant of RTFM &ndash; give a non-answer when someone wants help, and bounce them
-back to a manual or docs which they probably have already read. Not very helpful,
-and not useful to anyone. Of course, one can accompany it with a nice explanation
-of how to do it right; &ldquo;You&rsquo;re doing it wrong&rdquo; isn&rsquo;t always a bad thing :)</p>
-
-<p>Especially when it comes to programming languages, but in general in the context of any programming
-tool or library, &ldquo;you&rsquo;re doing it wrong&rdquo; is almost always due to a &ldquo;bad&rdquo; mental model. The person, whilst
-learning, has built a mental model of how the tool works, but this doesn&rsquo;t accurately reflect
-reality. Other times, it does reflect reality, but it does not reflect the mental model of the
-maintainers (there can be multiple valid ways of looking at something!),
-which leads to an impedance mismatch when reading docs or error messages.</p>
-
-<p>In other cases, &ldquo;doing it wrong&rdquo; is a <a href="https://meta.stackexchange.com/q/66377/178438">case of the XY problem</a>, where the user has problem X,
-and think they can solve it with solution Y, and end up asking how they can achieve Y. This happens pretty
-often &mdash; folks may be approaching your technology with prior experience with related things
-that work differently, and may think the same idioms apply.</p>
-
-<p>When I was at <a href="https://maintainerati.org/">WONTFIX</a>, someone who had done support work in the past mentioned that one
-thing everyone learns in support is <strong>&ldquo;the user is always wrong &hellip;. and it&rsquo;s not their fault!&rdquo;</strong>.</p>
-
-<p>This is a pretty good template for an attitude to approach &ldquo;doing it wrong&rdquo; questions about your
-technology on online forums as well. And this doesn&rsquo;t just benefit the users who ask questions,
-this attitude can benefit your technology!</p>
-
-<p>Back when I used to be more active contributing to the Rust compiler, I also used to hang out in
-<code>#rust</code> a lot, and often answer newbie questions (now <code>#rust-beginners</code> exists too, and I hang out
-in both, but I don&rsquo;t really actively participate as much). One thing I learned to do was probe
-deeper into why people hit that confusion in the first place. It&rsquo;s almost always a &ldquo;bad&rdquo; mental
-model. Rust is rarely the first programming language folks learn, and people approach it with
-preconceptions about how programming works. This isn&rsquo;t unique to Rust, this happens any time someone
-learns a language with a different paradigm &mdash; learning C or C++ after doing a GCd language,
-learning a functional language after an imperative one, statically typed after dynamic, or one of
-the many other axes by which programming languages differ.</p>
-
-<p>Other times, it&rsquo;s just assumptions they made when reading between the lines of whatever resource
-they used to learn the language.</p>
-
-<p>So, anyway, folks often have a &ldquo;bad&rdquo; mental model. If we are able to identify that model and correct
-it, we have saved that person from potentially getting confused at every step in the future. Great!</p>
-
-<p>With a <em>tiny</em> bit more effort, however, we can do one step better. Not for that person, but for
-ourselves! We can probe a bit more and try to understand what caused them to obtain that mental
-model. And fix the docs so that it never happens again! Of course, not everyone reads the docs, but
-that&rsquo;s what diagnostics are for (in the case of errors). They&rsquo;re a tool to help us nudge the user
-towards the right mental model, whilst helping them fix their immediate problem. Rust has for a long
-time had pretty great diagnostics, with improvements happening all the time<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I think this is at
-least in part due to the attitude of the folks in <code>#rust</code>; always trying to figure out how to
-preempt various confusions they see.</p>
-
-<p>It&rsquo;s a good attitude to have. I hope more folks, both in and out of the Rust community, approach
-&ldquo;You&rsquo;re doing it wrong&rdquo; cases like that.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Diagnostics issues are often the easiest way to contribute to the compiler itself, so if you want to contribute, I suggest starting there. Willing to mentor!<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/2">&larr; Older</a>
@@ -2919,6 +3022,10 @@ preempt various confusions they see.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2018/02/15/picking-apart-the-crashing-ios-string/">Picking Apart the Crashing iOS String</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go/">A Rough Proposal for Sum Types in Go</a>
       </li>
     
@@ -2932,10 +3039,6 @@ preempt various confusions they see.</p>
     
       <li class="post">
         <a href="/blog/2017/12/24/undefined-vs-unsafe-in-rust/">Undefined vs Unsafe in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/">Font-size: An Unexpectedly Complex CSS Property</a>
       </li>
     
   </ul>
