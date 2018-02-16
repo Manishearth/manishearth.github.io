@@ -44,6 +44,9 @@ In Arabic, the letters can have up to four different forms, depending on whether
 end a word, are inside a word, or are used by themselves. These forms can look very different. They
 don't use separate code points for this; however. You can see a list of these forms [here][ar-forms]
 
+Arabic can get pretty tricky -- the characters have to join up; and in cursive fonts (like those for Nastaliq),
+you get a lot of complex ligatures.
+
 As I mentioned in the last post, U+FDFD (﷽), a ligature representing the Basamala,
 is also a character that breaks a lot of assumptions.
 
