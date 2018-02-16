@@ -57,7 +57,7 @@ consonant cluster ligature.
 You can _also_ write this as स्&zwnj;की . That little tail you see on the स is known as a "virama";
 it basically means "remove this vowel". Explicit viramas are sometimes used when there's no easy way
 to form a ligature, e.g. in ङ्&zwnj;ठ because there is no simple way to ligatureify ङ into ठ. Some scripts
-also _prefer_ explicit viramas, e.g. "ski" in Malyalam is written as സ്കീ, where the little crescent
+also _prefer_ explicit viramas, e.g. "ski" in Malayalam is written as സ്കീ, where the little crescent
 is the explicit virama.
 
 In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
