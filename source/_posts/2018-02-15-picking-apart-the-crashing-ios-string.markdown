@@ -75,7 +75,7 @@ glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = �
 
 Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
 consonant is র ("ro"). However, I can trigger it for any choice of the first consonant or vowel, except
-when the vowel is &#xA0;ৌ (au).
+when the vowel is &#xA0;ো (o) or &#xA0;ৌ (au).
 
 Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
 it looks like र ("ra"). However, it does all kinds of things when forming a cluster. If you're having it
@@ -96,7 +96,7 @@ But it's not just র that does this in Bengali, the consonant "jo" does as well
 and the য is transformed into a wavy line called a "jophola".
 
 So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
-So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#xA0;ৌ.
+So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#xA0;ো or &#xA0;ৌ.
 
 ## Suffix-joining consonants
 
@@ -133,7 +133,15 @@ all render as "suffix joining consonants":
 
 (This is true for all Telugu consonants, not just the ones listed).
 
+An interesting bit is that the crash does not occur for &lt;र, virama, र, zwnj, vowel&gt;, because र-virama-र
+uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ. Because the virama
+is "sticker" to the left in these cases, it doesn't cause a crash. (h/t [hackbunny] for discovering this
+using a [script][viramarama] to enumerate all cases).
+ 
 Kannada _also_ has "suffix joining consonants", but for some reason I cannot trigger the crash with it.
+
+ [hackbunny]: https://github.com/hackbunny
+ [viramarama]: https://github.com/hackbunny/viramarama
 
 ## The ZWNJ
 
@@ -153,6 +161,7 @@ So, ultimately, the full set of cases that cause the crash are:
 Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Bengali, and Telugu, where:
 
  - `consonant2` is suffix-joining -- i.e. र, র, য, and all Telugu consonants
+ - If `consonant2` is  र or র, `consonant1` is not the same letter (or a variant, like ৰ)
  - `vowel` is not &#xA0;ై or &#xA0;ৌ
 
 This leaves some questions open:
