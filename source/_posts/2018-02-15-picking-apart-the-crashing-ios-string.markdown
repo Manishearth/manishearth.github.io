@@ -96,7 +96,7 @@ But it's not just র that does this in Bengali, the consonant "jo" does as well
 and the য is transformed into a wavy line called a "jophola".
 
 So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
-So the general Bengali case is &ltr;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#xA0;ৌ.
+So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#xA0;ৌ.
 
 ## Suffix-joining consonants
 
