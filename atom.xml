@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2018-02-17T20:49:09+00:00</updated>
+  <updated>2018-02-17T21:00:53+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -34,7 +34,7 @@ That sequence forms a special ligature in many Indic scripts (ज्ञ in Devan
 considered a letter of its own. However, the ligature for Telugu doesn&rsquo;t seem very &ldquo;special&rdquo;.</p>
 
 <p>Also, from some experimentation, this bug seemed to occur for <em>any</em> pair of Telugu consonants with
-a vowel, as long as the vowel is not &#xA0;ై (ai). Huh.</p>
+a vowel, as long as the vowel is not &nbsp;&#xA0;ై (ai). Huh.</p>
 
 <p>The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
 pretty common sequence in any Indic script; but ZWNJ before a vowel isn&rsquo;t very useful for most
@@ -123,7 +123,7 @@ and in &ldquo;kro&rdquo; (ক্র = ক + র = ko + ro) the resultant cluster
 the crash doesn&rsquo;t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
 
 <p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
-form &ldquo;suffix joining consonants&rdquo; (a term I made up) when preceded by a virama</p>
+form &ldquo;suffix joining consonants&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> (a term I made up) when preceded by a virama.</p>
 
 <p>For example, the sequence virama + क gives &nbsp;&#xA0;्क, i.e. it renders a virama with a placeholder followed by a क.</p>
 
@@ -156,6 +156,18 @@ virama if used after the virama (I used it to write स्&zwnj;की in this p
 (e.g. রু vs র&zwnj;ু), however this bug seems to apply to vowels for which there is only one form, and this bug
 also applies to other scripts where this isn&rsquo;t the case anyway.</p>
 
+<p>The exception vowels are interesting. They&rsquo;re basically all vowels that are made up of <em>two</em> glyph components. Philippe Verdy
+points out:</p>
+
+<blockquote><p>And why this bug does not occur with some vowels is because these are vowels in two parts,
+that are first decomposed into two separate glyphs reordered in the buffer of glyphs, while
+other vowels do not need this prior mapping and keep their initial direct mapping from their
+codepoints in fonts, which means that this has to do to the way the ZWNJ looks for the glyphs
+of the vowels in the glyphs buffer and not in the initial codepoints buffer: there&rsquo;s some desynchronization,
+and more probably an uninitialized data field (for the lookup made in handling ZWNJ) if no vowel decomposition was done
+(the same data field is correctly initialized when it is the first consonnant which takes an alternate form before
+a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.</p></blockquote>
+
 <h2>Generalizing</h2>
 
 <p>So, ultimately, the full set of cases that cause the crash are:</p>
@@ -165,30 +177,39 @@ also applies to other scripts where this isn&rsquo;t the case anyway.</p>
 <ul>
 <li><code>consonant2</code> is suffix-joining &ndash; i.e. र, র, য, and all Telugu consonants</li>
 <li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
-<li><code>vowel</code> is not &#xA0;ై or &#xA0;ৌ</li>
+<li><code>vowel</code> does not have two glyph components, i.e. it is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ</li>
 </ul>
 
 
 <p>This leaves some questions open:</p>
 
-<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;.
-What&rsquo;s up with the exception vowels in Bengali and Telugu?</p>
+<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;.</p>
 
 <h2>Conclusion</h2>
 
 <p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
 guess is that the &ldquo;affinity&rdquo; of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
 viramas into thinking the ZWNJ applies to the virama (it doesn&rsquo;t, there&rsquo;s a consonant in between), and this leads to some numbers
-not matching up and causing a buffer overflow or something.</p>
+not matching up and causing a buffer overflow or something. Philippe&rsquo;s diagnosis of the vowel situation matches up with this.</p>
 
 <p>An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.</p>
 
-<p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which means that either
-the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m not sure what to think of either.</p>
+<p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which
+means that either the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m
+not sure what to think of either. Looking at the backtraces, the crash seems to occur in different
+places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncovered later.</p>
 
 <p>I&rsquo;d love to hear if folks have further insight into this.</p>
 
 <p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that&rsquo;s no fun 😂</small></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Philippe Verdy points out that these may be called &ldquo;phala forms&rdquo; at least for Bengali<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
 ]]></content>
   </entry>
   
