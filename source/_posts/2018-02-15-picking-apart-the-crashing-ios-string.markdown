@@ -23,7 +23,7 @@ That sequence forms a special ligature in many Indic scripts (ज्ञ in Devan
 considered a letter of its own. However, the ligature for Telugu doesn't seem very "special".
 
 Also, from some experimentation, this bug seemed to occur for _any_ pair of Telugu consonants with
-a vowel, as long as the vowel is not &#xA0;ై (ai). Huh.
+a vowel, as long as the vowel is not &nbsp;&#xA0;ై (ai). Huh.
 
 The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
 pretty common sequence in any Indic script; but ZWNJ before a vowel isn't very useful for most
@@ -162,7 +162,7 @@ Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Beng
 
  - `consonant2` is suffix-joining -- i.e. र, র, য, and all Telugu consonants
  - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
- - `vowel` is not &#xA0;ై or &#xA0;ৌ
+ - `vowel` is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ
 
 This leaves some questions open:
 
