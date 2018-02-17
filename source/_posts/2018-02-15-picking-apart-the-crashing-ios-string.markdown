@@ -117,7 +117,7 @@ and in "kro" (ক্র = ক + র = ko + ro) the resultant cluster involves th
 the crash doesn't occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.
 
 Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
-form "suffix joining consonants" (a term I made up) when preceded by a virama
+form "suffix joining consonants"[^1] (a term I made up) when preceded by a virama.
 
 For example, the sequence virama + क gives &nbsp;&#xA0;्क, i.e. it renders a virama with a placeholder followed by a क.
 
@@ -142,6 +142,7 @@ Kannada _also_ has "suffix joining consonants", but for some reason I cannot tri
 
  [hackbunny]: https://github.com/hackbunny
  [viramarama]: https://github.com/hackbunny/viramarama
+ [^1]: Philippe Verdy points out that these may be called "phala forms" at least for Bengali
 
 ## The ZWNJ
 
@@ -154,6 +155,19 @@ In Bengali and Oriya specifically, a ZWNJ can be used to force a different vowel
 also applies to other scripts where this isn't the case anyway.
 
 
+The exception vowels are interesting. They're basically all vowels that are made up of _two_ glyph components. Philippe Verdy
+points out:
+
+> And why this bug does not occur with some vowels is because these are vowels in two parts,
+> that are first decomposed into two separate glyphs reordered in the buffer of glyphs, while
+> other vowels do not need this prior mapping and keep their initial direct mapping from their
+> codepoints in fonts, which means that this has to do to the way the ZWNJ looks for the glyphs
+> of the vowels in the glyphs buffer and not in the initial codepoints buffer: there's some desynchronization,
+> and more probably an uninitialized data field (for the lookup made in handling ZWNJ) if no vowel decomposition was done
+> (the same data field is correctly initialized when it is the first consonnant which takes an alternate form before
+> a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.
+
+
 ## Generalizing
 
 So, ultimately, the full set of cases that cause the crash are:
@@ -162,12 +176,11 @@ Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Beng
 
  - `consonant2` is suffix-joining -- i.e. र, র, য, and all Telugu consonants
  - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
- - `vowel` is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ
+ - `vowel` does not have two glyph components, i.e. it is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ
 
-This leaves some questions open:
+This leaves one question open:
 
 Why doesn't it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a "coeng".
-What's up with the exception vowels in Bengali and Telugu?
 
 
 ## Conclusion
@@ -175,12 +188,14 @@ What's up with the exception vowels in Bengali and Telugu?
 I don't really have _one_ guess as to what's going on here -- I'd love to see what people think -- but my current
 guess is that the "affinity" of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
 viramas into thinking the ZWNJ applies to the virama (it doesn't, there's a consonant in between), and this leads to some numbers
-not matching up and causing a buffer overflow or something.
+not matching up and causing a buffer overflow or something. Philippe's diagnosis of the vowel situation matches up with this.
 
 An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.
 
-Additionally, _sometimes_ it actually renders in spotlight for a split second before crashing; which means that either
-the crash isn't deterministic, or it occurs in some process _after_ rendering. I'm not sure what to think of either.
+Additionally, _sometimes_ it actually renders in spotlight for a split second before crashing; which
+means that either the crash isn't deterministic, or it occurs in some process _after_ rendering. I'm
+not sure what to think of either. Looking at the backtraces, the crash seems to occur in different
+places, so it's likely that it's memory corruption that gets uncovered later.
 
 I'd love to hear if folks have further insight into this.
 
