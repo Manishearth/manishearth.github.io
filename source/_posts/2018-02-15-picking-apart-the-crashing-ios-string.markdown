@@ -134,7 +134,7 @@ all render as "suffix joining consonants":
 (This is true for all Telugu consonants, not just the ones listed).
 
 An interesting bit is that the crash does not occur for &lt;र, virama, र, zwnj, vowel&gt;, because र-virama-र
-uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ. Because the virama
+uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ or য. Because the virama
 is "sticker" to the left in these cases, it doesn't cause a crash. (h/t [hackbunny] for discovering this
 using a [script][viramarama] to enumerate all cases).
  
@@ -161,7 +161,7 @@ So, ultimately, the full set of cases that cause the crash are:
 Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Bengali, and Telugu, where:
 
  - `consonant2` is suffix-joining -- i.e. र, র, য, and all Telugu consonants
- - If `consonant2` is  र or র, `consonant1` is not the same letter (or a variant, like ৰ)
+ - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
  - `vowel` is not &#xA0;ై or &#xA0;ৌ
 
 This leaves some questions open:
