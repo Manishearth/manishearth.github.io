@@ -118,7 +118,7 @@ the crash doesn't occur for द्ब or ड्ड. It seems to be specific to t
 
 Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
 form "suffix joining consonants"[^1] (a term I made up) when preceded by a virama. This seems to
-correspond to the [`pstf` OpenType feature][pstf].
+correspond to the [`pstf` OpenType feature][pstf], as well as [`vatu`][vatu].
 
 For example, the sequence virama + क gives &nbsp;&#xA0;्क, i.e. it renders a virama with a placeholder followed by a क.
 
@@ -145,6 +145,7 @@ is also suffix-joining.
  [hackbunny]: https://github.com/hackbunny
  [viramarama]: https://github.com/hackbunny/viramarama
  [pstf]: https://docs.microsoft.com/en-us/typography/opentype/spec/features_pt#tag-pstf
+ [vatu]: https://docs.microsoft.com/en-us/typography/opentype/spec/features_uz#vatu
  [^1]: Philippe Verdy points out that these may be called "phala forms" at least for Bengali
 
 ## The ZWNJ
@@ -177,7 +178,7 @@ So, ultimately, the full set of cases that cause the crash are:
 
 Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Bengali, and Telugu, where:
 
- - `consonant2` is suffix-joining (`pstf`) -- i.e. र, র, য, and all Telugu consonants
+ - `consonant2` is suffix-joining (`pstf`/`vatu`) -- i.e. र, র, য, and all Telugu consonants
  - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
  - `vowel` does not have two glyph components, i.e. it is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ
 
