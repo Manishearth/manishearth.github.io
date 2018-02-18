@@ -203,4 +203,6 @@ places, so it's likely that it's memory corruption that gets uncovered later.
 
 I'd love to hear if folks have further insight into this.
 
+Update: Philippe on the Unicode mailing list has [an interesting theory](https://www.unicode.org/mail-arch/unicode-ml/y2018-m02/0103.html)
+
 <small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that's no fun 😂</small>
