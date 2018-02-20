@@ -186,6 +186,36 @@ This leaves one question open:
 
 Why doesn't it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a "coeng".
 
+## Are these valid strings?
+
+A recurring question I'm getting is if these strings are valid in the language, or unicode gibberish
+like Zalgo text. Breaking it down:
+
+ - All of the _rendered_ glyphs are valid. The original Telugu one is the root of the word for
+   "knowledge" (and I've taken to calling this bug "forbidden knowledge" for that reason).
+ - In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
+   should not be there, and one would not expect it in typical text.
+ - In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
+   mentioned in the Unicode spec. However, it seems rare for native speakers to use this.
+ - In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
+   over a ligature. That is not the position ZWNJ is used here, but it gives a hint that this
+   might have been a mistype. Doing this is _also_ rare at least for Devanagari (and I believe
+   for the other two scripts as well)
+ - Android has an explicit key for ZWNJ on its keyboards for these languages[^2], right next to the spacebar. iOS has this as
+   well on the long-press of the virama key. _Very_ easy to mistype, at least for Android.
+
+
+So while the crashing strings are usually invalid, and when not, very rare, they are easy enough to mistype.
+
+An example by [@FakeUnicode] was the string "For/k" (or "Foŕk", if accents were easier to type). A
+slash isn't something you'd normally type there, and the produced string is gibberish, but it's easy enough to type
+by accident.
+
+Except of course that the mistake in "For/k"/"Foŕk" is visually obvious and would be fixed; this
+isn't the case for most of the crashing strings.
+
+ [^2]: I don't think the Android keyboard _needs_ this key; the keyboard seems very much a dump of "what does this unicode block let us do", and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as _extremely_ archaic characters, whilst neglecting more common things like the eyelash reph (which doesn't have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence).
+ [@FakeUnicode]: https://twitter.com/FakeUnicode
 
 ## Conclusion
 
@@ -204,5 +234,6 @@ places, so it's likely that it's memory corruption that gets uncovered later.
 I'd love to hear if folks have further insight into this.
 
 Update: Philippe on the Unicode mailing list has [an interesting theory](https://www.unicode.org/mail-arch/unicode-ml/y2018-m02/0103.html)
+
 
 <small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that's no fun 😂</small>
