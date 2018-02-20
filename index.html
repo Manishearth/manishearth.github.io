@@ -283,6 +283,36 @@ a virama, like in most Indic consonnant clusters, because the a glyph buffer is 
 
 <p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;.</p>
 
+<h2>Are these valid strings?</h2>
+
+<p>A recurring question I&rsquo;m getting is if these strings are valid in the language, or unicode gibberish
+like Zalgo text. Breaking it down:</p>
+
+<ul>
+<li>All of the <em>rendered</em> glyphs are valid. The original Telugu one is the root of the word for
+&ldquo;knowledge&rdquo; (and I&rsquo;ve taken to calling this bug &ldquo;forbidden knowledge&rdquo; for that reason).</li>
+<li>In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
+should not be there, and one would not expect it in typical text.</li>
+<li>In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
+mentioned in the Unicode spec. However, it seems rare for native speakers to use this.</li>
+<li>In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
+over a ligature. That is not the position ZWNJ is used here, but it gives a hint that this
+might have been a mistype. Doing this is <em>also</em> rare at least for Devanagari (and I believe
+for the other two scripts as well)</li>
+<li>Android has an explicit key for ZWNJ on its keyboards for these languages<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, right next to the spacebar. iOS has this as
+well on the long-press of the virama key. <em>Very</em> easy to mistype, at least for Android.</li>
+</ul>
+
+
+<p>So while the crashing strings are usually invalid, and when not, very rare, they are easy enough to mistype.</p>
+
+<p>An example by <a href="https://twitter.com/FakeUnicode">@FakeUnicode</a> was the string &ldquo;For/k&rdquo; (or &ldquo;Foŕk&rdquo;, if accents were easier to type). A
+slash isn&rsquo;t something you&rsquo;d normally type there, and the produced string is gibberish, but it&rsquo;s easy enough to type
+by accident.</p>
+
+<p>Except of course that the mistake in &ldquo;For/k&rdquo;/&ldquo;Foŕk&rdquo; is visually obvious and would be fixed; this
+isn&rsquo;t the case for most of the crashing strings.</p>
+
 <h2>Conclusion</h2>
 
 <p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
@@ -307,6 +337,8 @@ places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncover
 <ol>
 <li id="fn:1">
 <p>Philippe Verdy points out that these may be called &ldquo;phala forms&rdquo; at least for Bengali<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>I don&rsquo;t think the Android keyboard <em>needs</em> this key; the keyboard seems very much a dump of &ldquo;what does this unicode block let us do&rdquo;, and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as <em>extremely</em> archaic characters, whilst neglecting more common things like the eyelash reph (which doesn&rsquo;t have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence).<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
