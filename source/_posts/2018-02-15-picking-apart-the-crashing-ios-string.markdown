@@ -12,8 +12,8 @@ process. I've been testing it by copy-pasting characters into Spotlight so I don
 my browser.
 
 The original sequence is U+0C1C U+0C4D U+0C1E U+200C U+0C3E, which is a sequence of Telugu
-characters: the consonant ja (జ), a virama (&#xA0;్&#xA0;), the consonant nya (ఞ), a zero-width non-joiner, and
-the vowel aa (&#xA0;ా).
+characters: the consonant ja (జ), a virama (&#8239;్&#8239;), the consonant nya (ఞ), a zero-width non-joiner, and
+the vowel aa (&#8239;ా).
 
 I was pretty interested in what made this sequence "special", and started investigating.
 
@@ -23,7 +23,7 @@ That sequence forms a special ligature in many Indic scripts (ज्ञ in Devan
 considered a letter of its own. However, the ligature for Telugu doesn't seem very "special".
 
 Also, from some experimentation, this bug seemed to occur for _any_ pair of Telugu consonants with
-a vowel, as long as the vowel is not &nbsp;&#xA0;ై (ai). Huh.
+a vowel, as long as the vowel is not &nbsp;&#8239;ై (ai). Huh.
 
 The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
 pretty common sequence in any Indic script; but ZWNJ before a vowel isn't very useful for most
@@ -31,8 +31,8 @@ scripts (except for Bengali and Oriya, but I'll get to that).
 
 And then I saw that [there was a sequence in Bengali][bengali-tweet] that also crashed.
 
-The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant "so" (স), a virama (&#xA0;্&#xA0;),
-the consonant "ro" (র), a ZWNJ, and vowel u (&nbsp;&#xA0;ু).
+The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant "so" (স), a virama (&#8239;্&#8239;),
+the consonant "ro" (র), a ZWNJ, and vowel u (&nbsp;&#8239;ু).
 
 Before we get too into this, let's first take a little detour to learn how Indic scripts work:
 
@@ -61,7 +61,7 @@ also _prefer_ explicit viramas, e.g. "ski" in Malayalam is written as സ്ക�
 is the explicit virama.
 
 In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
-&lt;स, &#xA0;्, क, &#xA0;ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
+&lt;स, &#8239;्, क, &#8239;ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
 as a ligature, otherwise it will use an explicit virama.
 
 
@@ -75,7 +75,7 @@ glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = �
 
 Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
 consonant is র ("ro"). However, I can trigger it for any choice of the first consonant or vowel, except
-when the vowel is &#xA0;ো (o) or &#xA0;ৌ (au).
+when the vowel is &#8239;ো (o) or &#8239;ৌ (au).
 
 Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
 it looks like र ("ra"). However, it does all kinds of things when forming a cluster. If you're having it
@@ -96,7 +96,7 @@ But it's not just র that does this in Bengali, the consonant "jo" does as well
 and the য is transformed into a wavy line called a "jophola".
 
 So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
-So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#xA0;ো or &#xA0;ৌ.
+So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#8239;ো or &#8239;ৌ.
 
 ## Suffix-joining consonants
 
@@ -110,7 +110,7 @@ For example, the original crashy string contains the cluster జ + ఞ, which lo
 really modified, but the second is.
 
 From this, we can guess that it will also occur for Devanagari with र. Indeed it does! U+0915 U+094D U+0930 U+200C U+093E, that is,
-&lt;क, &#xA0;्, र, zwnj, ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.
+&lt;क, &#8239;्, र, zwnj, &#8239;ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.
 
 But this isn't really the whole story, is it? For example, the crash does occur for "kro" + zwnj + vowel in Bengali,
 and in "kro" (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
@@ -120,13 +120,13 @@ Digging deeper, the reason is that for many fonts (presumably the ones in use), 
 form "suffix joining consonants"[^1] (a term I made up) when preceded by a virama. This seems to
 correspond to the [`pstf` OpenType feature][pstf], as well as [`vatu`][vatu].
 
-For example, the sequence virama + क gives &nbsp;&#xA0;्क, i.e. it renders a virama with a placeholder followed by a क.
+For example, the sequence virama + क gives &nbsp;&#8239;्क, i.e. it renders a virama with a placeholder followed by a क.
 
-But, for र, virama + र renders &#xA0;्र, which for me looks like this:
+But, for र, virama + र renders &#8239;्र, which for me looks like this:
 
 {% img center /images/post/unicode-crash/virama-ra.png 200 %}
 
-In fact, this is the case for the other consonants as well. For me, &#xA0;्र &#xA0;্র &#xA0;্য &#xA0;్ఞ &#xA0;్క
+In fact, this is the case for the other consonants as well. For me, &#8239;्र &#8239;্র &#8239;্য &#8239;్ఞ &#8239;్క
 (Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
 all render as "suffix joining consonants":
 
@@ -180,7 +180,7 @@ Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Beng
 
  - `consonant2` is suffix-joining (`pstf`/`vatu`) -- i.e. र, র, য, and all Telugu consonants
  - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
- - `vowel` does not have two glyph components, i.e. it is not &nbsp;&#xA0;ై, &nbsp;&#xA0;ো, or &nbsp;&#xA0;ৌ
+ - `vowel` does not have two glyph components, i.e. it is not &nbsp;&#8239;ై, &nbsp;&#8239;ো, or &nbsp;&#8239;ৌ
 
 This leaves one question open:
 
