@@ -178,7 +178,7 @@ So, ultimately, the full set of cases that cause the crash are:
 
 Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Bengali, and Telugu, where:
 
- - `consonant2` is suffix-joining (`pstf`/`vatu`) -- i.e. र, র, য, and all Telugu consonants
+ - `consonant2` is suffix-joining (`pstf`/`vatu`) -- i.e. र, র, য, ৰ, and all Telugu consonants
  - `consonant1` is not a reph-forming letter like र/র (or a variant, like ৰ)
  - `vowel` does not have two glyph components, i.e. it is not &nbsp;&#8239;ై, &nbsp;&#8239;ো, or &nbsp;&#8239;ৌ
 
