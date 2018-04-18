@@ -7,7 +7,7 @@ categories: programming rust mozilla
 ---
 
 
-For a while I've been working on a [garbage collector for Rust][gc] with [Michael
+For a while I've been working on a [garbage collector for Rust][gc] with [Nika
 Layzell][mystor]. I thought this would be a good time to talk of our design and progress so far.
 
 
@@ -126,8 +126,8 @@ Most were tracing/rooting with mark-and-sweep collection. All of them used lints
 I didn't really work on it past that, but planned to work on it if I could find someone to work
 with.
 
-One day, [Michael][mystor] pinged me on IRC and asked me about GCs. Lots of people knew that I was
-interested in writing a GC for Rust, and one of them directed him to me when he expressed a similar
+One day, [Nika][mystor] pinged me on IRC and asked me about GCs. Lots of people knew that I was
+interested in writing a GC for Rust, and one of them directed her to me when she expressed a similar
 interest.
 
 So we started discussing GCs. We settled on a tracing mark-and-sweep GC. In other words, the GC runs
@@ -379,8 +379,8 @@ Stdlib support for a global `Trace` trait that everyone derives would be awesome
 
 # Conclusion
 
-Designing a GC was a wonderful experience! I didn't get to write much code (I was busy and Michael
-was able to implement most of it overnight because he's totally awesome), but the long design
+Designing a GC was a wonderful experience! I didn't get to write much code (I was busy and Nika
+was able to implement most of it overnight because she's totally awesome), but the long design
 discussions followed by trying to figure out holes in the GC design in every idle moment of the day
 were quite enjoyable. GCs are very hard to get right, but it's very satisfying when you come up with
 a design that works! I'm also quite happy at how well Rust helped in making a safe interface.

@@ -116,7 +116,7 @@ for shared data.
 
 The internal data here is immutable, and if a cycle of references is created, the data will be leaked. If we want
 data that doesn't leak when there are cycles, we need a _garbage collector_. I do not know of any existing GCs in Rust,
-but [I am working on one with Michael Layzell][gc] and there's [another cycle collecting one][cc] being written by Nick
+but [I am working on one with Nika Layzell][gc] and there's [another cycle collecting one][cc] being written by Nick
 Fitzgerald.
 
 #### Guarantees

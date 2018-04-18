@@ -511,6 +511,6 @@ about.
 
  [ddc]: http://www.acsa-admin.org/countering-trusting-trust-through-diverse-double-compiling/
 
-_Thanks to Josh Matthews, Michael Layzell, Diane Hosfelt, Eevee, and Yehuda Katz for reviewing drafts of this post._
+_Thanks to Josh Matthews, Nika Layzell, Diane Hosfelt, Eevee, and Yehuda Katz for reviewing drafts of this post._
 
 <small>Discuss: [HN](https://news.ycombinator.com/item?id=13091941), [Reddit](https://www.reddit.com/r/rust/comments/5g5hib/reflections_on_rusting_trust/)</small>
