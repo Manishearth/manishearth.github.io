@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "The future of Clippy the Rust linter"
+title: "The future of Clippy (the Rust linter)"
 date: 2018-06-05 14:42:24 -0700
 comments: true
 categories: 
