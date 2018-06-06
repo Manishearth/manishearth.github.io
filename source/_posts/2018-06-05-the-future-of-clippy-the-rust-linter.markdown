@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "The future of Clippy (the Rust linter)"
+title: "The future of Clippy"
 date: 2018-06-05 14:42:24 -0700
 comments: true
 categories: 
@@ -28,7 +28,7 @@ The first steps are [happening], we're planning on setting it up so that when it
 Rustup will be able to fetch a clippy component (however this won't be the recommended way
 to use clippy until we figure out the workflow here, so sit tight!)
 
-Eventually, clippy will probably block nightlies; and after a bunch of cycles of letting that
+Eventually, clippy will probably block nightlies[^1]; and after a bunch of cycles of letting that
 work itself out, hopefully clippy will be available with the stable compiler. There's a lot of
 stuff that needs to be figured out, and we want to do this in a way that minimally impacts
 compiler development, so this may move in fits and starts.
@@ -37,7 +37,7 @@ compiler development, so this may move in fits and starts.
 
 ## Lint audit
 
-A couple months ago [Oliver] and I[^1] did a [lint audit] in Clippy. Previously,
+A couple months ago [Oliver] and I[^2] did a [lint audit] in Clippy. Previously,
 clippy lints were classified as simply "clippy", "clippy_pedantic", and "restriction".
 "restriction" was for allow-by-default lints for things which are generally not a problem but may
 be something you specifically want to forbid based on the situation, and "pedantic"
@@ -102,8 +102,9 @@ Anyway, thought I'd just post a general update on everything, since stuff's chan
 There's still time for stable or even just reliably rustuppable nightly clippy to happen but the path to it is pretty clear now!
 
 
+ [^1]: As in, if clippy is broken there will not be a nightly that day. Rustfmt and RLS work this way right now AIUI.
  [clippy]: https://github.com/rust-lang-nursery/rust-clippy
  [lint audit]: https://github.com/rust-lang-nursery/rust-clippy/pull/2579
- [^1]: Okay, mostly Oliver
+ [^2]: Okay, mostly Oliver
  [Oliver]: https://github.com/oli-obk
  [lint list]: https://rust-lang-nursery.github.io/rust-clippy/master/index.html
