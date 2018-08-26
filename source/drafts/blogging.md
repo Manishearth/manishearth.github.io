@@ -1,12 +1,12 @@
 ---
 layout: post
 title: "Why I enjoy blogging"
-date: 2018-08-23 14:16:43 -0700
+date: 2018-08-26 12:08:46 -0700
 comments: true
 categories: [writing, programming]
 ---
 
-I started this blog three years ago, moving from my [older blog][blogspot], hoping to talk about programming, math, physics, books, and miscellenia. I've not quite talked about everything I wanted to, but I've been very very happy with the experience of blogging. `wc` says I've written almost 75k words, which is mind-boggling to me!
+I started this blog three years ago, moving from my [older blog][blogspot], hoping to written about programming, math, physics, books, and miscellenia. I've not quite written about everything I wanted to, but I've been very very happy with the experience of blogging. `wc` says I've written almost 75k words, which is mind-boggling to me!
 
 I often get asked by others &mdash; usually trying to decide if they should start blogging &mdash; what it's like. I also often try to convince friends to blog by enumerating why I think it's awesome. Might as well write it down so that it's generally useful for everyone! 😃
 
@@ -21,19 +21,20 @@ I've often noticed that I'll start blogging about something I _think_ I understa
 
 The act of writing stuff down helps cement my own understanding &mdash; words are usually not as nebulous as thoughts so I'm forced to figure out little details.
 
-I recall when I wrote my post on [how Rust's thread safety guarantees work][rust-threads]. I _thought_ I understood `Send` and `Sync` in Rust &mdash; I understood what they did, but I didn't have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.
+I recall when I wrote my post on [how Rust's thread safety guarantees work][rust-threads], I _thought_ I understood `Send` and `Sync` in Rust. I understood what they did, but I didn't have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.
 
 I point out this post in particular because this was both one of the first posts for me where I'd noticed this, and, more importantly, my more concrete mental model led to me [finding a soundness bug in Rust's standard library][scopedkey]. When I was thinking about my mental model I realized "an impl that looks like this should never exist",
-and I grepped the source code and found one.
+so I grepped the source code and found one[^11].
 
 I've even noticed a difference between one-on-one explaining and explaining things through blog posts. I _love_ explaining things one-on-one, it's much easier to tailor the explanation to the other person's background,
-as well as what they're actually asking for help with. Plus, it's interactive. A_lot_ of my posts are of the "okay I get this question a lot I'm going to write down the answer so I don't have to repeat myself" kind and I've found that I've often learned things from these despite having talked about the thing in the article contents multiple times.
+as well as what they're actually asking for help with. Plus, it's interactive. A _lot_ of my posts are of the "okay I get this question a lot I'm going to write down the answer so I don't have to repeat myself" kind and I've found that I've often learned things from these despite having talked about the thing in the article contents multiple times.
 
 I guess it's basically that blogging is inherently one-many &mdash; you're trying to explain to a whole group of people with varied backgrounds &mdash; which means you need to cover all your bases[^3] and explain everything together instead of the minimum necessary.
 
  [rust-threads]: https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/
  [scopedkey]: https://github.com/rust-lang/rust/issues/25894
  [^3]: Incidentally, I find there's a similar dynamic when it comes to forum discussions vs hashing things out one-on-one, it's way harder to get anywhere with forum discussions because they're one-many and you have to put in that much more work to empathize with everyone else and also phrase things in a way that is resilient to accidental misinterpretation.
+ [^11]: Who needs to <a href="https://www.ralfj.de/blog/2017/06/09/mutexguard-sync.html">look for unsoundness with rigorous formal verification</a> when you have `grep`?
 
 
 ## It's really fun to revisit old posts!
@@ -105,16 +106,16 @@ There's a quote by Toni Morrison I quite enjoy:
 
 I enjoy it so much I [concluded my talk at RustFest Kyiv with it][rustfest-slides]!
 
-I have the privilege of having time to do things like blogging and mentoring. Given that I feel that it really is my duty to share what I know as much as possible; to help others attempting to tread the path I'm treading; and to battle against tribal knowledge.
+I have the privilege of having time to do things like blogging and mentoring. Given that, I feel that it really is my duty to share what I know as much as possible; to help others attempting to tread the path I'm treading; and to battle against tribal knowledge.
 
-When it comes to programming I'm mostly "self-taught". But when I say that, I really mean that I wasn't taught in a traditional way by other humans &mdash; I learned things by trying stuff out and _reading what others had written_. I didn't learn Rust by taking `rustc` and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and _then_ started exploring by trying random stuff). I didn't figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts.
+When it comes to programming I'm mostly "self-taught". But when I say that, I really mean that I wasn't taught in a traditional way by other humans &mdash; I learned things by trying stuff out and _reading what others had written_. I didn't learn Rust by taking `rustc` and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and _then_ started exploring by trying random stuff). I didn't figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts. I'm "self-taught" because I've been in charge of my learning process, but I've definitely relied on the work of other people throughout this process.
 
 This means that for me, personally, knowledge-sharing is especially important. If I had to spend time figuring something out, I should make it easier for the next people to try[^10].
 
 (All this said, I probably don't blog as much as I _should_)
 
  [rustfest-slides]: https://manishearth.github.io/rustfest-slides/#/13
- [^10]: One of my former title ideas for this post was "Knowledge is Theft", riffing off of this concept, but that was a bit too tongue-in-cheek.
+ [^10]: One of my former title ideas for this post was "Knowledge is Theft", riffing off of this concept, but I felt that was a bit too tongue-in-cheek.
 
 
 ## You should blog too!
@@ -126,7 +127,7 @@ I feel like tips on _how_ to blog would fill up an entire other blog post, but J
 As for the technicalities of setting up a blog, my colleague Emily recently [wrote a great post about doing this with Jekyll][emilykager-post]. This blog uses [Octopress] which is similar to set up.
 
 
-_Thanks to [Arshia Mufti][arshia], ......... for reviewing drafts of this blog post._
+_Thanks to [Arshia][Arshia], [QuietMisdreavus], and [Alex] for reviewing drafts of this blog post._
 
 
 
@@ -134,4 +135,6 @@ _Thanks to [Arshia Mufti][arshia], ......... for reviewing drafts of this blog p
  [jvns-2]: https://jvns.ca/blog/2017/03/20/blogging-principles/
  [emilykager-post]: https://www.emilykager.com/writing/2018/07/27/myo-website.html
  [Octopress]: http://octopress.org
- [arshia]: https://twitter.com/arshia__
+ [Arshia]: https://twitter.com/arshia__
+ [QuietMisdreavus]: https://twitter.com/QuietMisdreavus
+ [Alex]: https://twitter.com/myrrlyn
