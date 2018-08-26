@@ -14,16 +14,6 @@ I often get asked by others &mdash; usually trying to decide if they should star
 
  [blogspot]: http://inpursuitoflaziness.blogspot.com/
 
-## Blogging lets me be lazy!
-
-I often find myself explaining things often. I like helping folks and explaining things, but I'm also lazy[^1], so writing stuff down really makes stuff easy for me! If folks ask me a question I can give a quick answer and then go "if you want to learn more, I've written about it here!". If folks are asking a question a lot, there's probably something missing in the documentation or learning materials about it. Some things can be fixed upstream in documentation, but other things &mdash; like ["how should I reason about modules in Rust?"][rust-modules] deserve to be tackled as a separate problem and addressed with their own post.
-
-
-(Yes, this post is in this category!)
-
-
- [^1]: See blog title
- [rust-modules]: https://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/
 
 ## Blogging helps cement my understanding of things!
 
@@ -37,28 +27,13 @@ I point out this post in particular because this was both one of the first posts
 and I grepped the source code and found one.
 
 I've even noticed a difference between one-on-one explaining and explaining things through blog posts. I _love_ explaining things one-on-one, it's much easier to tailor the explanation to the other person's background,
-as well as what they're actually asking for help with. Plus, it's interactive. As I mentioned earlier, a _lot_ of my posts are of the "okay I get this question a lot I'm going to write down the answer so I don't have to repeat myself" kind and I've found that I've often learned things from these despite having talked about the thing in the article contents multiple times.
+as well as what they're actually asking for help with. Plus, it's interactive. A_lot_ of my posts are of the "okay I get this question a lot I'm going to write down the answer so I don't have to repeat myself" kind and I've found that I've often learned things from these despite having talked about the thing in the article contents multiple times.
 
 I guess it's basically that blogging is inherently one-many &mdash; you're trying to explain to a whole group of people with varied backgrounds &mdash; which means you need to cover all your bases[^3] and explain everything together instead of the minimum necessary.
 
  [rust-threads]: https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/
  [scopedkey]: https://github.com/rust-lang/rust/issues/25894
  [^3]: Incidentally, I find there's a similar dynamic when it comes to forum discussions vs hashing things out one-on-one, it's way harder to get anywhere with forum discussions because they're one-many and you have to put in that much more work to empathize with everyone else and also phrase things in a way that is resilient to accidental misinterpretation.
-
-## It's okay if folks have written about it before!
-
-A common question I've gotten is "Well I can write about X but ... there are a lot of other posts out there about it, should I still?"
-
-Yes!!
-
-People think differently, people learn differently, and people come from different backgrounds. Existing posts may be useful for some folks but less useful for others.
-
-My personal rule of thumb is that if it took _me_ some effort to understand something after reading about it, that's something worth writing about, so it's easier to understand for others like me encountering the subject.
-
-One of my favorite bloggers, [Julia Evans] very often writes posts explaining computer concepts. Most of the times these have been explained before in other blog posts or manuals. But that doesn't matter &mdash; her posts are _different_, and they're _amazing_. They're upbeat, fun to read, and often get me excited to learn more about things I knew about but never really looked at closely before.
-
-
- [Julia Evans]: https://jvns.ca/
 
 
 ## It's really fun to revisit old posts!
@@ -94,6 +69,33 @@ This is also why I really enjoy mentoring &mdash; mentoring often requires the s
 
 
  [^8]: I also am in general less inclined to do technical things in my free time and have a better work-life balance, glad that worked out!
+
+## Blogging lets me be lazy!
+
+I often find myself explaining things often. I like helping folks and explaining things, but I'm also lazy[^1], so writing stuff down really makes stuff easy for me! If folks ask me a question I can give a quick answer and then go "if you want to learn more, I've written about it here!". If folks are asking a question a lot, there's probably something missing in the documentation or learning materials about it. Some things can be fixed upstream in documentation, but other things &mdash; like ["how should I reason about modules in Rust?"][rust-modules] deserve to be tackled as a separate problem and addressed with their own post.
+
+
+(Yes, this post is in this category!)
+
+
+ [^1]: See blog title
+ [rust-modules]: https://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/
+
+
+## It's okay if folks have written about it before!
+
+A common question I've gotten is "Well I can write about X but ... there are a lot of other posts out there about it, should I still?"
+
+Yes!!
+
+People think differently, people learn differently, and people come from different backgrounds. Existing posts may be useful for some folks but less useful for others.
+
+My personal rule of thumb is that if it took _me_ some effort to understand something after reading about it, that's something worth writing about, so it's easier to understand for others like me encountering the subject.
+
+One of my favorite bloggers, [Julia Evans] very often writes posts explaining computer concepts. Most of the times these have been explained before in other blog posts or manuals. But that doesn't matter &mdash; her posts are _different_, and they're _amazing_. They're upbeat, fun to read, and often get me excited to learn more about things I knew about but never really looked at closely before.
+
+
+ [Julia Evans]: https://jvns.ca/
 
 ## I kinda feel it's my duty to?
 
