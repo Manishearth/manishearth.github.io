@@ -6,6 +6,8 @@ comments: true
 categories: [writing, programming]
 ---
 
+_See also: [Alex's version of this blog post][alex-blogging]_
+
 I started this blog three years ago, moving from my [older blog][blogspot], hoping to written about programming, math, physics, books, and miscellenia. I've not quite written about everything I wanted to, but I've been very very happy with the experience of blogging. `wc` says I've written almost 75k words, which is mind-boggling to me!
 
 I often get asked by others &mdash; usually trying to decide if they should start blogging &mdash; what it's like. I also often try to convince friends to blog by enumerating why I think it's awesome. Might as well write it down so that it's generally useful for everyone! 😃
@@ -130,7 +132,6 @@ As for the technicalities of setting up a blog, my colleague Emily recently [wro
 _Thanks to [Arshia][Arshia], [QuietMisdreavus], and [Alex] for reviewing drafts of this blog post._
 
 
-
  [jvns-1]: https://jvns.ca/blog/2016/05/22/how-do-you-write-blog-posts//
  [jvns-2]: https://jvns.ca/blog/2017/03/20/blogging-principles/
  [emilykager-post]: https://www.emilykager.com/writing/2018/07/27/myo-website.html
@@ -138,3 +139,4 @@ _Thanks to [Arshia][Arshia], [QuietMisdreavus], and [Alex] for reviewing drafts 
  [Arshia]: https://twitter.com/arshia__
  [QuietMisdreavus]: https://twitter.com/QuietMisdreavus
  [Alex]: https://twitter.com/myrrlyn
+ [alex-blogging]: https://myrrlyn.net/blog/misc/to-all-the-posts-ive-blogged-before
