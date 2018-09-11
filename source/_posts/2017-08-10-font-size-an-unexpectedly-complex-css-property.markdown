@@ -3,7 +3,7 @@ layout: post
 title: "font-size: An unexpectedly complex CSS property"
 date: 2017-08-10 15:38:14 -0700
 comments: true
-categories: 
+categories: programming html web css
 ---
 
 [`font-size`][mdn-size] is the worst.
