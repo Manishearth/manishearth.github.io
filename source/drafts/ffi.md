@@ -314,3 +314,10 @@ In such cases you have one of three options:
 ## Crazy stuff
 
 @@
+
+
+@@ Transparent
+
+@@ C enums
+
+@@ ABI concerns
