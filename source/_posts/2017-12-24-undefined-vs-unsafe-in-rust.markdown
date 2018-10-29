@@ -23,7 +23,7 @@ able to talk about safety more expressively if this was well known.
 ## Unsafe means two things in Rust, yay
 
 So, first off, the waters are a bit muddied by the fact that Rust uses `unsafe` to both mean "within
-an `unsafe {}` block" block and "something Bad is happening here". It's possible to have safe code
+an `unsafe {}` block" and "something Bad is happening here". It's possible to have safe code
 within an `unsafe` block; indeed this is the _primary function_ of an `unsafe` block. Somewhat
 counterintutively, the `unsafe` block's purpose is to actually tell the compiler "I know you don't
 like this code but trust me, it's safe!" (where "safe" is the negation of the _second_ meaning of "unsafe",
@@ -70,7 +70,7 @@ fn deref(x: *mut u32) -> u32 {
 As long as you always call it with a valid pointer to an integer, there is no undefined behavior
 involved.
 
-But in either language, if you use it with some pointer conjured out of thin air (or, like `0x01`), that's
+But in either language, if you use it with some pointer conjured out of thin air (like `0x01`), that's
 probably undefined behavior.
 
 As it stands, UB is a property of the entire program and its execution. Sometimes you may have snippets of code
