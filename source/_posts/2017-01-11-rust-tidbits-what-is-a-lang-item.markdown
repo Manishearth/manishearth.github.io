@@ -230,9 +230,8 @@ fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -> isize {
 This will compile fine and the exit code of the program will be 42.
 
 An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
-same kind of error, even though I mentioned before that the addition of concrete primitives doesn't
-go through `Add::add`. However, any addition operation still checks if `Add::add` is implemented,
-even though it won't get _used_ in the case of a primitive. We can even verify this!
+same kind of error, even though the addition of concrete primitives doesn't
+go through `Add::add` (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if `Add::add` is implemented, even though it won't get _used_ in the case of a primitive. We can even verify this!
 
 ```rust
 #[lang = "add"]
