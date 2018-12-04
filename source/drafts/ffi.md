@@ -10,13 +10,14 @@ Last year I worked on the [Stylo] project, uplifting Servo's CSS engine ("style 
 ("Gecko"). This involved a _lot_ of gnarly FFI between Servo's Rust codebase and Firefox's C++ codebase. There were a
 lot of challenges in doing this, and I feel like it's worth sharing things from our experiences.
 
-If you're interested in Rust integrations, you may find [this talk by Isis and Chelsea on integrating Rust in Tor][rustconf-tor] and [this talk by Katharina on Rust - C++ FFI][rustconf-kookie] useful as well.
+If you're interested in Rust integrations, you may find [this talk by Isis and Chelsea on integrating Rust in Tor][rustconf-tor], [this talk by Katharina on Rust - C++ FFI][rustconf-kookie], and [this blog post by Henri on integrating encoding-rs into Firefox][henri-blog] useful as well.
 
 
 
  [Stylo]: https://hacks.mozilla.org/2017/08/inside-a-super-fast-css-engine-quantum-css-aka-stylo/
  [rustconf-tor]: https://www.youtube.com/watch?v=_CdQHfLhmvI
  [rustconf-kookie]: https://www.youtube.com/watch?v=x9acx2zgx4Q
+ [henri-blog]: https://hsivonen.fi/modern-cpp-in-rust/
 
 ## Who is this post for?
 
@@ -287,11 +288,48 @@ impl<T> Drop for bindings::MyVector<T> {
 
 ```
 
-Note that if you forget to add a `Drop` implementation for `T`, this won't work. See [the next section](#shgen) for some ways to handle this.
+Note that if you forget to add a `Drop` implementation for `T`, this won't work. See [the next section](#mirror-types) for some ways to handle this by creating a "safe" mirror type.
 
-## Sharing generic abstractions
+## Mirror types
 
-@@
+C++ libraries often have useful templated abstractions, and it's nice to be able to manipulate them from Rust. Sometimes, it's possible to just tack on semantics on the Rust side (either by adding an implementation or by doing type replacement), but in some cases this is tricky.
+
+For example, Gecko has `RefPtr<T>`, which is similar to `Rc<T>`, except the actual refcounting logic is up to `T` to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing `AddRef()` and `Release()` methods.
+
+
+We mirror this in Rust by having a trait:
+
+```rust
+/// Trait for all objects that have Addref() and Release
+/// methods and can be placed inside RefPtr<T>
+pub unsafe trait RefCounted {
+    /// Bump the reference count.
+    fn addref(&self);
+    /// Decrease the reference count.
+    unsafe fn release(&self);
+}
+
+/// A custom RefPtr implementation to take into account Drop semantics and
+/// a bit less-painful memory management.
+pub struct RefPtr<T: RefCounted> {
+    ptr: *mut T,
+    _marker: PhantomData<T>,
+}
+```
+
+We implement the `RefCounted` trait for C++ types that are wrapped in `RefPtr` which we wish to access through Rust. We have [some][rust-refcount-macro] [macros][cpp-refcount-macro] that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn't know how to manage various C++ types.
+
+However, `RefPtr<T>` here can't be the type that ends up being used in bindgen. Rust doesnt let us do things like `impl<T: RefCounted> Drop for RefPtr<T>` [^2], so we can't effectively make this work with the bindgen generated type unless we write a `RefCounted` implementation for every refcounted type that shows up in the bindgen output at all -- which would be a lot of work.
+
+Instead, we let bindgen generate its own `RefPtr<T>`, called `structs::RefPtr<T>` (all the structs that bindgen generates for Gecko go in a `structs::` module). `structs::RefPtr<T>` itself doesn't have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has [some methods][structs-refptr-methods] that allow for conversion into the "safe" mirror `RefPtr<T>` (but only if `T: RefCounted`). So if you need to manipulate a `RefPtr<T>` in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and _then_ do things to it. Refcounted types that don't have the `RefCounted` implementation won't have conversion methods: they may exist in the data you're manipulating, however you won't be able to work with them.
+
+
+In general, whenever attaching extra semantics to generic bindgen types doesn't work, an alternative is to create a mirror type that's completely safe to use from Rust, with a trait that gates conversion to the mirror type.
+
+ [rust-refcount-macro]: https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315
+ [cpp-refcount-macro]: https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60
+ [^2]: `Drop` impls are restricted in a bunch of ways for safety, in particular you cannot write `impl<T: RefCounted> Drop for RefPtr<T>` unless `RefPtr` is defined as `RefPtr<T: RefCounted>`. It's not possible to have a generic type that has an impl of `Drop` for only _some_ possible instantiations of its generics.
+ [structs-refptr-methods]: https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234
 
 ## Potential pitfall: Allocators
 
