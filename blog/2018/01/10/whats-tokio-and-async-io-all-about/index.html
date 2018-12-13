@@ -159,7 +159,7 @@ scheduling based on I/O.</p>
 <p>I think the best way to understand lightweight threading is to forget about Rust for a moment
 and look at a language that does this well, Go.</p>
 
-<p>So instead, Go has lightweight threads, called &ldquo;goroutines&rdquo;. You spawn these with the <code>go</code>
+<p>Instead of using OS threads, Go has lightweight threads, called &ldquo;goroutines&rdquo;. You spawn these with the <code>go</code>
 keyword. A web server might do something like this:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
@@ -293,8 +293,7 @@ that Tokio is single threaded, whereas the Go scheduler can use multiple OS thre
 for execution. However, you can offload CPU-critical tasks onto other OS threads and
 use channels to coordinate so this isn&rsquo;t that big a deal.</p>
 
-<p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-
-wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
+<p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -338,7 +337,7 @@ wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>Not pretty. <a href="http://alexcrichton.com/futures-rs/futures/future/fn.loop_fn.html#examples">The code gets worse if you introduce branches and loops</a>. The problem is that in Go we
+<p>Not pretty. <a href="https://docs.rs/futures/0.1.25/futures/future/fn.loop_fn.html#examples">The code gets worse if you introduce branches and loops</a>. The problem is that in Go we
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
 into a kind of state machine. Ew.</p>
 
@@ -492,7 +491,7 @@ and we get to have &ldquo;fearless concurrency&rdquo; for programs having a huge
 <li id="fn:2">
 <p>Lightweight threading is also often called M:N threading (also &ldquo;green threading&rdquo;)<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p>In general future combinators aren&rsquo;t really aware of tokio or even I/O, so there&rsquo;s no easy way to ask a combinator &ldquo;hey, what I/O operation are you waiting for?&rdquo;. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>In general future combinators aren&rsquo;t really aware of tokio or even I/O, so there&rsquo;s no easy way to ask a combinator &ldquo;hey, what I/O operation are you waiting for?&rdquo;. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code>Waker</code> concept that handles passing things up the stack</em>)<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
 <p>The <code>Generator</code> trait has a <code>resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 </ol>
