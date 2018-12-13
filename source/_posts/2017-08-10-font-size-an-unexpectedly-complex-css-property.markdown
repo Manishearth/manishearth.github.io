@@ -73,7 +73,7 @@ The implications of this are that font-size needs to be computed before all the 
 so that it is available during that time.
 
 You can also use `em` units within `font-size` itself. In this case, it computed relative to the font-size of the _parent_ element, since
-you can't use the font-size of the element to compute itself.
+you can't use the font-size of the element to compute itself. (This is identical to using a percentage unit)
 
 ## Minimum font size
 
@@ -104,10 +104,10 @@ original minimum font size. This avoids clamped text from looking like <ruby><rb
 the same size), which is pretty ugly.
 
  [ruby]: https://en.wikipedia.org/wiki/Ruby_character
- [^5]: Interestingly, in Firefox, this number is 50% for all ruby _except_ for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiranaga up to (I think) 5, and the corresponding "no overflow" scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. Additionally, Bopomofo ruby is often set on the side of the glyph instead of on top, and 30% works better there. (h/t @upsuper for pointing this out)
+ [^5]: Interestingly, in Firefox, this number is 50% for all ruby _except_ for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiragana up to (I think) 5, and the corresponding "no overflow" scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. Additionally, Bopomofo ruby is often set on the side of the glyph instead of on top, and 30% works better there. (h/t @upsuper for pointing this out)
  
 
-## Text zoomm
+## Text zoom
 
 Firefox additionally lets you zoom text only when zooming. If you have trouble reading small things, it's great to
 be able to just blow up the text on the page without having the whole page get zoomed (which means you need to scroll
@@ -317,7 +317,7 @@ you should pick the value of the next/previous keyword sizes respectively.
 
 If it is _between_ two, find the same point between the next/previous two sizes.
 
-This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In gecko's model this isn't too hard,
+This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In Gecko's model this isn't too hard,
 since Gecko recalculates things anyway. In Servo's model we'd have to store a sequence of applications of `larger`/`smaller` and relative
 units, instead of storing just a relative unit.
 

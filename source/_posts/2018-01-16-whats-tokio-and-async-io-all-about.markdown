@@ -59,7 +59,7 @@ I think the best way to understand lightweight threading is to forget about Rust
 and look at a language that does this well, Go.
 
 
-So instead, Go has lightweight threads, called "goroutines". You spawn these with the `go`
+Instead of using OS threads, Go has lightweight threads, called "goroutines". You spawn these with the `go`
 keyword. A web server might do something like this:
 
 ```go
@@ -198,8 +198,7 @@ that Tokio is single threaded, whereas the Go scheduler can use multiple OS thre
 for execution. However, you can offload CPU-critical tasks onto other OS threads and
 use channels to coordinate so this isn't that big a deal.
 
-While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-
-wise this doesn't look so pretty. For the following Go code:
+While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn't look so pretty. For the following Go code:
 
 ```go
 // error handling ignored for simplicity
@@ -231,8 +230,8 @@ Not pretty. [The code gets worse if you introduce branches and loops][loop-fn]. 
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
 into a kind of state machine. Ew.
 
- [^3]: In general future combinators aren't really aware of tokio or even I/O, so there's no easy way to ask a combinator "hey, what I/O operation are you waiting for?". Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when `epoll` tells it that that I/O operation is ready.
- [loop-fn]: http://alexcrichton.com/futures-rs/futures/future/fn.loop_fn.html#examples
+ [^3]: In general future combinators aren't really aware of tokio or even I/O, so there's no easy way to ask a combinator "hey, what I/O operation are you waiting for?". Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when `epoll` tells it that that I/O operation is ready. (_Edit Dec 2018: This has changed, futures now have a built in `Waker` concept that handles passing things up the stack_)
+ [loop-fn]: https://docs.rs/futures/0.1.25/futures/future/fn.loop_fn.html#examples
 
 ## Generators and async/await
 

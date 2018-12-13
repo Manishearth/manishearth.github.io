@@ -136,7 +136,7 @@ all render as "suffix joining consonants":
 
 An interesting bit is that the crash does not occur for &lt;र, virama, र, zwnj, vowel&gt;, because र-virama-र
 uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ or য. Because the virama
-is "sticker" to the left in these cases, it doesn't cause a crash. (h/t [hackbunny] for discovering this
+is "stickier" to the left in these cases, it doesn't cause a crash. (h/t [hackbunny] for discovering this
 using a [script][viramarama] to enumerate all cases).
  
 Kannada _also_ has "suffix joining consonants", but for some reason I cannot trigger the crash with it. Ya in Gurmukhi
@@ -184,7 +184,7 @@ Any sequence `<consonant1, virama, consonant2, ZWNJ, vowel>` in Devanagari, Beng
 
 This leaves one question open:
 
-Why doesn't it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a "coeng".
+Why doesn't it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a "coeng"?
 
 ## Are these valid strings?
 
