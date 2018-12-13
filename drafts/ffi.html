@@ -116,7 +116,7 @@
 (&ldquo;Gecko&rdquo;). This involved a <em>lot</em> of gnarly FFI between Servo&rsquo;s Rust codebase and Firefox&rsquo;s C++ codebase. There were a
 lot of challenges in doing this, and I feel like it&rsquo;s worth sharing things from our experiences.</p>
 
-<p>If you&rsquo;re interested in Rust integrations, you may find <a href="https://www.youtube.com/watch?v=_CdQHfLhmvI">this talk by Isis and Chelsea on integrating Rust in Tor</a> and <a href="https://www.youtube.com/watch?v=x9acx2zgx4Q">this talk by Katharina on Rust - C++ FFI</a> useful as well.</p>
+<p>If you&rsquo;re interested in Rust integrations, you may find <a href="https://www.youtube.com/watch?v=_CdQHfLhmvI">this talk by Isis and Chelsea on integrating Rust in Tor</a>, <a href="https://www.youtube.com/watch?v=x9acx2zgx4Q">this talk by Katharina on Rust - C++ FFI</a>, and <a href="https://hsivonen.fi/modern-cpp-in-rust/">this blog post by Henri on integrating encoding-rs into Firefox</a> useful as well.</p>
 
 <h2>Who is this post for?</h2>
 
@@ -410,11 +410,56 @@ We&rsquo;re forced to null-check it, but once we do we can safely assume that th
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>Note that if you forget to add a <code>Drop</code> implementation for <code>T</code>, this won&rsquo;t work. See <a href="#shgen">the next section</a> for some ways to handle this.</p>
+<p>Note that if you forget to add a <code>Drop</code> implementation for <code>T</code>, this won&rsquo;t work. See <a href="#mirror-types">the next section</a> for some ways to handle this by creating a &ldquo;safe&rdquo; mirror type.</p>
 
-<h2>Sharing generic abstractions</h2>
+<h2>Mirror types</h2>
 
-<p>@@</p>
+<p>C++ libraries often have useful templated abstractions, and it&rsquo;s nice to be able to manipulate them from Rust. Sometimes, it&rsquo;s possible to just tack on semantics on the Rust side (either by adding an implementation or by doing type replacement), but in some cases this is tricky.</p>
+
+<p>For example, Gecko has <code>RefPtr&lt;T&gt;</code>, which is similar to <code>Rc&lt;T&gt;</code>, except the actual refcounting logic is up to <code>T</code> to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing <code>AddRef()</code> and <code>Release()</code> methods.</p>
+
+<p>We mirror this in Rust by having a trait:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c-Doc">/// Trait for all objects that have Addref() and Release</span>
+</span><span class='line'><span class="c-Doc">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
+</span><span class='line'><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">RefCounted</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c-Doc">/// Bump the reference count.</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">addref</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+</span><span class='line'>    <span class="c-Doc">/// Decrease the reference count.</span>
+</span><span class='line'>    <span class="k">unsafe</span> <span class="k">fn</span> <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c-Doc">/// A custom RefPtr implementation to take into account Drop semantics and</span>
+</span><span class='line'><span class="c-Doc">/// a bit less-painful memory management.</span>
+</span><span class='line'><span class="k">pub</span> <span class="k">struct</span> <span class="n">RefPtr</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">RefCounted</span><span class="o">&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">ptr</span><span class="o">:</span> <span class="o">*</span><span class="k">mut</span> <span class="n">T</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">_marker</span><span class="o">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We implement the <code>RefCounted</code> trait for C++ types that are wrapped in <code>RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn&rsquo;t know how to manage various C++ types.</p>
+
+<p>However, <code>RefPtr&lt;T&gt;</code> here can&rsquo;t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, so we can&rsquo;t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all &ndash; which would be a lot of work.</p>
+
+<p>Instead, we let bindgen generate its own <code>RefPtr&lt;T&gt;</code>, called <code>structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code>structs::</code> module). <code>structs::RefPtr&lt;T&gt;</code> itself doesn&rsquo;t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the &ldquo;safe&rdquo; mirror <code>RefPtr&lt;T&gt;</code> (but only if <code>T: RefCounted</code>). So if you need to manipulate a <code>RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don&rsquo;t have the <code>RefCounted</code> implementation won&rsquo;t have conversion methods: they may exist in the data you&rsquo;re manipulating, however you won&rsquo;t be able to work with them.</p>
+
+<p>In general, whenever attaching extra semantics to generic bindgen types doesn&rsquo;t work, an alternative is to create a mirror type that&rsquo;s completely safe to use from Rust, with a trait that gates conversion to the mirror type.</p>
 
 <h2>Potential pitfall: Allocators</h2>
 
@@ -443,6 +488,14 @@ and C++ code don&rsquo;t share allocators, deallocating memory allocated on the 
 <p>@@ C enums</p>
 
 <p>@@ ABI concerns</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p><code>Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code>RefPtr</code> is defined as <code>RefPtr&lt;T: RefCounted&gt;</code>. It&rsquo;s not possible to have a generic type that has an impl of <code>Drop</code> for only <em>some</em> possible instantiations of its generics.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
 </div>
 
 
