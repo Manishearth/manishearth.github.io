@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Musings on Rust Governance and the RFC Process - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Musings on Rust Governance and the RFC process">
+      <meta property="twitter:description" content="There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/governance.html">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/manish.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar&#8217;s blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Musings on Rust Governance and the RFC Process</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2018-09-29T00:00:00+00:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
+
+<p>I&rsquo;ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
+
+<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> I&rsquo;m going to assume the reader is roughly familiar with most of the stuff that&rsquo;s happened with the Rust community in the past few years. I&rsquo;m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+
+<p>This blog post is probably going to reach the eyes of non-Rust-community members. You&rsquo;re welcome to read it, but please accept my apologies in advance if it doesn&rsquo;t make any sense.</p>
+
+<h2>The symptoms</h2>
+
+<p>Before I actually get into it, I&rsquo;d like to carefully delineate <em>what</em> the problem is that I&rsquo;m talking about. Or more accurately, the <em>symptoms</em> I am talking about &mdash; as I&rsquo;ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
+
+<p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
+
+<ul>
+<li>The same arguments getting brought up over and over again</li>
+<li>Accusations of bad faith</li>
+<li>Derailing</li>
+<li>Not feeling heard</li>
+<li>Just getting exhausted by all the stuff that&rsquo;s going on</li>
+</ul>
+
+
+<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">https://internals.rust-lang.org</a> have similar problems.</p>
+
+<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven&rsquo;t already.</p>
+
+<p>Overall the situation is kinda terrible.</p>
+
+<h2>The scaling problem</h2>
+
+<p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
+
+<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you&rsquo;re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It&rsquo;s <em>much</em> easier to have one-on-one discussions because it&rsquo;s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
+
+<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don&rsquo;t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It&rsquo;s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
+
+<p>All of these mismatches are easy to identify in one-on-one discussions, because it&rsquo;s easy to switch gears to the meta discussion for a bit.</p>
+
+<p>One-on-one discussions are pleasant.</p>
+
+<p>N-to-N discussions are <em>not</em>. It&rsquo;s harder to build this shared vocabulary amongst N other people. It&rsquo;s harder to identify these mismatches, partly because it&rsquo;s hard to switch into the meta-mode of a discussion at all, but also because there&rsquo;s a lot going on.</p>
+
+<h3>Hanabi and parallel universes</h3>
+
+<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It&rsquo;s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
+
+<p>Hanabi is a cooperative game. You can see everyone&rsquo;s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
+
+<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone&rsquo;s moves will be. With this in mind, you can attempt to &ldquo;set up&rdquo; situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn&rsquo;t actually play out as planned.</p>
+
+<p>The core issue behind this is forgetting that you actually <em>can&rsquo;t</em> see the entire game state, since your own cards are hidden. It&rsquo;s not just <em>you</em> who has plans &mdash; everyone does! And each of those plans is incomplete since they&rsquo;re missing a piece of the picture, just as you are.</p>
+
+<p>In Hanabi it&rsquo;s very easy to forget that you&rsquo;re missing a piece of the picture &mdash; in competitive card games you mostly can&rsquo;t see the game state since everyone else&rsquo;s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it&rsquo;s easy to forget that your own four cards are hidden from you.</p>
+
+<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you&rsquo;re fine, but if you don&rsquo;t you will be frustrated.</p>
+
+<p>This is largely true of N-to-N discussions as well. Because most of what&rsquo;s being said makes sense to an individual in a particular way, it&rsquo;s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, &ldquo;forking&rdquo; the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone&rsquo;s talking past each other.</p>
+
+<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me &mdash; typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I&rsquo;m not consistent in doing this &mdash; in the midst of a heated argument it&rsquo;s easy to get too wrapped up in the argument to think about getting results and I&rsquo;ve certainly had my time arguing instead of resolving &mdash; but overall whenever I&rsquo;ve chosen to do this it&rsquo;s been a useful policy.</p>
+
+<h2>The moderation problem</h2>
+
+<p><em>talk about how there are three types of disagreement: constructive, disruptive, abrasive, and how we can&rsquo;t handle the middle one</em></p>
+
+<h2>Participation guidelines</h2>
+
+<p><em>solution part 1</em></p>
+
+<h2>Facilitators</h2>
+
+<p><em>solution part 2</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>I am way too verbose for &ldquo;brief&rdquo; to be an accurate description of anything I write, but might as well <em>try</em>.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2018-09-29T00:00:00+00:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+      
+
+    
+
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/governance.html" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/governance.html" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I&#8217;m a research engineer at Mozilla working on the <a href="http://github.com/servo/servo">Servo browser engine</a>
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2018/09/11/converting-a-webgl-application-to-webvr/">Converting a WebGL Application to WebVR</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2018/08/26/why-i-enjoy-blogging/">Why I Enjoy Blogging</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2018/06/05/the-future-of-clippy-the-rust-linter/">The Future of Clippy</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2018/04/12/down-a-rusty-rabbit-hole/">Down a Rusty Rabbit Hole</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2018/02/15/picking-apart-the-crashing-ios-string/">Picking Apart the Crashing iOS String</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2019 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
