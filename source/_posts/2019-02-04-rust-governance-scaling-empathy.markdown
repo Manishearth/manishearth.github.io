@@ -163,7 +163,6 @@ And to me, this pairs really well with the idea of participation guidelines: tea
 
 There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don't have time or feel like they have strong opinions, try someone else). But there's also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don't expect _most_ discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I'm not really going to spend time analysing these specifics; I have opinions but I'd rather have us figure out if we want to do something like this and how before getting into the weeds.
 
-
  [lol]: https://github.com/mystor/slag
  [^5]: In particular, I feel like Aaron has done an _excellent_ and consistent job of facilitating discussions this way in many cases.
 
@@ -185,10 +184,11 @@ Overall what I've proposed here isn't a fully-formed idea; but it's the seed of 
 
 I'm really interested to hear what people think!
 
-_Thanks to [Aaron], [Ashley], [Adam], [Corey], [Arshia], [Michael], [Sunjay], and other people I've probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts_
+_Thanks to [Aaron], [Ashley], [Adam], [Corey], [Arshia], [Michael], [Sunjay], [Nick] and other people I've probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts_
 
  [Ashley]: https://twitter.com/ag_dubs
  [Corey]: https://twitter.com/cmrx64/
  [Michael]: https://twitter.com/mgattozzi
  [Sunjay]: https://twitter.com/sunjay03
  [Arshia]: http://twitter.com/arshia__
+ [Nick]: http://twitter.com/fitzgen/
