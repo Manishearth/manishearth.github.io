@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2019-02-03T21:08:00+00:00</updated>
+  <updated>2019-02-04T08:42:15+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,195 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rust Governance: Scaling Empathy]]></title>
+    <link href="http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy/"/>
+    <updated>2019-02-04T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy</id>
+    <content type="html"><![CDATA[<p>There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
+
+<p>I&rsquo;ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
+
+<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> I&rsquo;m going to assume the reader is roughly familiar with most of the stuff that&rsquo;s happened with the Rust community in the past few years. I&rsquo;m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+
+<p>This blog post is probably going to reach the eyes of non-Rust-community members. You&rsquo;re welcome to read it, but please accept my apologies in advance if it doesn&rsquo;t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven&rsquo;t had time to edit it to make it acceptable to a wider audience.</p>
+
+<h2>The symptoms</h2>
+
+<p>Before I actually get into it, I&rsquo;d like to carefully delineate <em>what</em> the problem is that I&rsquo;m talking about. Or more accurately, the <em>symptoms</em> I am talking about &mdash; as I&rsquo;ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
+
+<p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
+
+<ul>
+<li>The same arguments getting brought up over and over again</li>
+<li>Accusations of bad faith</li>
+<li>Derailing</li>
+<li>Not feeling heard</li>
+<li>Just getting exhausted by all the stuff that&rsquo;s going on</li>
+</ul>
+
+
+<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">https://internals.rust-lang.org</a> have similar problems.</p>
+
+<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven&rsquo;t already.</p>
+
+<h2>The scaling problem</h2>
+
+<p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
+
+<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you&rsquo;re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It&rsquo;s <em>much</em> easier to have one-on-one discussions because it&rsquo;s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
+
+<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don&rsquo;t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It&rsquo;s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
+
+<p>All of these mismatches are easy to identify in one-on-one discussions, because it&rsquo;s easy to switch gears to the meta discussion for a bit.</p>
+
+<p>One-on-one discussions are pleasant. They foster empathy.</p>
+
+<p>N-to-N discussions are <em>not</em>. It&rsquo;s harder to converge on this shared vocabulary amongst N other people. It&rsquo;s harder to identify these mismatches, partly because it&rsquo;s hard to switch into the meta-mode of a discussion at all, but also because there&rsquo;s a lot going on. It&rsquo;s harder to build empathy.</p>
+
+<p>As we&rsquo;ve grown, discussion complexity has grown quadratically, and we&rsquo;re not really attempting to relinearize them.</p>
+
+<h3>Hanabi and parallel universes</h3>
+
+<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It&rsquo;s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
+
+<p>Hanabi is a cooperative game. You can see everyone&rsquo;s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
+
+<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone&rsquo;s moves will be. With this in mind, you can attempt to &ldquo;set up&rdquo; situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn&rsquo;t actually play out as planned.</p>
+
+<p>The core issue behind this is forgetting that you actually <em>can&rsquo;t</em> see the entire game state, since your own cards are hidden. It&rsquo;s not just <em>you</em> who has plans &mdash; everyone does! And each of those plans is incomplete since they&rsquo;re missing a piece of the picture, just as you are.</p>
+
+<p>In Hanabi it&rsquo;s very easy to forget that you&rsquo;re missing a piece of the picture &mdash; in competitive card games you mostly can&rsquo;t see the game state since everyone else&rsquo;s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it&rsquo;s easy to forget that your own four cards are hidden from you.</p>
+
+<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you&rsquo;re fine, but if you don&rsquo;t you will be frustrated.</p>
+
+<p>This is largely true of N-to-N discussions as well. Because most of what&rsquo;s being said makes sense to an individual in a particular way, it&rsquo;s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, &ldquo;forking&rdquo; the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone&rsquo;s talking past each other.</p>
+
+<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me &mdash; typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I&rsquo;m not consistent in doing this &mdash; in the midst of a heated argument it&rsquo;s easy to get too wrapped up in the argument to think about getting results and I&rsquo;ve certainly had my time arguing instead of resolving &mdash; but overall whenever I&rsquo;ve chosen to do this it&rsquo;s been a useful policy.</p>
+
+<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it&rsquo;s not the point of having a technical discussion.</p>
+
+<h2>The moderation problem</h2>
+
+<p>In a technical discussion, broadly speaking, I find that there are three kinds of comments disagreeing with you:</p>
+
+<ul>
+<li>Constructive: Comments which disagree with you constructively. We&rsquo;re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
+<li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don&rsquo;t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
+<li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
+</ul>
+
+
+<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of &ldquo;Type A, B, C&rdquo; for these, mostly because I&rsquo;m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
+
+<p>Note that while I&rsquo;m talking about &ldquo;disruptive&rdquo; comments it&rsquo;s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
+
+<p>The second category &ndash; disruptive comments &ndash; are the thing we&rsquo;re currently unable to handle well. They snowball pretty badly too &mdash; as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more &ldquo;parallel universes&rdquo; it also just becomes <em>easier</em> for a comment to be disruptive.</p>
+
+<p>The Rust moderation team operates mostly passively, we simply don&rsquo;t have the scale<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It&rsquo;s a bit of a catch-22: it&rsquo;s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it&rsquo;s largely reactive &mdash; it&rsquo;s harder to proactively nudge the discussion in the right direction when you don&rsquo;t even <em>notice</em> what&rsquo;s going on until it&rsquo;s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it&rsquo;s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind o need something different.</p>
+
+<h2>Participation guidelines</h2>
+
+<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren&rsquo;t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
+
+<p>A proposal I&rsquo;ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
+
+<ul>
+<li>Don&rsquo;t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
+<li>Don&rsquo;t take threads off topic</li>
+<li>Don&rsquo;t rehash discussions</li>
+</ul>
+
+
+<p>We ask people to read these before participating, but also breaking these rules isn&rsquo;t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
+
+<p>A base participation guidelines document can also be a value statement, not just a set of rules but also set of values. These values can be things like:</p>
+
+<ul>
+<li>&ldquo;We explicitly value high empathy interactions&rdquo;</li>
+<li>&ldquo;How everyone is feeling is everyone&rsquo;s business&rdquo;</li>
+</ul>
+
+
+<p>(h/t <a href="http://twitter.com/adam_n_p/">Adam</a> for the articulate wording here)</p>
+
+<p>Having such words written somewhere &mdash; both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) &mdash; is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating &mdash; most don&rsquo;t &mdash; but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they&rsquo;re having trouble doing so.</p>
+
+<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I&rsquo;ve been talking about for quite a while now, the idea of having facilitators:</p>
+
+<h2>Facilitators</h2>
+
+<p>A common conflict I see occurring is that in many cases it&rsquo;s a team&rsquo;s job to think about and opine on a technical decision, but it&rsquo;s also the team&rsquo;s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you&rsquo;ve been unfairly represented. The natural response to that for most people isn&rsquo;t to work with that person and try to be properly represented, it&rsquo;s to just get angry, leading to less empathy over time.</p>
+
+<p>By design, Rust team members are <em>partisan</em>. The teams exist to build well-informed, carefully crafted opinions, and present them to the community. They also exist to make final decisions based on the results of a consensusbuilding discussion, which can involve picking sides. This is fine, there is always going to be some degree of partisanship amongst decisionmakers, or decisions would not get made.</p>
+
+<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don&rsquo;t have enough bandwidth to do this well anyway. Some teams do have a concept of &ldquo;sheriffs&rdquo;, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
+
+<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don&rsquo;t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
+
+<ul>
+<li>Summarizing the discussion every now and then</li>
+<li>Calling out one sided discussions</li>
+<li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
+<li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like &ldquo;hey @Manishearth, I noticed you&rsquo;ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?&rdquo; would help.</li>
+<li>Reinforcing positive behavior</li>
+<li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I&rsquo;ve often enjoyed doing it &mdash; noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I&rsquo;ve also found that it&rsquo;s incredibly hard to do when you&rsquo;re emotionally involved, and I&rsquo;ve often needed a nudge from someone else to get there.</li>
+</ul>
+
+
+<p>At a high level, the job of the facilitators is to:</p>
+
+<ul>
+<li>help foster empathy between participants</li>
+<li>help linearize complex discussions</li>
+<li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
+</ul>
+
+
+<p>It&rsquo;s important to note that facilitators don&rsquo;t make decisions &mdash; the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
+
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but as I&rsquo;ve mentioned before it&rsquo;s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+
+<p>This is also something the moderation team could do, however it&rsquo;s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren&rsquo;t as high: screwups can get noticed, and they don&rsquo;t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I&rsquo;d love to hear from people who would like to help).</p>
+
+<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It&rsquo;s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
+
+<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don&rsquo;t have time or feel like they have strong opinions, try someone else). But there&rsquo;s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don&rsquo;t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I&rsquo;m not really going to spend time analysing these specifics; I have opinions but I&rsquo;d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
+
+<h2>Prospective outcomes</h2>
+
+<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don&rsquo;t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
+
+<p>I suspect that in the process of building up such a team of facilitators, we will also end up building a set of resources that can help others learn to act the same way, and eventually overall improve how empathetic our community is.</p>
+
+<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the &ldquo;parallel universes&rdquo; together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
+
+<p>This also helps with concerns people have that they&rsquo;re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
+
+<hr />
+
+<p>Overall what I&rsquo;ve proposed here isn&rsquo;t a fully-formed idea; but it&rsquo;s the seed of one. There are a lot of interesting bits to discuss and build upon. I&rsquo;m hoping through this post we might push forward some of the discussions about governance &mdash; both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
+
+<p>I&rsquo;m really interested to hear what people think!</p>
+
+<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, and other people I&rsquo;ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>I am way too verbose for &ldquo;brief&rdquo; to be an accurate description of anything I write, but might as well <em>try</em>.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>Scaling the moderation team properly is another piece of this puzzle that I&rsquo;m working on; we&rsquo;ve made some progress recently.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I&rsquo;ll explain later it&rsquo;s suboptimal for the mod team to be dealing with this anyway.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Converting a WebGL Application to WebVR]]></title>
@@ -4118,530 +4307,6 @@ with other commits.</p>
 <p>I haven&rsquo;t had the opportunity to work with packfiles much, but they&rsquo;re an
 additional optimization on top of this. <a href="https://codewords.recurse.com/issues/three/unpacking-git-packfiles">Aditya&rsquo;s post</a> is a good
 intro to these.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[What Are Sum, Product, and Pi Types?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types/"/>
-    <updated>2017-03-04T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/04/what-are-sum-product-and-pi-types</id>
-    <content type="html"><![CDATA[<p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
-
-<p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
-or &ldquo;Sum types are cool&rdquo;.</p>
-
-<p>Much like fezzes and bow ties, sum types are indeed cool.</p>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/memes/sum-types-are-cool.jpg" width="400"></p>
-
-<p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
-
-<p>But what does &ldquo;sum type&rdquo; mean? And why is it called that? And what, in the name of sanity, is
-a Pi type?</p>
-
-<p>Before I start, I&rsquo;ll mention that while I will be covering some type theory to explain the names
-&ldquo;sum&rdquo; and &ldquo;product&rdquo;, you don&rsquo;t need to understand these names to use these things! Far too often
-do people have trouble understanding relatively straightforward concepts in languages because
-they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
-
-<h2>So what&rsquo;s a sum type? (the no-type-theory version)</h2>
-
-<p>In it&rsquo;s essence, a sum type is basically an &ldquo;or&rdquo; type. Let&rsquo;s first look at structs.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="n">String</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p><code>Foo</code> is a <code>bool</code> AND a <code>String</code>. You need one of each to make one.
-This is an &ldquo;and&rdquo; type, or a &ldquo;product&rdquo; type (I&rsquo;ll explain the name later).</p>
-
-<p>So what would an &ldquo;or&rdquo; type be? It would be one where the value can be a
-<code>bool</code> OR a <code>String</code>. You can achieve this with C++ with a union:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">union</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span> <span class="c1">// set it to a bool</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">&quot;blah&quot;</span><span class="p">;</span> <span class="c1">// set it to a string</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>However, this isn&rsquo;t <em>exactly</em> right, since the value doesn&rsquo;t store the information
-of which variant it is. You could store <code>false</code> and the reader wouldn&rsquo;t know
-if you had stored an empty <code>string</code> or a <code>false</code> <code>bool</code>.</p>
-
-<p>There&rsquo;s a pattern called &ldquo;tagged union&rdquo; (or &ldquo;discriminated union&rdquo;) in C++ which bridges this gap.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">union</span> <span class="n">FooUnion</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">enum</span> <span class="n">FooTag</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">BOOL</span><span class="p">,</span> <span class="n">STRING</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">FooUnion</span> <span class="n">data</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">FooTag</span> <span class="n">tag</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// set it to a bool</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">BOOL</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// set it to a string</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">&quot;blah&quot;</span><span class="p">;</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">STRING</span><span class="p">;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Here, you manually set the tag when setting the value. C++ also has <code>std::variant</code> (or
-<code>boost::variant</code>) that encapsulates this pattern with a better API.</p>
-
-<p>While I&rsquo;m calling these &ldquo;or&rdquo; types here, the technical term for such types is &ldquo;sum&rdquo; types.
-Other languages have built-in sum types.</p>
-
-<p>Rust has them and calls them &ldquo;enums&rdquo;. These are a more generalized version of the
-enums you see in other languages.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Str</span><span class="p">(</span><span class="n">String</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">::</span><span class="nb">Bool</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// &quot;pattern matching&quot;</span>
-</span><span class='line'><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="cm">/* do something with string `s` */</span><span class="p">,</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="cm">/* do something with bool `b` */</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Swift is similar, and also calls them enums</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">str</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">boolean</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-</span><span class='line'><span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="k">let</span> <span class="n">s</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with string `s`</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="k">let</span> <span class="n">b</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with boolean `b`</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You can fake these in Go using interfaces, as well. Typescript has built-in
-unions which can be typechecked without any special effort, but you need
-to add a tag (like in C++) to pattern match on them.</p>
-
-<p>Of course, Haskell has them:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="kr">data</span> <span class="kt">Foo</span> <span class="ow">=</span> <span class="kt">B</span> <span class="kt">Bool</span> <span class="o">|</span> <span class="kt">S</span> <span class="kt">String</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">-- define a function</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="ow">::</span> <span class="kt">Foo</span> <span class="ow">-&gt;</span> <span class="kt">SomeReturnType</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="n">b</span><span class="p">)</span> <span class="ow">=</span> <span class="c1">-- do something with boolean b</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="n">s</span><span class="p">)</span> <span class="ow">=</span> <span class="c1">-- do something with string s</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">-- call it</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="s">&quot;blah&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="kt">True</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>One of the very common things that languages with sum types do is express nullability
-as a sum type;</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// an Option is either &quot;something&quot;, containing a type, or &quot;nothing&quot;</span>
-</span><span class='line'><span class="k">enum</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Some</span><span class="p">(</span><span class="n">T</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">None</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nb">Some</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
-</span><span class='line'><span class="k">match</span> <span class="n">x</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Some</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">None</span> <span class="o">=&gt;</span> <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;no string for you&quot;</span><span class="p">),</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Generally, these languages have &ldquo;pattern matching&rdquo;, which is like a <code>switch</code>
-statement on steroids. It lets you match on and destructure all kinds of things,
-sum types being one of them. Usually, these are &ldquo;exhaustive&rdquo;, which means that
-you are forced to handle all possible cases. In Rust, if you remove that <code>None</code>
-branch, the program won&rsquo;t compile. So you&rsquo;re forced to deal with the none case,
-<em>somehow</em>.</p>
-
-<p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
-tend to make heavy use of them, almost as much as they use structs.</p>
-
-<h2>Why do we call it a sum type?</h2>
-
-<p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
-
-<p>Let&rsquo;s step back a bit and figure out what a type is.</p>
-
-<p>It&rsquo;s really a restriction on the values allowed. It can have things like methods and whatnot
-dangling off it, but that&rsquo;s not so important here.</p>
-
-<p>In other words, it&rsquo;s like<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set \(\{\mathtt{true}, \mathtt{false}\}\). An 8-bit unsigned integer
-(<code>u8</code> in Rust) is the set \(\{0, 1, 2, 3, &hellip;. 254, 255\}\). A string is a set with
-infinite elements, containing all possible valid strings<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
-
-<p>What&rsquo;s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="kt">u8</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The set of possible values of <code>Foo</code> is</p>
-
-&#92;[&#92;{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}&#92;}&#92;]
-
-
-<p>(Read as &ldquo;The set of all \((\mathtt{x}, \mathtt{y})\) where \(\tt x\) is in \(\mathtt{bool}\) and \(\tt y\) is in \(\mathtt{u8}\)&rdquo;)</p>
-
-<p>This is called a <em>Cartesian product</em>, and is often represented as \(\tt Foo = bool \times u8\).
-An easy way to view this as a product is to count the possible values: The number of possible values
-of <code>Foo</code> is the number of possible values of <code>bool</code> (2) <em>times</em> the number of possible values of <code>u8</code> (256).</p>
-
-<p>A general struct would be a &ldquo;product&rdquo; of the types of each field, so something like</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="kt">u8</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">z</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">w</span><span class="o">:</span> <span class="n">String</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>is \(\mathtt{Bar = bool \times u8 \times bool \times String}\)</p>
-
-<p>This is why structs are called &ldquo;product types&rdquo;<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>.</p>
-
-<p>You can probably guess what comes next &ndash; Rust/Swift enums are &ldquo;sum types&rdquo;, because they are the
-<em>sum</em> of the two sets.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Integer</span><span class="p">(</span><span class="kt">u8</span><span class="p">),</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
-is a sum of sets, \(\tt Foo = bool + u8\). More accurately, it&rsquo;s a <em>disjoint union</em>, where if the input
-sets have overlap, the overlap is &ldquo;discriminated&rdquo; out.</p>
-
-<p>An example of this being a disjoint union is:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Bool1</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="n">Bool2</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Integer</span><span class="p">(</span><span class="kt">u8</span><span class="p">).</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This is not \(\tt Bar = bool + bool + u8\), because \(\tt bool + bool = bool\), (regular set addition doesn&rsquo;t duplicate the overlap).</p>
-
-<p>Instead, it&rsquo;s something like</p>
-
-&#92;[\tt Bar = bool + otherbool + u8&#92;]
-
-
-<p>where \(\tt otherbool\) is also a set \(\tt \{true, false\}\),
-except that these elements are <em>different</em> from those in \(\tt bool\). You can look at it as if</p>
-
-&#92;[\tt otherbool = &#92;{true_2, false_2&#92;}&#92;]
-
-
-<p>so that</p>
-
-&#92;[\mathtt{bool + otherbool} = &#92;{\mathtt{true, false, true_2, false_2}&#92;}&#92;]
-
-
-<p>For sum types, the number of possible values is the sum of the number of possible values of
-each of its component types.</p>
-
-<p>So, Rust/Swift enums are &ldquo;sum types&rdquo;.</p>
-
-<p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
-talking about sum and product types together &ndash; a language with ADTs will have both.</p>
-
-<p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
-it&rsquo;s the set of all possible mappings from \(B\) to \(A\). The number of elements is \(N_A^{N_B}\). So
-basically, the type of a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
-an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// the type</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">my_func</span><span class="p">(</span><span class="n">b</span><span class="o">:</span> <span class="n">B</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">A</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// is conceptually (each possible my_func can be written as an instance of)</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">my_func</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">b1</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for first element in B</span>
-</span><span class='line'>    <span class="n">b2</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for second element in B</span>
-</span><span class='line'>    <span class="n">b3</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span>
-</span><span class='line'>    <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>given a value of the input <code>b</code>, the function will find the right field of <code>my_func</code> and return
-the mapping. Since a struct is a product type, this is</p>
-
-&#92;[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots&#92;]
-
-
-<p>making it an exponential type.</p>
-
-<p><a href="http://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
-
-<h2>What, in the name of sanity, is a Pi type?</h2>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/memes/what-in-the-name-of-sanity.jpg" width="400"></p>
-
-<p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
-can depend on a value. An example of this is integer generics, where you
-can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
-
-<p>Note that the type signature contains a <em>type</em> dependent on an integer, being generic over multiple
-different array lengths.</p>
-
-<p>The name comes from how a constructor for these types would look:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// create an array of booleans from a given integer</span>
-</span><span class='line'><span class="c1">// I made up this syntax, this is _not_ from the Rust Pi type RFC</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">make_array</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// or</span>
-</span><span class='line'><span class="c1">// (the proposed rust syntax)</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">make_array</span><span class="o">&lt;</span><span class="kr">const</span> <span class="n">x</span><span class="o">:</span> <span class="kt">u8</span><span class="o">&gt;</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>   <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>What&rsquo;s the type of <code>make_array</code> here? It&rsquo;s a function which can accept any integer
-and return a different type in each case. You can view it as a set of functions,
-where each function corresponds to a different integer input. It&rsquo;s basically:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">make_array</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">make_array_0</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">0</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_1</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_2</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_3</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">3</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_4</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_5</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">5</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Given an input, the function chooses the right child function here, and calls it.</p>
-
-<p>This is a struct, or a product type! But it&rsquo;s a product of an infinite number of types<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
-
-<p>We can look at it as</p>
-
-&#92;[&#92;texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]
-
-
-<p>The usage of the \(\Pi\) symbol to denote an iterative product gives this the name &ldquo;Pi type&rdquo;.</p>
-
-<p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
-that can give you a value, and actually having the value. So, the type of <code>make_array</code> is the type
-of <code>Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
-
-<p>There&rsquo;s also a notion of a &ldquo;sigma&rdquo; type, which is basically</p>
-
-&#92;[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]
-
-
-<p>With the Pi type, we had &ldquo;for all N we can
-construct an array&rdquo;, with the sigma type we have &ldquo;there exists some N for which we can construct this array&rdquo;.
-As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
-are basically instances of <code>Array&lt;bool, N&gt;</code> for some specific <code>N</code> where the <code>N</code> is only known at runtime.
-(much like how regular sum types are instances of one amongst multiple types, where the exact type
-is only known at runtime). <code>Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code>Array&lt;bool, ?&gt;</code>,
-as is <code>&amp;[bool]</code>.</p>
-
-<h2>Wrapping up</h2>
-
-<p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
-
-<p>Let&rsquo;s try to avoid using confusing terminology, however. If Rust <em>does</em> get &ldquo;pi types&rdquo;,
-let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generics&rdquo; :)</p>
-
-<p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Lookin&#8217; at you, Go.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Moooooooooooooooonads<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it&rsquo;s still a finite set.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>Like with strings, in practice this would probably be bounded by the integer type chosen<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
 ]]></content>
   </entry>
   

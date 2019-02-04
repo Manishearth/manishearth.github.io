@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2019-02-03T21:08:00+00:00</updated>
+  <updated>2019-02-04T08:42:15+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,195 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rust Governance: Scaling Empathy]]></title>
+    <link href="http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy/"/>
+    <updated>2019-02-04T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy</id>
+    <content type="html"><![CDATA[<p>There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
+
+<p>I&rsquo;ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
+
+<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> I&rsquo;m going to assume the reader is roughly familiar with most of the stuff that&rsquo;s happened with the Rust community in the past few years. I&rsquo;m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+
+<p>This blog post is probably going to reach the eyes of non-Rust-community members. You&rsquo;re welcome to read it, but please accept my apologies in advance if it doesn&rsquo;t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven&rsquo;t had time to edit it to make it acceptable to a wider audience.</p>
+
+<h2>The symptoms</h2>
+
+<p>Before I actually get into it, I&rsquo;d like to carefully delineate <em>what</em> the problem is that I&rsquo;m talking about. Or more accurately, the <em>symptoms</em> I am talking about &mdash; as I&rsquo;ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
+
+<p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
+
+<ul>
+<li>The same arguments getting brought up over and over again</li>
+<li>Accusations of bad faith</li>
+<li>Derailing</li>
+<li>Not feeling heard</li>
+<li>Just getting exhausted by all the stuff that&rsquo;s going on</li>
+</ul>
+
+
+<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">https://internals.rust-lang.org</a> have similar problems.</p>
+
+<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven&rsquo;t already.</p>
+
+<h2>The scaling problem</h2>
+
+<p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
+
+<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you&rsquo;re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It&rsquo;s <em>much</em> easier to have one-on-one discussions because it&rsquo;s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
+
+<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don&rsquo;t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It&rsquo;s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
+
+<p>All of these mismatches are easy to identify in one-on-one discussions, because it&rsquo;s easy to switch gears to the meta discussion for a bit.</p>
+
+<p>One-on-one discussions are pleasant. They foster empathy.</p>
+
+<p>N-to-N discussions are <em>not</em>. It&rsquo;s harder to converge on this shared vocabulary amongst N other people. It&rsquo;s harder to identify these mismatches, partly because it&rsquo;s hard to switch into the meta-mode of a discussion at all, but also because there&rsquo;s a lot going on. It&rsquo;s harder to build empathy.</p>
+
+<p>As we&rsquo;ve grown, discussion complexity has grown quadratically, and we&rsquo;re not really attempting to relinearize them.</p>
+
+<h3>Hanabi and parallel universes</h3>
+
+<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It&rsquo;s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
+
+<p>Hanabi is a cooperative game. You can see everyone&rsquo;s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
+
+<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone&rsquo;s moves will be. With this in mind, you can attempt to &ldquo;set up&rdquo; situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn&rsquo;t actually play out as planned.</p>
+
+<p>The core issue behind this is forgetting that you actually <em>can&rsquo;t</em> see the entire game state, since your own cards are hidden. It&rsquo;s not just <em>you</em> who has plans &mdash; everyone does! And each of those plans is incomplete since they&rsquo;re missing a piece of the picture, just as you are.</p>
+
+<p>In Hanabi it&rsquo;s very easy to forget that you&rsquo;re missing a piece of the picture &mdash; in competitive card games you mostly can&rsquo;t see the game state since everyone else&rsquo;s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it&rsquo;s easy to forget that your own four cards are hidden from you.</p>
+
+<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you&rsquo;re fine, but if you don&rsquo;t you will be frustrated.</p>
+
+<p>This is largely true of N-to-N discussions as well. Because most of what&rsquo;s being said makes sense to an individual in a particular way, it&rsquo;s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, &ldquo;forking&rdquo; the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone&rsquo;s talking past each other.</p>
+
+<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me &mdash; typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I&rsquo;m not consistent in doing this &mdash; in the midst of a heated argument it&rsquo;s easy to get too wrapped up in the argument to think about getting results and I&rsquo;ve certainly had my time arguing instead of resolving &mdash; but overall whenever I&rsquo;ve chosen to do this it&rsquo;s been a useful policy.</p>
+
+<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it&rsquo;s not the point of having a technical discussion.</p>
+
+<h2>The moderation problem</h2>
+
+<p>In a technical discussion, broadly speaking, I find that there are three kinds of comments disagreeing with you:</p>
+
+<ul>
+<li>Constructive: Comments which disagree with you constructively. We&rsquo;re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
+<li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don&rsquo;t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
+<li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
+</ul>
+
+
+<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of &ldquo;Type A, B, C&rdquo; for these, mostly because I&rsquo;m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
+
+<p>Note that while I&rsquo;m talking about &ldquo;disruptive&rdquo; comments it&rsquo;s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
+
+<p>The second category &ndash; disruptive comments &ndash; are the thing we&rsquo;re currently unable to handle well. They snowball pretty badly too &mdash; as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more &ldquo;parallel universes&rdquo; it also just becomes <em>easier</em> for a comment to be disruptive.</p>
+
+<p>The Rust moderation team operates mostly passively, we simply don&rsquo;t have the scale<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It&rsquo;s a bit of a catch-22: it&rsquo;s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it&rsquo;s largely reactive &mdash; it&rsquo;s harder to proactively nudge the discussion in the right direction when you don&rsquo;t even <em>notice</em> what&rsquo;s going on until it&rsquo;s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it&rsquo;s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind o need something different.</p>
+
+<h2>Participation guidelines</h2>
+
+<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren&rsquo;t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
+
+<p>A proposal I&rsquo;ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
+
+<ul>
+<li>Don&rsquo;t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
+<li>Don&rsquo;t take threads off topic</li>
+<li>Don&rsquo;t rehash discussions</li>
+</ul>
+
+
+<p>We ask people to read these before participating, but also breaking these rules isn&rsquo;t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
+
+<p>A base participation guidelines document can also be a value statement, not just a set of rules but also set of values. These values can be things like:</p>
+
+<ul>
+<li>&ldquo;We explicitly value high empathy interactions&rdquo;</li>
+<li>&ldquo;How everyone is feeling is everyone&rsquo;s business&rdquo;</li>
+</ul>
+
+
+<p>(h/t <a href="http://twitter.com/adam_n_p/">Adam</a> for the articulate wording here)</p>
+
+<p>Having such words written somewhere &mdash; both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) &mdash; is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating &mdash; most don&rsquo;t &mdash; but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they&rsquo;re having trouble doing so.</p>
+
+<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I&rsquo;ve been talking about for quite a while now, the idea of having facilitators:</p>
+
+<h2>Facilitators</h2>
+
+<p>A common conflict I see occurring is that in many cases it&rsquo;s a team&rsquo;s job to think about and opine on a technical decision, but it&rsquo;s also the team&rsquo;s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you&rsquo;ve been unfairly represented. The natural response to that for most people isn&rsquo;t to work with that person and try to be properly represented, it&rsquo;s to just get angry, leading to less empathy over time.</p>
+
+<p>By design, Rust team members are <em>partisan</em>. The teams exist to build well-informed, carefully crafted opinions, and present them to the community. They also exist to make final decisions based on the results of a consensusbuilding discussion, which can involve picking sides. This is fine, there is always going to be some degree of partisanship amongst decisionmakers, or decisions would not get made.</p>
+
+<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don&rsquo;t have enough bandwidth to do this well anyway. Some teams do have a concept of &ldquo;sheriffs&rdquo;, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
+
+<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don&rsquo;t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
+
+<ul>
+<li>Summarizing the discussion every now and then</li>
+<li>Calling out one sided discussions</li>
+<li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
+<li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like &ldquo;hey @Manishearth, I noticed you&rsquo;ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?&rdquo; would help.</li>
+<li>Reinforcing positive behavior</li>
+<li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I&rsquo;ve often enjoyed doing it &mdash; noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I&rsquo;ve also found that it&rsquo;s incredibly hard to do when you&rsquo;re emotionally involved, and I&rsquo;ve often needed a nudge from someone else to get there.</li>
+</ul>
+
+
+<p>At a high level, the job of the facilitators is to:</p>
+
+<ul>
+<li>help foster empathy between participants</li>
+<li>help linearize complex discussions</li>
+<li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
+</ul>
+
+
+<p>It&rsquo;s important to note that facilitators don&rsquo;t make decisions &mdash; the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
+
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but as I&rsquo;ve mentioned before it&rsquo;s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+
+<p>This is also something the moderation team could do, however it&rsquo;s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren&rsquo;t as high: screwups can get noticed, and they don&rsquo;t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I&rsquo;d love to hear from people who would like to help).</p>
+
+<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It&rsquo;s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
+
+<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don&rsquo;t have time or feel like they have strong opinions, try someone else). But there&rsquo;s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don&rsquo;t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I&rsquo;m not really going to spend time analysing these specifics; I have opinions but I&rsquo;d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
+
+<h2>Prospective outcomes</h2>
+
+<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don&rsquo;t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
+
+<p>I suspect that in the process of building up such a team of facilitators, we will also end up building a set of resources that can help others learn to act the same way, and eventually overall improve how empathetic our community is.</p>
+
+<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the &ldquo;parallel universes&rdquo; together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
+
+<p>This also helps with concerns people have that they&rsquo;re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
+
+<hr />
+
+<p>Overall what I&rsquo;ve proposed here isn&rsquo;t a fully-formed idea; but it&rsquo;s the seed of one. There are a lot of interesting bits to discuss and build upon. I&rsquo;m hoping through this post we might push forward some of the discussions about governance &mdash; both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
+
+<p>I&rsquo;m really interested to hear what people think!</p>
+
+<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, and other people I&rsquo;ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>I am way too verbose for &ldquo;brief&rdquo; to be an accurate description of anything I write, but might as well <em>try</em>.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>Scaling the moderation team properly is another piece of this puzzle that I&rsquo;m working on; we&rsquo;ve made some progress recently.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I&rsquo;ll explain later it&rsquo;s suboptimal for the mod team to be dealing with this anyway.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Converting a WebGL Application to WebVR]]></title>
@@ -611,166 +800,6 @@ places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncover
 </ol>
 </div>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[A Rough Proposal for Sum Types in Go]]></title>
-    <link href="http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go/"/>
-    <updated>2018-02-01T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go</id>
-    <content type="html"><![CDATA[<p>Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these <em>and</em> one of these&rdquo;,
-a sum type is &ldquo;This contains one of these <em>or</em> one of these&rdquo;.</p>
-
-<p>So for example, the following sum type in Rust:</p>
-
-<pre><code class="rust">enum Foo {
-    Stringy(String),
-    Numerical(u32)
-}
-</code></pre>
-
-<p>or Swift:</p>
-
-<pre><code class="swift">enum Foo {
-    case stringy(String),
-    case numerical(Int)
-}
-</code></pre>
-
-<p>would be one where it&rsquo;s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
-<em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
-
-<p>This can be pretty useful. For example, messages between threads are often of a &ldquo;this or that or that or that&rdquo;
-form.</p>
-
-<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> &ndash; you must list all
-the cases (or include a default arm) for your code to compile. This leads to a useful component
-of type safety &ndash; if you add a message to your message passing system, you&rsquo;ll know where to update it.</p>
-
-<p>Go doesn&rsquo;t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
-is that you do not get the exhaustiveness condition, and consumers of your library can even add further
-cases. (And, of course, dynamic dispatch can be slow). You <em>can</em> get exhaustiveness in Go with <a href="https://github.com/haya14busa/gosum">external tools</a>,
-but it&rsquo;s preferable to have such things in the language IMO.</p>
-
-<p>Many years ago when I was learning Go I wrote a <a href="http://inpursuitoflaziness.blogspot.in/2015/02/thoughts-of-rustacean-learning-go.html">blog post</a> about what I liked and disliked
-as a Rustacean learning Go. Since then, I&rsquo;ve spent a lot more time with Go, and I&rsquo;ve learned to like each Go design decision that I initially
-disliked, <em>except</em> for the lack of sum types. Most of my issues arose from &ldquo;trying to program Rust in Go&rdquo;,
-i.e. using idioms that are natural to Rust (or other languages I&rsquo;d used previously). Once I got used to the
-programming style, I realized that aside from the lack of sum types I really didn&rsquo;t find much missing
-from the language. Perhaps improvements to error handling.</p>
-
-<p>Now, my intention here isn&rsquo;t really to sell sum types. They&rsquo;re somewhat controversial for Go, and
-there are good arguments on both sides. You can see one discussion on this topic <a href="https://github.com/golang/go/issues/19412">here</a>.
-If I were to make a more concrete proposal I&rsquo;d probably try to motivate this in much more depth. But even
-I&rsquo;m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
-
-<p>Instead, I&rsquo;m going to try and sketch this proposal for sum types that has been floating around my
-mind for a while. I end up mentioning it often and it&rsquo;s nice to have something to link to. Overall,
-I think this &ldquo;fits well&rdquo; with the existing Go language design.</p>
-
-<h2>The proposal</h2>
-
-<p>The essence is pretty straightforward: Extend interfaces to allow for &ldquo;closed interfaces&rdquo;. These are
-interfaces that are only implemented for a small list of types.</p>
-
-<p>Writing the <code>Foo</code> sum type above would be:</p>
-
-<pre><code class="go">type Foo interface {
-    SomeFunction()
-    OtherFunction()
-    for string, int
-}
-</code></pre>
-
-<p>It doesn&rsquo;t even need to have functions defined on it.</p>
-
-<p>The interface functions can only be called if you have an interface object; they are not directly available
-on variant types without explicitly casting (<code>Foo("...").SomeFunction()</code>).</p>
-
-<p>(I&rsquo;m not strongly for the <code>for</code> keyword syntax, it&rsquo;s just a suggestion. The core idea is that
-you define an interface and you define the types it closes over. Somehow.)</p>
-
-<p>A better example would be an interface for a message-passing system for Raft:</p>
-
-<pre><code class="go">type VoteRequest struct {
-    CandidateId uint
-    Term uint
-    // ...
-}
-
-type VoteResponse struct {
-    Term uint
-    VoteGranted bool
-    VoterId uint
-}
-
-type AppendRequest struct {
-    //...
-}
-
-type AppendResponse struct {
-    //...
-}
-// ...
-type RaftMessage interface {
-    for VoteRequest, VoteResponse, AppendRequest, AppendResponse
-}
-</code></pre>
-
-<p>Now, you use type switches for dealing with these:</p>
-
-<pre><code class="go">switch value := msg.(type) {
-    case VoteRequest:
-        if value.Term &lt;= me.Term {
-            me.reject_vote(value.CandidateId)
-        } else {
-            me.accept_vote(value.CandidateId, value.Term)
-        }
-    case VoteResponse: // ...
-    case AppendRequest: // ...
-    case AppendResponse: // ...
-}
-</code></pre>
-
-<p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
-
-<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I&rsquo;m not sure
-what this entails for the GC design, but I&rsquo;d love to hear thoughts on this.</p>
-
-<p>We also make it possible to add methods to closed interfaces. This is in the spirit of
-<a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
-
-<pre><code class="go">func (message RaftMessage) Process(me Me) error {
-    // message handling logic
-}
-</code></pre>
-
-<p>for closed interfaces.</p>
-
-<p>This aligns more with how sum types are written and used in other languages; instead of assuming
-that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
-on the type but it can also just call other methods. This is really nice because you can write
-methods in <em>both</em> ways &ndash; if it&rsquo;s a &ldquo;responsibility of the inner type&rdquo; kind of method, require it in
-the interface and delegate it to the individual types. If it&rsquo;s a &ldquo;responsibility of the interface&rdquo;
-method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
-you sometimes end up writing things like:</p>
-
-<pre><code class="rust">match foo {
-    Foo::Stringy(s) =&gt; s.process(),
-    Foo::Numerical(n) =&gt; n.process(),
-    // ...
-}
-</code></pre>
-
-<p>Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
-proposal Go can have it both ways.</p>
-
-<hr />
-
-<p>Anyway, thoughts? This is a really rough proposal, and I&rsquo;m not sure how receptive other Gophers will be
-to this, nor how complex its implementation would be. I don&rsquo;t really intend to submit this as a formal proposal,
-but if someone else wants to they are more than welcome to build on this idea.</p>
 ]]></content>
   </entry>
   
