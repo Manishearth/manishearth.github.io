@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Rust Governance: Scaling Empathy"
-date: 2018-09-29 12:08:46 -0700
+date: 2019-02-04 09:40:49 +0100
 comments: true
 categories: [rust, programming]
 ---
