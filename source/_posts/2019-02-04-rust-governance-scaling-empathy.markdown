@@ -142,6 +142,7 @@ I feel like it would be useful to have a group of (per-team?) _facilitators_ to 
  - Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)
  - Calling out specific people to do a thing that helps move the discussion forward. For example, something like "hey @Manishearth, I noticed you've been vocal in [arguing that Rust should switch to whitespace-sensitive syntax][lol], could you summarize all the arguments made by people on your side?" would help.
  - Reinforcing positive behavior
+ - Occasionally pinging participants privately to help them improve their comments
  - Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I've often enjoyed doing it &mdash; noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I've also found that it's incredibly hard to do when you're emotionally involved, and I've often needed a nudge from someone else to get there.
 
 At a high level, the job of the facilitators is to:
