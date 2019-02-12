@@ -35,6 +35,8 @@ The RFC process is the primary exhibitor of these symptoms, but semi-official co
 
 Aaron [has written some extremely empathetic blog posts][listening-and-trust] about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven't already.
 
+Fundamentally I consider our problems to be social problems, not technical ones. In my opinion, technical solutions like changing the discussion forum format may be necessary but are not sufficient for fixing this.
+
  [listening-and-trust]: http://aturon.github.io/2018/05/25/listening-part-1/
 
 
@@ -102,6 +104,7 @@ The Rust moderation team operates mostly passively, we simply don't have the sca
  [^3]: I helped draft [our moderation policy](https://www.rust-lang.org/policies/code-of-conduct#moderation), so this is a somewhat a lack of foresight on my part, but as I'll explain later it's suboptimal for the mod team to be dealing with this anyway.
 
 ## Participation guidelines
+
 
 Part of the solution here is recognizing that spaces for official discussion are _different_ from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren't really covered. Nor are the repercussions of code of conduct violations really _appropriate_ for such disruptive comments anyway.
 
