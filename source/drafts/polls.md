@@ -8,8 +8,14 @@ categories: [politics, elections, programming]
 
 Election season is starting up again, and as with many other topics I'm seeing a lot of overconfident takes from people in tech wanting to "solve" how voting works with naïve techy solutions. Hell, [even a presidential candidate seems to have proposed an extremely uninformed plan for "fixing" voting using blockchain technology][yang-blonkchonk].
 
-Last year I wrote [a thread on Twitter][twitter-thread] covering some of the essential properties good voting systems uphold as well as how they prevent fraud, through the lens of Alameda County's voting system, where I've volunteered as a poll worker in the past (and intend to do again). I've been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.
+Last year I wrote [a thread on Twitter][twitter-thread] covering some of the essential properties good voting systems uphold as well as how they prevent fraud. It was through the lens of Alameda County's voting system, where I've volunteered as a poll worker in the past (and intend to do again). I've been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.
 
+I'll be explaining more about most of these properties later, but ideally, a good voting system should uphold:
+
+ - Secret ballot: Nobody, not even you, can verify who you voted for after you're out of the polling place, to prevent vote-buying and coercion.
+ - Auditable paper trail: We should be able to audit the election. Paper trails are usually the most robust way to enable effective audits.
+ - Obviousness: It should be relatively obvious what individuals should be doing when they need to mark their ballots. A system that you can easily "mess up" with is a bad system.
+ - Accessibility: It should not exclude individuals with disabilities from being able to vote.
 
  [yang-blonkchonk]: https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain
  [twitter-thread]: https://twitter.com/ManishEarth/status/1056255900095340545
@@ -46,7 +52,12 @@ As I understand it, voting in person at designated government offices[^3] is pre
 
 If you've chosen to vote in person, you are supposed to turn up at your assigned polling place (you get your assignment in the mail along with other voter info booklets).
 
-There's a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it[^4]. If your name isn't on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct. If your name isn't on the list of all voters (perhaps you registered very late, or were unable to register), you can also vote provisionally. If your name is on the list but marked as voting-by-mail (and you want to vote in person), you can vote normally only if you surrender your mail ballot (which poll workers will mark as spoiled and put in a separate pouch). If you lost/didn't receive your ballot, you can always vote provisionally.
+There's a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it[^4].
+
+ - If your name isn't on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct.
+ - If your name isn't on the list of all voters (perhaps you registered very late, or were unable to register), you can also vote provisionally.
+ - If your name is on the list but marked as voting-by-mail (and you want to vote in person), you can vote normally only if you surrender your mail ballot (which poll workers will mark as spoiled and put in a separate pouch).
+ - If you lost/didn't receive your ballot, you can always vote provisionally.
 
 When you are voting normally, signing your name on the list fraudulently is illegal.
 
@@ -54,7 +65,11 @@ If it is your first time voting, you need to show some form of ID, but it doesn'
 
 Once you're done signing, you'll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in[^5]. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.
 
-You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems &mdash; which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card. The machine keeps an externally-visible tally of the number of ballots submitted, and an internal tally of all the votes made, ignoring write-ins. It also internally stores ballot cards in one of two bins (depending on write-ins). These bins are verified to be empty when polls open, and are inaccessible till polls close. It's important to note that the scanner is not a load-bearing component of the system: It could be replaced with a locked bin with a slot, and the system would still work. The scanner enables one to get _preliminary_ results for the precinct, and provides a way to double-check results.
+You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems &mdash; which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card.
+
+The machine keeps an externally-visible tally of the number of ballots submitted, and an internal tally of all the votes made, ignoring write-ins. It also internally stores ballot cards in one of two bins (depending on write-ins). These bins are verified to be empty when polls open, and are inaccessible till polls close.
+
+It's important to note that the scanner is not a load-bearing component of the system: It could be replaced with a locked bin with a slot, and the system would still work. The scanner enables one to get _preliminary_ results for the precinct, and provides a way to double-check results.
 
 And that's it! You'll be given an I Voted sticker, and you can go home!
 
@@ -106,7 +121,7 @@ As mentioned before, the scanner isn't a crucial part of the system, but if it h
 
 Using paper ballots doesn't mean that we have to give up all the benefits of computers doing some of the work for us! We can still use computers to get fast results, without relying on them for the integrity of the system.
 
-{% img center caption /images/post/polls/totals.jpeg 400 "Vote totals" "Vote totals posted outside. Our ballots our big and have lots of races on them; so the list of vote totals is absolutely ginormous." %}
+{% img center caption /images/post/polls/totals.jpeg 400 "Vote totals" "Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." %}
 
 ## Properties of this voting system
 
