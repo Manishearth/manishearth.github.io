@@ -9,7 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="See also: Tony&rsquo;s post on the same topic You often hear people saying &ldquo;Language X1 has sum types&rdquo; or &ldquo;I wish language X had &hellip;">
+  <meta name="description" content="The other day Steve wanted git alchemy done on the Rust repo. Specifically, he wanted the reference and nomicon moved out into
+their own repositories &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -17,8 +18,8 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="See also: Tony&rsquo;s post on the same topic You often hear people saying &ldquo;Language X1 has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;2,
-or &ldquo;Sum types are cool& &hellip;">
+      <meta property="twitter:description" content="The other day Steve wanted git alchemy done on the Rust repo. Specifically, he wanted the reference and nomicon moved out into
+their own repositories, preserving history. Both situations had some &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -98,6 +99,539 @@ or &ldquo;Sum types are cool& &hellip;">
       
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2017/03/05/understanding-git-filter-branch/">Understanding Git Filter-branch and the Git Storage Model</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2017-03-05T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>5</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>The other day <a href="http://twitter.com/steveklabnik">Steve</a> wanted git alchemy done on the Rust repo.</p>
+
+<p>Specifically, he wanted the reference and nomicon moved out into
+their <a href="https://github.com/rust-lang-nursery/reference">own</a> <a href="https://github.com/rust-lang-nursery/nomicon">repositories</a>, preserving history. Both situations had some interesting
+quirks, the reference has lived in <code>src/doc/reference/*</code> and <code>src/doc/reference.md</code>,
+and the nomicon has lived in <code>src/doc/nomicon</code>, <code>src/doc/tarpl</code>, and at the top level
+in a separate git root.</p>
+
+<p>As you can guess from the title of this post, the correct tool for this job is <code>git filter-branch</code>.
+<a href="https://twitter.com/indygreg">My colleague Greg</a> calls it &ldquo;the swiss-army knife of Git history rewriting&rdquo;.</p>
+
+<p>I had some fun with filter-branch that day, thought I&rsquo;d finally write an accessible tutorial for it. A lot
+of folks treat filter-branch like rebase, but it isn&rsquo;t, and this crucial difference can lead to many
+false starts. It certainly did for me back when I first learned it.</p>
+
+<p>This kind of ties into the common bit of pedantry about the nature of a commit I keep seeing pop up:</p>
+
+<blockquote><p><a href="https://twitter.com/ManishEarth/status/837203953926352896">Git commits appear to be diffs, but they&rsquo;re actually file copies, but they&rsquo;re actually ACTUALLY diffs.</a></p></blockquote>
+
+<h2>So what is a git commit?</h2>
+
+<p>Generally we interact with git commits via <code>git show</code> or by looking at commits on
+a git GUI / web UI. Here, we see diffs. It&rsquo;s natural to think of a commit as a diff,
+it&rsquo;s the model that makes the most sense for the most common ways of interacting
+with commits. It also makes some sense from an implementation point of view, diffs
+seem like an efficient way of storing things.</p>
+
+<p>It turns out that the &ldquo;real&rdquo; model is not this, it&rsquo;s actually that each commit
+is a snapshot of the whole repo state at the time.</p>
+
+<p>But actually, it isn&rsquo;t, the underlying implementation does make use of deltas
+in packfiles and some other tricks like copy-on-write forking.</p>
+
+<p>Ultimately, arguing about the &ldquo;real&rdquo; mental model is mostly pedantry. There are
+multiple ways of looking at a commit. The documentation tends to implicitly think
+of them as &ldquo;full copies of the entire file tree&rdquo;, which is where most
+of the confusion about <code>filter-branch</code> comes from. But often it&rsquo;s important
+to picture them as diffs, too.</p>
+
+<p>Understanding the implementation can be helpful, especially when you break the
+repository whilst doing crazy things (I do this often). I&rsquo;ve explained how it works
+in a later section, it&rsquo;s not really a prerequisite for understanding filter-branch,
+but it&rsquo;s interesting.</p>
+
+<h2>How do I rewrite history with <code>git rebase</code>?</h2>
+
+<p>This is where some of the confusion around <code>filter-branch</code> stems from. Folks have worked with
+<code>rebase</code>, and they think <code>filter-branch</code> is a generalized version of this. They&rsquo;re actually quite
+different.</p>
+
+<p>For those of you who haven&rsquo;t worked with <code>git rebase</code>, it&rsquo;s a pretty useful way of rewriting
+history, and is probably what you should use when you want to rewrite history, especially for
+maintaining clean git history in an unmerged under-review branch.</p>
+
+<p>Rebase does a whole bunch of things. Its core task is, given the current branch and a branch that
+you want to &ldquo;rebase onto&rdquo;, it will take all commits unique to your branch, and apply them in order
+to the new one. Here, &ldquo;apply&rdquo; means &ldquo;apply the diff of the commit, attempting to resolve any conflicts&rdquo;.
+At times, it may ask you to manually resolve the conflicts, using the same tooling
+you use for conflicts during <code>git merge</code>.</p>
+
+<p>Rebase is much more powerful than that, though. <code>git rebase -i</code> will open up &ldquo;interactive rebase&rdquo;,
+which will show you the commits that are going to be rebased. In this interface, you can reorder
+commits, mark them for edits (wherein the rebase will stop at that commit and let you <code>git commit
+--amend</code> changes into it), and even &ldquo;squash&rdquo; commits which lets you mark a commit to be absorbed
+into the previous one. This is rather useful for when you&rsquo;re working on a feature and want to keep
+your commits neat, but also want to make fixup patches to older commits. <a href="https://blog.filippo.io/git-fixup-amending-an-older-commit/">Filippo&rsquo;s <code>git fixup</code> alias</a>
+packages this particular task into a single git command. Changing <code>EDITOR=true</code> into
+<code>EDITOR=: GIT_SEQUENCE_EDITOR=:</code> will make it not even open the editor for confirmation
+and try to do the whole thing automatically.</p>
+
+<p><code>git rebase -x some_command</code> is also pretty neat, lets you run a shell command on each step during a rebase.</p>
+
+<p>In this model, you are fundamentally thinking of commits as diffs. When you move around
+commits in the interactive rebase editor, you&rsquo;re moving around diffs. When you mark things
+for squashing, you&rsquo;re basically merging diffs. The whole process is about taking a set of
+diffs and applying them to a different &ldquo;base commit&rdquo;.</p>
+
+<p><img class="center" src="/images/post/memes/diffs-everywhere.jpg" width="400" ></p>
+
+<h2>How do I rewrite history with <code>git filter-branch</code>?</h2>
+
+<p><code>filter-branch</code> does <em>not</em> work with diffs. You&rsquo;re working with the &ldquo;snapshot&rdquo; model
+of commits here, where each commit is a snapshot of the tree, and rewriting these commits.</p>
+
+<p>What <code>git filter-branch</code> will do is for each commit in the specified branch, apply filters to the
+snapshot, and create a new commit. The new commit&rsquo;s parent will be the filtered version of the old
+commit&rsquo;s parent. So it creates a parallel commit DAG.</p>
+
+<p>Because the filters apply on the snapshots instead of the diffs, there&rsquo;s no chance for this to cause
+conflicts like in git rebase. In git rebase, if I have one commit that makes changes to a file, and
+I change the previous commit to just remove the area of the file that was changed, I&rsquo;d have a conflict
+and git would ask me to figure out how the changes are supposed to be applied.</p>
+
+<p>In git-filter-branch, if I do this, it will just power through. Unless you explicitly write
+your filters to refer to previous commits, the new commit is created in isolation, so it doesn&rsquo;t
+worry about changes to the previous commits. If you had indeed edited the previous commit,
+the new commit will appear to undo those changes and apply its own on top of that.</p>
+
+<p><code>filter-branch</code> is generally for operations you want to apply pervasively to a repository. If
+you just want to tweak a few commits, it won&rsquo;t work, since future commits will appear to undo
+your changes. <code>git rebase</code> is for when you want to tweak a few commits.</p>
+
+<p>So, how do you use it?</p>
+
+<p>The basic syntax is <code>git filter-branch &lt;filters&gt; branch_name</code>. You can use <code>HEAD</code> or <code>@</code>
+to refer to the current branch instead of explicitly typing <code>branch_name</code>.</p>
+
+<p>A very simple and useful filter is the subdirectory filter. It makes a given subdirectory
+the repository root. You use it via <code>git filter-branch --subdirectory-filter name_of_subdir @</code>.
+This is useful for extracting the history of a folder into its own repository.</p>
+
+<p>Another useful filter is the tree filter, you can use it to do things like moving around, creating,
+or removing files. For example, if you want to move <code>README.md</code> to <code>README</code> in the entire history,
+you&rsquo;d do something like <code>git filter-branch --tree-filter 'mv README.md README' @</code> (you can also
+achieve this much faster with some manual work and <code>rebase</code>). The tree filter will work by checking
+out each commit (in a separate temporary folder), running your filter on the working directory,
+adding any changes to the index (no need to <code>git add</code> yourself), and committing the new index.</p>
+
+<p>The <code>--prune-empty</code> argument is useful here, as it removes commits which are now empty due to the
+rewrite.</p>
+
+<p>Because it is checking out each commit, this filter is quite slow. When I initially was trying to
+do Steve&rsquo;s task on the rust repo, I wrote a long tree filter and it was taking forever.</p>
+
+<p>The faster version is the index filter. However, this is a bit trickier to work with (which is why I
+tend to use a tree filter if I can get away with it). What this does is operate on the index,
+directly.</p>
+
+<p>The &ldquo;index&rdquo; is basically where things go when you <code>git add</code> them. Running <code>git add</code> will create
+temporary objects for the added file, and modify the WIP index (directory tree) to include a
+reference to the new file or change an existing file reference to the new one. When you commit, this
+index is packaged up into a commit and stored as an object. (More on how these objects work in a
+later section)</p>
+
+<p>Now, since this deals with files that are already stored as objects, git doesn&rsquo;t need to unwrap
+these objects and create a working directory to operate on them. So, with <code>--index-filter</code>, you
+can operate on these in a much faster way. However, since you don&rsquo;t have a working directory,
+stuff like adding and moving files can be trickier. You often have to use <code>git update-index</code>
+to make this work.</p>
+
+<p>However, a useful index filter is one which just scrubs a file (or files) from history:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch --index-filter <span class="s1">&#39;git rm --cached --ignore-unmatch filename&#39;</span> HEAD
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>--ignore-unmatch</code> makes the command still succeed if the file doesn&rsquo;t exist. <code>filter-branch</code>
+will fail if one of the filters fails. In general I tend to write fallible filters like
+<code>command1 1&gt;&amp;2 2&gt;/dev/null ; command2 1&gt;&amp;2 2&gt;/dev/null ; true</code>, which makes it always succeed
+and also ignores any stdout/stderr output (which tends to make the progress screen fill up fast).</p>
+
+<p>The <code>--cached</code> argument on <code>git rm</code> makes it operate only on the index, not the working directory.
+This is great, because we don&rsquo;t <em>have</em> a working directory right now.</p>
+
+<p>I rarely use <code>git update-index</code> so I&rsquo;m not really going to try and explain how it can be used here.
+But if you need to do more complex operations in an index filter, that&rsquo;s the way to go.</p>
+
+<p>There are many other filters, like <code>--commit-filter</code> (lets you discard a commit entirely),
+<code>--msg-filter</code> (rewriting commit messages), and <code>--env-filter</code> (changing things like author metadata
+or other env vars). You can see a complete list with examples <a href="https://git-scm.com/docs/git-filter-branch">in the docs</a></p>
+
+<h2>How did I perform the rewrites on the reference and nomicon?</h2>
+
+<p>For the Rust Reference, basically I had to extract the history of <code>src/doc/reference.md</code>,
+AND <code>src/doc/reference/*</code> (<code>reference.md</code> was split up into <code>reference/*.md</code> recently) into
+its own commit. This is an easy tree filter to write, but tree filters take forever.</p>
+
+<p>Instead of trying my luck with an index filter, I decided to just make it so that the
+tree filter would be faster. I first extracted <code>src/doc/</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter src/doc @
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now I had a branch that contained only the history of <code>src/doc</code>, with the root directory moved to
+<code>doc</code>. This is a much smaller repo than the entirety of Rust.</p>
+
+<p>Now, I moved <code>reference.md</code> into <code>reference/</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --tree-filter <span class="s1">&#39;mkdir -p reference; mv reference.md reference 1&gt;/dev/null 2&gt;/dev/null; true&#39;</span> @
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As mentioned before, the <code>/dev/null</code> and <code>true</code> bits are because the mv command will fail in some cases
+(when reference.md doesn&rsquo;t exist), and I want it to just continue without complaining when that happens.
+I only care about moving instances of that file, if that file doesn&rsquo;t exist there it&rsquo;s still okay.</p>
+
+<p>Now, everything I cared about was within <code>reference</code>. The next step was simple:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter reference @
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The whole process took maybe 10 minutes to run, most of the time being spent by the second command.
+The final result can be found <a href="https://github.com/rust-lang-nursery/reference">here</a>.</p>
+
+<p>For the nomicon, the task was easier. In the case of the nomicon, it has always resided in
+<code>src/doc/nomicon</code>, <code>src/doc/tarpl</code>, or at the root. This last bit is interesting, when
+<a href="http://twitter.com/Gankro/">Alexis</a> was working on the nomicon, he started off by hacking on it in a separate repo, but
+then within that repo moved it to <code>src/doc/tarpl</code>, and performed a merge commit with rustc. There&rsquo;s
+no inherent restriction in Git that all merges must have a common ancestor, and you can do stuff
+like this. I was <a href="https://twitter.com/ManishEarth/status/837441118753062912">quite surprised</a> when I saw this, since it&rsquo;s pretty uncommon in general,
+but really, many projects of that size will have stuff like this. Servo and html5ever do too, and usually
+it&rsquo;s when a large project is merged into it after being developed on the side.</p>
+
+<p>This sounds complicated to work with, but it wasn&rsquo;t that hard. I took the same subdirectory-filtere&rsquo;d
+doc directory branch used for the reference. Then, I renamed <code>tarpl/</code> to <code>nomicon/</code> via a tree filter,
+and ran another subdirectory filter:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --tree-filter <span class="s1">&#39;mv tarpl nomicon 1&gt;/dev/null 2&gt;/dev/null; true&#39;</span> @
+</span><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter nomicon @
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now, I had the whole history of the nomicon in the root dir. Except for the commits made by Alexis
+before his frankenmerge, because these got removed in the first subdirectory filter (the commits
+were operating outside of <code>src/doc</code>, even though their contents eventually got moved there).</p>
+
+<p>But, at this stage, I already had a branch with the nomicon at the root. Alexis&#8217; original commits
+were also operating on the root directory. I can just rebase here, and the diffs of my commits will
+cleanly apply!</p>
+
+<p>I found the commit (<a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a>) where everything was moved to <code>tarpl/</code>, and took its parent
+(<a href="https://github.com/rust-lang/rust/commit/c7919f2d9835578321bf7556ad1a01fa42e8a7e8"><code>c7919f</code></a>). Then, I just ran <code>git rebase --root c7919f</code>, and everything cleanly rebased.
+As expected, because I had a history going back to the first child of <a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a> with files
+moved, and <a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a> itself only moved files, so the diffs should cleanly apply.</p>
+
+<p>The final result can be found <a href="https://github.com/rust-lang-nursery/nomicon">here</a>.</p>
+
+<h2>Appendix: How are commits actually stored?</h2>
+
+<p>The way the actual implementation of a commit works is that each file being stored is hashed and
+stored in a compressed format, indexed by the hash. A directory (&ldquo;tree&rdquo;) will be a list of hashes, one for
+each file/directory inside it, alongside the filenames and other metadata. This list will be hashed
+and used everywhere else to refer to the directory.</p>
+
+<p>A commit will reference the &ldquo;tree&rdquo; object for the root directory via its hash.</p>
+
+<p>Now, if you make a commit changing some files, most of the files will be unchanged. So will most of
+the directories. So the commits can share the objects for the unchanged files/directories, reducing
+their size. This is basically a copy-on-write model. Furthermore, there&rsquo;s a second optimization
+called a &ldquo;packfile&rdquo;, wherein instead of storing a file git will store a delta (a diff) and a
+reference to the file the diff must be applied to.</p>
+
+<p>We can see this at work using <code>git cat-file</code>. <code>cat-file</code> lets you view objects in
+the &ldquo;git filesystem&rdquo;, which is basically a bunch of hash-indexed objects stored in
+<code>.git/objects</code>. You can view them directly by traversing that directory (they&rsquo;re
+organized as a trie), but <code>cat-file -p</code> will let you pretty-print their contents
+since they&rsquo;re stored in a binary format.</p>
+
+<p>I&rsquo;m working with <a href="https://github.com/rust-lang/book">the repo for the Rust Book</a>,
+playing with commit <a href="4822f2baa69c849e4fa3b85204f219a16bde2f42"><code>4822f2</code></a>. It&rsquo;s a commit that changes
+just one file (<code>second-edition/src/ch15-01-box.md</code>), perfect.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git show 4822f2baa69c849e4fa3b85204f219a16bde2f42
+</span><span class='line'>commit 4822f2baa69c849e4fa3b85204f219a16bde2f42
+</span><span class='line'>Author: Jake Goulding &lt;...&gt;
+</span><span class='line'>Date:   Fri Mar <span class="m">3</span> 14:07:24 <span class="m">2017</span> -0500
+</span><span class='line'>
+</span><span class='line'>    Reorder sentence about a generic cons list.
+</span><span class='line'>
+</span><span class='line'>diff --git a/second-edition/src/ch15-01-box.md b/second-edition/src/ch15-01-box.md
+</span><span class='line'>index 14c5533..29d8793 100644
+</span><span class='line'>--- a/second-edition/src/ch15-01-box.md
+</span><span class='line'>+++ b/second-edition/src/ch15-01-box.md
+</span><span class='line'><span class="o">(</span>diff omitted<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span>git cat-file -p 4822f2baa69c849e4fa3b85204f219a16bde2f42
+</span><span class='line'>
+</span><span class='line'>tree ec7cd2821d4bcbafe08f3eca6ea60487bfdc1b52
+</span><span class='line'>parent 24cd100e061bb11c3f7f3219467d6d644c50d811
+</span><span class='line'>author Jake Goulding &lt;...&gt; <span class="m">1488568044</span> -0500
+</span><span class='line'>committer GitHub &lt;noreply@github.com&gt; <span class="m">1488568044</span> -0500
+</span><span class='line'>
+</span><span class='line'>Reorder sentence about a generic cons list.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This tells us that the commit is a thing with some author information, a pointer to
+a parent, a commit message, and a &ldquo;tree&rdquo;. What&rsquo;s this tree?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p ec7cd2821d4bcbafe08f3eca6ea60487bfdc1b52
+</span><span class='line'><span class="m">100644</span> blob 4cab1f4d267628ab5f4f7c14b1b64a9d4b032409    .gitattributes
+</span><span class='line'><span class="m">040000</span> tree e1dcc1c754d72450b03542b2106fcb67c78805ff    .github
+</span><span class='line'><span class="m">100644</span> blob 4c699f440ac134c577cb6f67b04ec5b93c652440    .gitignore
+</span><span class='line'><span class="m">100644</span> blob e86d887d84a839417c960faf877c9057a8dc6823    .travis.yml
+</span><span class='line'><span class="m">100644</span> blob 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb    README.md
+</span><span class='line'><span class="m">040000</span> tree 17b33cb52a5abb67ff678a03e7ed88cf9f163c69    ci
+</span><span class='line'><span class="m">040000</span> tree 0ffd2c1238345c1b0e99af6c1c618eee4a0bab58    first-edition
+</span><span class='line'><span class="m">100644</span> blob 5d1d2bb79e1521b28dd1b8ff67f9b04f38d83620    index.md
+</span><span class='line'><span class="m">040000</span> tree b7160f7d05d5b5bfe28bad029b1b490e310cff22    redirects
+</span><span class='line'><span class="m">040000</span> tree d5672dd9ef15adcd1527813df757847d745e299a    second-edition
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is just a directory! You can see that each entry has a hash. We can use
+<code>git cat-file -p</code> to view each one. Looking at a <code>tree</code> object will just give
+us a subdirectory, but the <code>blob</code>s will show us actual files!</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb <span class="c"># Show README</span>
+</span><span class='line'><span class="c"># The Rust Programming Language</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">[</span>!<span class="o">[</span>Build Status<span class="o">](</span>https://travis-ci.org/rust-lang/book.svg?branch<span class="o">=</span>master<span class="o">)](</span>https://travis-ci.org/rust-lang/book<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>To <span class="nb">read </span>this book online, visit <span class="o">[</span>rust-lang.github.io/book/<span class="o">][</span>html<span class="o">]</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">(</span>rest of file omitted<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So how does this share objects? Let&rsquo;s look at the previous commit:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p 4822f2baa69c849e4fa3b85204f219a16bde2f42^ <span class="c"># `^` means &quot;parent&quot;</span>
+</span><span class='line'>tree d219be3c5010f64960ddb609a849fc42a01ad31b
+</span><span class='line'>parent 21c063868f9d7fb0fa488b6f1124262f055d275b
+</span><span class='line'>author steveklabnik &lt;...&gt; <span class="m">1488567224</span> -0500
+</span><span class='line'>committer steveklabnik &lt;...&gt; <span class="m">1488567239</span> -0500
+</span><span class='line'>
+</span><span class='line'>mdbook needs to be on the PATH <span class="k">for</span> deploy
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span>git cat-file -p d219be3c5010f64960ddb609a849fc42a01ad31b <span class="c"># the tree</span>
+</span><span class='line'><span class="m">100644</span> blob 4cab1f4d267628ab5f4f7c14b1b64a9d4b032409    .gitattributes
+</span><span class='line'><span class="m">040000</span> tree e1dcc1c754d72450b03542b2106fcb67c78805ff    .github
+</span><span class='line'><span class="m">100644</span> blob 4c699f440ac134c577cb6f67b04ec5b93c652440    .gitignore
+</span><span class='line'><span class="m">100644</span> blob e86d887d84a839417c960faf877c9057a8dc6823    .travis.yml
+</span><span class='line'><span class="m">100644</span> blob 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb    README.md
+</span><span class='line'><span class="m">040000</span> tree 17b33cb52a5abb67ff678a03e7ed88cf9f163c69    ci
+</span><span class='line'><span class="m">040000</span> tree 0ffd2c1238345c1b0e99af6c1c618eee4a0bab58    first-edition
+</span><span class='line'><span class="m">100644</span> blob 5d1d2bb79e1521b28dd1b8ff67f9b04f38d83620    index.md
+</span><span class='line'><span class="m">040000</span> tree b7160f7d05d5b5bfe28bad029b1b490e310cff22    redirects
+</span><span class='line'><span class="m">040000</span> tree d48b2e06970cf3a6ae65655c340922ae69723989    second-edition
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you look closely, all of these hashes are the same, <em>except</em> for the hash for <code>second-edition</code>.
+For the hashes which are the same, these objects are being shared across commits. The differing hash
+is <code>d5672d</code> in the newer commit, and <code>d48b2e</code> in the older one.</p>
+
+<p>Let&rsquo;s look at the objects:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p d5672d
+</span><span class='line'><span class="m">100644</span> blob 82dc67a6b08f0eb62420e4da3b3aa9c0dc10911a    CONTRIBUTING.md
+</span><span class='line'><span class="m">100644</span> blob 5cd51aa43f05416996c4ef055df5d6eb58fbe737    Cargo.lock
+</span><span class='line'><span class="m">100644</span> blob 7ab2575fa5bf4abf6eaf767c72347580c9f769dd    Cargo.toml
+</span><span class='line'><span class="m">100644</span> blob 96e9f0458b55a4047927de5bf04ceda89d772b2b    LICENSE-APACHE
+</span><span class='line'><span class="m">100644</span> blob 5a56e6e8ed1909b4e4800aa8d2a0e7033ab4babe    LICENSE-MIT
+</span><span class='line'><span class="m">100644</span> blob be1135fc6d28eca53959c7fc9ae191523e4bc96f    book.json
+</span><span class='line'><span class="m">100644</span> blob 1400454f36840e916a7d7028d987c42fcb31b4db    dictionary.txt
+</span><span class='line'><span class="m">100644</span> blob 5103c84d034d6e8a0e4b6090453ad2cdcde21537    doc-to-md.sh
+</span><span class='line'><span class="m">040000</span> tree 6715d1d4c97e3d17a088922f687b8d9ffacb5953    dot
+</span><span class='line'><span class="m">100644</span> blob f9e045c4c1824520534270a2643ebe68311503b8    nostarch.sh
+</span><span class='line'><span class="m">040000</span> tree f8d9a9452b4bbaeba256b95d40b303cd5fb20a64    nostarch
+</span><span class='line'><span class="m">100644</span> blob 0a2d16852c11355ef9d8758a304b812633dcf03c    spellcheck.sh
+</span><span class='line'><span class="m">040000</span> tree 3f8db396566716299330cdd5f569fb0a0c4615dd    src
+</span><span class='line'><span class="m">100644</span> blob 56677811f451084de7c3a2478587a09486209b14    style-guide.md
+</span><span class='line'><span class="m">040000</span> tree 7601821a2ff38906332082671ea23e4074464dd2    tools
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span>git cat-file -p d48b2e
+</span><span class='line'><span class="m">100644</span> blob 82dc67a6b08f0eb62420e4da3b3aa9c0dc10911a    CONTRIBUTING.md
+</span><span class='line'><span class="m">100644</span> blob 5cd51aa43f05416996c4ef055df5d6eb58fbe737    Cargo.lock
+</span><span class='line'><span class="m">100644</span> blob 7ab2575fa5bf4abf6eaf767c72347580c9f769dd    Cargo.toml
+</span><span class='line'><span class="m">100644</span> blob 96e9f0458b55a4047927de5bf04ceda89d772b2b    LICENSE-APACHE
+</span><span class='line'><span class="m">100644</span> blob 5a56e6e8ed1909b4e4800aa8d2a0e7033ab4babe    LICENSE-MIT
+</span><span class='line'><span class="m">100644</span> blob be1135fc6d28eca53959c7fc9ae191523e4bc96f    book.json
+</span><span class='line'><span class="m">100644</span> blob 1400454f36840e916a7d7028d987c42fcb31b4db    dictionary.txt
+</span><span class='line'><span class="m">100644</span> blob 5103c84d034d6e8a0e4b6090453ad2cdcde21537    doc-to-md.sh
+</span><span class='line'><span class="m">040000</span> tree 6715d1d4c97e3d17a088922f687b8d9ffacb5953    dot
+</span><span class='line'><span class="m">100644</span> blob f9e045c4c1824520534270a2643ebe68311503b8    nostarch.sh
+</span><span class='line'><span class="m">040000</span> tree f8d9a9452b4bbaeba256b95d40b303cd5fb20a64    nostarch
+</span><span class='line'><span class="m">100644</span> blob 0a2d16852c11355ef9d8758a304b812633dcf03c    spellcheck.sh
+</span><span class='line'><span class="m">040000</span> tree f9fc05a6ff78b8211f4df931ed5e32c937aba66c    src
+</span><span class='line'><span class="m">100644</span> blob 56677811f451084de7c3a2478587a09486209b14    style-guide.md
+</span><span class='line'><span class="m">040000</span> tree 7601821a2ff38906332082671ea23e4074464dd2    tools
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Again, these are the same, except for that of <code>src</code>. <code>src</code> has a <em>lot</em> of files in it,
+which will clutter this post, so I&rsquo;ll run a diff on the outputs of <code>cat-file</code>:</p>
+
+<pre><code class="udiff">$ diff -U5 &lt;(g cat-file -p f9fc05a6ff78b8211f4df931ed5e32c937aba66c) &lt;(g cat-file -p 3f8db396566716299330cdd5f569fb0a0c4615dd)
+--- /dev/fd/63  2017-03-05 11:58:22.000000000 -0800
++++ /dev/fd/62  2017-03-05 11:58:22.000000000 -0800
+@@ -63,11 +63,11 @@
+ 100644 blob ff6b8f8cd44f624e1239c47edda59560cdf491ae   ch14-02-publishing-to-crates-io.md
+ 100644 blob c53ef854a74b6c9fbd915be1bf824c6e78439c42   ch14-03-cargo-workspaces.md
+ 100644 blob 3fb59f9cc85b6b81994e83a34d542871a260a8f0   ch14-04-installing-binaries.md
+ 100644 blob e1cd1ca779fdf202af433108a8af6eda317f2717   ch14-05-extending-cargo.md
+ 100644 blob 3173cc508484cc447ebe42a024eac7d9e6c2ddcd   ch15-00-smart-pointers.md
+-100644 blob 14c5533bb3b604c6e6274db278d1e7129f78d55d   ch15-01-box.md
++100644 blob 29d87933d6832374b87d98aa5588e09e0c1a4991   ch15-01-box.md
+ 100644 blob 47b35ed489d63ce6a885289fec01b7b16ba1afea   ch15-02-deref.md
+ 100644 blob 2d20c55cc8605c0c899bc4867adc6b6ea1f5c902   ch15-03-drop.md
+ 100644 blob 8e3fcf4e83fe1ce985a7c0b479b8b16701765aaf   ch15-04-rc.md
+ 100644 blob a4ade4ae8bf5296d79ed51d69506e71a83f9f489   ch15-05-interior-mutability.md
+ 100644 blob 3a4db5616c4f5baeb95d04ea40c6747e60181684   ch15-06-reference-cycles.md
+</code></pre>
+
+<p>As you can see, only the file that was changed in the commit has a new blob stored.
+If you view <code>14c553</code> and <code>29d879</code> you&rsquo;ll get the pre- and post- commit versions
+of the file respectively.</p>
+
+<p>So basically, each commit stores a tree of references to objects, often sharing nodes
+with other commits.</p>
+
+<p>I haven&rsquo;t had the opportunity to work with packfiles much, but they&rsquo;re an
+additional optimization on top of this. <a href="https://codewords.recurse.com/issues/three/unpacking-git-packfiles">Aditya&rsquo;s post</a> is a good
+intro to these.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2017/03/04/what-are-sum-product-and-pi-types/">What Are Sum, Product, and Pi Types?</a></h1>
     
     
@@ -121,7 +655,7 @@ or &ldquo;Sum types are cool&rdquo;.</p>
 
 <p>Much like fezzes and bow ties, sum types are indeed cool.</p>
 
-<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400"></p>
+<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400" ></p>
 
 <p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
 
@@ -513,7 +1047,7 @@ the mapping. Since a struct is a product type, this is</p>
 
 <h2>What, in the name of sanity, is a Pi type?</h2>
 
-<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400"></p>
+<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400" ></p>
 
 <p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
 can depend on a value. An example of this is integer generics, where you
@@ -691,9 +1225,9 @@ be sure.</p>
 
 <p>Who wants to manually write a million test cases?</p>
 
-<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400"></p>
+<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400" ></p>
 
-<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400"></p>
+<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400" ></p>
 
 <p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
 codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
@@ -1080,7 +1614,7 @@ this kind of thing. Even if you trust your fellow programmers. Even if <em>you</
 After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can&rsquo;t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
 Rust is about trusting <em>nobody</em>. Not even yourself.</p>
 
-<p><img src="/images/post/memes/trust-nobody.jpg" width="300"></p>
+<p><img src="/images/post/memes/trust-nobody.jpg" width="300" ></p>
 
 <p>Rust protects you from your own mistakes when it comes to memory management. But we
 should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
@@ -3207,732 +3741,6 @@ about.</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2016/08/18/gc-support-in-rust-api-design/">GC Support in Rust: API Design</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-<time class='entry-date' datetime='2016-08-18T00:00:00+00:00'><span class='date'><span class='date-month'>Aug</span> <span class='date-day'>18</span><span class='date-suffix'>th</span>, <span class='date-year'>2016</span></span> <span class='time'>12:00 am</span></time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Recently we (<a href="http://github.com/pnkfelix/">Felix</a>, <a href="https://github.com/nikomatsakis">Niko</a>, and I) have been working on getting compiler-level GC
-support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
-built, without including an actual GC itself. This blog post serves as status update and a pre-pre-
-rfc on the designs. I&rsquo;m also going to walk through the process of coming up with the current design.
-We&rsquo;ll soon be posting more detailed design docs and discussion about some of the unresolved bits.</p>
-
-<p>The motivation behind this is the same as <a href="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">my motivation for writing rust-gc</a>. Firstly,
-it makes it possible to integrate with languages which themselves have a GC. Being able to safely
-pass around GCd types in Rust is very useful when writing libraries for Node, Python, or Ruby in
-Rust.</p>
-
-<p>Secondly, some algorithms are much neater when a GC is involved. Things like persistent
-datastructures, for example, are easier to deal with when a GC is involved.
-<a href="https://aturon.github.io/blog/2015/08/27/epoch/">There are ways around this requirement</a>, but it&rsquo;s nice to have the full range of
-options.</p>
-
-<p>Rust tries to be safe without a GC, and this doesn&rsquo;t change that &mdash; we envision that GCs
-in Rust will be rarely used except for some very specific use cases like the ones listed above.</p>
-
-<p>Compiler support isn&rsquo;t strictly necessary for a GC in Rust to be safe. <a href="https://github.com/Manishearth/rust-gc">rust-gc</a> manages to work
-without compiler support (except for a <code>#[derive()]</code> plugin). However, there&rsquo;s a lot of manual
-tracking of roots involved, which has a much higher cost than compiler-backed GCs. This is
-suboptimal &mdash; we want GC support to be as efficient as possible.</p>
-
-<h2>Design goals</h2>
-
-<p>We&rsquo;re considering GCs designed as a <code>Gc&lt;T&gt;</code> object, which, like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>, can be explicitly
-wrapped around a value to move it to the GC heap. A pervasive GC (where every Rust object is GCd) is
-an explicit non-goal; if you need a GC <em>everywhere</em> a different language may make more sense. We&rsquo;re
-expecting <code>Gc&lt;T&gt;</code> to be used only where needed, much like how <code>Rc&lt;T&gt;</code> is today.</p>
-
-<p>We want this to work well with other Rust abstractions. Things like <code>Vec&lt;Gc&lt;T&gt;&gt;</code> should be
-completely legal, for example.</p>
-
-<p>We want implementors to have total freedom in how <code>Gc&lt;T&gt;</code> is represented &ndash; <em>they</em> define the type,
-not the compiler. The compiler provides traits and intrinsics which can be used to find the GC
-roots. It should be possible for implementors to provide safe APIs for <code>Gc&lt;T&gt;</code>. There will be no
-canonical <code>Gc&lt;T&gt;</code> in the stdlib.</p>
-
-<p>We are trying to support multiple GCs in a single binary. This should be a pretty niche thing to
-need, but it strengthens the behavior of GCs as libraries (and not magical one-time things like
-custom allocators). One possible use case for this is if a library internally uses a GC to run some
-algorithm, and this library is used by an application which uses a GC for some other reason (perhaps
-to talk to Node). Interacting GCs are hard to reason about, though. The current design leaves this
-decision up to the GC designer &mdash; while it is possible to let your GCd object contain objects
-managed by a different GC, this requires some explicit extra work. Interacting GCs is a <em>very</em> niche
-use case<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, so if this ability isn&rsquo;t something we&rsquo;re adamant on supporting.</p>
-
-<p>We also would like it to be safe to use trait objects with the GC. This raises some concerns which
-I&rsquo;ll address in depth later in this post.</p>
-
-<h2>Core design</h2>
-
-<p>The core idea is to use <a href="http://llvm.org/docs/StackMaps.html">LLVM stack maps</a> to keep track of roots.</p>
-
-<p>In a tracing GC, the concept of a &ldquo;root&rdquo; is basically something which can be directly reached
-without going through other GC objects. In our case they will be cases of <code>Gc&lt;T&gt;</code> ending up on the
-stack or in non-gc heap boxes which themselves are reachable from the stack. Some examples:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">inner</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `bar` is a root</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Gc</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Bar</span><span class="o">::</span><span class="n">new</span><span class="p">());</span>
-</span><span class='line'><span class="c1">// `bar.inner` is not a root, since it can&#39;t be</span>
-</span><span class='line'><span class="c1">// accessed without going through `bar`</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `foo.bar` is a root:</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">::</span><span class="n">new</span><span class="p">();</span> <span class="c1">// This is a root</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `inner` is not a root, because it is a borrowed reference</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">inner</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bar</span><span class="p">.</span><span class="n">inner</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
-</span><span class='line'><span class="c1">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
-</span><span class='line'><span class="c1">// new reference to the same value)</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">rooted_bool</span> <span class="o">=</span> <span class="n">bar</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
-</span><span class='line'><span class="c1">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
-</span><span class='line'><span class="c1">// or passing through a borrowed reference</span>
-</span><span class='line'><span class="kd">let</span> <span class="n">boxed_bar</span> <span class="o">=</span> <span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Gc</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">Bar</span><span class="o">::</span><span class="n">new</span><span class="p">()));</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>When figuring out which objects are live (&ldquo;tracing&rdquo;), we need to have this initial set of &ldquo;roots&rdquo;
-which contain the list of things directly reachable from the stack. From here, the GC can rifle
-through the fields and subfields of the roots till it finds other GCd objects, which it can mark as
-live and continue the process with.</p>
-
-<p>Most runtimes for GCd languages have efficient ways of obtaining this list of roots. Contrast this
-with conservative collectors like Boehm, which read in the whole stack and consider anything which
-looks like a pointer to the GC heap to be a root. rust-gc&rsquo;s approach is inefficient too; because it
-incurs an additional reference counting cost on copying and mutation.</p>
-
-<p>However, the list of current roots is known at compile time; it&rsquo;s just a matter of which variables
-are live at any point. We store this list of live variables in a per-call-site &ldquo;stack map&rdquo;. To find
-all the roots, you walk up the call stack, and for each call site look up its entry in the stack
-map, which will contain the stack offsets of all the roots (and other metadata if we need it). LLVM
-has native support for this. The stack map is stored in a separate section so there is no runtime
-performance hit during regular execution, however some optimizations may be inhibited by turning on
-GC.</p>
-
-<p>So basically a GC will have access to a <code>walk_roots&lt;F&gt;(f: F) where F: FnMut(..)</code> intrinsic that will
-yield all the roots to the provided function (which can then mark them as such and start tracing).</p>
-
-<p>I&rsquo;m not going to focus on the implementation of this intrinsic for this blog post &mdash; this might
-be the subject of a later blog post by <a href="http://github.com/pnkfelix/">Felix</a> who is working on this.</p>
-
-<p>Instead, I&rsquo;m focusing on the higher-level API.</p>
-
-<h2>Identifying rootables</h2>
-
-<p>The first problem we come across with the design mentioned above is that the compiler doesn&rsquo;t yet
-know how to distinguish between a root and a non-root. We can&rsquo;t mark <em>every</em> variable as a root;
-that would bloat the stack maps and make walking the roots a very expensive operation.</p>
-
-<p>A very simple way of doing this is via a trait, <code>Root</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Root</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// auto-trait, anything containing</span>
-</span><span class='line'><span class="c1">// a Root will itself be Root</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="p">..</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// references are never roots</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nl">&#39;a</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">&amp;</span><span class="n">&#39;a</span> <span class="n">T</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in a gc impl</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ..</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>if we detect <code>Root</code> objects that are directly reachable, we consider them to be roots.</p>
-
-<p>This has a flaw, it doesn&rsquo;t actually tell us how to find roots inside container types. What would we
-do if there was a <code>Box&lt;Gc&lt;T&gt;&gt;</code> or a <code>Vec&lt;Gc&lt;T&gt;&gt;</code> on the stack? We can stick their entry in the stack
-map, but the GC needs to know what to do with them!</p>
-
-<p>We could store some type information in the map and let the GC hardcode how to root each container
-type. This isn&rsquo;t extensible though; the GC will have to be able to handle types from arbitrary
-crates too. Additionally, we have to solve this problem anyway for tracing &mdash; when tracing we
-need to be able to find all values &ldquo;contained&rdquo; within a particular value, which is the same
-operation we need to do to find roots.</p>
-
-<p>For this purpose, we introduce the <code>Trace</code> trait:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in libcollections</span>
-</span><span class='line'><span class="c1">// (or any third-party collections library)</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="bp">self</span> <span class="p">{</span>
-</span><span class='line'>            <span class="n">i</span><span class="p">.</span><span class="n">trace</span><span class="p">()</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in gc library</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// only allow trace objects</span>
-</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ..</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="c1">// mark `self`</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="c1">// Don&#39;t actually trace contained fields,</span>
-</span><span class='line'>        <span class="c1">// because there may be cycles and we&#39;d recurse infinitely</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in consumer of gc library</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
-</span><span class='line'><span class="cp">#[derive(Trace)]</span>
-</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">baz</span><span class="o">:</span> <span class="n">SomeType</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>(These traits are unsafe to implement because an incorrect implementation can lead to a
-reachable value getting cleaned up by the GC, which is unsafe)</p>
-
-<p>Basically, an implementation of Trace will yield all values owned by the object, unless that object
-is a GC struct like <code>Gc&lt;T&gt;</code>, in which case the GC implementor will have it mark the object. This
-way, calling <code>.trace()</code> will walk all fields and subfields of an object recursively, until it finds
-all of the contained <code>Gc&lt;T&gt;</code>s.</p>
-
-<p>This has an issue with multiple GCs, though &mdash; we don&rsquo;t want the GCs to interact unless they
-want to, and with the <code>Trace</code> trait being shared one GC object may accidentally contain a different
-GC object.</p>
-
-<p>We need to introduce the concept of a tracer here.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in libcore</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">trait</span> <span class="n">Tracer</span> <span class="o">:</span> <span class="nb">Any</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in libcollections</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// impl doesn&#39;t care about the tracer</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="bp">self</span> <span class="p">{</span>
-</span><span class='line'>            <span class="n">i</span><span class="p">.</span><span class="n">trace</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in gc library</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c1">// more complicated tracers may have state</span>
-</span><span class='line'><span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ..</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="k">if</span> <span class="kd">let</span> <span class="nb">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="p">.</span><span class="n">downcast_mut</span><span class="o">::&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>            <span class="c1">// mark self</span>
-</span><span class='line'>        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span><span class='line'>            <span class="n">panic</span><span class="p">(</span><span class="s">&quot;Don&#39;t mix GCs!&quot;</span><span class="p">);</span>
-</span><span class='line'>            <span class="c1">// If you want to support multiple GCs interacting with each other,</span>
-</span><span class='line'>            <span class="c1">// you can let this else block trace the contents.</span>
-</span><span class='line'>            <span class="c1">// Beware, interacting GCs have subtle safety issues.</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This also makes it easier to distinguish between rooting and tracing operations. While the
-operations are similar (&ldquo;to root/trace a value, walk its fields recursively till you find all of the
-Gc<T>s, and root/mark <em>those</em>&rdquo;), the code we run at the leaf <code>Gc&lt;T&gt;</code> nodes is different. In the
-previous model, this could have been solved with a global static boolean that identifies if the code
-is currently walking roots or tracing, but with the <code>Tracer</code> trait object we can just pass in
-different tracer values.</p>
-
-<p>We&rsquo;re not yet sure if we should be lumping root walking and tracing in a single trait; so we might
-end up with a second <code>Scan</code> trait that works similarly.</p>
-
-<p>Note that we&rsquo;re not getting rid of the Root trait here. This is because <code>Root</code> and <code>Trace</code> have
-slightly incompatible purposes &ndash; <code>Root</code> signals to the compiler if something definitely contains
-roots, whereas <code>Trace</code> marks things which are safe to put inside a GC. <code>bool</code> is <code>Trace</code>, but not
-<code>Root</code>. <code>Vec&lt;Gc&lt;T&gt;&gt;</code> is <code>Trace</code> and <code>Root</code>, <code>Vec&lt;bool&gt;</code> is <code>Trace</code> but not <code>Root</code>. <code>&amp;T</code> and <code>&amp;mut T</code>
-are neither. <code>Trace</code> will actually show up in trait bounds for GC code. <code>Root</code> will only be analysed
-by the compiler itself, bounds like <code>R: Root</code> probably won&rsquo;t show up.</p>
-
-<p>There should not be any types which are <code>Root</code> but not <code>Trace</code>, because this means the compiler
-won&rsquo;t know what to do with them!</p>
-
-<p>Now, when generating the stack map, we include the stack offset of all <code>Root</code> objects in scope, as
-well as appropriate dynamic dispatch vtable pointers for the <code>Trace</code> implementation<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Walking the
-stack involves calling the trace method on each entry in the stack map for each call site.</p>
-
-<h2>Unresolved problems</h2>
-
-<p>There are a lot of these. Suggestions very welcome.</p>
-
-<h3>Trait objects</h3>
-
-<p>Trait objects provide an interesting challenge. They may or may not contain roots, but what&rsquo;s more
-important is that trait objects in libraries that know nothing about GC may also contain roots.</p>
-
-<p>For example, if a library is dealing with a <code>Box&lt;SomeTrait&gt;</code>, and your code feeds it a
-<code>Box&lt;SomeRoot as SomeTrait&gt;</code>, the trait object is now a root. If a gc is triggered while in
-this call (perhaps by a callback), then this trait object should be counted as a root.</p>
-
-<p>But this library didn&rsquo;t depend on the GC, and when it was compiled, it wasn&rsquo;t compiled with stack
-map entries for this GC object.</p>
-
-<p>There are two solutions here. The first is to recompile everything (including libstd) from scratch
-with GC support on, and put all owned trait objects in the stack maps. They will have an extra
-generated trace entry in the vtable that will ignore the object if it isn&rsquo;t a root. To put trait
-objects inside <code>Gc&lt;T&gt;</code>, you will have to explicitly use <code>Box&lt;Trait+Trace&gt;</code>, however &ndash; this magical
-trace entry is just for collecting roots.</p>
-
-<p>The second solution is to simply not allow casting <code>Root</code> objects to owned trait objects. I feel
-that there are use cases for both &ndash; the former has extra bloat and requires a custom libstd (which
-could be distributed via rustup if necessary), but the latter restricts how you use trait objects.
-Servo, for example, would probably prefer the latter since we don&rsquo;t put our DOM objects in owned
-trait objects. But other GC users may want maximum flexibility. Letting people choose this via a
-codegen flag (which can be controlled via cargo) might be a good idea.</p>
-
-<h3>Should it be <code>Trace&lt;T&gt;</code>?</h3>
-
-<p>There is a dynamic dispatch cost on rooting/tracing any <code>Gc&lt;T&gt;</code> leaf with the tracer model.</p>
-
-<p>This can be obviated by having it be:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">trait</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Tracer</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer</span><span class="o">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Most types would implement <code>Trace&lt;T&gt;</code>, and GCs can implement <code>Trace&lt;SpecificTracer&gt;</code>,
-and only require their contents to be <code>Trace&lt;SpecificTracer&gt;</code>. This lets the type system
-forbid interacting GCs instead of having it done at runtime.</p>
-
-<p>This has multiple downsides, however:</p>
-
-<ul>
-<li><code>#[derive(Trace)]</code> becomes <code>#[derive(Trace&lt;MyTracer&gt;)]</code> for things containing <code>Gc&lt;T&gt;</code> (because <code>Gc&lt;T&gt;</code> is not <code>Trace&lt;T&gt;</code> for all <code>T</code>, and macro expansion runs before this information can be computed).</li>
-<li>If there are multiple GCs, there are multiple <code>Trace&lt;T&gt;</code> vtable pointers in the stack map. Not all libs know about the other GC when being compiled, so you need to defer generation of these stack map entries somehow.</li>
-<li>The heuristics for forbidding types which are <code>Root</code> but not <code>Trace&lt;T&gt;</code> become subtler. You have to effectively forbid types which are <code>Root</code> but do not have an impl of <code>Trace&lt;T&gt;</code> for at least one tracer <code>T</code> that is active in the compilation.</li>
-</ul>
-
-
-<h3>Non-<code>Trace</code> collections on the stack</h3>
-
-<p>If something like the following, defined by a third-party library:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="n">T</span><span class="p">,</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>doesn&rsquo;t implement <code>Trace</code>, it&rsquo;s still okay to use <code>Foo&lt;RootedThing&gt;</code> on the stack, because we can
-figure out that the inner <code>T</code> is what we need to root.</p>
-
-<p>However, if a third-party <code>MyVec&lt;T&gt;</code> (which behaves like a vector) contains <code>RootedThing</code>s, and is
-on the stack, the compiler doesn&rsquo;t know what do do with it. Lack of a <code>Trace</code> bound makes it
-impossible to put such types on the GC heap, but there&rsquo;s no restriction on putting these types on
-the stack. As I mentioned before, we can simply forbid the existence of types which are <code>Root</code> but
-not <code>Trace</code> (<code>MyVec&lt;RootedThing&gt;</code> is <code>Root</code>). This is already done with <code>Copy</code> and <code>Drop</code>.</p>
-
-<p>There&rsquo;s a subtle difference between this and the <code>Copy</code>/<code>Drop</code> forbidding. <code>Copy</code> and <code>Drop</code> are
-always explicitly implemented. On the other hand, <code>Root</code> is an auto trait and automatically
-implements itself on types containing roots. This means that we can&rsquo;t necessarily forbid such types
-being created at impl time &mdash; third party collections like above for example won&rsquo;t contain
-<code>Root</code> types until they are monomorphised. We can error during monomorphization, but this error
-might not be very user-friendly, like template errors in C++.</p>
-
-<p>Another solution is to make <code>Root</code> into <code>?Root</code>, much like <code>?Sized</code>. This means that the writers of
-collections will explicitly opt in to allowing GCd things inside them. This probably would lead to a
-lot more churn, however. But the diagnostics would be clearer.</p>
-
-<p>Turns out that
-<a href="https://play.rust-lang.org/?gist=ad485dc2fc91e5c1aad53051dc207716&amp;version=nightly&amp;backtrace=0">this</a>
-actually works with half-decent diagnostics. This doesn&rsquo;t forbid the existence of types which impl
-Root but not Trace, however. It simply avoids autoderiving Root on types which aren&rsquo;t Trace. But
-this behavior can be changed.
-(In fact, it <a href="https://github.com/rust-lang/rust/pull/35745">was changed</a> while this post was being written!)</p>
-
-<p>It becomes more complicated with Trace<T> though.
-Having <code>Root&lt;T&gt;</code> might fix this, but then you have to deal with the auto trait generics.</p>
-
-<p>One solution for the auto trait generics is to simple not include <code>Root</code> in the stdlib. Instead,
-require code like the following:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// in gc library</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="cp">#[gc_root_trait]</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">trait</span> <span class="n">MyRoot</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">MyRoot</span> <span class="k">for</span> <span class="p">..</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="n">MyRoot</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This can be further simplified by completely removing the rooting trait requirement and instead
-require <code>#[gc(tracer=MyTracer)]</code> on all GC structs. This, however, is a bit more special and we lose
-the free diagnostics that you get from utilizing the type system.</p>
-
-<h3>Are <code>Root</code>-containing raw pointers <code>Root</code>?</h3>
-
-<p>For the auto-trait to work, types like <code>Vec&lt;ContainsRoot&gt;</code> should also be marked as <code>Root</code>.</p>
-
-<p>This can be done by just marking <code>*const T</code> and <code>*mut T</code> as <code>Root</code> if <code>T</code> is <code>Root</code> using an impl in
-libcore. However, borrowed types like <code>Iter</code> will also be dragged into this. We only want types
-which <em>own</em> <code>Root</code> things to be considered roots.</p>
-
-<p>The alternative is to not require this, and solely rely on <a href="https://doc.rust-lang.org/stable/nomicon/phantom-data.html"><code>PhantomData</code></a>. <code>Vec&lt;T&gt;</code> also
-contains a <code>PhantomData&lt;T&gt;</code>, which gives the compiler a hint that it owns a <code>T</code>. On the other hand,
-<code>Iter&lt;'a, T&gt;</code> contains a <code>PhantomData&lt;&amp;'a T&gt;</code>, which hints that it borrows a <code>T</code>. This is already
-used by the compiler to determine drop soundness, so we can just use the same thing to determine
-<code>Root</code> types. This is already supported by the autotrait infrastructure.</p>
-
-<p>A downside here is that we&rsquo;re relying more on producers of unsafe code remembering to use
-<code>PhantomData</code>. I&rsquo;m not 100% certain about this, but triggering dropck unsoundness by neglecting
-<code>PhantomData</code> is still pretty hard (and often requires types like arenas), whereas forgetting a root
-can very easily cause a GC segfault. I do not consider this to be a major downside.</p>
-
-<h3>Finalizers and Drop</h3>
-
-<p>The following code is unsafe:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">bar</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">baz</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="nb">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">bar</span><span class="p">);</span>
-</span><span class='line'>        <span class="c1">// or</span>
-</span><span class='line'>        <span class="o">*</span><span class="bp">self</span><span class="p">.</span><span class="n">baz</span><span class="p">.</span><span class="n">bar</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">bar</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code>bar</code>
-may have already been collected when <code>Foo</code>&rsquo;s destructor runs. While in many cases this can be solved
-with a smart collection alrogithm, in the case where there&rsquo;s a cycle being collected there&rsquo;s nowhere
-safe to start.</p>
-
-<p>Additionally, further mutation of the graph after collection may extend the lifetime of a to-be-
-collected variable.</p>
-
-<p>A simple solution is to forbid all GC accesses during the collection phase. However, this means
-dereferences too, and this will incur a cost on all GCd types &ndash; they stop being simple pointer
-accesses. This solution places the burden on the GC implementor, instead of the compiler.</p>
-
-<p>We have enough information in the type system to solve this &ndash; we can forbid <code>Drop</code> impls on types
-which are explicitly <code>Root</code>. But it turns out that this isn&rsquo;t enough. Consider:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">trait</span> <span class="n">MyTrait</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="k">struct</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">:</span> <span class="n">MyTrait</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="n">T</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="nb">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">self</span><span class="p">.</span><span class="n">x</span><span class="p">.</span><span class="n">do_the_thing</span><span class="p">();</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// in other library</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">inner</span><span class="o">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">impl</span> <span class="n">MyTrait</span> <span class="k">for</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">)</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p><code>Foo&lt;Bar&gt;</code> now has an unsafe destructor. Stopping this behavior requres forbidding Drop impls on
-structs with trait bounds, but that is too restrictive.</p>
-
-<p>This may end up having a similar solution to the &ldquo;all roots must be <code>Trace</code>&rdquo; issue. Warning on
-monomorphizations isn&rsquo;t enough, we need to be able to allow <code>Vec&lt;ContainsRoot&gt;</code>, but not
-<code>HijackableType&lt;ContainsRoot&gt;</code>. Making this distinction without poisoning half the generics out
-there is tricky.</p>
-
-<p>The notion of a hijackable type is actually already important for sound generic drop impls, see
-<a href="https://github.com/rust-lang/rfcs/blob/master/text/1327-dropck-param-eyepatch.md">RFC 1327 (dropck eyepatch)</a>, <a href="https://github.com/rust-lang/rfcs/blob/master/text/1238-nonparametric-dropck.md">RFC 1238 (nonparametrick dropck)</a>,
-and their predecessor, <a href="https://github.com/rust-lang/rfcs/blob/master/text/0769-sound-generic-drop.md">RFC 0769 (sound generic drop)</a>. We might be able to rely
-on this, but would need to introduce additional constraints in dropck.</p>
-
-<p>Fortunately, there is always the fallback solution of requiring the implementor to enforce this
-constraint at runtime.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Firefox does have a garbage collector and a cycle collector which interact, though, so it&rsquo;s not something which is unthinkable.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>If there is an active stack drop flag for the value, that will need to be included too.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/4">&larr; Older</a>
@@ -3963,6 +3771,10 @@ constraint at runtime.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2019/10/13/on-voting-systems/">On Voting Systems</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
       </li>
     
@@ -3976,10 +3788,6 @@ constraint at runtime.</p>
     
       <li class="post">
         <a href="/blog/2018/06/05/the-future-of-clippy-the-rust-linter/">The Future of Clippy</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2018/04/12/down-a-rusty-rabbit-hole/">Down a Rusty Rabbit Hole</a>
       </li>
     
   </ul>

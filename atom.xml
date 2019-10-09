@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2019-10-04T20:11:00+00:00</updated>
+  <updated>2019-10-09T14:55:53+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,229 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[On Voting Systems]]></title>
+    <link href="http://manishearth.github.io/blog/2019/10/13/on-voting-systems/"/>
+    <updated>2019-10-13T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2019/10/13/on-voting-systems</id>
+    <content type="html"><![CDATA[<p>Election season is starting up again, and as with many other topics I&rsquo;m seeing a lot of overconfident takes from people in tech wanting to &ldquo;solve&rdquo; how voting works with naïve techy solutions. Hell, <a href="https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain">even a presidential candidate seems to have proposed an extremely uninformed plan for &ldquo;fixing&rdquo; voting using blockchain technology</a>.</p>
+
+<p>Last year I wrote <a href="https://twitter.com/ManishEarth/status/1056255900095340545">a thread on Twitter</a> covering some of the essential properties good voting systems uphold as well as how they prevent fraud. It was through the lens of Alameda County&rsquo;s voting system, where I&rsquo;ve volunteered as a poll worker in the past (and intend to do again). I&rsquo;ve been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.</p>
+
+<p>I&rsquo;ll be explaining more about most of these properties later, but ideally, a good voting system should uphold:</p>
+
+<ul>
+<li>Secret ballot: Nobody, not even you, can verify who you voted for after you&rsquo;re out of the polling place, to prevent vote-buying and coercion.</li>
+<li>Auditable paper trail: We should be able to audit the election. Paper trails are usually the most robust way to enable effective audits.</li>
+<li>Obviousness: It should be relatively obvious what individuals should be doing when they need to mark their ballots. A system that you can easily &ldquo;mess up&rdquo; with is a bad system.</li>
+<li>Accessibility: It should not exclude individuals with disabilities from being able to vote.</li>
+</ul>
+
+
+<h2>How voting works in Alameda County</h2>
+
+<p>I&rsquo;ll first go over how voting in my county works. The system isn&rsquo;t perfect, but it&rsquo;s pretty good, and it&rsquo;s a good springboard for understanding how voting systems in general can work. There&rsquo;s a <a href="https://www.acvote.org/acvote-assets/04_resources/PDFs/pwmanuals/06042019/Guide-FINAL-june.pdf">poll worker guide</a> you can refer to if you&rsquo;re really interested in all the specifics.</p>
+
+<p>Broadly speaking, there are four ways to vote:</p>
+
+<ul>
+<li>By mail</li>
+<li>In person at certain government offices, before election day (&ldquo;early voting&rdquo;)</li>
+<li>In person on election day at a polling place</li>
+<li>Provisionally, in person on election day at a polling place</li>
+</ul>
+
+
+<p>Voting by mail is pretty straightforward: When you register you can choose to vote by mail (or you can choose to do so online after the fact). You get a ballot in the mail, along with a special envelope. You fill in the ballot at your leisure, stick it in the envelope, write your name/address on the envelope, sign it, and mail it back. There are also convenient ballot dropboxes all over the place in case you&rsquo;re a millenial like me and don&rsquo;t want to figure out how to buy stamps<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+
+<p>If you&rsquo;re voting by mail you can also show up at any polling place on the day of the election and drop off your ballots in a sealed bin. At the polling place I helped run roughly half of the people coming in were just there to drop off their vote by mail ballots!</p>
+
+<p>Voting by mail is by far the easiest option here. Sadly not all counties support it<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. In some states <a href="https://en.wikipedia.org/wiki/Vote-by-mail_in_Oregon">this is even the <em>default</em> option</a>.</p>
+
+<p>As I understand it, voting in person at designated government offices<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> is pretty much the same as voting in person at a polling place, it&rsquo;s just run by government employees instead of volunteers and open for a few weeks before election day.</p>
+
+<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/polls/bling.jpeg" width="400" title="Poll workers are given some neat bling to wear" alt="Poll workers are given some neat bling to wear"><figcaption class="caption-text">Poll workers are given some neat bling to wear</figcaption></figure></p>
+
+<h3>In person voting</h3>
+
+<p>If you&rsquo;ve chosen to vote in person, you are supposed to turn up at your assigned polling place (you get your assignment in the mail along with other voter info booklets).</p>
+
+<p>There&rsquo;s a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+
+<ul>
+<li>If your name isn&rsquo;t on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct.</li>
+<li>If your name isn&rsquo;t on the list of all voters (perhaps you registered very late, or were unable to register), you can also vote provisionally.</li>
+<li>If your name is on the list but marked as voting-by-mail (and you want to vote in person), you can vote normally only if you surrender your mail ballot (which poll workers will mark as spoiled and put in a separate pouch).</li>
+<li>If you lost/didn&rsquo;t receive your ballot, you can always vote provisionally.</li>
+</ul>
+
+
+<p>When you are voting normally, signing your name on the list fraudulently is illegal.</p>
+
+<p>If it is your first time voting, you need to show some form of ID, but it doesn&rsquo;t need to be photo ID and <a href="https://en.wikipedia.org/wiki/Help_America_Vote_Act#Voter_identification">even a utility bill is fine</a>.</p>
+
+<p>Once you&rsquo;re done signing, you&rsquo;ll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.</p>
+
+<p>You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems &mdash; which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card.</p>
+
+<p>The machine keeps an externally-visible tally of the number of ballots submitted, and an internal tally of all the votes made, ignoring write-ins. It also internally stores ballot cards in one of two bins (depending on write-ins). These bins are verified to be empty when polls open, and are inaccessible till polls close.</p>
+
+<p>It&rsquo;s important to note that the scanner is not a load-bearing component of the system: It could be replaced with a locked bin with a slot, and the system would still work. The scanner enables one to get <em>preliminary</em> results for the precinct, and provides a way to double-check results.</p>
+
+<p>And that&rsquo;s it! You&rsquo;ll be given an I Voted sticker, and you can go home!</p>
+
+<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/polls/stickers.png" width="400" title="Some "I Voted!" stickers in Spanish" alt="Some "I Voted!" stickers in Spanish"><figcaption class="caption-text">Some &ldquo;I Voted!&rdquo; stickers in Spanish</figcaption></figure></p>
+
+<h3>Using a voting machine</h3>
+
+<p>In case you think you will have trouble filling out a ballot card in pen (e.g. if your vision is heavily impared), there&rsquo;s an alternate way to vote that doesn&rsquo;t involve a pen. Instead, we have a machine which has a touchscreen and an audio unit, which prompts the voter for their selection for each ballot item on the touchscreen or audio unit. When they&rsquo;re done, the machine will print out a &ldquo;receipt&rdquo; listing their choices inside a sealed box with a glass window, so they can verify that their vote was recorded correctly<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Once they&rsquo;re done the sealed box will scroll the &ldquo;receipt&rdquo; out of view so that the next voter can&rsquo;t see it.</p>
+
+<p>The sealed box is called a <a href="https://en.wikipedia.org/wiki/Voter-verified_paper_audit_trail">Voter-Verified Paper Trail</a> box: the election runners no longer need to trust the machine&rsquo;s internal memory, they can trust the paper trail inside the box (which, while produced by a potentially-untrustworthy machine, was verified by the voters), and the machine&rsquo;s internal memory is simply a way to double-check (and get fast preliminary results).</p>
+
+<h3>Provisional voting</h3>
+
+<p>There are many, many situations in which you may not be able to vote normally. Perhaps you showed up at the wrong precinct but don&rsquo;t have time to go to the right one. Perhaps you were signed up for vote-by-mail but didn&rsquo;t receive (or lost) your ballot. Perhaps you recently moved into the county and weren&rsquo;t able to register in time. Perhaps you were a first-time in-person voter and didn&rsquo;t have some form of ID.</p>
+
+<p>In such a case you can always vote provisionally. The beauty of this system is that it removes most liability from poll workers: we don&rsquo;t have any reason to turn people away from the polls, all we can do is refuse to let people vote normally (and instead vote provisionally) in the case of any inconsistencies. This is not to say that malicious poll workers <em>can&rsquo;t</em> turn people away; it&rsquo;s illegal but it happens. But well-meaning poll workers cannot, by accident, disenfranchise a voter because we are always allowed to give them a provisional ballot, and that&rsquo;s an easy rule to follow.</p>
+
+<p>With provisional voting, the voters are given the same ballot cards, but they&rsquo;re also given an envelope with a form on it. This envelope is equivalent to a voter registration form, (re)registering them in their appropriate county/district<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>. They vote on the ballot cards normally, but instead of submitting the ballots to the scanner, they put them in the envelope, which goes into a sealed bin<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>. You&rsquo;re also given a number you can call to check the status of your ballot.</p>
+
+<p>When you vote provisionally, the registrar of voters will manually process your envelope, remaking your ballot on the right set of cards if necessary, and feeding them into a scanner machine.</p>
+
+<h3>Integrity checks</h3>
+
+<p>Underlying this system is a bevy of integrity checks. There&rsquo;s an intricate seal system, with numbered seals of varying colors. Some are to be added and never removed, some are to be removed after checking the number, some are never supposed to be touched, some are added at the beginning of the day and removed at the end of the day.</p>
+
+<p>For example, during setup we check that the bins in the scanner are empty, and seal it with a numbered seal. This number is noted down on a form, along with some numbers from the scanner/touchscreen display. The first person to vote is asked to verify all this, and signs the form along with the poll workers.</p>
+
+<p>Election officials drop in multiple times during the day, and may check these numbers. At the end of the day, the numbers of all seals used, and any physical seals that were removed are sent back along with all the ballots.</p>
+
+<p>Various ballot counts are also kept track of. We keep track of the number of provisional ballots, the number of submitted regular ballots (also kept track by the scanner), the number of ballot cards used, and the number of unused ballots left over. Everything needs to match up at the end of the day, and all unused ballots are sent back. These counts are also noted down.</p>
+
+<p>Poll watchers are allowed to be around for most of this, though I think they&rsquo;re not allowed to <em>touch</em> anything. I think poll watchers are also allowed to be around when the actual ballots are being counted by election officials.</p>
+
+<h3>Immediate local results</h3>
+
+<p>As mentioned before, the scanner isn&rsquo;t a crucial part of the system, but if it happens to be working it can be used to get immediate local results. At the end of the day, the scanner prints out a bunch of stuff, including vote totals for races which got more than N votes (N=20, IIRC), so you get immediate results for your precinct. This printout is supposed to be taped to the polling place doors for everyone to see, and presumably the registrar of voters uses the copy submitted to them to publish quick preliminary results.</p>
+
+<p>Using paper ballots doesn&rsquo;t mean that we have to give up all the benefits of computers doing some of the work for us! We can still use computers to get fast results, without relying on them for the integrity of the system.</p>
+
+<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/polls/totals.jpeg" width="400" title="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." alt="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous."><figcaption class="caption-text">Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous.</figcaption></figure></p>
+
+<h2>Properties of this voting system</h2>
+
+<p>This system has some crucial properties.</p>
+
+<h3>Secret ballot</h3>
+
+<p>It&rsquo;s well known that nobody is supposed to be able to see who you voted for. But a crucial part of this system is that, once you submit your ballots, <em>you</em> can&rsquo;t see who you voted for either. Of course, you probably can <em>remember</em>, but you have no <em>proof</em>. On the face of it this sounds like a bad property &mdash; wouldn&rsquo;t it be nicer if people could verify that their vote was counted correctly?</p>
+
+<p>The problem is that if <em>I</em> can verify that my vote was counted correctly, someone else can coerce me into doing this in front of them to ensure I voted a certain way. Any system that gives me the ability to verify my vote gives people who have power over me (or just people who want to buy my vote) the same ability.</p>
+
+<p>Provisional voting doesn&rsquo;t quite have this property, but it&rsquo;s supposed to be for edge cases. Vote by mail trades off some of this property for convenience; people can now see who you voted for while you&rsquo;re voting (and the people you live with can fradulently vote on your behalf, too).</p>
+
+<h3>Conservation of ballots (Auditable paper trail)</h3>
+
+<p>The total number of ballots in the system is roughly conserved and kept track of. If you&rsquo;re registered to vote by mail, you cannot request a normal ballot without surrendering your vote by mail ballot and envelope (which we mark as spoiled and put in a separate pouch). If you re-request a ballot card because you made a mistake, the old card needs to be similarly spoiled and put away separately. It&rsquo;s one set of ballot cards per voter, and almost all potential aberrations in this property result in a provisional vote<sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>. Even provisional votes are converted to normal ballot cards in the end.</p>
+
+<p>Eventually, there will be a giant roomful of ballots that cannot be traced back to their individual voters, but it can still be traced back to the <em>entirety</em> of the voters &mdash; it&rsquo;s hard to put a ballot into the system without a corresponding voter. This is perfect &mdash; the ballots can be hand-counted, but they can&rsquo;t be individually corellated with their respective voters.</p>
+
+<p>You don&rsquo;t even need to recount the entire set of ballots to perform an audit, <a href="https://risklimitingaudits.org/">risk limiting audits</a> are quite effective and much more efficient to carry out.</p>
+
+<h3>Paper ballots</h3>
+
+<p>The fact that they can (and should) be hand counted is itself an important property. Hand counting of ballots can be independently verified in ways that can&rsquo;t be done for software. Despite not being able to trace a ballot back to its voter, there still is a paper trail of integrity for the ballots as a bulk unit.</p>
+
+<p><figure class="caption-wrapper center caption" style="width: 500px"><img class="caption" src="http://manishearth.github.io/images/post/polls/totals-zoom.png" width="500" title="Specific vote totals for the top races" alt="Specific vote totals for the top races"><figcaption class="caption-text">Specific vote totals for the top races</figcaption></figure></p>
+
+<h3>Obviousness</h3>
+
+<p>Figuring out what to do in the voting booth isn&rsquo;t hard. You&rsquo;re allowed to request assistance, but you&rsquo;ll rarely have to. There are systems (like the scanner&rsquo;s error checking) that are designed to ensure you don&rsquo;t mess up, but the system is quite sound even without them; they just provide an additional buffer.</p>
+
+<p>Compare this with <a href="https://www.texastribune.org/2018/11/01/texas-straight-ticket-voting-problems-old-machines/">the problems some Texas voting machines had last midterm</a>. The machines were somewhat buggy, but, crucially, there was an opaque right and wrong way to use them, and some voters accidentally used it the wrong way, and then didn&rsquo;t check the final page before submitting. This kind of thing should never happen in a good voting system.</p>
+
+<p>It&rsquo;s really important that the system is intuitive and hard to make mistakes in.</p>
+
+<h2>Fraud prevention</h2>
+
+<p>So, how is this robust against fraud?</p>
+
+<p>Firstly, voter fraud isn&rsquo;t a major problem in the US, and it&rsquo;s often used as an excuse to propagate voter suppression tactics, which <em>are</em> a major problem here.</p>
+
+<p>But even then, we probably want our system to be robust against fraud.</p>
+
+<p>Let&rsquo;s see how an individual might thwart this system. They could vote multiple times, under assumed identites. This doesn&rsquo;t scale well and isn&rsquo;t really worth it: to influence an election you&rsquo;d need to do this many times, or have many individuals do it a couple times, and the chance of getting caught (e.g., the people who you are voting as may come by and try to vote later, throwing up a flag) and investigated scales exponentially with the number of votes. That&rsquo;s not worth it at all.</p>
+
+<p>Maybe poll workers could do something malicious. Poll worker manipulation would largely exist in the form of submitting extra ballots. But that&rsquo;s hard because the ballot counts need to match the list of voters. So you have the same problem as individual voters committing fraud: if the actual voter shows up, they&rsquo;ll notice. Poll workers <em>could</em> wait till the end of the day to do this, but then to make any kind of difference you&rsquo;d have to do a bulk scan of ballots, and that&rsquo;s very noticeable. Poll workers would have to collude to make anything like this work, and poll watchers (and government staff) may be present.</p>
+
+<p>Poll workers can also <em>discard</em> ballots to influence an election. But you can&rsquo;t do this in front of the voters, and the receptacles with non-defaced ballots are all sealed so you can&rsquo;t do this when nobody is watching without having to re-seal (which means you need a new numbered seal, which the election office will notice). The scanner&rsquo;s inner receptacle is opened at the end of the day but you can&rsquo;t tamper with that without messing up the various counts.</p>
+
+<p>Election officials have access to giant piles of ballots and could mess with things there, but I suspect poll watchers are present during the ballot sorting and counting process, and again, it&rsquo;s hard to tamper with anything without messing up the various counts.</p>
+
+<p>Overall, this system is pretty robust. It&rsquo;s important to note that fraud prevention is achieved by more social means, not technical means: there are seals, counts, and various properties of the system, but no computers involved in any crucial roles.</p>
+
+<h2>Techy solutions for voting</h2>
+
+<p>In general, amongst the three properties of &ldquo;secret ballot&rdquo;, &ldquo;obviousness&rdquo;, and &ldquo;auditable paper trail&rdquo;, computer-based voting systems almost always fail at one, and usually fail at two.</p>
+
+<p>A lot of naïve tech solutions for voting are explicitly designed to not have the secret ballot property: they are instead designed specifically to let voters check that what their vote was counted as after the election. As mentioned earlier, this is a problem for vote-buying and coercion.</p>
+
+<p>It&rsquo;s theoretically possible to have a system where you can ensure your ballot, specifically, was correctly counted after the election, without losing the secret ballot property: <a href="https://en.wikipedia.org/wiki/ThreeBallot">ThreeBallot</a> is a cool example of such a system, though it fails the &ldquo;obviousness&rdquo; property.</p>
+
+<p>Most systems end up not having an auditable paper trail since they rely on machines to record votes. This is vulnerable to bugs in the machine: you end up having to trust the output of the machine. Buggy/vulnerable voting machines are so common that every year at DEFCON <a href="https://media.defcon.org/DEF%20CON%2027/voting-village-report-defcon27.pdf">people get together to hack the latest voting machines, and typically succeed</a>.</p>
+
+<p>Voting machines can still produce a paper trail: Voter-Verified Paper Trail systems partially succeed in doing this. They&rsquo;re not as good with maintaining the &ldquo;conservation of ballots&rdquo; property that makes tampering much harder, and they&rsquo;re not as good on the &ldquo;obviousness&rdquo; part since people need to check the VVPAT box for what their vote was recorded as.</p>
+
+<p>Ballot-Marking devices are a bit better at this: These still produce paper ballots, it&rsquo;s just that the ballot is marked by the machine on your behalf. There&rsquo;s still a bit of an &ldquo;obviousness&rdquo; fail in that people may not double check the marked ballot, but at least there&rsquo;s a nice paper trail with ballot conservation! Of course, these only work if the produced ballot is easily human-readable.</p>
+
+<p>It&rsquo;s not <em>impossible</em> to design good voting systems that rely on technology, but it&rsquo;s hard to maintain the same properties you can with paper ballots. If you want to try, please keep the properties listed above in mind.</p>
+
+<h3>Blockchain?</h3>
+
+<p>Every now and then people will suggest using blockchains for voting. This is a pretty large design space, but &hellip;. most of these proposals are <em>extremely</em> naïve and achieve very little.</p>
+
+<p>For one, most of them are of the category that lose the &ldquo;secret ballot&rdquo; property, instead producing some kind of identifier you&rsquo;re able to check in some published blockchain. This lets you see what your vote was after the election, and as I&rsquo;ve covered already that&rsquo;s not a good thing.</p>
+
+<p>Even if this process only lets you verify that your vote was counted (but not what it was), it typically involves some understanding of cryptography to spot-check the validity of the machine output (e.g. you need to verify that some hash is the hash of your actual vote or something). This fails the obviousness property.</p>
+
+<p>Blockchains don&rsquo;t really bring much to the table here. They&rsquo;re decent for byzantine fault tolerance in a space without a central authority, but elections <em>do</em> have some form of central authority and we&rsquo;re not getting rid of that. The anonymity properties of blockchains can usually be achieved without blockchains for things like elections.</p>
+
+<p>There are some kinds of cryptography that can be useful for auditability &mdash; zero knowledge proofs and homomorphic encryption come to mind &mdash; but you don&rsquo;t need blockchains to use these, and using these still requires some form of technology as a key part of the voting system and this makes other properties of the system harder to achieve.</p>
+
+<h2>Become a poll worker!</h2>
+
+<p>It&rsquo;s still a bit early for the next election, but I highly recommend you volunteer to be a poll worker for your county if you can!</p>
+
+<p>It&rsquo;s really fun, you get to learn about the inner workings of voting systems, and you get to meet a lot of people!</p>
+
+<p><figure class="caption-wrapper center caption" style="width: 700px"><img class="caption" src="http://manishearth.github.io/images/post/polls/nancy.jpeg" width="700" title="We had a cool kid come in and [more or less do this][nancy] at one point." alt="We had a cool kid come in and [more or less do this][nancy] at one point."><figcaption class="caption-text">We had a cool kid come in and <a href="https://twitter.com/ManishEarth/status/1060052694772011008">more or less do this</a> at one point.</figcaption></figure></p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Last year they required postage, but I they&rsquo;ve changed that with <a href="https://www.sos.ca.gov/administration/news-releases-and-advisories/2019/no-stamp-no-problem-all-vote-mail-ballots-now-come-prepaid-postage-return-envelopes/">a law</a> this year. Yay!<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>Ostensibly because of fears of voter fraud, but they&rsquo;re largely unfounded &mdash; in practice this just reduces turnout<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>I think for Alameda county the only such office is the Registrar of Voters in Oakland<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>The crossing-off and signing lists are different, but this isn&rsquo;t too important.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>I remember one particularly curmudgeonly voter loudly grumbling about all the propositions as they were voting. One doesn&rsquo;t &ldquo;vote&rdquo; in California, one fills out social studies homework.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>I don&rsquo;t quite recall how the verifiability works for people using the audio unit, they may be allowed to ask someone else to verify for them?<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<li id="fn:7">
+<p>If you vote in a different precinct, or worse, a different county, the ballot cards may not contain all the same races, so voting provisionally from the wrong district means that you only get to vote for the races common to both ballot cards.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
+<li id="fn:8">
+<p>It&rsquo;s imperative that these do not go into the scanner (since that operation cannot be undone), and to prevent this poll workers are instructed to not give provisional voters a secrecy sleeve as the envelope acts as a secrecy sleeve. Whoever is supervising the scanner will only allow people with secrecy sleeves to slip their ballots into the scanner.<a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
+<li id="fn:9">
+<p>The exception is using the touchscreen machine, where you get to vote without using up a ballot card on voting day. However, tallies for the machine are kept separately, and I think these too are eventually turned into normal ballot cards.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Rust Governance: Scaling Empathy]]></title>
@@ -832,7 +1055,7 @@ as a ligature, otherwise it will use an explicit virama.</p>
 There are exceptions &ndash; sometimes they&rsquo;ll form an entirely new glyph (क + ष = क्ष), and sometimes both
 glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = द्ब). Those last ones should look like this in conjunct form:</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/conjuncts.png" width="200"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/conjuncts.png" width="200" ></p>
 
 <h2>Investigating the Bengali case</h2>
 
@@ -887,13 +1110,13 @@ correspond to the <a href="https://docs.microsoft.com/en-us/typography/opentype/
 
 <p>But, for र, virama + र renders &#8239;्र, which for me looks like this:</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-ra.png" width="200"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-ra.png" width="200" ></p>
 
 <p>In fact, this is the case for the other consonants as well. For me, &#8239;्र &#8239;্র &#8239;্য &#8239;్ఞ &#8239;్క
 (Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
 all render as &ldquo;suffix joining consonants&rdquo;:</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-consonant.png" width="200"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-consonant.png" width="200" ></p>
 
 <p>(This is true for all Telugu consonants, not just the ones listed).</p>
 
@@ -2035,7 +2258,7 @@ from the default style).</p>
 <p>I <em>think</em> the reason behind this is that monospace fonts tend to be wider, so the default font size (medium)
 is scaled so that they have similar widths, and all other keyword font sizes get shifted as well. The final result is something like this:</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/font-size-table.png" width="600"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/font-size-table.png" width="600" ></p>
 
 <p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute
 font-size keywords based on the &ldquo;base size&rdquo; (i.e. the computed of <code>font-size: medium</code>). Actually,
@@ -2478,15 +2701,15 @@ on the part of the student, and we end up with a bad facsimile of what a teacher
 
 <p>The Elm compiler is my favorite example of this. <a href="http://elm-lang.org/blog/compilers-as-assistants">It has amazing error messages</a></p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/elm-error.png">
-<img class="center" src="http://manishearth.github.io/images/post/elm-error2.png"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/elm-error.png" >
+<img class="center" src="http://manishearth.github.io/images/post/elm-error2.png" ></p>
 
 <p>The error messages tell you what you did wrong, sometimes suggest fixes, and help
 correct potential misunderstandings.</p>
 
 <p>Rust does this too. Many compilers do. (Elm is exceptionally good at it)</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/rust-error.png" width="700"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/rust-error.png" width="700" ></p>
 
 <p>One thing I particularly like about Rust is that from that error you can
 try <code>rustc --explain E0373</code> and get a terminal-friendly version
@@ -3705,7 +3928,7 @@ dissonance between that and my intuitive conviction that it was <em>wrong</em>.<
 
 <h2>The algorithm</h2>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa.png" width="600"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa.png" width="600" ></p>
 
 <p>This is a quantum circuit (specifically, the circuit for the <a href="https://en.wikipedia.org/wiki/Deutsch%E2%80%93Jozsa_algorithm">Deutsch-Jozsa algorithm</a>).
 It&rsquo;s used to find out the nature of a black-box function <code>f(x)</code>, which takes in one qubit and outputs
@@ -3739,7 +3962,7 @@ the bottom output.</p>
 <p>In fact, we could try to rewrite this circuit such that the measured output definitely has no interaction with
 <code>f(x)</code> whatever, assuming that the Hadamard gate isn&rsquo;t doing anything funky<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup> (it isn&rsquo;t):</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa-wrong.png" width="600"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa-wrong.png" width="600" ></p>
 
 <p>How in the world does this work?</p>
 
@@ -3753,7 +3976,7 @@ background<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup> to grasp.
 <p>First and foremost: The rewritten circuit I showed above? It&rsquo;s wrong. If this was a logic circuit, we could always do that,
 but in quantum computing, T-junctions like the following can&rsquo;t exist:</p>
 
-<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa-tjunction.png" width="600"></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/deutsch/deutsch-jozsa-tjunction.png" width="600" ></p>
 
 <p>This is due to the <a href="https://en.wikipedia.org/wiki/No-cloning_theorem">&ldquo;No Cloning theorem&rdquo;</a>. Unlike regular logic circuits, you can&rsquo;t
 just &ldquo;duplicate&rdquo; a qubit. In some cases (like this one), you can try to create a similar qubit
@@ -3797,519 +4020,6 @@ this reason. It&rsquo;s pretty cool!</p>
 </ol>
 </div>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Understanding Git Filter-branch and the Git Storage Model]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/05/understanding-git-filter-branch/"/>
-    <updated>2017-03-05T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/05/understanding-git-filter-branch</id>
-    <content type="html"><![CDATA[<p>The other day <a href="http://twitter.com/steveklabnik">Steve</a> wanted git alchemy done on the Rust repo.</p>
-
-<p>Specifically, he wanted the reference and nomicon moved out into
-their <a href="https://github.com/rust-lang-nursery/reference">own</a> <a href="https://github.com/rust-lang-nursery/nomicon">repositories</a>, preserving history. Both situations had some interesting
-quirks, the reference has lived in <code>src/doc/reference/*</code> and <code>src/doc/reference.md</code>,
-and the nomicon has lived in <code>src/doc/nomicon</code>, <code>src/doc/tarpl</code>, and at the top level
-in a separate git root.</p>
-
-<p>As you can guess from the title of this post, the correct tool for this job is <code>git filter-branch</code>.
-<a href="https://twitter.com/indygreg">My colleague Greg</a> calls it &ldquo;the swiss-army knife of Git history rewriting&rdquo;.</p>
-
-<p>I had some fun with filter-branch that day, thought I&rsquo;d finally write an accessible tutorial for it. A lot
-of folks treat filter-branch like rebase, but it isn&rsquo;t, and this crucial difference can lead to many
-false starts. It certainly did for me back when I first learned it.</p>
-
-<p>This kind of ties into the common bit of pedantry about the nature of a commit I keep seeing pop up:</p>
-
-<blockquote><p><a href="https://twitter.com/ManishEarth/status/837203953926352896">Git commits appear to be diffs, but they&rsquo;re actually file copies, but they&rsquo;re actually ACTUALLY diffs.</a></p></blockquote>
-
-<h2>So what is a git commit?</h2>
-
-<p>Generally we interact with git commits via <code>git show</code> or by looking at commits on
-a git GUI / web UI. Here, we see diffs. It&rsquo;s natural to think of a commit as a diff,
-it&rsquo;s the model that makes the most sense for the most common ways of interacting
-with commits. It also makes some sense from an implementation point of view, diffs
-seem like an efficient way of storing things.</p>
-
-<p>It turns out that the &ldquo;real&rdquo; model is not this, it&rsquo;s actually that each commit
-is a snapshot of the whole repo state at the time.</p>
-
-<p>But actually, it isn&rsquo;t, the underlying implementation does make use of deltas
-in packfiles and some other tricks like copy-on-write forking.</p>
-
-<p>Ultimately, arguing about the &ldquo;real&rdquo; mental model is mostly pedantry. There are
-multiple ways of looking at a commit. The documentation tends to implicitly think
-of them as &ldquo;full copies of the entire file tree&rdquo;, which is where most
-of the confusion about <code>filter-branch</code> comes from. But often it&rsquo;s important
-to picture them as diffs, too.</p>
-
-<p>Understanding the implementation can be helpful, especially when you break the
-repository whilst doing crazy things (I do this often). I&rsquo;ve explained how it works
-in a later section, it&rsquo;s not really a prerequisite for understanding filter-branch,
-but it&rsquo;s interesting.</p>
-
-<h2>How do I rewrite history with <code>git rebase</code>?</h2>
-
-<p>This is where some of the confusion around <code>filter-branch</code> stems from. Folks have worked with
-<code>rebase</code>, and they think <code>filter-branch</code> is a generalized version of this. They&rsquo;re actually quite
-different.</p>
-
-<p>For those of you who haven&rsquo;t worked with <code>git rebase</code>, it&rsquo;s a pretty useful way of rewriting
-history, and is probably what you should use when you want to rewrite history, especially for
-maintaining clean git history in an unmerged under-review branch.</p>
-
-<p>Rebase does a whole bunch of things. Its core task is, given the current branch and a branch that
-you want to &ldquo;rebase onto&rdquo;, it will take all commits unique to your branch, and apply them in order
-to the new one. Here, &ldquo;apply&rdquo; means &ldquo;apply the diff of the commit, attempting to resolve any conflicts&rdquo;.
-At times, it may ask you to manually resolve the conflicts, using the same tooling
-you use for conflicts during <code>git merge</code>.</p>
-
-<p>Rebase is much more powerful than that, though. <code>git rebase -i</code> will open up &ldquo;interactive rebase&rdquo;,
-which will show you the commits that are going to be rebased. In this interface, you can reorder
-commits, mark them for edits (wherein the rebase will stop at that commit and let you <code>git commit
---amend</code> changes into it), and even &ldquo;squash&rdquo; commits which lets you mark a commit to be absorbed
-into the previous one. This is rather useful for when you&rsquo;re working on a feature and want to keep
-your commits neat, but also want to make fixup patches to older commits. <a href="https://blog.filippo.io/git-fixup-amending-an-older-commit/">Filippo&rsquo;s <code>git fixup</code> alias</a>
-packages this particular task into a single git command. Changing <code>EDITOR=true</code> into
-<code>EDITOR=: GIT_SEQUENCE_EDITOR=:</code> will make it not even open the editor for confirmation
-and try to do the whole thing automatically.</p>
-
-<p><code>git rebase -x some_command</code> is also pretty neat, lets you run a shell command on each step during a rebase.</p>
-
-<p>In this model, you are fundamentally thinking of commits as diffs. When you move around
-commits in the interactive rebase editor, you&rsquo;re moving around diffs. When you mark things
-for squashing, you&rsquo;re basically merging diffs. The whole process is about taking a set of
-diffs and applying them to a different &ldquo;base commit&rdquo;.</p>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/memes/diffs-everywhere.jpg" width="400"></p>
-
-<h2>How do I rewrite history with <code>git filter-branch</code>?</h2>
-
-<p><code>filter-branch</code> does <em>not</em> work with diffs. You&rsquo;re working with the &ldquo;snapshot&rdquo; model
-of commits here, where each commit is a snapshot of the tree, and rewriting these commits.</p>
-
-<p>What <code>git filter-branch</code> will do is for each commit in the specified branch, apply filters to the
-snapshot, and create a new commit. The new commit&rsquo;s parent will be the filtered version of the old
-commit&rsquo;s parent. So it creates a parallel commit DAG.</p>
-
-<p>Because the filters apply on the snapshots instead of the diffs, there&rsquo;s no chance for this to cause
-conflicts like in git rebase. In git rebase, if I have one commit that makes changes to a file, and
-I change the previous commit to just remove the area of the file that was changed, I&rsquo;d have a conflict
-and git would ask me to figure out how the changes are supposed to be applied.</p>
-
-<p>In git-filter-branch, if I do this, it will just power through. Unless you explicitly write
-your filters to refer to previous commits, the new commit is created in isolation, so it doesn&rsquo;t
-worry about changes to the previous commits. If you had indeed edited the previous commit,
-the new commit will appear to undo those changes and apply its own on top of that.</p>
-
-<p><code>filter-branch</code> is generally for operations you want to apply pervasively to a repository. If
-you just want to tweak a few commits, it won&rsquo;t work, since future commits will appear to undo
-your changes. <code>git rebase</code> is for when you want to tweak a few commits.</p>
-
-<p>So, how do you use it?</p>
-
-<p>The basic syntax is <code>git filter-branch &lt;filters&gt; branch_name</code>. You can use <code>HEAD</code> or <code>@</code>
-to refer to the current branch instead of explicitly typing <code>branch_name</code>.</p>
-
-<p>A very simple and useful filter is the subdirectory filter. It makes a given subdirectory
-the repository root. You use it via <code>git filter-branch --subdirectory-filter name_of_subdir @</code>.
-This is useful for extracting the history of a folder into its own repository.</p>
-
-<p>Another useful filter is the tree filter, you can use it to do things like moving around, creating,
-or removing files. For example, if you want to move <code>README.md</code> to <code>README</code> in the entire history,
-you&rsquo;d do something like <code>git filter-branch --tree-filter 'mv README.md README' @</code> (you can also
-achieve this much faster with some manual work and <code>rebase</code>). The tree filter will work by checking
-out each commit (in a separate temporary folder), running your filter on the working directory,
-adding any changes to the index (no need to <code>git add</code> yourself), and committing the new index.</p>
-
-<p>The <code>--prune-empty</code> argument is useful here, as it removes commits which are now empty due to the
-rewrite.</p>
-
-<p>Because it is checking out each commit, this filter is quite slow. When I initially was trying to
-do Steve&rsquo;s task on the rust repo, I wrote a long tree filter and it was taking forever.</p>
-
-<p>The faster version is the index filter. However, this is a bit trickier to work with (which is why I
-tend to use a tree filter if I can get away with it). What this does is operate on the index,
-directly.</p>
-
-<p>The &ldquo;index&rdquo; is basically where things go when you <code>git add</code> them. Running <code>git add</code> will create
-temporary objects for the added file, and modify the WIP index (directory tree) to include a
-reference to the new file or change an existing file reference to the new one. When you commit, this
-index is packaged up into a commit and stored as an object. (More on how these objects work in a
-later section)</p>
-
-<p>Now, since this deals with files that are already stored as objects, git doesn&rsquo;t need to unwrap
-these objects and create a working directory to operate on them. So, with <code>--index-filter</code>, you
-can operate on these in a much faster way. However, since you don&rsquo;t have a working directory,
-stuff like adding and moving files can be trickier. You often have to use <code>git update-index</code>
-to make this work.</p>
-
-<p>However, a useful index filter is one which just scrubs a file (or files) from history:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch --index-filter <span class="s1">&#39;git rm --cached --ignore-unmatch filename&#39;</span> HEAD
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The <code>--ignore-unmatch</code> makes the command still succeed if the file doesn&rsquo;t exist. <code>filter-branch</code>
-will fail if one of the filters fails. In general I tend to write fallible filters like
-<code>command1 1&gt;&amp;2 2&gt;/dev/null ; command2 1&gt;&amp;2 2&gt;/dev/null ; true</code>, which makes it always succeed
-and also ignores any stdout/stderr output (which tends to make the progress screen fill up fast).</p>
-
-<p>The <code>--cached</code> argument on <code>git rm</code> makes it operate only on the index, not the working directory.
-This is great, because we don&rsquo;t <em>have</em> a working directory right now.</p>
-
-<p>I rarely use <code>git update-index</code> so I&rsquo;m not really going to try and explain how it can be used here.
-But if you need to do more complex operations in an index filter, that&rsquo;s the way to go.</p>
-
-<p>There are many other filters, like <code>--commit-filter</code> (lets you discard a commit entirely),
-<code>--msg-filter</code> (rewriting commit messages), and <code>--env-filter</code> (changing things like author metadata
-or other env vars). You can see a complete list with examples <a href="https://git-scm.com/docs/git-filter-branch">in the docs</a></p>
-
-<h2>How did I perform the rewrites on the reference and nomicon?</h2>
-
-<p>For the Rust Reference, basically I had to extract the history of <code>src/doc/reference.md</code>,
-AND <code>src/doc/reference/*</code> (<code>reference.md</code> was split up into <code>reference/*.md</code> recently) into
-its own commit. This is an easy tree filter to write, but tree filters take forever.</p>
-
-<p>Instead of trying my luck with an index filter, I decided to just make it so that the
-tree filter would be faster. I first extracted <code>src/doc/</code>:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter src/doc @
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Now I had a branch that contained only the history of <code>src/doc</code>, with the root directory moved to
-<code>doc</code>. This is a much smaller repo than the entirety of Rust.</p>
-
-<p>Now, I moved <code>reference.md</code> into <code>reference/</code>:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --tree-filter <span class="s1">&#39;mkdir -p reference; mv reference.md reference 1&gt;/dev/null 2&gt;/dev/null; true&#39;</span> @
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>As mentioned before, the <code>/dev/null</code> and <code>true</code> bits are because the mv command will fail in some cases
-(when reference.md doesn&rsquo;t exist), and I want it to just continue without complaining when that happens.
-I only care about moving instances of that file, if that file doesn&rsquo;t exist there it&rsquo;s still okay.</p>
-
-<p>Now, everything I cared about was within <code>reference</code>. The next step was simple:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter reference @
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The whole process took maybe 10 minutes to run, most of the time being spent by the second command.
-The final result can be found <a href="https://github.com/rust-lang-nursery/reference">here</a>.</p>
-
-<p>For the nomicon, the task was easier. In the case of the nomicon, it has always resided in
-<code>src/doc/nomicon</code>, <code>src/doc/tarpl</code>, or at the root. This last bit is interesting, when
-<a href="http://twitter.com/Gankro/">Alexis</a> was working on the nomicon, he started off by hacking on it in a separate repo, but
-then within that repo moved it to <code>src/doc/tarpl</code>, and performed a merge commit with rustc. There&rsquo;s
-no inherent restriction in Git that all merges must have a common ancestor, and you can do stuff
-like this. I was <a href="https://twitter.com/ManishEarth/status/837441118753062912">quite surprised</a> when I saw this, since it&rsquo;s pretty uncommon in general,
-but really, many projects of that size will have stuff like this. Servo and html5ever do too, and usually
-it&rsquo;s when a large project is merged into it after being developed on the side.</p>
-
-<p>This sounds complicated to work with, but it wasn&rsquo;t that hard. I took the same subdirectory-filtere&rsquo;d
-doc directory branch used for the reference. Then, I renamed <code>tarpl/</code> to <code>nomicon/</code> via a tree filter,
-and ran another subdirectory filter:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --tree-filter <span class="s1">&#39;mv tarpl nomicon 1&gt;/dev/null 2&gt;/dev/null; true&#39;</span> @
-</span><span class='line'><span class="nv">$ </span>git filter-branch -f --prune-empty --subdirectory-filter nomicon @
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Now, I had the whole history of the nomicon in the root dir. Except for the commits made by Alexis
-before his frankenmerge, because these got removed in the first subdirectory filter (the commits
-were operating outside of <code>src/doc</code>, even though their contents eventually got moved there).</p>
-
-<p>But, at this stage, I already had a branch with the nomicon at the root. Alexis&#8217; original commits
-were also operating on the root directory. I can just rebase here, and the diffs of my commits will
-cleanly apply!</p>
-
-<p>I found the commit (<a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a>) where everything was moved to <code>tarpl/</code>, and took its parent
-(<a href="https://github.com/rust-lang/rust/commit/c7919f2d9835578321bf7556ad1a01fa42e8a7e8"><code>c7919f</code></a>). Then, I just ran <code>git rebase --root c7919f</code>, and everything cleanly rebased.
-As expected, because I had a history going back to the first child of <a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a> with files
-moved, and <a href="https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8"><code>a54e64</code></a> itself only moved files, so the diffs should cleanly apply.</p>
-
-<p>The final result can be found <a href="https://github.com/rust-lang-nursery/nomicon">here</a>.</p>
-
-<h2>Appendix: How are commits actually stored?</h2>
-
-<p>The way the actual implementation of a commit works is that each file being stored is hashed and
-stored in a compressed format, indexed by the hash. A directory (&ldquo;tree&rdquo;) will be a list of hashes, one for
-each file/directory inside it, alongside the filenames and other metadata. This list will be hashed
-and used everywhere else to refer to the directory.</p>
-
-<p>A commit will reference the &ldquo;tree&rdquo; object for the root directory via its hash.</p>
-
-<p>Now, if you make a commit changing some files, most of the files will be unchanged. So will most of
-the directories. So the commits can share the objects for the unchanged files/directories, reducing
-their size. This is basically a copy-on-write model. Furthermore, there&rsquo;s a second optimization
-called a &ldquo;packfile&rdquo;, wherein instead of storing a file git will store a delta (a diff) and a
-reference to the file the diff must be applied to.</p>
-
-<p>We can see this at work using <code>git cat-file</code>. <code>cat-file</code> lets you view objects in
-the &ldquo;git filesystem&rdquo;, which is basically a bunch of hash-indexed objects stored in
-<code>.git/objects</code>. You can view them directly by traversing that directory (they&rsquo;re
-organized as a trie), but <code>cat-file -p</code> will let you pretty-print their contents
-since they&rsquo;re stored in a binary format.</p>
-
-<p>I&rsquo;m working with <a href="https://github.com/rust-lang/book">the repo for the Rust Book</a>,
-playing with commit <a href="4822f2baa69c849e4fa3b85204f219a16bde2f42"><code>4822f2</code></a>. It&rsquo;s a commit that changes
-just one file (<code>second-edition/src/ch15-01-box.md</code>), perfect.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git show 4822f2baa69c849e4fa3b85204f219a16bde2f42
-</span><span class='line'>commit 4822f2baa69c849e4fa3b85204f219a16bde2f42
-</span><span class='line'>Author: Jake Goulding &lt;...&gt;
-</span><span class='line'>Date:   Fri Mar <span class="m">3</span> 14:07:24 <span class="m">2017</span> -0500
-</span><span class='line'>
-</span><span class='line'>    Reorder sentence about a generic cons list.
-</span><span class='line'>
-</span><span class='line'>diff --git a/second-edition/src/ch15-01-box.md b/second-edition/src/ch15-01-box.md
-</span><span class='line'>index 14c5533..29d8793 100644
-</span><span class='line'>--- a/second-edition/src/ch15-01-box.md
-</span><span class='line'>+++ b/second-edition/src/ch15-01-box.md
-</span><span class='line'><span class="o">(</span>diff omitted<span class="o">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">$ </span>git cat-file -p 4822f2baa69c849e4fa3b85204f219a16bde2f42
-</span><span class='line'>
-</span><span class='line'>tree ec7cd2821d4bcbafe08f3eca6ea60487bfdc1b52
-</span><span class='line'>parent 24cd100e061bb11c3f7f3219467d6d644c50d811
-</span><span class='line'>author Jake Goulding &lt;...&gt; <span class="m">1488568044</span> -0500
-</span><span class='line'>committer GitHub &lt;noreply@github.com&gt; <span class="m">1488568044</span> -0500
-</span><span class='line'>
-</span><span class='line'>Reorder sentence about a generic cons list.
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This tells us that the commit is a thing with some author information, a pointer to
-a parent, a commit message, and a &ldquo;tree&rdquo;. What&rsquo;s this tree?</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p ec7cd2821d4bcbafe08f3eca6ea60487bfdc1b52
-</span><span class='line'><span class="m">100644</span> blob 4cab1f4d267628ab5f4f7c14b1b64a9d4b032409    .gitattributes
-</span><span class='line'><span class="m">040000</span> tree e1dcc1c754d72450b03542b2106fcb67c78805ff    .github
-</span><span class='line'><span class="m">100644</span> blob 4c699f440ac134c577cb6f67b04ec5b93c652440    .gitignore
-</span><span class='line'><span class="m">100644</span> blob e86d887d84a839417c960faf877c9057a8dc6823    .travis.yml
-</span><span class='line'><span class="m">100644</span> blob 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb    README.md
-</span><span class='line'><span class="m">040000</span> tree 17b33cb52a5abb67ff678a03e7ed88cf9f163c69    ci
-</span><span class='line'><span class="m">040000</span> tree 0ffd2c1238345c1b0e99af6c1c618eee4a0bab58    first-edition
-</span><span class='line'><span class="m">100644</span> blob 5d1d2bb79e1521b28dd1b8ff67f9b04f38d83620    index.md
-</span><span class='line'><span class="m">040000</span> tree b7160f7d05d5b5bfe28bad029b1b490e310cff22    redirects
-</span><span class='line'><span class="m">040000</span> tree d5672dd9ef15adcd1527813df757847d745e299a    second-edition
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This is just a directory! You can see that each entry has a hash. We can use
-<code>git cat-file -p</code> to view each one. Looking at a <code>tree</code> object will just give
-us a subdirectory, but the <code>blob</code>s will show us actual files!</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb <span class="c"># Show README</span>
-</span><span class='line'><span class="c"># The Rust Programming Language</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">[</span>!<span class="o">[</span>Build Status<span class="o">](</span>https://travis-ci.org/rust-lang/book.svg?branch<span class="o">=</span>master<span class="o">)](</span>https://travis-ci.org/rust-lang/book<span class="o">)</span>
-</span><span class='line'>
-</span><span class='line'>To <span class="nb">read </span>this book online, visit <span class="o">[</span>rust-lang.github.io/book/<span class="o">][</span>html<span class="o">]</span>.
-</span><span class='line'>
-</span><span class='line'><span class="o">(</span>rest of file omitted<span class="o">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>So how does this share objects? Let&rsquo;s look at the previous commit:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p 4822f2baa69c849e4fa3b85204f219a16bde2f42^ <span class="c"># `^` means &quot;parent&quot;</span>
-</span><span class='line'>tree d219be3c5010f64960ddb609a849fc42a01ad31b
-</span><span class='line'>parent 21c063868f9d7fb0fa488b6f1124262f055d275b
-</span><span class='line'>author steveklabnik &lt;...&gt; <span class="m">1488567224</span> -0500
-</span><span class='line'>committer steveklabnik &lt;...&gt; <span class="m">1488567239</span> -0500
-</span><span class='line'>
-</span><span class='line'>mdbook needs to be on the PATH <span class="k">for</span> deploy
-</span><span class='line'>
-</span><span class='line'><span class="nv">$ </span>git cat-file -p d219be3c5010f64960ddb609a849fc42a01ad31b <span class="c"># the tree</span>
-</span><span class='line'><span class="m">100644</span> blob 4cab1f4d267628ab5f4f7c14b1b64a9d4b032409    .gitattributes
-</span><span class='line'><span class="m">040000</span> tree e1dcc1c754d72450b03542b2106fcb67c78805ff    .github
-</span><span class='line'><span class="m">100644</span> blob 4c699f440ac134c577cb6f67b04ec5b93c652440    .gitignore
-</span><span class='line'><span class="m">100644</span> blob e86d887d84a839417c960faf877c9057a8dc6823    .travis.yml
-</span><span class='line'><span class="m">100644</span> blob 7990f2738876fc0fbc2ca30f5f91e91745b0b8eb    README.md
-</span><span class='line'><span class="m">040000</span> tree 17b33cb52a5abb67ff678a03e7ed88cf9f163c69    ci
-</span><span class='line'><span class="m">040000</span> tree 0ffd2c1238345c1b0e99af6c1c618eee4a0bab58    first-edition
-</span><span class='line'><span class="m">100644</span> blob 5d1d2bb79e1521b28dd1b8ff67f9b04f38d83620    index.md
-</span><span class='line'><span class="m">040000</span> tree b7160f7d05d5b5bfe28bad029b1b490e310cff22    redirects
-</span><span class='line'><span class="m">040000</span> tree d48b2e06970cf3a6ae65655c340922ae69723989    second-edition
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>If you look closely, all of these hashes are the same, <em>except</em> for the hash for <code>second-edition</code>.
-For the hashes which are the same, these objects are being shared across commits. The differing hash
-is <code>d5672d</code> in the newer commit, and <code>d48b2e</code> in the older one.</p>
-
-<p>Let&rsquo;s look at the objects:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>git cat-file -p d5672d
-</span><span class='line'><span class="m">100644</span> blob 82dc67a6b08f0eb62420e4da3b3aa9c0dc10911a    CONTRIBUTING.md
-</span><span class='line'><span class="m">100644</span> blob 5cd51aa43f05416996c4ef055df5d6eb58fbe737    Cargo.lock
-</span><span class='line'><span class="m">100644</span> blob 7ab2575fa5bf4abf6eaf767c72347580c9f769dd    Cargo.toml
-</span><span class='line'><span class="m">100644</span> blob 96e9f0458b55a4047927de5bf04ceda89d772b2b    LICENSE-APACHE
-</span><span class='line'><span class="m">100644</span> blob 5a56e6e8ed1909b4e4800aa8d2a0e7033ab4babe    LICENSE-MIT
-</span><span class='line'><span class="m">100644</span> blob be1135fc6d28eca53959c7fc9ae191523e4bc96f    book.json
-</span><span class='line'><span class="m">100644</span> blob 1400454f36840e916a7d7028d987c42fcb31b4db    dictionary.txt
-</span><span class='line'><span class="m">100644</span> blob 5103c84d034d6e8a0e4b6090453ad2cdcde21537    doc-to-md.sh
-</span><span class='line'><span class="m">040000</span> tree 6715d1d4c97e3d17a088922f687b8d9ffacb5953    dot
-</span><span class='line'><span class="m">100644</span> blob f9e045c4c1824520534270a2643ebe68311503b8    nostarch.sh
-</span><span class='line'><span class="m">040000</span> tree f8d9a9452b4bbaeba256b95d40b303cd5fb20a64    nostarch
-</span><span class='line'><span class="m">100644</span> blob 0a2d16852c11355ef9d8758a304b812633dcf03c    spellcheck.sh
-</span><span class='line'><span class="m">040000</span> tree 3f8db396566716299330cdd5f569fb0a0c4615dd    src
-</span><span class='line'><span class="m">100644</span> blob 56677811f451084de7c3a2478587a09486209b14    style-guide.md
-</span><span class='line'><span class="m">040000</span> tree 7601821a2ff38906332082671ea23e4074464dd2    tools
-</span><span class='line'>
-</span><span class='line'><span class="nv">$ </span>git cat-file -p d48b2e
-</span><span class='line'><span class="m">100644</span> blob 82dc67a6b08f0eb62420e4da3b3aa9c0dc10911a    CONTRIBUTING.md
-</span><span class='line'><span class="m">100644</span> blob 5cd51aa43f05416996c4ef055df5d6eb58fbe737    Cargo.lock
-</span><span class='line'><span class="m">100644</span> blob 7ab2575fa5bf4abf6eaf767c72347580c9f769dd    Cargo.toml
-</span><span class='line'><span class="m">100644</span> blob 96e9f0458b55a4047927de5bf04ceda89d772b2b    LICENSE-APACHE
-</span><span class='line'><span class="m">100644</span> blob 5a56e6e8ed1909b4e4800aa8d2a0e7033ab4babe    LICENSE-MIT
-</span><span class='line'><span class="m">100644</span> blob be1135fc6d28eca53959c7fc9ae191523e4bc96f    book.json
-</span><span class='line'><span class="m">100644</span> blob 1400454f36840e916a7d7028d987c42fcb31b4db    dictionary.txt
-</span><span class='line'><span class="m">100644</span> blob 5103c84d034d6e8a0e4b6090453ad2cdcde21537    doc-to-md.sh
-</span><span class='line'><span class="m">040000</span> tree 6715d1d4c97e3d17a088922f687b8d9ffacb5953    dot
-</span><span class='line'><span class="m">100644</span> blob f9e045c4c1824520534270a2643ebe68311503b8    nostarch.sh
-</span><span class='line'><span class="m">040000</span> tree f8d9a9452b4bbaeba256b95d40b303cd5fb20a64    nostarch
-</span><span class='line'><span class="m">100644</span> blob 0a2d16852c11355ef9d8758a304b812633dcf03c    spellcheck.sh
-</span><span class='line'><span class="m">040000</span> tree f9fc05a6ff78b8211f4df931ed5e32c937aba66c    src
-</span><span class='line'><span class="m">100644</span> blob 56677811f451084de7c3a2478587a09486209b14    style-guide.md
-</span><span class='line'><span class="m">040000</span> tree 7601821a2ff38906332082671ea23e4074464dd2    tools
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Again, these are the same, except for that of <code>src</code>. <code>src</code> has a <em>lot</em> of files in it,
-which will clutter this post, so I&rsquo;ll run a diff on the outputs of <code>cat-file</code>:</p>
-
-<pre><code class="udiff">$ diff -U5 &lt;(g cat-file -p f9fc05a6ff78b8211f4df931ed5e32c937aba66c) &lt;(g cat-file -p 3f8db396566716299330cdd5f569fb0a0c4615dd)
---- /dev/fd/63  2017-03-05 11:58:22.000000000 -0800
-+++ /dev/fd/62  2017-03-05 11:58:22.000000000 -0800
-@@ -63,11 +63,11 @@
- 100644 blob ff6b8f8cd44f624e1239c47edda59560cdf491ae   ch14-02-publishing-to-crates-io.md
- 100644 blob c53ef854a74b6c9fbd915be1bf824c6e78439c42   ch14-03-cargo-workspaces.md
- 100644 blob 3fb59f9cc85b6b81994e83a34d542871a260a8f0   ch14-04-installing-binaries.md
- 100644 blob e1cd1ca779fdf202af433108a8af6eda317f2717   ch14-05-extending-cargo.md
- 100644 blob 3173cc508484cc447ebe42a024eac7d9e6c2ddcd   ch15-00-smart-pointers.md
--100644 blob 14c5533bb3b604c6e6274db278d1e7129f78d55d   ch15-01-box.md
-+100644 blob 29d87933d6832374b87d98aa5588e09e0c1a4991   ch15-01-box.md
- 100644 blob 47b35ed489d63ce6a885289fec01b7b16ba1afea   ch15-02-deref.md
- 100644 blob 2d20c55cc8605c0c899bc4867adc6b6ea1f5c902   ch15-03-drop.md
- 100644 blob 8e3fcf4e83fe1ce985a7c0b479b8b16701765aaf   ch15-04-rc.md
- 100644 blob a4ade4ae8bf5296d79ed51d69506e71a83f9f489   ch15-05-interior-mutability.md
- 100644 blob 3a4db5616c4f5baeb95d04ea40c6747e60181684   ch15-06-reference-cycles.md
-</code></pre>
-
-<p>As you can see, only the file that was changed in the commit has a new blob stored.
-If you view <code>14c553</code> and <code>29d879</code> you&rsquo;ll get the pre- and post- commit versions
-of the file respectively.</p>
-
-<p>So basically, each commit stores a tree of references to objects, often sharing nodes
-with other commits.</p>
-
-<p>I haven&rsquo;t had the opportunity to work with packfiles much, but they&rsquo;re an
-additional optimization on top of this. <a href="https://codewords.recurse.com/issues/three/unpacking-git-packfiles">Aditya&rsquo;s post</a> is a good
-intro to these.</p>
 ]]></content>
   </entry>
   
