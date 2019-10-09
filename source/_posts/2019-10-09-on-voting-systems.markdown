@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "On Voting Systems"
-date: 2019-09-13 12:08:46 -0700
+date: 2019-09-13 07:34:46 -0700
 comments: true
 categories: [politics, elections, programming]
 ---
