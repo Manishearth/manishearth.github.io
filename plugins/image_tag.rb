@@ -26,14 +26,15 @@ module Jekyll
     def initialize(tag_name, markup, tokens)
       attributes = ['class', 'src', 'width', 'height', 'title']
 
-      if markup =~ /(?<class>\S.*\s+)?(?<src>(?:https?:\/\/|\/|\S+\/)\S+)(?:\s+(?<width>\d+))?(?:\s+(?<height>\d+))?(?<title>\s+.+)?/i
+      if markup =~ /(?<class>[a-zA-Z ]*\s+)?(?<src>(?:https?:\/\/|\/|\S+\/)\S+)(?:\s+(?<width>\d+))?(?:\s+(?<height>\d+))?(?<title>\s+.+)?/i
         @img = attributes.reduce({}) { |img, attr| img[attr] = $~[attr].strip if $~[attr]; img }
-        if /(?:"|')(?<title>[^"']+)?(?:"|')\s+(?:"|')(?<alt>[^"']+)?(?:"|')/ =~ @img['title']
-          @img['title']  = title
-          @img['alt']    = alt
-        else
-          @img['alt']    = @img['title'].gsub!(/"/, '&#34;') if @img['title']
-        end
+        # if /(?:"|')(?<title>[^"']+)?(?:"|')\s+(?:"|')(?<alt>[^"']+)?(?:"|')/ =~ @img['title']
+        #   @img['title']  = title
+        #   @img['alt']    = alt
+        # else
+        #   @img['alt']    = @img['title'].gsub!(/"/, '&#34;') if @img['title']
+        # end
+        @img['alt'] = @img['title']
         @img['class'].gsub!(/"/, '') if @img['class']
       end
       super

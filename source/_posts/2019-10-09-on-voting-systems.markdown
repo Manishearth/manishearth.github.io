@@ -40,7 +40,7 @@ Voting by mail is by far the easiest option here. Sadly not all counties support
 As I understand it, voting in person at designated government offices[^3] is pretty much the same as voting in person at a polling place, it's just run by government employees instead of volunteers and open for a few weeks before election day.
 
 
-{% img center caption /images/post/polls/bling.jpeg 400 "Bling!" "Poll workers are given some neat bling to wear" %}
+{% img center caption /images/post/polls/bling.jpeg 400 Poll workers are given some neat bling to wear %}
 
  [^1]: Last year they required postage, but I they've changed that with <a href="https://www.sos.ca.gov/administration/news-releases-and-advisories/2019/no-stamp-no-problem-all-vote-mail-ballots-now-come-prepaid-postage-return-envelopes/">a law</a> this year. Yay!
  [^2]: Ostensibly because of fears of voter fraud, but they're largely unfounded &mdash; in practice this just reduces turnout
@@ -73,7 +73,7 @@ It's important to note that the scanner is not a load-bearing component of the s
 
 And that's it! You'll be given an I Voted sticker, and you can go home!
 
-{% img center caption /images/post/polls/stickers.png 400 "Stickers" "Some &#39;I Voted!&#39; stickers in Spanish" %}
+{% img center caption /images/post/polls/stickers.png 400 Some "I Voted!" stickers in Spanish %}
 
  [HAVA]: https://en.wikipedia.org/wiki/Help_America_Vote_Act#Voter_identification
  [^4]: The crossing-off and signing lists are different, but this isn't too important.
@@ -121,7 +121,7 @@ As mentioned before, the scanner isn't a crucial part of the system, but if it h
 
 Using paper ballots doesn't mean that we have to give up all the benefits of computers doing some of the work for us! We can still use computers to get fast results, without relying on them for the integrity of the system.
 
-{% img center caption /images/post/polls/totals.jpeg 400 "Vote totals" "Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." %}
+{% img center caption /images/post/polls/totals.jpeg 400 Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous. %}
 
 ## Properties of this voting system
 
@@ -151,7 +151,7 @@ You don't even need to recount the entire set of ballots to perform an audit, [r
 
 The fact that they can (and should) be hand counted is itself an important property. Hand counting of ballots can be independently verified in ways that can't be done for software. Despite not being able to trace a ballot back to its voter, there still is a paper trail of integrity for the ballots as a bulk unit.
 
-{% img center caption /images/post/polls/totals-zoom.png 500 "Vote totals" "Specific vote totals for the top races" %}
+{% img center caption /images/post/polls/totals-zoom.png 500 Specific vote totals for the top races %}
 
 ### Obviousness
 
@@ -222,7 +222,7 @@ It's still a bit early for the next election, but I highly recommend you volunte
 
 It's really fun, you get to learn about the inner workings of voting systems, and you get to meet a lot of people!
 
-{% img center caption /images/post/polls/nancy.jpeg 700 "precocious kid" "We had a cool kid come in and [more or less do this][nancy] at one point." %}
+{% img center caption /images/post/polls/nancy.jpeg 700 We had a cool kid come in and [more or less do this][nancy] at one point. %}
 
 
  [nancy]: https://twitter.com/ManishEarth/status/1060052694772011008
