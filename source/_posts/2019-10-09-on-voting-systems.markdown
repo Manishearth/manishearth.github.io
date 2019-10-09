@@ -224,6 +224,7 @@ It's really fun, you get to learn about the inner workings of voting systems, an
 
 {% img center caption /images/post/polls/nancy.jpeg 700 We had a cool kid come in and [more or less do this][nancy] at one point. %}
 
+_Thanks to Nika Layzell, Sunjay Varma, Jane Lusby, and Arshia Mufti for providing feedback on drafts of this blog post._
 
  [nancy]: https://twitter.com/ManishEarth/status/1060052694772011008
 
