@@ -151,7 +151,12 @@ You don't even need to recount the entire set of ballots to perform an audit, [r
 
 The fact that they can (and should) be hand counted is itself an important property. Hand counting of ballots can be independently verified in ways that can't be done for software. Despite not being able to trace a ballot back to its voter, there still is a paper trail of integrity for the ballots as a bulk unit.
 
+This property leads to [software independance]: while we may use software in the process, it's not possible for a bug in the software to cause an undetectable error in the final vote counts.
+
 {% img center caption /images/post/polls/totals-zoom.png 500 Specific vote totals for the top races %}
+
+
+ [software independence]: https://en.wikipedia.org/wiki/Software_independence
 
 ### Obviousness
 
