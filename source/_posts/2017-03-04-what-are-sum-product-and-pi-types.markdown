@@ -281,7 +281,7 @@ talking about sum and product types together -- a language with ADTs will have b
 
 
 In fact, you can even have _exponential_ types! The notation A^B in set theory does mean something,
-it's the set of all possible mappings from $B$ to $A$. The number of elements is $N_A^{N_B}$. So
+it's the set of all possible mappings from $B$ to $A$. The number of elements is ${N_A}^{N_B}$. So
 basically, the type of a function (which is a mapping) is an "exponential" type. You can also view it as
 an iterated product type, a function from type `B` to `A` is really a struct like this:
 
@@ -308,7 +308,7 @@ making it an exponential type.
 
 [You can even take _derivatives_ of types!][omg-derivatives] (h/t Sam Tobin-Hochstadt for pointing this out to me)
 
- [omg-derivatives]: http://strictlypositive.org/diff.pdf
+ [omg-derivatives]: https://web.archive.org/web/20190706084116/https://strictlypositive.org/diff.pdf
 
 
 {% endmathy %}
