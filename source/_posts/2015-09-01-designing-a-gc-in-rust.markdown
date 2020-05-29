@@ -50,7 +50,7 @@ by Peter Liniker which sketches out a design for an immutable GC.
 
 
  [cc]: https://github.com/fitzgen/bacon-rajan-cc
- [r-b]: researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
+ [r-b]: https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
  [mo-gc]: https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md
 
 ## Core Rust GC(s)
