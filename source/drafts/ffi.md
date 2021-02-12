@@ -1,26 +1,26 @@
 ---
 layout: post
-title: "TBD"
+title: "Integrating Rust and C++ in Firefox"
 date: 2018-09-29 12:08:46 -0700
 comments: true
 categories: [rust, c++, programming]
 ---
 
-Last year I worked on the [Stylo] project, uplifting Servo's CSS engine ("style system") into Firefox's browser engine
+_This post was originally drafted in August 2018, but I never got around to finishing it. As such, **a lot of the recommendations in it may be outdated**, given the relative infancy of the interop space at the time. I was told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark things which are actually outdated._
+
+In 2017 I worked on the [Stylo] project, uplifting Servo's CSS engine ("style system") into Firefox's browser engine
 ("Gecko"). This involved a _lot_ of gnarly FFI between Servo's Rust codebase and Firefox's C++ codebase. There were a
 lot of challenges in doing this, and I feel like it's worth sharing things from our experiences.
 
-If you're interested in Rust integrations, you may find [this talk by Isis and Chelsea on integrating Rust in Tor][rustconf-tor], [this talk by Katharina on Rust - C++ FFI][rustconf-kookie], and [this blog post by Henri on integrating encoding-rs into Firefox][henri-blog] useful as well.
+If you're interested in Rust integrations, you may find [this talk by Katharina on Rust - C++ FFI][rustconf-kookie], and [this blog post by Henri on integrating encoding-rs into Firefox][henri-blog] useful as well.
 
 
 
  [Stylo]: https://hacks.mozilla.org/2017/08/inside-a-super-fast-css-engine-quantum-css-aka-stylo/
- [rustconf-tor]: https://www.youtube.com/watch?v=_CdQHfLhmvI
  [rustconf-kookie]: https://www.youtube.com/watch?v=x9acx2zgx4Q
  [henri-blog]: https://hsivonen.fi/modern-cpp-in-rust/
 
 ## Who is this post for?
-
 
 So, first off the bat, I'll mention that when integrating Rust into a C++ codebase, you
 want to _avoid_ having integrations as tight as Stylo. Don't do what we did; make your Rust
@@ -28,7 +28,11 @@ component mostly self-contained so that you just have to maintain something like
 for interacting with it.
 
 That said, sometimes you _have_ to have gnarly integrations, and this blog post is for those use cases.
-These techniques mostly use bindgen for implementation, however you can potentially use them with hand-rolled bindings as well.
+These techniques mostly use bindgen for implementation, however you can potentially use them with hand-rolled bindings as well. If you're at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it.
+
+_Note from 2021: [cxx] is probably a better tool for many of the use cases here, though some of the techniques still transfer._
+
+[cxx]: https://github.com/dtolnay/cxx
 
 ## What was involved in Stylo's FFI?
 
@@ -40,7 +44,7 @@ make a jagged edge of an integration surface.
 
 The style system is more self-contained than other parts, but it's still quite tightly integrated.
 
-The main job of a "style system" is to take the CSS rules and DOM tree, and run them through "the cascade"
+The main job of a "style system" is to take the CSS rules and DOM tree, and run them through "the cascade"[^1]
 with an output of "computed styles" tagged on each node in the tree. So, for example, it will take a document like
 the following:
 
@@ -62,11 +66,11 @@ the following:
 and turn it into something like:
 
  - `<body>` has a `font-size` of `12px`, everything else is the default
- - the `div` `#foo` has a computed `height` of `24px`, everything else is the default
+ - the `div` `#foo` has a computed `height` of `24px`, everything else is the default. It "inherits" the `font-size` from `<body>` as `12px`
 
 From a code point of view, this means that Stylo takes in Gecko's C++ DOM tree. It parses all the CSS,
 and then runs the cascade on the tree. It stores computed styles on each element in a way that Gecko can read
-very cheaply. 
+very cheaply.
 
 Style computation can involve some complex steps that require calling back into C++ code. Servo's style system
 is multithreaded, but Gecko is mostly designed to work off of a single main thread per process, so we need to
@@ -84,8 +88,9 @@ To sum up, we have:
  - Rust code regularly dealing with nontrivial C++ abstractions
  - A need for nontrivial abstractions to be passed over FFI
 
-All of this conspires to make for some complicated FFI code :)
+All of this conspires to make for some really complicated FFI code.
 
+ [^1]: The _cascade_ in "Cascading Style Sheets" is the process used to take all the potential rules which could apply to an element and find the "most applicable" one that gets actually used.
 
 # The actual techniques
 
@@ -119,22 +124,22 @@ Bindgen is _quite_ configurable. Stylo has a [script][build_gecko] that consumes
 
 ## cbindgen
 
-We don't use [cbindgen] in Stylo, but it's [used for Webrender]. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public API. It's also quite configurable, however I've not used it much so I don't have many tips for it. I thought it's worth mentioning either way.
+We don't use [cbindgen] in Stylo, but it's [used for Webrender]. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public `extern "C"` API. It's also quite configurable.
 
+## cxx
 
+[cxx] is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It's definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in C++. 
 
- [cbindgen]: https://github.com/eqrion/cbindgen
- [used for Webrender]: https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/webrender_ffi_generated.h
 
 ## Bindgen-aided C++ calling Rust
 
-So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I'm not sure if it's advisable to have _both_ bindgen and cbindgen operating on the same codebase.
+So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I'm not sure if it's advisable to have _both_ bindgen and cbindgen operating near each other on the same codebase.
 
 In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in [one file][servobindings], and are all named `Gecko_*`. Bindgen supports regexes for things like whitelisting, so this naming scheme makes it easy to deal with.
 
 We also declare the FFI functions defined in Rust that C++ calls in [another file][sbl], named `Servo_*`. They're also all [defined in one place][glue.rs]
 
-However, there's nothing ensuring that the signatures match! If we're not careful, there may be mismatches. We use a small [autogenerated] [unit test] to ensure the validity of the signatures.
+However, there's nothing ensuring that the signatures match! If we're not careful, there may be mismatches, causing bad things to happen at link time or runtime. We use a small [autogenerated] [unit test] to ensure the validity of the signatures.
 
 This is especially important as we do things like type replacement, and we need tests to ensure that the rug isn't pulled out from underneath us.
 
@@ -148,9 +153,7 @@ This is especially important as we do things like type replacement, and we need 
 
 ## Type replacing for fun and profit
 
-Using [blacklisting][blacklist] in conjunction with the `--raw-line`/`raw_line()` flag, one can effectively ask bindgen to "replace" types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings referring to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type). `--raw-line` lets you request bindgen to add a line of raw rust code to the file,
-and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets
-you replace types.
+Using [blacklisting][blacklist] in conjunction with the `--raw-line`/`raw_line()` flag, one can effectively ask bindgen to "replace" types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings _referring_ to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). `--raw-line` lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets you replace types.
 
 Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).
 
@@ -158,6 +161,8 @@ Bindgen generates unit tests ensuring that the layout of your structs is correct
 There are various ways this can be used:
 
 ### Safe references across FFI
+
+_Note from 2021: [cxx] does this automatically_
 
 Calling into C++ (and accepting data from C++) is unsafe. However, there's no reason we should have to worry about this more than we have to. For example, it would be nice if accessor FFI functions (take a foreign object, return something from inside it) could use lifetimes. And if nullability were represented on the FFI boundary so that you
 don't miss null checks (and can assume non-nullness when the C++ API is okay with it).
@@ -182,12 +187,12 @@ Using the [bindgen build script][build_gecko] on a provided [list of borrow-able
  - `FooBorrowed` is actually `&Foo`
 
 `Option<&Foo>` [is represented as a single nullable pointer in Rust][nomicon-nonnull], so this is a clean translation. 
-We're forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is `fn Gecko_GetLastChild<'a>(x: &'a RawGeckoNode) -> Option<&'a RawGeckoNode>`, which ensures we won't let the returned reference outlive the passed reference.
+We're forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is `fn Gecko_GetLastChild<'a>(x: &'a RawGeckoNode) -> Option<&'a RawGeckoNode>`, which ensures we won't let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions "safely" with the appropriate lifetime requirements, even though C++ has no such concept!
 
 
-Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to pass us valid references, and we rely on it to not pass nulls when not marked as such. Most C++ codebases internally rely on such invariants for safety anyway, so this isn't much of a stretch.
+Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn't much of a stretch.
 
-We do this on both sides, actually: Many of our Rust-defined `extern "C"` functions that C++ calls get to be safe because the types let us assume the validity of the pointers obtaned from C++.
+We do this on both sides, actually: Many of our Rust-defined `extern "C"` functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtaned from C++.
 
 
 
@@ -258,11 +263,11 @@ impl Drop for bindings::MyString {
 }
 ```
 
-The `MyString_Destroy` isn't necessary with bindgen -- bindgen will generate a `MyString::destruct()` function for you -- but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time.
+The `MyString_Destroy` isn't necessary with bindgen -- bindgen will generate a `MyString::destruct()` function for you -- but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ _methods_, your bindings become platform specific and are best regenerated at build time.
 
 In Stylo we went down the route of manually defining `_Destroy()` functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using `destruct()` if we want to now.
 
-When it comes to generic types, it's a bit trickier, since `Drop` can't be implemented piecewise. You have to do something like:
+When it comes to generic types, it's a bit trickier, since `Drop` can't be implemented piecewise on a generic type (you cannot `impl Drop for MyVector<Foo>`). You have to do something like:
 
 ```cpp
 template<typename T>
@@ -349,13 +354,67 @@ In such cases you have one of three options:
  [stdalloc]: https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute
 
 
-## Crazy stuff
+## Triomphe
 
-@@
+This isn't really a generalizable technique, but it's pretty cool, so I'm including it here.
+
+Stylo uses a lot of `Arc`s. A _lot_ of them. The entire computation of styles makes heavy use of `Arc::make_mut`'s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.
+
+Many of these `Arc`s need to be readable from C++. Rust's `Arc`, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the `Arc` allocation, which we'd rather not do.
+
+We picked a different route: We created a crate duplicating `Arc<T>` which behaves almost exactly the same as `Arc<T>`, but it can be converted to `OffsetArc<T>` which has its pointer point to the _middle_ of the allocation, where the `T` begins. To C++, this just looks like a `*const T`! We were then able to make it work with `RefPtr<T>` on the C++ side so that C++ can transparently read from the `OffsetArc<T>`, and only needs to call into Rust if it wishes to clone or drop it.
+
+The external version of this crate can be found in [triomphe]. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like `ArcBorrow` which is essentially "`&Arc<T>` without double indirection", `UniqueArc<T>`, a mutable `Arc<T>` known to be uniquely owned, and `ArcUnion<T, U>`, which is a space-efficient union of `Arc<T>` and `Arc<U>`.
 
 
-@@ Transparent
+ [triomphe]: https://docs.rs/triomphe
 
-@@ C enums
+## Other pitfalls
 
-@@ ABI concerns
+### Transparent
+
+It's _very_ tempting to wrap C++ types in tuple structs and pass them over FFI. For example, one might imagine that the following is okay:
+
+```rust
+struct Wrapper(bindings::SomeCppType);
+
+extern "C" {
+    // C++ signature: `SomeCppType get_cpp_type();`
+    fn get_cpp_type() -> Wrapper;
+}
+```
+
+While there's basically one obvious way `Wrapper` can be represented, ABI stuff can be tricky, and Rust's layout isn't defined. It is safer to use `#[repr(transparent)]`, which guarantees that `Wrapper` will have the same representation as the type it contains.
+
+### C enums
+
+Rust supports C-like enums, but there's a crucial difference between them. In C, it is not undefined behavior for an enum to have an unlisted value. In fact, the following pattern is not uncommon:
+
+```c
+enum Flags {
+    Flag1 = 0b0001,
+    Flag2 = 0b0010,
+    Flag3 = 0b0100,
+    Flag4 = 0b1000;
+};
+```
+
+where the enum is actually used for bitflags, and `Flag1 | Flag2` and `0` are both valid values for `Flags`.
+
+This is not the case in Rust, if you are type-replacing C enums with Rust ones, make sure they are `#[repr(C)]`. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent `Option<Option<... 255 times .. Option<bool>>` as a single byte.
+
+
+### ABI concerns
+
+ABIs can be tricky. If you _just_ use bindgen with no special flags, you can be pretty much guaranteed to have an okay ABI, but as you start doing type replacements, stuff can get murkier.
+
+Firstly, make sure you're not passing owned C++ classes with destructors/etc across FFI boundaries. See [above][cpp-classes-pitfall] for why. There's a bunch of subtle stuff here, but you can avoid most of it it if you just don't pass these things across FFI in an owned way.
+
+Also, try to make sure everything is `#[repr(C)]` across the boundary. Rust's `improper-ctypes` lints will help here.
+
+ [cpp-classes-pitfall]: #potential-pitfall-passing-c-classes-by-value-over-ffi
+
+## Closing comments
+
+
+
