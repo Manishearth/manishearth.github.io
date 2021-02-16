@@ -44,27 +44,56 @@ module Jekyll
       output = super
       if @img
         @img['src'] =~ /https?:\/\/[\S]+/ ? @imgsrc = @img['src'] : @imgsrc = "source" + @img['src']
-        if @img.has_key?('class') and @img['class'].include?("caption")
-          if @img.has_key?("width")
-            @imgwidth = @img['width']
-          else
-            raise "Captioned images must have width provided"
-          end
-          @imgclass = @img['class']
-          @imgclass.slice!("captions")
-          @img.delete("class")
-          "<figure class=\"#{('caption-wrapper ' + @imgclass).rstrip}\" style=\"width: #{@imgwidth}px\">" +
-            "<img class=\"caption\" #{@img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}>" +
-            "<figcaption class=\"caption-text\">#{@img['alt']}</figcaption>" +
-          "</figure>"
-        else
-            "<img #{@img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}>"
-        end
+
+        "<img #{@img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}>"
       else
-        "Error processing input, expected syntax: {% img [class name(s)] /url/to/image [width height] [title text] %}"
+        raise "Error processing input, expected syntax: {% img [class name(s)] /url/to/image [width height] [title text] %}"
+      end
+    end
+  end
+
+  class ImageBlock < Liquid::Block
+  @img = nil
+
+    def initialize(tag_name, markup, tokens)
+      attributes = ['class', 'src', 'width', 'height', 'title']
+
+      if markup =~ /(?<class>[a-zA-Z ]*\s+)?(?<src>(?:https?:\/\/|\/|\S+\/)\S+)(?:\s+(?<width>\d+))?(?:\s+(?<height>\d+))?(?<title>\s+.+)?/i
+        @img = attributes.reduce({}) { |img, attr| img[attr] = $~[attr].strip if $~[attr]; img }
+        # if /(?:"|')(?<title>[^"']+)?(?:"|')\s+(?:"|')(?<alt>[^"']+)?(?:"|')/ =~ @img['title']
+        #   @img['title']  = title
+        #   @img['alt']    = alt
+        # else
+        #   @img['alt']    = @img['title'].gsub!(/"/, '&#34;') if @img['title']
+        # end
+        @img['alt'] = @img['title']
+        @img['class'].gsub!(/"/, '') if @img['class']
+      end
+      super
+    end
+
+    def render(context)
+      output = super
+      if @img
+        @img['src'] =~ /https?:\/\/[\S]+/ ? @imgsrc = @img['src'] : @imgsrc = "source" + @img['src']
+        if @img.has_key?("width")
+          @imgwidth = @img['width']
+        else
+          raise "Captioned images must have width provided"
+        end
+        @imgclass = @img['class']
+        @imgclass.slice!("captions")
+        @img.delete("class")
+        "<figure class=\"#{('caption-wrapper ' + @imgclass).rstrip}\" style=\"width: #{@imgwidth}px\">" +
+          "<img class=\"caption\" #{@img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}>" +
+          "<figcaption class=\"caption-text\">#{Kramdown::Document.new(output).to_html}</figcaption>" +
+        "</figure>"
+      else
+        raise "Error processing input, expected syntax: {% imgcaption [class name(s)] /url/to/image [width height] [title text] %}"
       end
     end
   end
 end
 
 Liquid::Template.register_tag('img', Jekyll::ImageTag)
+Liquid::Template.register_tag('imgcaption', Jekyll::ImageBlock)
