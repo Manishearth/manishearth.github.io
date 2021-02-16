@@ -446,7 +446,9 @@ extern "C" {
 
 <p>where the enum is actually used for bitflags, and <code>Flag1 | Flag2</code> and <code>0</code> are both valid values for <code>Flags</code>.</p>
 
-<p>This is not the case in Rust, if you are type-replacing C enums with Rust ones, make sure they are <code>#[repr(C)]</code>. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent <code>Option&lt;Option&lt;... 255 times .. Option&lt;bool&gt;&gt;</code> as a single byte.</p>
+<p>This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are <code>#[repr(C)]</code>. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent <code>Option&lt;Option&lt;... 255 times .. Option&lt;bool&gt;&gt;</code> as a single byte.</p>
+
+<p>If you are working with a C enum that is used for bitflags like above, please use an integer type instead. <code>#[repr(C)]</code> on enums in Rust guarantees layout, but it is <a href="https://doc.rust-lang.org/stable/nomicon/other-reprs.html">still undefined behavior for any enum to take on invalid values</a>.</p>
 
 <h3 id="abi-concerns">ABI concerns</h3>
 
@@ -482,7 +484,7 @@ extern "C" {
 
 <p><code>unsafe</code> is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it’s already well known that the C++-side is introducing badness, marking every simple C++ getter as <code>unsafe</code> will lead to alarm fatigue and make it <em>harder</em> to find the real problems.</p>
 
-<p>It’s worth figuring out where this boundary lies for you. Tools like <code>cxx</code> make it possible to call C++ functions through a safe interface.</p>
+<p>It’s worth figuring out where this boundary lies for you. Tools like <code>cxx</code> make it straightforward to call C++ functions through a safe interface, and it’s valuable to make use of that support.</p>
 
 <h2 id="closing-comments">Closing comments</h2>
 
