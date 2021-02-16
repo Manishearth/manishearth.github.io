@@ -381,7 +381,7 @@ pub struct RefPtr&lt;T: RefCounted&gt; {
 
 <p>Instead, we let bindgen generate its own <code>RefPtr&lt;T&gt;</code>, called <code>structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code>structs::</code> module). <code>structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code>RefPtr&lt;T&gt;</code> (but only if <code>T: RefCounted</code>). So if you need to manipulate a <code>RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code>RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
-<p>In general, whenever attaching extra semantics to generic bindgen types doesn’t work, an alternative is to create a mirror type that’s completely safe to use from Rust, with a trait that gates conversion to the mirror type.</p>
+<p>In general, whenever attaching extra semantics to generic bindgen types doesn’t work create a mirror type that’s completely safe to use from Rust, with a trait that gates conversion to the mirror type.</p>
 
 <h2 id="potential-pitfall-allocators">Potential pitfall: Allocators</h2>
 
