@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-16T02:06:43+00:00</updated>
+  <updated>2021-02-16T06:17:04+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -18,93 +18,90 @@
     <link href="http://manishearth.github.io/blog/2019/10/09/on-voting-systems/"/>
     <updated>2019-10-09T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2019/10/09/on-voting-systems</id>
-    <content type="html"><![CDATA[<p>Election season is starting up again, and as with many other topics I&rsquo;m seeing a lot of overconfident takes from people in tech wanting to &ldquo;solve&rdquo; how voting works with naïve techy solutions. Hell, <a href="https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain">even a presidential candidate seems to have proposed an extremely uninformed plan for &ldquo;fixing&rdquo; voting using blockchain technology</a>.</p>
+    <content type="html"><![CDATA[<p>Election season is starting up again, and as with many other topics I’m seeing a lot of overconfident takes from people in tech wanting to “solve” how voting works with naïve techy solutions. Hell, <a href="https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain">even a presidential candidate seems to have proposed an extremely uninformed plan for “fixing” voting using blockchain technology</a>.</p>
 
-<p>Last year I wrote <a href="https://twitter.com/ManishEarth/status/1056255900095340545">a thread on Twitter</a> covering some of the essential properties good voting systems uphold as well as how they prevent fraud. It was through the lens of Alameda County&rsquo;s voting system, where I&rsquo;ve volunteered as a poll worker in the past (and intend to do again). I&rsquo;ve been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.</p>
+<p>Last year I wrote <a href="https://twitter.com/ManishEarth/status/1056255900095340545">a thread on Twitter</a> covering some of the essential properties good voting systems uphold as well as how they prevent fraud. It was through the lens of Alameda County’s voting system, where I’ve volunteered as a poll worker in the past (and intend to do again). I’ve been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.</p>
 
-<p>I&rsquo;ll be explaining more about most of these properties later, but ideally, a good voting system should uphold:</p>
+<p>I’ll be explaining more about most of these properties later, but ideally, a good voting system should uphold:</p>
 
 <ul>
-<li>Secret ballot: Nobody, not even you, can verify who you voted for after you&rsquo;re out of the polling place, to prevent vote-buying and coercion.</li>
-<li>Auditable paper trail: We should be able to audit the election. Paper trails are usually the most robust way to enable effective audits.</li>
-<li>Obviousness: It should be relatively obvious what individuals should be doing when they need to mark their ballots. A system that you can easily &ldquo;mess up&rdquo; with is a bad system.</li>
-<li>Accessibility: It should not exclude individuals with disabilities from being able to vote.</li>
+  <li>Secret ballot: Nobody, not even you, can verify who you voted for after you’re out of the polling place, to prevent vote-buying and coercion.</li>
+  <li>Auditable paper trail: We should be able to audit the election. Paper trails are usually the most robust way to enable effective audits.</li>
+  <li>Obviousness: It should be relatively obvious what individuals should be doing when they need to mark their ballots. A system that you can easily “mess up” with is a bad system.</li>
+  <li>Accessibility: It should not exclude individuals with disabilities from being able to vote.</li>
 </ul>
 
+<h2 id="how-voting-works-in-alameda-county">How voting works in Alameda County</h2>
 
-<h2>How voting works in Alameda County</h2>
-
-<p>I&rsquo;ll first go over how voting in my county works. The system isn&rsquo;t perfect, but it&rsquo;s pretty good, and it&rsquo;s a good springboard for understanding how voting systems in general can work. There&rsquo;s a <a href="https://www.acvote.org/acvote-assets/04_resources/PDFs/pwmanuals/06042019/Guide-FINAL-june.pdf">poll worker guide</a> you can refer to if you&rsquo;re really interested in all the specifics.</p>
+<p>I’ll first go over how voting in my county works. The system isn’t perfect, but it’s pretty good, and it’s a good springboard for understanding how voting systems in general can work. There’s a <a href="https://www.acvote.org/acvote-assets/04_resources/PDFs/pwmanuals/06042019/Guide-FINAL-june.pdf">poll worker guide</a> you can refer to if you’re really interested in all the specifics.</p>
 
 <p>Broadly speaking, there are four ways to vote:</p>
 
 <ul>
-<li>By mail</li>
-<li>In person at certain government offices, before election day (&ldquo;early voting&rdquo;)</li>
-<li>In person on election day at a polling place</li>
-<li>Provisionally, in person on election day at a polling place</li>
+  <li>By mail</li>
+  <li>In person at certain government offices, before election day (“early voting”)</li>
+  <li>In person on election day at a polling place</li>
+  <li>Provisionally, in person on election day at a polling place</li>
 </ul>
 
+<p>Voting by mail is pretty straightforward: When you register you can choose to vote by mail (or you can choose to do so online after the fact). You get a ballot in the mail, along with a special envelope. You fill in the ballot at your leisure, stick it in the envelope, write your name/address on the envelope, sign it, and mail it back. There are also convenient ballot dropboxes all over the place in case you’re a millenial like me and don’t want to figure out how to buy stamps<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
 
-<p>Voting by mail is pretty straightforward: When you register you can choose to vote by mail (or you can choose to do so online after the fact). You get a ballot in the mail, along with a special envelope. You fill in the ballot at your leisure, stick it in the envelope, write your name/address on the envelope, sign it, and mail it back. There are also convenient ballot dropboxes all over the place in case you&rsquo;re a millenial like me and don&rsquo;t want to figure out how to buy stamps<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+<p>If you’re voting by mail you can also show up at any polling place on the day of the election and drop off your ballots in a sealed bin. At the polling place I helped run roughly half of the people coming in were just there to drop off their vote by mail ballots!</p>
 
-<p>If you&rsquo;re voting by mail you can also show up at any polling place on the day of the election and drop off your ballots in a sealed bin. At the polling place I helped run roughly half of the people coming in were just there to drop off their vote by mail ballots!</p>
+<p>Voting by mail is by far the easiest option here. Sadly not all counties support it<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. In some states <a href="https://en.wikipedia.org/wiki/Vote-by-mail_in_Oregon">this is even the <em>default</em> option</a>.</p>
 
-<p>Voting by mail is by far the easiest option here. Sadly not all counties support it<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. In some states <a href="https://en.wikipedia.org/wiki/Vote-by-mail_in_Oregon">this is even the <em>default</em> option</a>.</p>
+<p>As I understand it, voting in person at designated government offices<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> is pretty much the same as voting in person at a polling place, it’s just run by government employees instead of volunteers and open for a few weeks before election day.</p>
 
-<p>As I understand it, voting in person at designated government offices<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> is pretty much the same as voting in person at a polling place, it&rsquo;s just run by government employees instead of volunteers and open for a few weeks before election day.</p>
+<figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/polls/bling.jpeg" width="400" title="Poll workers are given some neat bling to wear" alt="Poll workers are given some neat bling to wear" /><figcaption class="caption-text">Poll workers are given some neat bling to wear</figcaption></figure>
 
-<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="/images/post/polls/bling.jpeg" width="400" title="Poll workers are given some neat bling to wear" alt="Poll workers are given some neat bling to wear"><figcaption class="caption-text">Poll workers are given some neat bling to wear</figcaption></figure></p>
+<h3 id="in-person-voting">In person voting</h3>
 
-<h3>In person voting</h3>
+<p>If you’ve chosen to vote in person, you are supposed to turn up at your assigned polling place (you get your assignment in the mail along with other voter info booklets).</p>
 
-<p>If you&rsquo;ve chosen to vote in person, you are supposed to turn up at your assigned polling place (you get your assignment in the mail along with other voter info booklets).</p>
-
-<p>There&rsquo;s a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+<p>There’s a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
 
 <ul>
-<li>If your name isn&rsquo;t on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct.</li>
-<li>If your name isn&rsquo;t on the list of all voters (perhaps you registered very late, or were unable to register), you can also vote provisionally.</li>
-<li>If your name is on the list but marked as voting-by-mail (and you want to vote in person), you can vote normally only if you surrender your mail ballot (which poll workers will mark as spoiled and put in a separate pouch).</li>
-<li>If you lost/didn&rsquo;t receive your ballot, you can always vote provisionally.</li>
+  <li>If your name isn’t on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct.</li>
+  <li>If your name isn’t on the list of all voters (perhaps you registered very late, or were unable to register), you can also vote provisionally.</li>
+  <li>If your name is on the list but marked as voting-by-mail (and you want to vote in person), you can vote normally only if you surrender your mail ballot (which poll workers will mark as spoiled and put in a separate pouch).</li>
+  <li>If you lost/didn’t receive your ballot, you can always vote provisionally.</li>
 </ul>
-
 
 <p>When you are voting normally, signing your name on the list fraudulently is illegal.</p>
 
-<p>If it is your first time voting, you need to show some form of ID, but it doesn&rsquo;t need to be photo ID and <a href="https://en.wikipedia.org/wiki/Help_America_Vote_Act#Voter_identification">even a utility bill is fine</a>.</p>
+<p>If it is your first time voting, you need to show some form of ID, but it doesn’t need to be photo ID and <a href="https://en.wikipedia.org/wiki/Help_America_Vote_Act#Voter_identification">even a utility bill is fine</a>.</p>
 
-<p>Once you&rsquo;re done signing, you&rsquo;ll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.</p>
+<p>Once you’re done signing, you’ll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.</p>
 
-<p>You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems &mdash; which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card.</p>
+<p>You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems — which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card.</p>
 
 <p>The machine keeps an externally-visible tally of the number of ballots submitted, and an internal tally of all the votes made, ignoring write-ins. It also internally stores ballot cards in one of two bins (depending on write-ins). These bins are verified to be empty when polls open, and are inaccessible till polls close.</p>
 
-<p>It&rsquo;s important to note that the scanner is not a load-bearing component of the system: It could be replaced with a locked bin with a slot, and the system would still work. The scanner enables one to get <em>preliminary</em> results for the precinct, and provides a way to double-check results.</p>
+<p>It’s important to note that the scanner is not a load-bearing component of the system: It could be replaced with a locked bin with a slot, and the system would still work. The scanner enables one to get <em>preliminary</em> results for the precinct, and provides a way to double-check results.</p>
 
-<p>And that&rsquo;s it! You&rsquo;ll be given an I Voted sticker, and you can go home!</p>
+<p>And that’s it! You’ll be given an I Voted sticker, and you can go home!</p>
 
-<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="/images/post/polls/stickers.png" width="400" title="Some &ldquo;I Voted!&rdquo; stickers in Spanish" alt="Some &ldquo;I Voted!&rdquo; stickers in Spanish"><figcaption class="caption-text">Some &ldquo;I Voted!&rdquo; stickers in Spanish</figcaption></figure></p>
+<figure class="caption-wrapper center caption" style="width: 400px">&lt;img class="caption" src="http://manishearth.github.io/images/post/polls/stickers.png" width="400" title="Some "I Voted!" stickers in Spanish" alt="Some "I Voted!" stickers in Spanish"&gt;<figcaption class="caption-text">Some "I Voted!" stickers in Spanish</figcaption></figure>
 
-<h3>Using a voting machine</h3>
+<h3 id="using-a-voting-machine">Using a voting machine</h3>
 
-<p>In case you think you will have trouble filling out a ballot card in pen (e.g. if your vision is heavily impared), there&rsquo;s an alternate way to vote that doesn&rsquo;t involve a pen. Instead, we have a machine which has a touchscreen and an audio unit, which prompts the voter for their selection for each ballot item on the touchscreen or audio unit. When they&rsquo;re done, the machine will print out a &ldquo;receipt&rdquo; listing their choices inside a sealed box with a glass window, so they can verify that their vote was recorded correctly<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Once they&rsquo;re done the sealed box will scroll the &ldquo;receipt&rdquo; out of view so that the next voter can&rsquo;t see it.</p>
+<p>In case you think you will have trouble filling out a ballot card in pen (e.g. if your vision is heavily impared), there’s an alternate way to vote that doesn’t involve a pen. Instead, we have a machine which has a touchscreen and an audio unit, which prompts the voter for their selection for each ballot item on the touchscreen or audio unit. When they’re done, the machine will print out a “receipt” listing their choices inside a sealed box with a glass window, so they can verify that their vote was recorded correctly<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote">6</a></sup>. Once they’re done the sealed box will scroll the “receipt” out of view so that the next voter can’t see it.</p>
 
-<p>The sealed box is called a <a href="https://en.wikipedia.org/wiki/Voter-verified_paper_audit_trail">Voter-Verified Paper Trail</a> box: the election runners no longer need to trust the machine&rsquo;s internal memory, they can trust the paper trail inside the box (which, while produced by a potentially-untrustworthy machine, was verified by the voters), and the machine&rsquo;s internal memory is simply a way to double-check (and get fast preliminary results).</p>
+<p>The sealed box is called a <a href="https://en.wikipedia.org/wiki/Voter-verified_paper_audit_trail">Voter-Verified Paper Trail</a> box: the election runners no longer need to trust the machine’s internal memory, they can trust the paper trail inside the box (which, while produced by a potentially-untrustworthy machine, was verified by the voters), and the machine’s internal memory is simply a way to double-check (and get fast preliminary results).</p>
 
-<h3>Provisional voting</h3>
+<h3 id="provisional-voting">Provisional voting</h3>
 
-<p>There are many, many situations in which you may not be able to vote normally. Perhaps you showed up at the wrong precinct but don&rsquo;t have time to go to the right one. Perhaps you were signed up for vote-by-mail but didn&rsquo;t receive (or lost) your ballot. Perhaps you recently moved into the county and weren&rsquo;t able to register in time. Perhaps you were a first-time in-person voter and didn&rsquo;t have some form of ID.</p>
+<p>There are many, many situations in which you may not be able to vote normally. Perhaps you showed up at the wrong precinct but don’t have time to go to the right one. Perhaps you were signed up for vote-by-mail but didn’t receive (or lost) your ballot. Perhaps you recently moved into the county and weren’t able to register in time. Perhaps you were a first-time in-person voter and didn’t have some form of ID.</p>
 
-<p>In such a case you can always vote provisionally. The beauty of this system is that it removes most liability from poll workers: we don&rsquo;t have any reason to turn people away from the polls, all we can do is refuse to let people vote normally (and instead vote provisionally) in the case of any inconsistencies. This is not to say that malicious poll workers <em>can&rsquo;t</em> turn people away; it&rsquo;s illegal but it happens. But well-meaning poll workers cannot, by accident, disenfranchise a voter because we are always allowed to give them a provisional ballot, and that&rsquo;s an easy rule to follow.</p>
+<p>In such a case you can always vote provisionally. The beauty of this system is that it removes most liability from poll workers: we don’t have any reason to turn people away from the polls, all we can do is refuse to let people vote normally (and instead vote provisionally) in the case of any inconsistencies. This is not to say that malicious poll workers <em>can’t</em> turn people away; it’s illegal but it happens. But well-meaning poll workers cannot, by accident, disenfranchise a voter because we are always allowed to give them a provisional ballot, and that’s an easy rule to follow.</p>
 
-<p>With provisional voting, the voters are given the same ballot cards, but they&rsquo;re also given an envelope with a form on it. This envelope is equivalent to a voter registration form, (re)registering them in their appropriate county/district<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>. They vote on the ballot cards normally, but instead of submitting the ballots to the scanner, they put them in the envelope, which goes into a sealed bin<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>. You&rsquo;re also given a number you can call to check the status of your ballot.</p>
+<p>With provisional voting, the voters are given the same ballot cards, but they’re also given an envelope with a form on it. This envelope is equivalent to a voter registration form, (re)registering them in their appropriate county/district<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">7</a></sup>. They vote on the ballot cards normally, but instead of submitting the ballots to the scanner, they put them in the envelope, which goes into a sealed bin<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote">8</a></sup>. You’re also given a number you can call to check the status of your ballot.</p>
 
 <p>When you vote provisionally, the registrar of voters will manually process your envelope, remaking your ballot on the right set of cards if necessary, and feeding them into a scanner machine.</p>
 
-<h3>Integrity checks</h3>
+<h3 id="integrity-checks">Integrity checks</h3>
 
-<p>Underlying this system is a bevy of integrity checks. There&rsquo;s an intricate seal system, with numbered seals of varying colors. Some are to be added and never removed, some are to be removed after checking the number, some are never supposed to be touched, some are added at the beginning of the day and removed at the end of the day.</p>
+<p>Underlying this system is a bevy of integrity checks. There’s an intricate seal system, with numbered seals of varying colors. Some are to be added and never removed, some are to be removed after checking the number, some are never supposed to be touched, some are added at the beginning of the day and removed at the end of the day.</p>
 
 <p>For example, during setup we check that the bins in the scanner are empty, and seal it with a numbered seal. This number is noted down on a form, along with some numbers from the scanner/touchscreen display. The first person to vote is asked to verify all this, and signs the form along with the poll workers.</p>
 
@@ -112,131 +109,139 @@
 
 <p>Various ballot counts are also kept track of. We keep track of the number of provisional ballots, the number of submitted regular ballots (also kept track by the scanner), the number of ballot cards used, and the number of unused ballots left over. Everything needs to match up at the end of the day, and all unused ballots are sent back. These counts are also noted down.</p>
 
-<p>Poll watchers are allowed to be around for most of this, though I think they&rsquo;re not allowed to <em>touch</em> anything. I think poll watchers are also allowed to be around when the actual ballots are being counted by election officials.</p>
+<p>Poll watchers are allowed to be around for most of this, though I think they’re not allowed to <em>touch</em> anything. I think poll watchers are also allowed to be around when the actual ballots are being counted by election officials.</p>
 
-<h3>Immediate local results</h3>
+<h3 id="immediate-local-results">Immediate local results</h3>
 
-<p>As mentioned before, the scanner isn&rsquo;t a crucial part of the system, but if it happens to be working it can be used to get immediate local results. At the end of the day, the scanner prints out a bunch of stuff, including vote totals for races which got more than N votes (N=20, IIRC), so you get immediate results for your precinct. This printout is supposed to be taped to the polling place doors for everyone to see, and presumably the registrar of voters uses the copy submitted to them to publish quick preliminary results.</p>
+<p>As mentioned before, the scanner isn’t a crucial part of the system, but if it happens to be working it can be used to get immediate local results. At the end of the day, the scanner prints out a bunch of stuff, including vote totals for races which got more than N votes (N=20, IIRC), so you get immediate results for your precinct. This printout is supposed to be taped to the polling place doors for everyone to see, and presumably the registrar of voters uses the copy submitted to them to publish quick preliminary results.</p>
 
-<p>Using paper ballots doesn&rsquo;t mean that we have to give up all the benefits of computers doing some of the work for us! We can still use computers to get fast results, without relying on them for the integrity of the system.</p>
+<p>Using paper ballots doesn’t mean that we have to give up all the benefits of computers doing some of the work for us! We can still use computers to get fast results, without relying on them for the integrity of the system.</p>
 
-<p><figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="/images/post/polls/totals.jpeg" width="400" title="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." alt="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous."><figcaption class="caption-text">Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous.</figcaption></figure></p>
+<figure class="caption-wrapper center caption" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/polls/totals.jpeg" width="400" title="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." alt="Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous." /><figcaption class="caption-text">Vote totals posted outside. Our ballots are big and have lots of races on them; so the list of vote totals is absolutely ginormous.</figcaption></figure>
 
-<h2>Properties of this voting system</h2>
+<h2 id="properties-of-this-voting-system">Properties of this voting system</h2>
 
 <p>This system has some crucial properties.</p>
 
-<h3>Secret ballot</h3>
+<h3 id="secret-ballot">Secret ballot</h3>
 
-<p>It&rsquo;s well known that nobody is supposed to be able to see who you voted for. But a crucial part of this system is that, once you submit your ballots, <em>you</em> can&rsquo;t see who you voted for either. Of course, you probably can <em>remember</em>, but you have no <em>proof</em>. On the face of it this sounds like a bad property &mdash; wouldn&rsquo;t it be nicer if people could verify that their vote was counted correctly?</p>
+<p>It’s well known that nobody is supposed to be able to see who you voted for. But a crucial part of this system is that, once you submit your ballots, <em>you</em> can’t see who you voted for either. Of course, you probably can <em>remember</em>, but you have no <em>proof</em>. On the face of it this sounds like a bad property — wouldn’t it be nicer if people could verify that their vote was counted correctly?</p>
 
 <p>The problem is that if <em>I</em> can verify that my vote was counted correctly, someone else can coerce me into doing this in front of them to ensure I voted a certain way. Any system that gives me the ability to verify my vote gives people who have power over me (or just people who want to buy my vote) the same ability.</p>
 
-<p>Provisional voting doesn&rsquo;t quite have this property, but it&rsquo;s supposed to be for edge cases. Vote by mail trades off some of this property for convenience; people can now see who you voted for while you&rsquo;re voting (and the people you live with can fradulently vote on your behalf, too).</p>
+<p>Provisional voting doesn’t quite have this property, but it’s supposed to be for edge cases. Vote by mail trades off some of this property for convenience; people can now see who you voted for while you’re voting (and the people you live with can fradulently vote on your behalf, too).</p>
 
-<h3>Conservation of ballots (Auditable paper trail)</h3>
+<h3 id="conservation-of-ballots-auditable-paper-trail">Conservation of ballots (Auditable paper trail)</h3>
 
-<p>The total number of ballots in the system is roughly conserved and kept track of. If you&rsquo;re registered to vote by mail, you cannot request a normal ballot without surrendering your vote by mail ballot and envelope (which we mark as spoiled and put in a separate pouch). If you re-request a ballot card because you made a mistake, the old card needs to be similarly spoiled and put away separately. It&rsquo;s one set of ballot cards per voter, and almost all potential aberrations in this property result in a provisional vote<sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>. Even provisional votes are converted to normal ballot cards in the end.</p>
+<p>The total number of ballots in the system is roughly conserved and kept track of. If you’re registered to vote by mail, you cannot request a normal ballot without surrendering your vote by mail ballot and envelope (which we mark as spoiled and put in a separate pouch). If you re-request a ballot card because you made a mistake, the old card needs to be similarly spoiled and put away separately. It’s one set of ballot cards per voter, and almost all potential aberrations in this property result in a provisional vote<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote">9</a></sup>. Even provisional votes are converted to normal ballot cards in the end.</p>
 
-<p>Eventually, there will be a giant roomful of ballots that cannot be traced back to their individual voters, but it can still be traced back to the <em>entirety</em> of the voters &mdash; it&rsquo;s hard to put a ballot into the system without a corresponding voter. This is perfect &mdash; the ballots can be hand-counted, but they can&rsquo;t be individually corellated with their respective voters.</p>
+<p>Eventually, there will be a giant roomful of ballots that cannot be traced back to their individual voters, but it can still be traced back to the <em>entirety</em> of the voters — it’s hard to put a ballot into the system without a corresponding voter. This is perfect — the ballots can be hand-counted, but they can’t be individually corellated with their respective voters.</p>
 
-<p>You don&rsquo;t even need to recount the entire set of ballots to perform an audit, <a href="https://risklimitingaudits.org/">risk limiting audits</a> are quite effective and much more efficient to carry out.</p>
+<p>You don’t even need to recount the entire set of ballots to perform an audit, <a href="https://risklimitingaudits.org/">risk limiting audits</a> are quite effective and much more efficient to carry out.</p>
 
-<h3>Paper ballots</h3>
+<h3 id="paper-ballots">Paper ballots</h3>
 
-<p>The fact that they can (and should) be hand counted is itself an important property. Hand counting of ballots can be independently verified in ways that can&rsquo;t be done for software. Despite not being able to trace a ballot back to its voter, there still is a paper trail of integrity for the ballots as a bulk unit.</p>
+<p>The fact that they can (and should) be hand counted is itself an important property. Hand counting of ballots can be independently verified in ways that can’t be done for software. Despite not being able to trace a ballot back to its voter, there still is a paper trail of integrity for the ballots as a bulk unit.</p>
 
-<p>This property leads to [software independance]: while we may use software in the process, it&rsquo;s not possible for a bug in the software to cause an undetectable error in the final vote counts.</p>
+<p>This property leads to [software independance]: while we may use software in the process, it’s not possible for a bug in the software to cause an undetectable error in the final vote counts.</p>
 
-<p><figure class="caption-wrapper center caption" style="width: 500px"><img class="caption" src="/images/post/polls/totals-zoom.png" width="500" title="Specific vote totals for the top races" alt="Specific vote totals for the top races"><figcaption class="caption-text">Specific vote totals for the top races</figcaption></figure></p>
+<figure class="caption-wrapper center caption" style="width: 500px"><img class="caption" src="http://manishearth.github.io/images/post/polls/totals-zoom.png" width="500" title="Specific vote totals for the top races" alt="Specific vote totals for the top races" /><figcaption class="caption-text">Specific vote totals for the top races</figcaption></figure>
 
-<h3>Obviousness</h3>
+<h3 id="obviousness">Obviousness</h3>
 
-<p>Figuring out what to do in the voting booth isn&rsquo;t hard. You&rsquo;re allowed to request assistance, but you&rsquo;ll rarely have to. There are systems (like the scanner&rsquo;s error checking) that are designed to ensure you don&rsquo;t mess up, but the system is quite sound even without them; they just provide an additional buffer.</p>
+<p>Figuring out what to do in the voting booth isn’t hard. You’re allowed to request assistance, but you’ll rarely have to. There are systems (like the scanner’s error checking) that are designed to ensure you don’t mess up, but the system is quite sound even without them; they just provide an additional buffer.</p>
 
-<p>Compare this with <a href="https://www.texastribune.org/2018/11/01/texas-straight-ticket-voting-problems-old-machines/">the problems some Texas voting machines had last midterm</a>. The machines were somewhat buggy, but, crucially, there was an opaque right and wrong way to use them, and some voters accidentally used it the wrong way, and then didn&rsquo;t check the final page before submitting. This kind of thing should never happen in a good voting system.</p>
+<p>Compare this with <a href="https://www.texastribune.org/2018/11/01/texas-straight-ticket-voting-problems-old-machines/">the problems some Texas voting machines had last midterm</a>. The machines were somewhat buggy, but, crucially, there was an opaque right and wrong way to use them, and some voters accidentally used it the wrong way, and then didn’t check the final page before submitting. This kind of thing should never happen in a good voting system.</p>
 
-<p>It&rsquo;s really important that the system is intuitive and hard to make mistakes in.</p>
+<p>It’s really important that the system is intuitive and hard to make mistakes in.</p>
 
-<h2>Fraud prevention</h2>
+<h2 id="fraud-prevention">Fraud prevention</h2>
 
 <p>So, how is this robust against fraud?</p>
 
-<p>Firstly, voter fraud isn&rsquo;t a major problem in the US, and it&rsquo;s often used as an excuse to propagate voter suppression tactics, which <em>are</em> a major problem here.</p>
+<p>Firstly, voter fraud isn’t a major problem in the US, and it’s often used as an excuse to propagate voter suppression tactics, which <em>are</em> a major problem here.</p>
 
 <p>But even then, we probably want our system to be robust against fraud.</p>
 
-<p>Let&rsquo;s see how an individual might thwart this system. They could vote multiple times, under assumed identites. This doesn&rsquo;t scale well and isn&rsquo;t really worth it: to influence an election you&rsquo;d need to do this many times, or have many individuals do it a couple times, and the chance of getting caught (e.g., the people who you are voting as may come by and try to vote later, throwing up a flag) and investigated scales exponentially with the number of votes. That&rsquo;s not worth it at all.</p>
+<p>Let’s see how an individual might thwart this system. They could vote multiple times, under assumed identites. This doesn’t scale well and isn’t really worth it: to influence an election you’d need to do this many times, or have many individuals do it a couple times, and the chance of getting caught (e.g., the people who you are voting as may come by and try to vote later, throwing up a flag) and investigated scales exponentially with the number of votes. That’s not worth it at all.</p>
 
-<p>Maybe poll workers could do something malicious. Poll worker manipulation would largely exist in the form of submitting extra ballots. But that&rsquo;s hard because the ballot counts need to match the list of voters. So you have the same problem as individual voters committing fraud: if the actual voter shows up, they&rsquo;ll notice. Poll workers <em>could</em> wait till the end of the day to do this, but then to make any kind of difference you&rsquo;d have to do a bulk scan of ballots, and that&rsquo;s very noticeable. Poll workers would have to collude to make anything like this work, and poll watchers (and government staff) may be present.</p>
+<p>Maybe poll workers could do something malicious. Poll worker manipulation would largely exist in the form of submitting extra ballots. But that’s hard because the ballot counts need to match the list of voters. So you have the same problem as individual voters committing fraud: if the actual voter shows up, they’ll notice. Poll workers <em>could</em> wait till the end of the day to do this, but then to make any kind of difference you’d have to do a bulk scan of ballots, and that’s very noticeable. Poll workers would have to collude to make anything like this work, and poll watchers (and government staff) may be present.</p>
 
-<p>Poll workers can also <em>discard</em> ballots to influence an election. But you can&rsquo;t do this in front of the voters, and the receptacles with non-defaced ballots are all sealed so you can&rsquo;t do this when nobody is watching without having to re-seal (which means you need a new numbered seal, which the election office will notice). The scanner&rsquo;s inner receptacle is opened at the end of the day but you can&rsquo;t tamper with that without messing up the various counts.</p>
+<p>Poll workers can also <em>discard</em> ballots to influence an election. But you can’t do this in front of the voters, and the receptacles with non-defaced ballots are all sealed so you can’t do this when nobody is watching without having to re-seal (which means you need a new numbered seal, which the election office will notice). The scanner’s inner receptacle is opened at the end of the day but you can’t tamper with that without messing up the various counts.</p>
 
-<p>Election officials have access to giant piles of ballots and could mess with things there, but I suspect poll watchers are present during the ballot sorting and counting process, and again, it&rsquo;s hard to tamper with anything without messing up the various counts.</p>
+<p>Election officials have access to giant piles of ballots and could mess with things there, but I suspect poll watchers are present during the ballot sorting and counting process, and again, it’s hard to tamper with anything without messing up the various counts.</p>
 
-<p>Overall, this system is pretty robust. It&rsquo;s important to note that fraud prevention is achieved by more social means, not technical means: there are seals, counts, and various properties of the system, but no computers involved in any crucial roles.</p>
+<p>Overall, this system is pretty robust. It’s important to note that fraud prevention is achieved by more social means, not technical means: there are seals, counts, and various properties of the system, but no computers involved in any crucial roles.</p>
 
-<h2>Techy solutions for voting</h2>
+<h2 id="techy-solutions-for-voting">Techy solutions for voting</h2>
 
-<p>In general, amongst the three properties of &ldquo;secret ballot&rdquo;, &ldquo;obviousness&rdquo;, and &ldquo;auditable paper trail&rdquo;, computer-based voting systems almost always fail at one, and usually fail at two.</p>
+<p>In general, amongst the three properties of “secret ballot”, “obviousness”, and “auditable paper trail”, computer-based voting systems almost always fail at one, and usually fail at two.</p>
 
 <p>A lot of naïve tech solutions for voting are explicitly designed to not have the secret ballot property: they are instead designed specifically to let voters check that what their vote was counted as after the election. As mentioned earlier, this is a problem for vote-buying and coercion.</p>
 
-<p>It&rsquo;s theoretically possible to have a system where you can ensure your ballot, specifically, was correctly counted after the election, without losing the secret ballot property: <a href="https://en.wikipedia.org/wiki/ThreeBallot">ThreeBallot</a> is a cool example of such a system, though it fails the &ldquo;obviousness&rdquo; property.</p>
+<p>It’s theoretically possible to have a system where you can ensure your ballot, specifically, was correctly counted after the election, without losing the secret ballot property: <a href="https://en.wikipedia.org/wiki/ThreeBallot">ThreeBallot</a> is a cool example of such a system, though it fails the “obviousness” property.</p>
 
 <p>Most systems end up not having an auditable paper trail since they rely on machines to record votes. This is vulnerable to bugs in the machine: you end up having to trust the output of the machine. Buggy/vulnerable voting machines are so common that every year at DEFCON <a href="https://media.defcon.org/DEF%20CON%2027/voting-village-report-defcon27.pdf">people get together to hack the latest voting machines, and typically succeed</a>.</p>
 
-<p>Voting machines can still produce a paper trail: Voter-Verified Paper Trail systems partially succeed in doing this. They&rsquo;re not as good with maintaining the &ldquo;conservation of ballots&rdquo; property that makes tampering much harder, and they&rsquo;re not as good on the &ldquo;obviousness&rdquo; part since people need to check the VVPAT box for what their vote was recorded as.</p>
+<p>Voting machines can still produce a paper trail: Voter-Verified Paper Trail systems partially succeed in doing this. They’re not as good with maintaining the “conservation of ballots” property that makes tampering much harder, and they’re not as good on the “obviousness” part since people need to check the VVPAT box for what their vote was recorded as.</p>
 
-<p>Ballot-Marking devices are a bit better at this: These still produce paper ballots, it&rsquo;s just that the ballot is marked by the machine on your behalf. There&rsquo;s still a bit of an &ldquo;obviousness&rdquo; fail in that people may not double check the marked ballot, but at least there&rsquo;s a nice paper trail with ballot conservation! Of course, these only work if the produced ballot is easily human-readable.</p>
+<p>Ballot-Marking devices are a bit better at this: These still produce paper ballots, it’s just that the ballot is marked by the machine on your behalf. There’s still a bit of an “obviousness” fail in that people may not double check the marked ballot, but at least there’s a nice paper trail with ballot conservation! Of course, these only work if the produced ballot is easily human-readable.</p>
 
-<p>It&rsquo;s not <em>impossible</em> to design good voting systems that rely on technology, but it&rsquo;s hard to maintain the same properties you can with paper ballots. If you want to try, please keep the properties listed above in mind.</p>
+<p>It’s not <em>impossible</em> to design good voting systems that rely on technology, but it’s hard to maintain the same properties you can with paper ballots. If you want to try, please keep the properties listed above in mind.</p>
 
-<h3>Blockchain?</h3>
+<h3 id="blockchain">Blockchain?</h3>
 
-<p>Every now and then people will suggest using blockchains for voting. This is a pretty large design space, but &hellip;. most of these proposals are <em>extremely</em> naïve and achieve very little.</p>
+<p>Every now and then people will suggest using blockchains for voting. This is a pretty large design space, but …. most of these proposals are <em>extremely</em> naïve and achieve very little.</p>
 
-<p>For one, most of them are of the category that lose the &ldquo;secret ballot&rdquo; property, instead producing some kind of identifier you&rsquo;re able to check in some published blockchain. This lets you see what your vote was after the election, and as I&rsquo;ve covered already that&rsquo;s not a good thing.</p>
+<p>For one, most of them are of the category that lose the “secret ballot” property, instead producing some kind of identifier you’re able to check in some published blockchain. This lets you see what your vote was after the election, and as I’ve covered already that’s not a good thing.</p>
 
 <p>Even if this process only lets you verify that your vote was counted (but not what it was), it typically involves some understanding of cryptography to spot-check the validity of the machine output (e.g. you need to verify that some hash is the hash of your actual vote or something). This fails the obviousness property.</p>
 
-<p>Blockchains don&rsquo;t really bring much to the table here. They&rsquo;re decent for byzantine fault tolerance in a space without a central authority, but elections <em>do</em> have some form of central authority and we&rsquo;re not getting rid of that. The anonymity properties of blockchains can usually be achieved without blockchains for things like elections.</p>
+<p>Blockchains don’t really bring much to the table here. They’re decent for byzantine fault tolerance in a space without a central authority, but elections <em>do</em> have some form of central authority and we’re not getting rid of that. The anonymity properties of blockchains can usually be achieved without blockchains for things like elections.</p>
 
-<p>There are some kinds of cryptography that can be useful for auditability &mdash; zero knowledge proofs and homomorphic encryption come to mind &mdash; but you don&rsquo;t need blockchains to use these, and using these still requires some form of technology as a key part of the voting system and this makes other properties of the system harder to achieve.</p>
+<p>There are some kinds of cryptography that can be useful for auditability — zero knowledge proofs and homomorphic encryption come to mind — but you don’t need blockchains to use these, and using these still requires some form of technology as a key part of the voting system and this makes other properties of the system harder to achieve.</p>
 
-<h2>Become a poll worker!</h2>
+<h2 id="become-a-poll-worker">Become a poll worker!</h2>
 
-<p>It&rsquo;s still a bit early for the next election, but I highly recommend you volunteer to be a poll worker for your county if you can!</p>
+<p>It’s still a bit early for the next election, but I highly recommend you volunteer to be a poll worker for your county if you can!</p>
 
-<p>It&rsquo;s really fun, you get to learn about the inner workings of voting systems, and you get to meet a lot of people!</p>
+<p>It’s really fun, you get to learn about the inner workings of voting systems, and you get to meet a lot of people!</p>
 
-<p><figure class="caption-wrapper center caption" style="width: 700px"><img class="caption" src="/images/post/polls/nancy.jpeg" width="700" title="We had a cool kid come in and <a href="https://twitter.com/ManishEarth/status/1060052694772011008">more or less do this</a> at one point.&#8221; alt=&#8221;We had a cool kid come in and <a href="https://twitter.com/ManishEarth/status/1060052694772011008">more or less do this</a> at one point.&#8221;><figcaption class="caption-text">We had a cool kid come in and <a href="https://twitter.com/ManishEarth/status/1060052694772011008">more or less do this</a> at one point.</figcaption></figure></p>
+<figure class="caption-wrapper center caption" style="width: 700px"><img class="caption" src="http://manishearth.github.io/images/post/polls/nancy.jpeg" width="700" title="We had a cool kid come in and [more or less do this][nancy] at one point." alt="We had a cool kid come in and [more or less do this][nancy] at one point." /><figcaption class="caption-text">We had a cool kid come in and [more or less do this][nancy] at one point.</figcaption></figure>
 
 <p><em>Thanks to Nika Layzell, Sunjay Varma, Jane Lusby, and Arshia Mufti for providing feedback on drafts of this blog post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Last year they required postage, but I they&rsquo;ve changed that with <a href="https://www.sos.ca.gov/administration/news-releases-and-advisories/2019/no-stamp-no-problem-all-vote-mail-ballots-now-come-prepaid-postage-return-envelopes/">a law</a> this year. Yay!<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Ostensibly because of fears of voter fraud, but they&rsquo;re largely unfounded &mdash; in practice this just reduces turnout<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>I think for Alameda county the only such office is the Registrar of Voters in Oakland<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>The crossing-off and signing lists are different, but this isn&rsquo;t too important.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I remember one particularly curmudgeonly voter loudly grumbling about all the propositions as they were voting. One doesn&rsquo;t &ldquo;vote&rdquo; in California, one fills out social studies homework.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>I don&rsquo;t quite recall how the verifiability works for people using the audio unit, they may be allowed to ask someone else to verify for them?<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>If you vote in a different precinct, or worse, a different county, the ballot cards may not contain all the same races, so voting provisionally from the wrong district means that you only get to vote for the races common to both ballot cards.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-<li id="fn:8">
-<p>It&rsquo;s imperative that these do not go into the scanner (since that operation cannot be undone), and to prevent this poll workers are instructed to not give provisional voters a secrecy sleeve as the envelope acts as a secrecy sleeve. Whoever is supervising the scanner will only allow people with secrecy sleeves to slip their ballots into the scanner.<a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
-<li id="fn:9">
-<p>The exception is using the touchscreen machine, where you get to vote without using up a ballot card on voting day. However, tallies for the machine are kept separately, and I think these too are eventually turned into normal ballot cards.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Last year they required postage, but I they’ve changed that with <a href="https://www.sos.ca.gov/administration/news-releases-and-advisories/2019/no-stamp-no-problem-all-vote-mail-ballots-now-come-prepaid-postage-return-envelopes/">a law</a> this year. Yay! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Ostensibly because of fears of voter fraud, but they’re largely unfounded — in practice this just reduces turnout <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>I think for Alameda county the only such office is the Registrar of Voters in Oakland <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>The crossing-off and signing lists are different, but this isn’t too important. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>I remember one particularly curmudgeonly voter loudly grumbling about all the propositions as they were voting. One doesn’t “vote” in California, one fills out social studies homework. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:6" role="doc-endnote">
+      <p>I don’t quite recall how the verifiability works for people using the audio unit, they may be allowed to ask someone else to verify for them? <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>If you vote in a different precinct, or worse, a different county, the ballot cards may not contain all the same races, so voting provisionally from the wrong district means that you only get to vote for the races common to both ballot cards. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:8" role="doc-endnote">
+      <p>It’s imperative that these do not go into the scanner (since that operation cannot be undone), and to prevent this poll workers are instructed to not give provisional voters a secrecy sleeve as the envelope acts as a secrecy sleeve. Whoever is supervising the scanner will only allow people with secrecy sleeves to slip their ballots into the scanner. <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:9" role="doc-endnote">
+      <p>The exception is using the touchscreen machine, where you get to vote without using up a ballot card on voting day. However, tallies for the machine are kept separately, and I think these too are eventually turned into normal ballot cards. <a href="#fnref:9" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   
@@ -245,190 +250,187 @@
     <link href="http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy/"/>
     <updated>2019-02-04T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy</id>
-    <content type="html"><![CDATA[<p>There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
+    <content type="html"><![CDATA[<p>There’s been a lot of talk about improving Rust’s governance model lately. As we decompress from last year’s hectic edition work, we’re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
 
-<p>I&rsquo;ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
+<p>I’ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
 
-<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> I&rsquo;m going to assume the reader is roughly familiar with most of the stuff that&rsquo;s happened with the Rust community in the past few years. I&rsquo;m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+<p>In the interest of brevity<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
 
-<p>This blog post is probably going to reach the eyes of non-Rust-community members. You&rsquo;re welcome to read it, but please accept my apologies in advance if it doesn&rsquo;t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven&rsquo;t had time to edit it to make it acceptable to a wider audience.</p>
+<p>This blog post is probably going to reach the eyes of non-Rust-community members. You’re welcome to read it, but please accept my apologies in advance if it doesn’t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven’t had time to edit it to make it acceptable to a wider audience.</p>
 
-<h2>The symptoms</h2>
+<h2 id="the-symptoms">The symptoms</h2>
 
-<p>Before I actually get into it, I&rsquo;d like to carefully delineate <em>what</em> the problem is that I&rsquo;m talking about. Or more accurately, the <em>symptoms</em> I am talking about &mdash; as I&rsquo;ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
+<p>Before I actually get into it, I’d like to carefully delineate <em>what</em> the problem is that I’m talking about. Or more accurately, the <em>symptoms</em> I am talking about — as I’ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
 
 <p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
 
 <ul>
-<li>The same arguments getting brought up over and over again</li>
-<li>Accusations of bad faith</li>
-<li>Derailing</li>
-<li>Not feeling heard</li>
-<li>Just getting exhausted by all the stuff that&rsquo;s going on</li>
+  <li>The same arguments getting brought up over and over again</li>
+  <li>Accusations of bad faith</li>
+  <li>Derailing</li>
+  <li>Not feeling heard</li>
+  <li>Just getting exhausted by all the stuff that’s going on</li>
 </ul>
 
+<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on https://internals.rust-lang.org have similar problems.</p>
 
-<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">https://internals.rust-lang.org</a> have similar problems.</p>
-
-<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven&rsquo;t already.</p>
+<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven’t already.</p>
 
 <p>Fundamentally I consider our problems to be social problems, not technical ones. In my opinion, technical solutions like changing the discussion forum format may be necessary but are not sufficient for fixing this.</p>
 
-<h2>The scaling problem</h2>
+<h2 id="the-scaling-problem">The scaling problem</h2>
 
 <p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
 
-<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you&rsquo;re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It&rsquo;s <em>much</em> easier to have one-on-one discussions because it&rsquo;s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
+<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you’re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It’s <em>much</em> easier to have one-on-one discussions because it’s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
 
-<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don&rsquo;t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It&rsquo;s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
+<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don’t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It’s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
 
-<p>All of these mismatches are easy to identify in one-on-one discussions, because it&rsquo;s easy to switch gears to the meta discussion for a bit.</p>
+<p>All of these mismatches are easy to identify in one-on-one discussions, because it’s easy to switch gears to the meta discussion for a bit.</p>
 
 <p>One-on-one discussions are pleasant. They foster empathy.</p>
 
-<p>N-to-N discussions are <em>not</em>. It&rsquo;s harder to converge on this shared vocabulary amongst N other people. It&rsquo;s harder to identify these mismatches, partly because it&rsquo;s hard to switch into the meta-mode of a discussion at all, but also because there&rsquo;s a lot going on. It&rsquo;s harder to build empathy.</p>
+<p>N-to-N discussions are <em>not</em>. It’s harder to converge on this shared vocabulary amongst N other people. It’s harder to identify these mismatches, partly because it’s hard to switch into the meta-mode of a discussion at all, but also because there’s a lot going on. It’s harder to build empathy.</p>
 
-<p>As we&rsquo;ve grown, discussion complexity has grown quadratically, and we&rsquo;re not really attempting to relinearize them.</p>
+<p>As we’ve grown, discussion complexity has grown quadratically, and we’re not really attempting to relinearize them.</p>
 
-<h3>Hanabi and parallel universes</h3>
+<h3 id="hanabi-and-parallel-universes">Hanabi and parallel universes</h3>
 
-<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It&rsquo;s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
+<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It’s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
 
-<p>Hanabi is a cooperative game. You can see everyone&rsquo;s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
+<p>Hanabi is a cooperative game. You can see everyone’s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
 
-<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone&rsquo;s moves will be. With this in mind, you can attempt to &ldquo;set up&rdquo; situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn&rsquo;t actually play out as planned.</p>
+<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone’s moves will be. With this in mind, you can attempt to “set up” situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn’t actually play out as planned.</p>
 
-<p>The core issue behind this is forgetting that you actually <em>can&rsquo;t</em> see the entire game state, since your own cards are hidden. It&rsquo;s not just <em>you</em> who has plans &mdash; everyone does! And each of those plans is incomplete since they&rsquo;re missing a piece of the picture, just as you are.</p>
+<p>The core issue behind this is forgetting that you actually <em>can’t</em> see the entire game state, since your own cards are hidden. It’s not just <em>you</em> who has plans — everyone does! And each of those plans is incomplete since they’re missing a piece of the picture, just as you are.</p>
 
-<p>In Hanabi it&rsquo;s very easy to forget that you&rsquo;re missing a piece of the picture &mdash; in competitive card games you mostly can&rsquo;t see the game state since everyone else&rsquo;s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it&rsquo;s easy to forget that your own four cards are hidden from you.</p>
+<p>In Hanabi it’s very easy to forget that you’re missing a piece of the picture — in competitive card games you mostly can’t see the game state since everyone else’s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it’s easy to forget that your own four cards are hidden from you.</p>
 
-<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you&rsquo;re fine, but if you don&rsquo;t you will be frustrated.</p>
+<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you’re fine, but if you don’t you will be frustrated.</p>
 
-<p>This is largely true of N-to-N discussions as well. Because most of what&rsquo;s being said makes sense to an individual in a particular way, it&rsquo;s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, &ldquo;forking&rdquo; the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone&rsquo;s talking past each other.</p>
+<p>This is largely true of N-to-N discussions as well. Because most of what’s being said makes sense to an individual in a particular way, it’s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, “forking” the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone’s talking past each other.</p>
 
-<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me &mdash; typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I&rsquo;m not consistent in doing this &mdash; in the midst of a heated argument it&rsquo;s easy to get too wrapped up in the argument to think about getting results and I&rsquo;ve certainly had my time arguing instead of resolving &mdash; but overall whenever I&rsquo;ve chosen to do this it&rsquo;s been a useful policy.</p>
+<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me — typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I’m not consistent in doing this — in the midst of a heated argument it’s easy to get too wrapped up in the argument to think about getting results and I’ve certainly had my time arguing instead of resolving — but overall whenever I’ve chosen to do this it’s been a useful policy.</p>
 
-<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it&rsquo;s not the point of having a technical discussion.</p>
+<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it’s not the point of having a technical discussion.</p>
 
-<h2>The moderation problem</h2>
+<h2 id="the-moderation-problem">The moderation problem</h2>
 
 <p>In a technical discussion, broadly speaking, I find that there are three kinds of comments disagreeing with you:</p>
 
 <ul>
-<li>Constructive: Comments which disagree with you constructively. We&rsquo;re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
-<li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don&rsquo;t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
-<li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
+  <li>Constructive: Comments which disagree with you constructively. We’re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
+  <li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don’t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
+  <li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
 </ul>
 
+<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of “Type A, B, C” for these, mostly because I’m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
 
-<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of &ldquo;Type A, B, C&rdquo; for these, mostly because I&rsquo;m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
+<p>Note that while I’m talking about “disruptive” comments it’s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
 
-<p>Note that while I&rsquo;m talking about &ldquo;disruptive&rdquo; comments it&rsquo;s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
+<p>The second category – disruptive comments – are the thing we’re currently unable to handle well. They snowball pretty badly too — as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more “parallel universes” it also just becomes <em>easier</em> for a comment to be disruptive.</p>
 
-<p>The second category &ndash; disruptive comments &ndash; are the thing we&rsquo;re currently unable to handle well. They snowball pretty badly too &mdash; as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more &ldquo;parallel universes&rdquo; it also just becomes <em>easier</em> for a comment to be disruptive.</p>
+<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
 
-<p>The Rust moderation team operates mostly passively, we simply don&rsquo;t have the scale<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It&rsquo;s a bit of a catch-22: it&rsquo;s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it&rsquo;s largely reactive &mdash; it&rsquo;s harder to proactively nudge the discussion in the right direction when you don&rsquo;t even <em>notice</em> what&rsquo;s going on until it&rsquo;s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it&rsquo;s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
+<h2 id="participation-guidelines">Participation guidelines</h2>
 
-<h2>Participation guidelines</h2>
+<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren’t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
 
-<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren&rsquo;t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
-
-<p>A proposal I&rsquo;ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
+<p>A proposal I’ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
 
 <ul>
-<li>Don&rsquo;t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
-<li>Don&rsquo;t take threads off topic</li>
-<li>Don&rsquo;t rehash discussions</li>
+  <li>Don’t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
+  <li>Don’t take threads off topic</li>
+  <li>Don’t rehash discussions</li>
 </ul>
 
-
-<p>We ask people to read these before participating, but also breaking these rules isn&rsquo;t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
+<p>We ask people to read these before participating, but also breaking these rules isn’t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
 
 <p>A base participation guidelines document can also be a value statement, not just a set of rules but also set of values. These values can be things like:</p>
 
 <ul>
-<li>&ldquo;We explicitly value high empathy interactions&rdquo;</li>
-<li>&ldquo;How everyone is feeling is everyone&rsquo;s business&rdquo;</li>
+  <li>“We explicitly value high empathy interactions”</li>
+  <li>“How everyone is feeling is everyone’s business”</li>
 </ul>
-
 
 <p>(h/t <a href="http://twitter.com/adam_n_p/">Adam</a> for the articulate wording here)</p>
 
-<p>Having such words written somewhere &mdash; both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) &mdash; is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating &mdash; most don&rsquo;t &mdash; but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they&rsquo;re having trouble doing so.</p>
+<p>Having such words written somewhere — both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) — is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating — most don’t — but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they’re having trouble doing so.</p>
 
-<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I&rsquo;ve been talking about for quite a while now, the idea of having facilitators:</p>
+<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I’ve been talking about for quite a while now, the idea of having facilitators:</p>
 
-<h2>Facilitators</h2>
+<h2 id="facilitators">Facilitators</h2>
 
-<p>A common conflict I see occurring is that in many cases it&rsquo;s a team&rsquo;s job to think about and opine on a technical decision, but it&rsquo;s also the team&rsquo;s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you&rsquo;ve been unfairly represented. The natural response to that for most people isn&rsquo;t to work with that person and try to be properly represented, it&rsquo;s to just get angry, leading to less empathy over time.</p>
+<p>A common conflict I see occurring is that in many cases it’s a team’s job to think about and opine on a technical decision, but it’s also the team’s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you’ve been unfairly represented. The natural response to that for most people isn’t to work with that person and try to be properly represented, it’s to just get angry, leading to less empathy over time.</p>
 
 <p>By design, Rust team members are <em>partisan</em>. The teams exist to build well-informed, carefully crafted opinions, and present them to the community. They also exist to make final decisions based on the results of a consensusbuilding discussion, which can involve picking sides. This is fine, there is always going to be some degree of partisanship amongst decisionmakers, or decisions would not get made.</p>
 
-<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don&rsquo;t have enough bandwidth to do this well anyway. Some teams do have a concept of &ldquo;sheriffs&rdquo;, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
+<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don’t have enough bandwidth to do this well anyway. Some teams do have a concept of “sheriffs”, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
 
-<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don&rsquo;t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
+<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don’t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
 
 <ul>
-<li>Summarizing the discussion every now and then</li>
-<li>Calling out one sided discussions</li>
-<li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
-<li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like &ldquo;hey @Manishearth, I noticed you&rsquo;ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?&rdquo; would help.</li>
-<li>Reinforcing positive behavior</li>
-<li>Occasionally pinging participants privately to help them improve their comments</li>
-<li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I&rsquo;ve often enjoyed doing it &mdash; noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I&rsquo;ve also found that it&rsquo;s incredibly hard to do when you&rsquo;re emotionally involved, and I&rsquo;ve often needed a nudge from someone else to get there.</li>
+  <li>Summarizing the discussion every now and then</li>
+  <li>Calling out one sided discussions</li>
+  <li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
+  <li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like “hey @Manishearth, I noticed you’ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?” would help.</li>
+  <li>Reinforcing positive behavior</li>
+  <li>Occasionally pinging participants privately to help them improve their comments</li>
+  <li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I’ve often enjoyed doing it — noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I’ve also found that it’s incredibly hard to do when you’re emotionally involved, and I’ve often needed a nudge from someone else to get there.</li>
 </ul>
-
 
 <p>At a high level, the job of the facilitators is to:</p>
 
 <ul>
-<li>help foster empathy between participants</li>
-<li>help linearize complex discussions</li>
-<li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
+  <li>help foster empathy between participants</li>
+  <li>help linearize complex discussions</li>
+  <li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
 </ul>
 
+<p>It’s important to note that facilitators don’t make decisions — the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
 
-<p>It&rsquo;s important to note that facilitators don&rsquo;t make decisions &mdash; the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
 
-<p>The teams <em>could</em> do most of this themselves<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but as I&rsquo;ve mentioned before it&rsquo;s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+<p>This is also something the moderation team could do, however it’s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren’t as high: screwups can get noticed, and they don’t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I’d love to hear from people who would like to help).</p>
 
-<p>This is also something the moderation team could do, however it&rsquo;s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren&rsquo;t as high: screwups can get noticed, and they don&rsquo;t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I&rsquo;d love to hear from people who would like to help).</p>
+<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It’s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
 
-<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It&rsquo;s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
+<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don’t have time or feel like they have strong opinions, try someone else). But there’s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don’t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I’m not really going to spend time analysing these specifics; I have opinions but I’d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
 
-<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don&rsquo;t have time or feel like they have strong opinions, try someone else). But there&rsquo;s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don&rsquo;t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I&rsquo;m not really going to spend time analysing these specifics; I have opinions but I&rsquo;d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
+<h2 id="prospective-outcomes">Prospective outcomes</h2>
 
-<h2>Prospective outcomes</h2>
-
-<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don&rsquo;t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
+<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don’t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
 
 <p>I suspect that in the process of building up such a team of facilitators, we will also end up building a set of resources that can help others learn to act the same way, and eventually overall improve how empathetic our community is.</p>
 
-<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the &ldquo;parallel universes&rdquo; together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
+<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the “parallel universes” together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
 
-<p>This also helps with concerns people have that they&rsquo;re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
+<p>This also helps with concerns people have that they’re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
 
 <hr />
 
-<p>Overall what I&rsquo;ve proposed here isn&rsquo;t a fully-formed idea; but it&rsquo;s the seed of one. There are a lot of interesting bits to discuss and build upon. I&rsquo;m hoping through this post we might push forward some of the discussions about governance &mdash; both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
+<p>Overall what I’ve proposed here isn’t a fully-formed idea; but it’s the seed of one. There are a lot of interesting bits to discuss and build upon. I’m hoping through this post we might push forward some of the discussions about governance — both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
 
-<p>I&rsquo;m really interested to hear what people think!</p>
+<p>I’m really interested to hear what people think!</p>
 
-<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, <a href="http://twitter.com/fitzgen/">Nick</a> and other people I&rsquo;ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>I am way too verbose for &ldquo;brief&rdquo; to be an accurate description of anything I write, but might as well <em>try</em>.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Scaling the moderation team properly is another piece of this puzzle that I&rsquo;m working on; we&rsquo;ve made some progress recently.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I&rsquo;ll explain later it&rsquo;s suboptimal for the mod team to be dealing with this anyway.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, <a href="http://twitter.com/fitzgen/">Nick</a> and other people I’ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>I am way too verbose for “brief” to be an accurate description of anything I write, but might as well <em>try</em>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Scaling the moderation team properly is another piece of this puzzle that I’m working on; we’ve made some progress recently. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I’ll explain later it’s suboptimal for the mod team to be dealing with this anyway. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -447,87 +449,89 @@
     <link href="http://manishearth.github.io/blog/2018/08/26/why-i-enjoy-blogging/"/>
     <updated>2018-08-26T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2018/08/26/why-i-enjoy-blogging</id>
-    <content type="html"><![CDATA[<p><em>See also: <a href="https://myrrlyn.net/blog/misc/to-all-the-posts-ive-blogged-before">Alex&rsquo;s version of this blog post</a></em></p>
+    <content type="html"><![CDATA[<p><em>See also: <a href="https://myrrlyn.net/blog/misc/to-all-the-posts-ive-blogged-before">Alex’s version of this blog post</a></em></p>
 
-<p>I started this blog three years ago, moving from my <a href="http://inpursuitoflaziness.blogspot.com/">older blog</a>, hoping to written about programming, math, physics, books, and miscellenia. I&rsquo;ve not quite written about everything I wanted to, but I&rsquo;ve been very very happy with the experience of blogging. <code>wc</code> says I&rsquo;ve written almost 75k words, which is mind-boggling to me!</p>
+<p>I started this blog three years ago, moving from my <a href="http://inpursuitoflaziness.blogspot.com/">older blog</a>, hoping to written about programming, math, physics, books, and miscellenia. I’ve not quite written about everything I wanted to, but I’ve been very very happy with the experience of blogging. <code>wc</code> says I’ve written almost 75k words, which is mind-boggling to me!</p>
 
-<p>I often get asked by others &mdash; usually trying to decide if they should start blogging &mdash; what it&rsquo;s like. I also often try to convince friends to blog by enumerating why I think it&rsquo;s awesome. Might as well write it down so that it&rsquo;s generally useful for everyone! 😃</p>
+<p>I often get asked by others — usually trying to decide if they should start blogging — what it’s like. I also often try to convince friends to blog by enumerating why I think it’s awesome. Might as well write it down so that it’s generally useful for everyone! 😃</p>
 
-<h2>Blogging helps cement my understanding of things!</h2>
+<h2 id="blogging-helps-cement-my-understanding-of-things">Blogging helps cement my understanding of things!</h2>
 
-<p>I&rsquo;ve often noticed that I&rsquo;ll start blogging about something I <em>think</em> I understand, and it turns out that my understanding of the subject was somewhat nebulous. Turns out it&rsquo;s pretty easy to convince ourselves that we understand something.</p>
+<p>I’ve often noticed that I’ll start blogging about something I <em>think</em> I understand, and it turns out that my understanding of the subject was somewhat nebulous. Turns out it’s pretty easy to convince ourselves that we understand something.</p>
 
-<p>The act of writing stuff down helps cement my own understanding &mdash; words are usually not as nebulous as thoughts so I&rsquo;m forced to figure out little details.</p>
+<p>The act of writing stuff down helps cement my own understanding — words are usually not as nebulous as thoughts so I’m forced to figure out little details.</p>
 
-<p>I recall when I wrote my post on <a href="https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/">how Rust&rsquo;s thread safety guarantees work</a>, I <em>thought</em> I understood <code>Send</code> and <code>Sync</code> in Rust. I understood what they did, but I didn&rsquo;t have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.</p>
+<p>I recall when I wrote my post on <a href="https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/">how Rust’s thread safety guarantees work</a>, I <em>thought</em> I understood <code>Send</code> and <code>Sync</code> in Rust. I understood what they did, but I didn’t have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.</p>
 
-<p>I point out this post in particular because this was both one of the first posts for me where I&rsquo;d noticed this, and, more importantly, my more concrete mental model led to me <a href="https://github.com/rust-lang/rust/issues/25894">finding a soundness bug in Rust&rsquo;s standard library</a>. When I was thinking about my mental model I realized &ldquo;an impl that looks like this should never exist&rdquo;,
-so I grepped the source code and found one<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+<p>I point out this post in particular because this was both one of the first posts for me where I’d noticed this, and, more importantly, my more concrete mental model led to me <a href="https://github.com/rust-lang/rust/issues/25894">finding a soundness bug in Rust’s standard library</a>. When I was thinking about my mental model I realized “an impl that looks like this should never exist”,
+so I grepped the source code and found one<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote">1</a></sup>.</p>
 
-<p>I&rsquo;ve even noticed a difference between one-on-one explaining and explaining things through blog posts. I <em>love</em> explaining things one-on-one, it&rsquo;s much easier to tailor the explanation to the other person&rsquo;s background,
-as well as what they&rsquo;re actually asking for help with. Plus, it&rsquo;s interactive. A <em>lot</em> of my posts are of the &ldquo;okay I get this question a lot I&rsquo;m going to write down the answer so I don&rsquo;t have to repeat myself&rdquo; kind and I&rsquo;ve found that I&rsquo;ve often learned things from these despite having talked about the thing in the article contents multiple times.</p>
+<p>I’ve even noticed a difference between one-on-one explaining and explaining things through blog posts. I <em>love</em> explaining things one-on-one, it’s much easier to tailor the explanation to the other person’s background,
+as well as what they’re actually asking for help with. Plus, it’s interactive. A <em>lot</em> of my posts are of the “okay I get this question a lot I’m going to write down the answer so I don’t have to repeat myself” kind and I’ve found that I’ve often learned things from these despite having talked about the thing in the article contents multiple times.</p>
 
-<p>I guess it&rsquo;s basically that blogging is inherently one-many &mdash; you&rsquo;re trying to explain to a whole group of people with varied backgrounds &mdash; which means you need to cover all your bases<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> and explain everything together instead of the minimum necessary.</p>
+<p>I guess it’s basically that blogging is inherently one-many — you’re trying to explain to a whole group of people with varied backgrounds — which means you need to cover all your bases<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup> and explain everything together instead of the minimum necessary.</p>
 
-<h2>It&rsquo;s really fun to revisit old posts!</h2>
+<h2 id="its-really-fun-to-revisit-old-posts">It’s really fun to revisit old posts!</h2>
 
-<p>Okay, I&rsquo;ll admit that I never really write blog posts with this in mind. But when I <em>do</em> reread them, I&rsquo;m usually quite thankful I wrote them!</p>
+<p>Okay, I’ll admit that I never really write blog posts with this in mind. But when I <em>do</em> reread them, I’m usually quite thankful I wrote them!</p>
 
-<p>I&rsquo;m a fan of rereading in general, I&rsquo;ve reread most of my favorite books tens of times; I make a yearly pilgrimage to <a href="https://mickens.seas.harvard.edu/wisdom-james-mickens">James Mickens&#8217; website</a>; I reread many of my favorite posts and articles on the internet; and I often reread my <em>own</em> posts from the past.</p>
+<p>I’m a fan of rereading in general, I’ve reread most of my favorite books tens of times; I make a yearly pilgrimage to <a href="https://mickens.seas.harvard.edu/wisdom-james-mickens">James Mickens’ website</a>; I reread many of my favorite posts and articles on the internet; and I often reread my <em>own</em> posts from the past.</p>
 
-<p>Sometimes I&rsquo;ll do it because I want a refresher in a topic. Sometimes I&rsquo;ll do it because I&rsquo;m bored. Whatever the reason, it&rsquo;s always been a useful and fun thing to do.</p>
+<p>Sometimes I’ll do it because I want a refresher in a topic. Sometimes I’ll do it because I’m bored. Whatever the reason, it’s always been a useful and fun thing to do.</p>
 
-<p>Rereading old posts is a great way to transport myself back to my mindset from when I wrote the post. It&rsquo;s easy to see progress in my understanding of things as well as in my writing. It&rsquo;s interesting to note what I thought super important to include in the post <em>then</em> that I consider totally obvious <em>now</em><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>. It&rsquo;s interesting to relearn what I&rsquo;ve forgotten. It&rsquo;s reassuring to realize that my terrible jokes were just as terrible as they are now.</p>
+<p>Rereading old posts is a great way to transport myself back to my mindset from when I wrote the post. It’s easy to see progress in my understanding of things as well as in my writing. It’s interesting to note what I thought super important to include in the post <em>then</em> that I consider totally obvious <em>now</em><sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">3</a></sup>. It’s interesting to relearn what I’ve forgotten. It’s reassuring to realize that my terrible jokes were just as terrible as they are now.</p>
 
-<p>One of my favorite posts to reread is <a href="https://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">this really long one on generalized zero knowledge proofs</a>. It&rsquo;s the longest post I&rsquo;ve written so far<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, and it&rsquo;s on a topic I don&rsquo;t deal with often &mdash; cryptography. Not only does it help put me back in a mindset for thinking about cryptography, it&rsquo;s about something super interesting but also complicated enough that rereading the post is like learning it all over again.</p>
+<p>One of my favorite posts to reread is <a href="https://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">this really long one on generalized zero knowledge proofs</a>. It’s the longest post I’ve written so far<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote">4</a></sup>, and it’s on a topic I don’t deal with often — cryptography. Not only does it help put me back in a mindset for thinking about cryptography, it’s about something super interesting but also complicated enough that rereading the post is like learning it all over again.</p>
 
-<h2>It lets me exercise a different headspace!</h2>
+<h2 id="it-lets-me-exercise-a-different-headspace">It lets me exercise a different headspace!</h2>
 
-<p>I like programming a lot, but if programming was <em>all</em> I did, I&rsquo;d get tired pretty quickly. When I was a student learning physics I&rsquo;d often contribute to open source in my spare time, but now I write code full time so I&rsquo;m less inclined to do it in my free time<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+<p>I like programming a lot, but if programming was <em>all</em> I did, I’d get tired pretty quickly. When I was a student learning physics I’d often contribute to open source in my spare time, but now I write code full time so I’m less inclined to do it in my free time<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote">5</a></sup>.</p>
 
-<p>But I still sometimes feel like doing programmery things in my spare time just &hellip; not programming.</p>
+<p>But I still sometimes feel like doing programmery things in my spare time just … not programming.</p>
 
-<p>Turns out that blogging doesn&rsquo;t tire me out the same way! I&rsquo;m sure that if I spent the whole day writing I&rsquo;d not want to write when I go home, but I don&rsquo;t spend the whole day writing, so it&rsquo;s all good. It&rsquo;s refreshing to sit down to write a blog post and discover a fresh reserve of energy. I&rsquo;m not sure if this is the right term, but I usually call this &ldquo;using a different headspace&rdquo;.</p>
+<p>Turns out that blogging doesn’t tire me out the same way! I’m sure that if I spent the whole day writing I’d not want to write when I go home, but I don’t spend the whole day writing, so it’s all good. It’s refreshing to sit down to write a blog post and discover a fresh reserve of energy. I’m not sure if this is the right term, but I usually call this “using a different headspace”.</p>
 
-<p>I&rsquo;ve also started using this to plan my work, I mix up the kinds of headspace I&rsquo;m employing for various tasks so that I feel energetic throughout the day.</p>
+<p>I’ve also started using this to plan my work, I mix up the kinds of headspace I’m employing for various tasks so that I feel energetic throughout the day.</p>
 
-<p>This is also why I really enjoy mentoring &mdash; mentoring often requires the same effort from me as fixing it myself, but it&rsquo;s a different headspace I&rsquo;m employing so it&rsquo;s less tiring.</p>
+<p>This is also why I really enjoy mentoring — mentoring often requires the same effort from me as fixing it myself, but it’s a different headspace I’m employing so it’s less tiring.</p>
 
-<h2>Blogging lets me be lazy!</h2>
+<h2 id="blogging-lets-me-be-lazy">Blogging lets me be lazy!</h2>
 
-<p>I often find myself explaining things often. I like helping folks and explaining things, but I&rsquo;m also lazy<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>, so writing stuff down really makes stuff easy for me! If folks ask me a question I can give a quick answer and then go &ldquo;if you want to learn more, I&rsquo;ve written about it here!&rdquo;. If folks are asking a question a lot, there&rsquo;s probably something missing in the documentation or learning materials about it. Some things can be fixed upstream in documentation, but other things &mdash; like <a href="https://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/">&ldquo;how should I reason about modules in Rust?&rdquo;</a> deserve to be tackled as a separate problem and addressed with their own post.</p>
+<p>I often find myself explaining things often. I like helping folks and explaining things, but I’m also lazy<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">6</a></sup>, so writing stuff down really makes stuff easy for me! If folks ask me a question I can give a quick answer and then go “if you want to learn more, I’ve written about it here!”. If folks are asking a question a lot, there’s probably something missing in the documentation or learning materials about it. Some things can be fixed upstream in documentation, but other things — like <a href="https://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/">“how should I reason about modules in Rust?”</a> deserve to be tackled as a separate problem and addressed with their own post.</p>
 
 <p>(Yes, this post is in this category!)</p>
 
-<h2>It&rsquo;s okay if folks have written about it before!</h2>
+<h2 id="its-okay-if-folks-have-written-about-it-before">It’s okay if folks have written about it before!</h2>
 
-<p>A common question I&rsquo;ve gotten is &ldquo;Well I can write about X but &hellip; there are a lot of other posts out there about it, should I still?&rdquo;</p>
+<p>A common question I’ve gotten is “Well I can write about X but … there are a lot of other posts out there about it, should I still?”</p>
 
 <p>Yes!!</p>
 
 <p>People think differently, people learn differently, and people come from different backgrounds. Existing posts may be useful for some folks but less useful for others.</p>
 
-<p>My personal rule of thumb is that if it took <em>me</em> some effort to understand something after reading about it, that&rsquo;s something worth writing about, so it&rsquo;s easier to understand for others like me encountering the subject.</p>
+<p>My personal rule of thumb is that if it took <em>me</em> some effort to understand something after reading about it, that’s something worth writing about, so it’s easier to understand for others like me encountering the subject.</p>
 
-<p>One of my favorite bloggers, <a href="https://jvns.ca/">Julia Evans</a> very often writes posts explaining computer concepts. Most of the times these have been explained before in other blog posts or manuals. But that doesn&rsquo;t matter &mdash; her posts are <em>different</em>, and they&rsquo;re <em>amazing</em>. They&rsquo;re upbeat, fun to read, and often get me excited to learn more about things I knew about but never really looked at closely before.</p>
+<p>One of my favorite bloggers, <a href="https://jvns.ca/">Julia Evans</a> very often writes posts explaining computer concepts. Most of the times these have been explained before in other blog posts or manuals. But that doesn’t matter — her posts are <em>different</em>, and they’re <em>amazing</em>. They’re upbeat, fun to read, and often get me excited to learn more about things I knew about but never really looked at closely before.</p>
 
-<h2>I kinda feel it&rsquo;s my duty to?</h2>
+<h2 id="i-kinda-feel-its-my-duty-to">I kinda feel it’s my duty to?</h2>
 
-<p>There&rsquo;s a quote by Toni Morrison I quite enjoy:</p>
+<p>There’s a quote by Toni Morrison I quite enjoy:</p>
 
-<blockquote><p>I tell my students, &lsquo;When you get these jobs that you have been so brilliantly trained for, just remember that your real job is that if you are free, you need to free somebody else. If you have some power, then your job is to empower somebody else. This is not just a grab-bag candy game.</p></blockquote>
+<blockquote>
+  <p>I tell my students, ‘When you get these jobs that you have been so brilliantly trained for, just remember that your real job is that if you are free, you need to free somebody else. If you have some power, then your job is to empower somebody else. This is not just a grab-bag candy game.</p>
+</blockquote>
 
 <p>I enjoy it so much I <a href="https://manishearth.github.io/rustfest-slides/#/13">concluded my talk at RustFest Kyiv with it</a>!</p>
 
-<p>I have the privilege of having time to do things like blogging and mentoring. Given that, I feel that it really is my duty to share what I know as much as possible; to help others attempting to tread the path I&rsquo;m treading; and to battle against tribal knowledge.</p>
+<p>I have the privilege of having time to do things like blogging and mentoring. Given that, I feel that it really is my duty to share what I know as much as possible; to help others attempting to tread the path I’m treading; and to battle against tribal knowledge.</p>
 
-<p>When it comes to programming I&rsquo;m mostly &ldquo;self-taught&rdquo;. But when I say that, I really mean that I wasn&rsquo;t taught in a traditional way by other humans &mdash; I learned things by trying stuff out and <em>reading what others had written</em>. I didn&rsquo;t learn Rust by taking <code>rustc</code> and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and <em>then</em> started exploring by trying random stuff). I didn&rsquo;t figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts. I&rsquo;m &ldquo;self-taught&rdquo; because I&rsquo;ve been in charge of my learning process, but I&rsquo;ve definitely relied on the work of other people throughout this process.</p>
+<p>When it comes to programming I’m mostly “self-taught”. But when I say that, I really mean that I wasn’t taught in a traditional way by other humans — I learned things by trying stuff out and <em>reading what others had written</em>. I didn’t learn Rust by taking <code>rustc</code> and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and <em>then</em> started exploring by trying random stuff). I didn’t figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts. I’m “self-taught” because I’ve been in charge of my learning process, but I’ve definitely relied on the work of other people throughout this process.</p>
 
-<p>This means that for me, personally, knowledge-sharing is especially important. If I had to spend time figuring something out, I should make it easier for the next people to try<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
+<p>This means that for me, personally, knowledge-sharing is especially important. If I had to spend time figuring something out, I should make it easier for the next people to try<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">7</a></sup>.</p>
 
-<p>(All this said, I probably don&rsquo;t blog as much as I <em>should</em>)</p>
+<p>(All this said, I probably don’t blog as much as I <em>should</em>)</p>
 
-<h2>You should blog too!</h2>
+<h2 id="you-should-blog-too">You should blog too!</h2>
 
 <p>I wish everyone wrote more. I know not everyone has the time/privilege to do this, but if you do, I urge you to start!</p>
 
@@ -536,26 +540,32 @@ as well as what they&rsquo;re actually asking for help with. Plus, it&rsquo;s in
 <p>As for the technicalities of setting up a blog, my colleague Emily recently <a href="https://www.emilykager.com/writing/2018/07/27/myo-website.html">wrote a great post about doing this with Jekyll</a>. This blog uses <a href="http://octopress.org">Octopress</a> which is similar to set up.</p>
 
 <p><em>Thanks to <a href="https://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/QuietMisdreavus">QuietMisdreavus</a>, and <a href="https://twitter.com/myrrlyn">Alex</a> for reviewing drafts of this blog post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Who needs to <a href="https://www.ralfj.de/blog/2017/06/09/mutexguard-sync.html">look for unsoundness with rigorous formal verification</a> when you have <code>grep</code>?<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Incidentally, I find there&rsquo;s a similar dynamic when it comes to forum discussions vs hashing things out one-on-one, it&rsquo;s way harder to get anywhere with forum discussions because they&rsquo;re one-many and you have to put in that much more work to empathize with everyone else and also phrase things in a way that is resilient to accidental misinterpretation.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>This is especially important as I get more and more &ldquo;used&rdquo; to subjects I&rsquo;m familiar with &ndash; it&rsquo;s easy to lose the ability to explain things when I think half of it is obvious.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>This is probably the <em>real</em> reason I love rereading it &mdash; I like being verbose and would nest parentheses and footnotes if society let me<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I also am in general less inclined to do technical things in my free time and have a better work-life balance, glad that worked out!<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>See blog title<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>One of my former title ideas for this post was &ldquo;Knowledge is Theft&rdquo;, riffing off of this concept, but I felt that was a bit too tongue-in-cheek.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:11" role="doc-endnote">
+      <p>Who needs to <a href="https://www.ralfj.de/blog/2017/06/09/mutexguard-sync.html">look for unsoundness with rigorous formal verification</a> when you have <code>grep</code>? <a href="#fnref:11" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Incidentally, I find there’s a similar dynamic when it comes to forum discussions vs hashing things out one-on-one, it’s way harder to get anywhere with forum discussions because they’re one-many and you have to put in that much more work to empathize with everyone else and also phrase things in a way that is resilient to accidental misinterpretation. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>This is especially important as I get more and more “used” to subjects I’m familiar with – it’s easy to lose the ability to explain things when I think half of it is obvious. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:6" role="doc-endnote">
+      <p>This is probably the <em>real</em> reason I love rereading it — I like being verbose and would nest parentheses and footnotes if society let me <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:8" role="doc-endnote">
+      <p>I also am in general less inclined to do technical things in my free time and have a better work-life balance, glad that worked out! <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1" role="doc-endnote">
+      <p>See blog title <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:10" role="doc-endnote">
+      <p>One of my former title ideas for this post was “Knowledge is Theft”, riffing off of this concept, but I felt that was a bit too tongue-in-cheek. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   
@@ -566,29 +576,29 @@ as well as what they&rsquo;re actually asking for help with. Plus, it&rsquo;s in
     <id>http://manishearth.github.io/blog/2018/04/12/down-a-rusty-rabbit-hole</id>
     <content type="html"><![CDATA[<p>Last week I fell down a rather interesting rabbit hole in Rust, which was basically
 me discovering a series of quirks of the Rust compiler/language, each one leading to the
-next when I asked &ldquo;why?&rdquo;.</p>
+next when I asked “why?”.</p>
 
 <p>It started when someone asked why autogenerated <code>Debug</code> impls use argument names like <code>__arg_0</code>
 which start with a double underscore.</p>
 
 <p>This happened to be <a href="https://github.com/rust-lang/rust/pull/32294">my fault</a>. The reason <a href="https://github.com/rust-lang/rust/pull/32251#issuecomment-197481726">we used a double underscore</a> was that
-while a single underscore tells rustc not to warn about a possibly-unused variable, there&rsquo;s an off-
+while a single underscore tells rustc not to warn about a possibly-unused variable, there’s an off-
 by-default clippy lint that warns about variables that start with a single underscore that are used,
 which can be silenced with a double underscore. Now, the correct fix here is to make the lint ignore
 derive/macros (which I believe we did as well), but at the time we needed to add an underscore
-anyway so a double underscore didn&rsquo;t seem worse.</p>
+anyway so a double underscore didn’t seem worse.</p>
 
 <p>Except of course, this double underscore appears in the docs. Oops.</p>
 
 <p>Ideally the rustc derive infrastructure would have a way of specifying the argument name to use so
-that we can at least have descriptive things here, but that&rsquo;s a bit more work (I&rsquo;m willing to mentor
-this work though!). So I thought I&rsquo;d fix this by at least removing the double underscore, and making
+that we can at least have descriptive things here, but that’s a bit more work (I’m willing to mentor
+this work though!). So I thought I’d fix this by at least removing the double underscore, and making
 the unused lint ignore <code>#[derive()]</code> output.</p>
 
 <p>While going through the code to look for underscores I also discovered a hygiene issue. The following code
 throws a bunch of very weird type errors:</p>
 
-<pre><code class="rust">pub const __cmp: u8 = 1;
+<pre><code class="language-rust">pub const __cmp: u8 = 1;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Foo {
@@ -611,7 +621,7 @@ pub enum Foo {
 
 <p>This is because the generated code for PartialOrd contains the following:</p>
 
-<pre><code class="rust">match foo.cmp(bar) {
+<pre><code class="language-rust">match foo.cmp(bar) {
     Some(Ordering::Equal) =&gt; .....,
     __cmp =&gt; __cmp,
 }
@@ -633,7 +643,7 @@ is no longer in that PR, but you can find it <a href="https://github.com/Manishe
 
 <p>Except I hit a problem. With that PR, the following still breaks:</p>
 
-<pre><code class="rust">pub const cmp: u8 = 1;
+<pre><code class="language-rust">pub const cmp: u8 = 1;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Foo {
@@ -655,7 +665,7 @@ pub enum Foo {
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="rust">pub const cmp : u8 = 1;
+<pre><code class="language-rust">pub const cmp : u8 = 1;
 
 fn main() {
     match 1 {
@@ -666,11 +676,11 @@ fn main() {
 
 <p>(<a href="https://play.rust-lang.org/?gist=feebbc048b47c286d5720b9926c6925e&amp;version=stable">playpen</a>)</p>
 
-<p>Huh. Wat. Why? <code>cmp @ _</code> seems to be pretty unambiguous, what&rsquo;s wrong with it shadowing a constant?</p>
+<p>Huh. Wat. Why? <code>cmp @ _</code> seems to be pretty unambiguous, what’s wrong with it shadowing a constant?</p>
 
 <p>Turns out bindings cannot shadow constants at all, for a <a href="https://github.com/rust-lang/rust/issues/33118#issuecomment-233962221">rather subtle reason</a>:</p>
 
-<pre><code class="rust">const A: u8 = ...; // A_const
+<pre><code class="language-rust">const A: u8 = ...; // A_const
 let A @ _ = ...; // A_let
 match .. {
     A =&gt; ...; // A_match
@@ -679,12 +689,12 @@ match .. {
 
 <p>What happens here is that constants and variables occupy the same namespace. So <code>A_let</code> shadows
 <code>A_const</code> here, and when we attempt to <code>match</code>, <code>A_match</code> is resolved to <code>A_let</code> and rejected (since
-you can&rsquo;t match against a variable), and <code>A_match</code> falls back to resolving as a fresh binding
+you can’t match against a variable), and <code>A_match</code> falls back to resolving as a fresh binding
 pattern, instead of resolving to a pattern that matches against <code>A_const</code>.</p>
 
 <p>This is kinda weird, so we disallow shadowing constants with variables. This is rarely a problem
 because variables are lowercase and constants are uppercase. We could <em>technically</em> allow this
-language-wise, but it&rsquo;s hard on the implementation (and irrelevant in practice) so we don&rsquo;t.</p>
+language-wise, but it’s hard on the implementation (and irrelevant in practice) so we don’t.</p>
 
 <hr />
 
@@ -696,7 +706,7 @@ need the underscores to avoid surprises).</p>
 
 <p>The following code is also broken:</p>
 
-<pre><code class="rust">pub const __arg_0: u8 = 1;
+<pre><code class="language-rust">pub const __arg_0: u8 = 1;
 
 #[derive(Debug)]
 struct Foo(u8);
@@ -716,7 +726,7 @@ struct Foo(u8);
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="rust">pub const __arg_0: u8 = 1;
+<pre><code class="language-rust">pub const __arg_0: u8 = 1;
 
 fn foo(__arg_0: bool) {}
 </code></pre>
@@ -730,26 +740,26 @@ fn foo(__arg_0: bool) {}
 
 <p>(<a href="https://play.rust-lang.org/?gist=2cf2c8b3520d5b343de1b76f80ea3fe7&amp;version=stable">playpen</a>)</p>
 
-<p>This breakage is not an issue with the current code because of the double underscores &ndash; there&rsquo;s a
+<p>This breakage is not an issue with the current code because of the double underscores – there’s a
 very low chance someone will create a constant that is both lowercase and starts with a double
-underscore. But it&rsquo;s a problem when I remove the underscores since that chance shoots up.</p>
+underscore. But it’s a problem when I remove the underscores since that chance shoots up.</p>
 
 <p>Anyway, this failure is even weirder. Why are we attempting to match against the constant in the
-first place? <code>fn</code> argument patterns<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
+first place? <code>fn</code> argument patterns<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
 the argument. For example, <code>fn foo(Some(foo): Option&lt;u8&gt;) {}</code> will fail to compile with
-&ldquo;refutable pattern in function argument: <code>None</code> not covered&rdquo;.</p>
+“refutable pattern in function argument: <code>None</code> not covered”.</p>
 
-<p>There&rsquo;s no point trying to match against constants here; because even if we find a constant it will be rejected
+<p>There’s no point trying to match against constants here; because even if we find a constant it will be rejected
 later. Instead, we can unambiguously resolve identifiers as new bindings, yes?</p>
 
 <p>Right?</p>
 
 <p>Firm in my belief, <a href="https://github.com/rust-lang/rust/issues/49680">I filed an issue</a>.</p>
 
-<p>I was wrong, it&rsquo;s <a href="https://github.com/rust-lang/rust/issues/49680#issuecomment-379029404">not going to always be rejected later</a>. With zero-sized types this
+<p>I was wrong, it’s <a href="https://github.com/rust-lang/rust/issues/49680#issuecomment-379029404">not going to always be rejected later</a>. With zero-sized types this
 can totally still work:</p>
 
-<pre><code class="rust">struct S;
+<pre><code class="language-rust">struct S;
 
 const C: S = S;
 
@@ -760,7 +770,7 @@ fn main() {
 
 <p>Here because <code>S</code> has only one state, matching against a constant of the type is still irrefutable.</p>
 
-<p>I argued that this doesn&rsquo;t matter &ndash; since the type has a single value, it doesn&rsquo;t matter whether we resolved to
+<p>I argued that this doesn’t matter – since the type has a single value, it doesn’t matter whether we resolved to
 a new binding or the constant; the value and semantics are the same.</p>
 
 <p>This is true.</p>
@@ -772,10 +782,10 @@ a new binding or the constant; the value and semantics are the same.</p>
 <p>It was at this point that my table found itself in the perplexing state of being upside-down.</p>
 
 <p>This is still really fine, zero-sized-constants-with-destructors is a pretty rare thing in Rust
-and I don&rsquo;t really see folks <em>relying</em> on this behavior.</p>
+and I don’t really see folks <em>relying</em> on this behavior.</p>
 
 <p>However I later realized that this entire detour was pointless because even if we fix this, we end up
-with a way for bindings to shadow constants. Which &hellip; which we already realized isn&rsquo;t allowed by the
+with a way for bindings to shadow constants. Which … which we already realized isn’t allowed by the
 compiler till we fix some bugs.</p>
 
 <p>Damn.</p>
@@ -786,14 +796,14 @@ compiler till we fix some bugs.</p>
 infrastructure supports. I plan to make a PR for this eventually.</p>
 
 <p>But it was a very interesting dive into the nuances of pattern matching in Rust.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Yes, function arguments in Rust are patterns. You can totally do things like <code>(a, b): (u8, u8)</code> in function arguments (like you can do in <code>let</code>)<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Yes, function arguments in Rust are patterns. You can totally do things like <code>(a, b): (u8, u8)</code> in function arguments (like you can do in <code>let</code>) <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-16T02:06:43+00:00</updated>
+  <updated>2021-02-16T06:17:04+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -18,190 +18,187 @@
     <link href="http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy/"/>
     <updated>2019-02-04T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2019/02/04/rust-governance-scaling-empathy</id>
-    <content type="html"><![CDATA[<p>There&rsquo;s been a lot of talk about improving Rust&rsquo;s governance model lately. As we decompress from last year&rsquo;s hectic edition work, we&rsquo;re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
+    <content type="html"><![CDATA[<p>There’s been a lot of talk about improving Rust’s governance model lately. As we decompress from last year’s hectic edition work, we’re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
 
-<p>I&rsquo;ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
+<p>I’ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
 
-<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> I&rsquo;m going to assume the reader is roughly familiar with most of the stuff that&rsquo;s happened with the Rust community in the past few years. I&rsquo;m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+<p>In the interest of brevity<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
 
-<p>This blog post is probably going to reach the eyes of non-Rust-community members. You&rsquo;re welcome to read it, but please accept my apologies in advance if it doesn&rsquo;t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven&rsquo;t had time to edit it to make it acceptable to a wider audience.</p>
+<p>This blog post is probably going to reach the eyes of non-Rust-community members. You’re welcome to read it, but please accept my apologies in advance if it doesn’t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven’t had time to edit it to make it acceptable to a wider audience.</p>
 
-<h2>The symptoms</h2>
+<h2 id="the-symptoms">The symptoms</h2>
 
-<p>Before I actually get into it, I&rsquo;d like to carefully delineate <em>what</em> the problem is that I&rsquo;m talking about. Or more accurately, the <em>symptoms</em> I am talking about &mdash; as I&rsquo;ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
+<p>Before I actually get into it, I’d like to carefully delineate <em>what</em> the problem is that I’m talking about. Or more accurately, the <em>symptoms</em> I am talking about — as I’ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
 
 <p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
 
 <ul>
-<li>The same arguments getting brought up over and over again</li>
-<li>Accusations of bad faith</li>
-<li>Derailing</li>
-<li>Not feeling heard</li>
-<li>Just getting exhausted by all the stuff that&rsquo;s going on</li>
+  <li>The same arguments getting brought up over and over again</li>
+  <li>Accusations of bad faith</li>
+  <li>Derailing</li>
+  <li>Not feeling heard</li>
+  <li>Just getting exhausted by all the stuff that’s going on</li>
 </ul>
 
+<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on https://internals.rust-lang.org have similar problems.</p>
 
-<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">https://internals.rust-lang.org</a> have similar problems.</p>
-
-<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven&rsquo;t already.</p>
+<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven’t already.</p>
 
 <p>Fundamentally I consider our problems to be social problems, not technical ones. In my opinion, technical solutions like changing the discussion forum format may be necessary but are not sufficient for fixing this.</p>
 
-<h2>The scaling problem</h2>
+<h2 id="the-scaling-problem">The scaling problem</h2>
 
 <p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
 
-<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you&rsquo;re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It&rsquo;s <em>much</em> easier to have one-on-one discussions because it&rsquo;s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
+<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you’re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It’s <em>much</em> easier to have one-on-one discussions because it’s easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.</p>
 
-<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don&rsquo;t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It&rsquo;s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
+<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don’t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It’s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
 
-<p>All of these mismatches are easy to identify in one-on-one discussions, because it&rsquo;s easy to switch gears to the meta discussion for a bit.</p>
+<p>All of these mismatches are easy to identify in one-on-one discussions, because it’s easy to switch gears to the meta discussion for a bit.</p>
 
 <p>One-on-one discussions are pleasant. They foster empathy.</p>
 
-<p>N-to-N discussions are <em>not</em>. It&rsquo;s harder to converge on this shared vocabulary amongst N other people. It&rsquo;s harder to identify these mismatches, partly because it&rsquo;s hard to switch into the meta-mode of a discussion at all, but also because there&rsquo;s a lot going on. It&rsquo;s harder to build empathy.</p>
+<p>N-to-N discussions are <em>not</em>. It’s harder to converge on this shared vocabulary amongst N other people. It’s harder to identify these mismatches, partly because it’s hard to switch into the meta-mode of a discussion at all, but also because there’s a lot going on. It’s harder to build empathy.</p>
 
-<p>As we&rsquo;ve grown, discussion complexity has grown quadratically, and we&rsquo;re not really attempting to relinearize them.</p>
+<p>As we’ve grown, discussion complexity has grown quadratically, and we’re not really attempting to relinearize them.</p>
 
-<h3>Hanabi and parallel universes</h3>
+<h3 id="hanabi-and-parallel-universes">Hanabi and parallel universes</h3>
 
-<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It&rsquo;s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
+<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It’s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
 
-<p>Hanabi is a cooperative game. You can see everyone&rsquo;s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
+<p>Hanabi is a cooperative game. You can see everyone’s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
 
-<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone&rsquo;s moves will be. With this in mind, you can attempt to &ldquo;set up&rdquo; situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn&rsquo;t actually play out as planned.</p>
+<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone’s moves will be. With this in mind, you can attempt to “set up” situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn’t actually play out as planned.</p>
 
-<p>The core issue behind this is forgetting that you actually <em>can&rsquo;t</em> see the entire game state, since your own cards are hidden. It&rsquo;s not just <em>you</em> who has plans &mdash; everyone does! And each of those plans is incomplete since they&rsquo;re missing a piece of the picture, just as you are.</p>
+<p>The core issue behind this is forgetting that you actually <em>can’t</em> see the entire game state, since your own cards are hidden. It’s not just <em>you</em> who has plans — everyone does! And each of those plans is incomplete since they’re missing a piece of the picture, just as you are.</p>
 
-<p>In Hanabi it&rsquo;s very easy to forget that you&rsquo;re missing a piece of the picture &mdash; in competitive card games you mostly can&rsquo;t see the game state since everyone else&rsquo;s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it&rsquo;s easy to forget that your own four cards are hidden from you.</p>
+<p>In Hanabi it’s very easy to forget that you’re missing a piece of the picture — in competitive card games you mostly can’t see the game state since everyone else’s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it’s easy to forget that your own four cards are hidden from you.</p>
 
-<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you&rsquo;re fine, but if you don&rsquo;t you will be frustrated.</p>
+<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you’re fine, but if you don’t you will be frustrated.</p>
 
-<p>This is largely true of N-to-N discussions as well. Because most of what&rsquo;s being said makes sense to an individual in a particular way, it&rsquo;s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, &ldquo;forking&rdquo; the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone&rsquo;s talking past each other.</p>
+<p>This is largely true of N-to-N discussions as well. Because most of what’s being said makes sense to an individual in a particular way, it’s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, “forking” the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone’s talking past each other.</p>
 
-<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me &mdash; typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I&rsquo;m not consistent in doing this &mdash; in the midst of a heated argument it&rsquo;s easy to get too wrapped up in the argument to think about getting results and I&rsquo;ve certainly had my time arguing instead of resolving &mdash; but overall whenever I&rsquo;ve chosen to do this it&rsquo;s been a useful policy.</p>
+<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me — typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I’m not consistent in doing this — in the midst of a heated argument it’s easy to get too wrapped up in the argument to think about getting results and I’ve certainly had my time arguing instead of resolving — but overall whenever I’ve chosen to do this it’s been a useful policy.</p>
 
-<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it&rsquo;s not the point of having a technical discussion.</p>
+<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it’s not the point of having a technical discussion.</p>
 
-<h2>The moderation problem</h2>
+<h2 id="the-moderation-problem">The moderation problem</h2>
 
 <p>In a technical discussion, broadly speaking, I find that there are three kinds of comments disagreeing with you:</p>
 
 <ul>
-<li>Constructive: Comments which disagree with you constructively. We&rsquo;re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
-<li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don&rsquo;t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
-<li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
+  <li>Constructive: Comments which disagree with you constructively. We’re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
+  <li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don’t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
+  <li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
 </ul>
 
+<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of “Type A, B, C” for these, mostly because I’m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
 
-<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of &ldquo;Type A, B, C&rdquo; for these, mostly because I&rsquo;m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
+<p>Note that while I’m talking about “disruptive” comments it’s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
 
-<p>Note that while I&rsquo;m talking about &ldquo;disruptive&rdquo; comments it&rsquo;s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
+<p>The second category – disruptive comments – are the thing we’re currently unable to handle well. They snowball pretty badly too — as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more “parallel universes” it also just becomes <em>easier</em> for a comment to be disruptive.</p>
 
-<p>The second category &ndash; disruptive comments &ndash; are the thing we&rsquo;re currently unable to handle well. They snowball pretty badly too &mdash; as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more &ldquo;parallel universes&rdquo; it also just becomes <em>easier</em> for a comment to be disruptive.</p>
+<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
 
-<p>The Rust moderation team operates mostly passively, we simply don&rsquo;t have the scale<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It&rsquo;s a bit of a catch-22: it&rsquo;s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it&rsquo;s largely reactive &mdash; it&rsquo;s harder to proactively nudge the discussion in the right direction when you don&rsquo;t even <em>notice</em> what&rsquo;s going on until it&rsquo;s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it&rsquo;s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
+<h2 id="participation-guidelines">Participation guidelines</h2>
 
-<h2>Participation guidelines</h2>
+<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren’t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
 
-<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren&rsquo;t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
-
-<p>A proposal I&rsquo;ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
+<p>A proposal I’ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
 
 <ul>
-<li>Don&rsquo;t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
-<li>Don&rsquo;t take threads off topic</li>
-<li>Don&rsquo;t rehash discussions</li>
+  <li>Don’t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
+  <li>Don’t take threads off topic</li>
+  <li>Don’t rehash discussions</li>
 </ul>
 
-
-<p>We ask people to read these before participating, but also breaking these rules isn&rsquo;t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
+<p>We ask people to read these before participating, but also breaking these rules isn’t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
 
 <p>A base participation guidelines document can also be a value statement, not just a set of rules but also set of values. These values can be things like:</p>
 
 <ul>
-<li>&ldquo;We explicitly value high empathy interactions&rdquo;</li>
-<li>&ldquo;How everyone is feeling is everyone&rsquo;s business&rdquo;</li>
+  <li>“We explicitly value high empathy interactions”</li>
+  <li>“How everyone is feeling is everyone’s business”</li>
 </ul>
-
 
 <p>(h/t <a href="http://twitter.com/adam_n_p/">Adam</a> for the articulate wording here)</p>
 
-<p>Having such words written somewhere &mdash; both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) &mdash; is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating &mdash; most don&rsquo;t &mdash; but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they&rsquo;re having trouble doing so.</p>
+<p>Having such words written somewhere — both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) — is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating — most don’t — but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they’re having trouble doing so.</p>
 
-<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I&rsquo;ve been talking about for quite a while now, the idea of having facilitators:</p>
+<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I’ve been talking about for quite a while now, the idea of having facilitators:</p>
 
-<h2>Facilitators</h2>
+<h2 id="facilitators">Facilitators</h2>
 
-<p>A common conflict I see occurring is that in many cases it&rsquo;s a team&rsquo;s job to think about and opine on a technical decision, but it&rsquo;s also the team&rsquo;s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you&rsquo;ve been unfairly represented. The natural response to that for most people isn&rsquo;t to work with that person and try to be properly represented, it&rsquo;s to just get angry, leading to less empathy over time.</p>
+<p>A common conflict I see occurring is that in many cases it’s a team’s job to think about and opine on a technical decision, but it’s also the team’s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you’ve been unfairly represented. The natural response to that for most people isn’t to work with that person and try to be properly represented, it’s to just get angry, leading to less empathy over time.</p>
 
 <p>By design, Rust team members are <em>partisan</em>. The teams exist to build well-informed, carefully crafted opinions, and present them to the community. They also exist to make final decisions based on the results of a consensusbuilding discussion, which can involve picking sides. This is fine, there is always going to be some degree of partisanship amongst decisionmakers, or decisions would not get made.</p>
 
-<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don&rsquo;t have enough bandwidth to do this well anyway. Some teams do have a concept of &ldquo;sheriffs&rdquo;, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
+<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don’t have enough bandwidth to do this well anyway. Some teams do have a concept of “sheriffs”, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
 
-<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don&rsquo;t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
+<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don’t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
 
 <ul>
-<li>Summarizing the discussion every now and then</li>
-<li>Calling out one sided discussions</li>
-<li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
-<li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like &ldquo;hey @Manishearth, I noticed you&rsquo;ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?&rdquo; would help.</li>
-<li>Reinforcing positive behavior</li>
-<li>Occasionally pinging participants privately to help them improve their comments</li>
-<li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I&rsquo;ve often enjoyed doing it &mdash; noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I&rsquo;ve also found that it&rsquo;s incredibly hard to do when you&rsquo;re emotionally involved, and I&rsquo;ve often needed a nudge from someone else to get there.</li>
+  <li>Summarizing the discussion every now and then</li>
+  <li>Calling out one sided discussions</li>
+  <li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
+  <li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like “hey @Manishearth, I noticed you’ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?” would help.</li>
+  <li>Reinforcing positive behavior</li>
+  <li>Occasionally pinging participants privately to help them improve their comments</li>
+  <li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I’ve often enjoyed doing it — noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I’ve also found that it’s incredibly hard to do when you’re emotionally involved, and I’ve often needed a nudge from someone else to get there.</li>
 </ul>
-
 
 <p>At a high level, the job of the facilitators is to:</p>
 
 <ul>
-<li>help foster empathy between participants</li>
-<li>help linearize complex discussions</li>
-<li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
+  <li>help foster empathy between participants</li>
+  <li>help linearize complex discussions</li>
+  <li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
 </ul>
 
+<p>It’s important to note that facilitators don’t make decisions — the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
 
-<p>It&rsquo;s important to note that facilitators don&rsquo;t make decisions &mdash; the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
 
-<p>The teams <em>could</em> do most of this themselves<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, but as I&rsquo;ve mentioned before it&rsquo;s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+<p>This is also something the moderation team could do, however it’s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren’t as high: screwups can get noticed, and they don’t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I’d love to hear from people who would like to help).</p>
 
-<p>This is also something the moderation team could do, however it&rsquo;s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren&rsquo;t as high: screwups can get noticed, and they don&rsquo;t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I&rsquo;d love to hear from people who would like to help).</p>
+<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It’s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
 
-<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It&rsquo;s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
+<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don’t have time or feel like they have strong opinions, try someone else). But there’s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don’t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I’m not really going to spend time analysing these specifics; I have opinions but I’d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
 
-<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don&rsquo;t have time or feel like they have strong opinions, try someone else). But there&rsquo;s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don&rsquo;t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I&rsquo;m not really going to spend time analysing these specifics; I have opinions but I&rsquo;d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
+<h2 id="prospective-outcomes">Prospective outcomes</h2>
 
-<h2>Prospective outcomes</h2>
-
-<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don&rsquo;t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
+<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don’t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
 
 <p>I suspect that in the process of building up such a team of facilitators, we will also end up building a set of resources that can help others learn to act the same way, and eventually overall improve how empathetic our community is.</p>
 
-<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the &ldquo;parallel universes&rdquo; together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
+<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the “parallel universes” together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
 
-<p>This also helps with concerns people have that they&rsquo;re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
+<p>This also helps with concerns people have that they’re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
 
 <hr />
 
-<p>Overall what I&rsquo;ve proposed here isn&rsquo;t a fully-formed idea; but it&rsquo;s the seed of one. There are a lot of interesting bits to discuss and build upon. I&rsquo;m hoping through this post we might push forward some of the discussions about governance &mdash; both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
+<p>Overall what I’ve proposed here isn’t a fully-formed idea; but it’s the seed of one. There are a lot of interesting bits to discuss and build upon. I’m hoping through this post we might push forward some of the discussions about governance — both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
 
-<p>I&rsquo;m really interested to hear what people think!</p>
+<p>I’m really interested to hear what people think!</p>
 
-<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, <a href="http://twitter.com/fitzgen/">Nick</a> and other people I&rsquo;ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>I am way too verbose for &ldquo;brief&rdquo; to be an accurate description of anything I write, but might as well <em>try</em>.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Scaling the moderation team properly is another piece of this puzzle that I&rsquo;m working on; we&rsquo;ve made some progress recently.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I&rsquo;ll explain later it&rsquo;s suboptimal for the mod team to be dealing with this anyway.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/cmrx64/">Corey</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, <a href="http://twitter.com/fitzgen/">Nick</a> and other people I’ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>I am way too verbose for “brief” to be an accurate description of anything I write, but might as well <em>try</em>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Scaling the moderation team properly is another piece of this puzzle that I’m working on; we’ve made some progress recently. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I’ll explain later it’s suboptimal for the mod team to be dealing with this anyway. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -212,29 +209,29 @@
     <id>http://manishearth.github.io/blog/2018/04/12/down-a-rusty-rabbit-hole</id>
     <content type="html"><![CDATA[<p>Last week I fell down a rather interesting rabbit hole in Rust, which was basically
 me discovering a series of quirks of the Rust compiler/language, each one leading to the
-next when I asked &ldquo;why?&rdquo;.</p>
+next when I asked “why?”.</p>
 
 <p>It started when someone asked why autogenerated <code>Debug</code> impls use argument names like <code>__arg_0</code>
 which start with a double underscore.</p>
 
 <p>This happened to be <a href="https://github.com/rust-lang/rust/pull/32294">my fault</a>. The reason <a href="https://github.com/rust-lang/rust/pull/32251#issuecomment-197481726">we used a double underscore</a> was that
-while a single underscore tells rustc not to warn about a possibly-unused variable, there&rsquo;s an off-
+while a single underscore tells rustc not to warn about a possibly-unused variable, there’s an off-
 by-default clippy lint that warns about variables that start with a single underscore that are used,
 which can be silenced with a double underscore. Now, the correct fix here is to make the lint ignore
 derive/macros (which I believe we did as well), but at the time we needed to add an underscore
-anyway so a double underscore didn&rsquo;t seem worse.</p>
+anyway so a double underscore didn’t seem worse.</p>
 
 <p>Except of course, this double underscore appears in the docs. Oops.</p>
 
 <p>Ideally the rustc derive infrastructure would have a way of specifying the argument name to use so
-that we can at least have descriptive things here, but that&rsquo;s a bit more work (I&rsquo;m willing to mentor
-this work though!). So I thought I&rsquo;d fix this by at least removing the double underscore, and making
+that we can at least have descriptive things here, but that’s a bit more work (I’m willing to mentor
+this work though!). So I thought I’d fix this by at least removing the double underscore, and making
 the unused lint ignore <code>#[derive()]</code> output.</p>
 
 <p>While going through the code to look for underscores I also discovered a hygiene issue. The following code
 throws a bunch of very weird type errors:</p>
 
-<pre><code class="rust">pub const __cmp: u8 = 1;
+<pre><code class="language-rust">pub const __cmp: u8 = 1;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Foo {
@@ -257,7 +254,7 @@ pub enum Foo {
 
 <p>This is because the generated code for PartialOrd contains the following:</p>
 
-<pre><code class="rust">match foo.cmp(bar) {
+<pre><code class="language-rust">match foo.cmp(bar) {
     Some(Ordering::Equal) =&gt; .....,
     __cmp =&gt; __cmp,
 }
@@ -279,7 +276,7 @@ is no longer in that PR, but you can find it <a href="https://github.com/Manishe
 
 <p>Except I hit a problem. With that PR, the following still breaks:</p>
 
-<pre><code class="rust">pub const cmp: u8 = 1;
+<pre><code class="language-rust">pub const cmp: u8 = 1;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Foo {
@@ -301,7 +298,7 @@ pub enum Foo {
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="rust">pub const cmp : u8 = 1;
+<pre><code class="language-rust">pub const cmp : u8 = 1;
 
 fn main() {
     match 1 {
@@ -312,11 +309,11 @@ fn main() {
 
 <p>(<a href="https://play.rust-lang.org/?gist=feebbc048b47c286d5720b9926c6925e&amp;version=stable">playpen</a>)</p>
 
-<p>Huh. Wat. Why? <code>cmp @ _</code> seems to be pretty unambiguous, what&rsquo;s wrong with it shadowing a constant?</p>
+<p>Huh. Wat. Why? <code>cmp @ _</code> seems to be pretty unambiguous, what’s wrong with it shadowing a constant?</p>
 
 <p>Turns out bindings cannot shadow constants at all, for a <a href="https://github.com/rust-lang/rust/issues/33118#issuecomment-233962221">rather subtle reason</a>:</p>
 
-<pre><code class="rust">const A: u8 = ...; // A_const
+<pre><code class="language-rust">const A: u8 = ...; // A_const
 let A @ _ = ...; // A_let
 match .. {
     A =&gt; ...; // A_match
@@ -325,12 +322,12 @@ match .. {
 
 <p>What happens here is that constants and variables occupy the same namespace. So <code>A_let</code> shadows
 <code>A_const</code> here, and when we attempt to <code>match</code>, <code>A_match</code> is resolved to <code>A_let</code> and rejected (since
-you can&rsquo;t match against a variable), and <code>A_match</code> falls back to resolving as a fresh binding
+you can’t match against a variable), and <code>A_match</code> falls back to resolving as a fresh binding
 pattern, instead of resolving to a pattern that matches against <code>A_const</code>.</p>
 
 <p>This is kinda weird, so we disallow shadowing constants with variables. This is rarely a problem
 because variables are lowercase and constants are uppercase. We could <em>technically</em> allow this
-language-wise, but it&rsquo;s hard on the implementation (and irrelevant in practice) so we don&rsquo;t.</p>
+language-wise, but it’s hard on the implementation (and irrelevant in practice) so we don’t.</p>
 
 <hr />
 
@@ -342,7 +339,7 @@ need the underscores to avoid surprises).</p>
 
 <p>The following code is also broken:</p>
 
-<pre><code class="rust">pub const __arg_0: u8 = 1;
+<pre><code class="language-rust">pub const __arg_0: u8 = 1;
 
 #[derive(Debug)]
 struct Foo(u8);
@@ -362,7 +359,7 @@ struct Foo(u8);
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="rust">pub const __arg_0: u8 = 1;
+<pre><code class="language-rust">pub const __arg_0: u8 = 1;
 
 fn foo(__arg_0: bool) {}
 </code></pre>
@@ -376,26 +373,26 @@ fn foo(__arg_0: bool) {}
 
 <p>(<a href="https://play.rust-lang.org/?gist=2cf2c8b3520d5b343de1b76f80ea3fe7&amp;version=stable">playpen</a>)</p>
 
-<p>This breakage is not an issue with the current code because of the double underscores &ndash; there&rsquo;s a
+<p>This breakage is not an issue with the current code because of the double underscores – there’s a
 very low chance someone will create a constant that is both lowercase and starts with a double
-underscore. But it&rsquo;s a problem when I remove the underscores since that chance shoots up.</p>
+underscore. But it’s a problem when I remove the underscores since that chance shoots up.</p>
 
 <p>Anyway, this failure is even weirder. Why are we attempting to match against the constant in the
-first place? <code>fn</code> argument patterns<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
+first place? <code>fn</code> argument patterns<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
 the argument. For example, <code>fn foo(Some(foo): Option&lt;u8&gt;) {}</code> will fail to compile with
-&ldquo;refutable pattern in function argument: <code>None</code> not covered&rdquo;.</p>
+“refutable pattern in function argument: <code>None</code> not covered”.</p>
 
-<p>There&rsquo;s no point trying to match against constants here; because even if we find a constant it will be rejected
+<p>There’s no point trying to match against constants here; because even if we find a constant it will be rejected
 later. Instead, we can unambiguously resolve identifiers as new bindings, yes?</p>
 
 <p>Right?</p>
 
 <p>Firm in my belief, <a href="https://github.com/rust-lang/rust/issues/49680">I filed an issue</a>.</p>
 
-<p>I was wrong, it&rsquo;s <a href="https://github.com/rust-lang/rust/issues/49680#issuecomment-379029404">not going to always be rejected later</a>. With zero-sized types this
+<p>I was wrong, it’s <a href="https://github.com/rust-lang/rust/issues/49680#issuecomment-379029404">not going to always be rejected later</a>. With zero-sized types this
 can totally still work:</p>
 
-<pre><code class="rust">struct S;
+<pre><code class="language-rust">struct S;
 
 const C: S = S;
 
@@ -406,7 +403,7 @@ fn main() {
 
 <p>Here because <code>S</code> has only one state, matching against a constant of the type is still irrefutable.</p>
 
-<p>I argued that this doesn&rsquo;t matter &ndash; since the type has a single value, it doesn&rsquo;t matter whether we resolved to
+<p>I argued that this doesn’t matter – since the type has a single value, it doesn’t matter whether we resolved to
 a new binding or the constant; the value and semantics are the same.</p>
 
 <p>This is true.</p>
@@ -418,10 +415,10 @@ a new binding or the constant; the value and semantics are the same.</p>
 <p>It was at this point that my table found itself in the perplexing state of being upside-down.</p>
 
 <p>This is still really fine, zero-sized-constants-with-destructors is a pretty rare thing in Rust
-and I don&rsquo;t really see folks <em>relying</em> on this behavior.</p>
+and I don’t really see folks <em>relying</em> on this behavior.</p>
 
 <p>However I later realized that this entire detour was pointless because even if we fix this, we end up
-with a way for bindings to shadow constants. Which &hellip; which we already realized isn&rsquo;t allowed by the
+with a way for bindings to shadow constants. Which … which we already realized isn’t allowed by the
 compiler till we fix some bugs.</p>
 
 <p>Damn.</p>
@@ -432,14 +429,14 @@ compiler till we fix some bugs.</p>
 infrastructure supports. I plan to make a PR for this eventually.</p>
 
 <p>But it was a very interesting dive into the nuances of pattern matching in Rust.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Yes, function arguments in Rust are patterns. You can totally do things like <code>(a, b): (u8, u8)</code> in function arguments (like you can do in <code>let</code>)<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Yes, function arguments in Rust are patterns. You can totally do things like <code>(a, b): (u8, u8)</code> in function arguments (like you can do in <code>let</code>) <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   
@@ -448,12 +445,12 @@ infrastructure supports. I plan to make a PR for this eventually.</p>
     <link href="http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go/"/>
     <updated>2018-02-01T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2018/02/01/a-rough-proposal-for-sum-types-in-go</id>
-    <content type="html"><![CDATA[<p>Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these <em>and</em> one of these&rdquo;,
-a sum type is &ldquo;This contains one of these <em>or</em> one of these&rdquo;.</p>
+    <content type="html"><![CDATA[<p>Sum types are pretty cool. Just like how a struct is basically “This contains one of these <em>and</em> one of these”,
+a sum type is “This contains one of these <em>or</em> one of these”.</p>
 
 <p>So for example, the following sum type in Rust:</p>
 
-<pre><code class="rust">enum Foo {
+<pre><code class="language-rust">enum Foo {
     Stringy(String),
     Numerical(u32)
 }
@@ -461,68 +458,68 @@ a sum type is &ldquo;This contains one of these <em>or</em> one of these&rdquo;.
 
 <p>or Swift:</p>
 
-<pre><code class="swift">enum Foo {
+<pre><code class="language-swift">enum Foo {
     case stringy(String),
     case numerical(Int)
 }
 </code></pre>
 
-<p>would be one where it&rsquo;s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
+<p>would be one where it’s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
 <em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
 
-<p>This can be pretty useful. For example, messages between threads are often of a &ldquo;this or that or that or that&rdquo;
+<p>This can be pretty useful. For example, messages between threads are often of a “this or that or that or that”
 form.</p>
 
-<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> &ndash; you must list all
+<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> – you must list all
 the cases (or include a default arm) for your code to compile. This leads to a useful component
-of type safety &ndash; if you add a message to your message passing system, you&rsquo;ll know where to update it.</p>
+of type safety – if you add a message to your message passing system, you’ll know where to update it.</p>
 
-<p>Go doesn&rsquo;t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
+<p>Go doesn’t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
 is that you do not get the exhaustiveness condition, and consumers of your library can even add further
 cases. (And, of course, dynamic dispatch can be slow). You <em>can</em> get exhaustiveness in Go with <a href="https://github.com/haya14busa/gosum">external tools</a>,
-but it&rsquo;s preferable to have such things in the language IMO.</p>
+but it’s preferable to have such things in the language IMO.</p>
 
 <p>Many years ago when I was learning Go I wrote a <a href="http://inpursuitoflaziness.blogspot.in/2015/02/thoughts-of-rustacean-learning-go.html">blog post</a> about what I liked and disliked
-as a Rustacean learning Go. Since then, I&rsquo;ve spent a lot more time with Go, and I&rsquo;ve learned to like each Go design decision that I initially
-disliked, <em>except</em> for the lack of sum types. Most of my issues arose from &ldquo;trying to program Rust in Go&rdquo;,
-i.e. using idioms that are natural to Rust (or other languages I&rsquo;d used previously). Once I got used to the
-programming style, I realized that aside from the lack of sum types I really didn&rsquo;t find much missing
+as a Rustacean learning Go. Since then, I’ve spent a lot more time with Go, and I’ve learned to like each Go design decision that I initially
+disliked, <em>except</em> for the lack of sum types. Most of my issues arose from “trying to program Rust in Go”,
+i.e. using idioms that are natural to Rust (or other languages I’d used previously). Once I got used to the
+programming style, I realized that aside from the lack of sum types I really didn’t find much missing
 from the language. Perhaps improvements to error handling.</p>
 
-<p>Now, my intention here isn&rsquo;t really to sell sum types. They&rsquo;re somewhat controversial for Go, and
+<p>Now, my intention here isn’t really to sell sum types. They’re somewhat controversial for Go, and
 there are good arguments on both sides. You can see one discussion on this topic <a href="https://github.com/golang/go/issues/19412">here</a>.
-If I were to make a more concrete proposal I&rsquo;d probably try to motivate this in much more depth. But even
-I&rsquo;m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
+If I were to make a more concrete proposal I’d probably try to motivate this in much more depth. But even
+I’m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
 
-<p>Instead, I&rsquo;m going to try and sketch this proposal for sum types that has been floating around my
-mind for a while. I end up mentioning it often and it&rsquo;s nice to have something to link to. Overall,
-I think this &ldquo;fits well&rdquo; with the existing Go language design.</p>
+<p>Instead, I’m going to try and sketch this proposal for sum types that has been floating around my
+mind for a while. I end up mentioning it often and it’s nice to have something to link to. Overall,
+I think this “fits well” with the existing Go language design.</p>
 
-<h2>The proposal</h2>
+<h2 id="the-proposal">The proposal</h2>
 
-<p>The essence is pretty straightforward: Extend interfaces to allow for &ldquo;closed interfaces&rdquo;. These are
+<p>The essence is pretty straightforward: Extend interfaces to allow for “closed interfaces”. These are
 interfaces that are only implemented for a small list of types.</p>
 
 <p>Writing the <code>Foo</code> sum type above would be:</p>
 
-<pre><code class="go">type Foo interface {
+<pre><code class="language-go">type Foo interface {
     SomeFunction()
     OtherFunction()
     for string, int
 }
 </code></pre>
 
-<p>It doesn&rsquo;t even need to have functions defined on it.</p>
+<p>It doesn’t even need to have functions defined on it.</p>
 
 <p>The interface functions can only be called if you have an interface object; they are not directly available
 on variant types without explicitly casting (<code>Foo("...").SomeFunction()</code>).</p>
 
-<p>(I&rsquo;m not strongly for the <code>for</code> keyword syntax, it&rsquo;s just a suggestion. The core idea is that
+<p>(I’m not strongly for the <code>for</code> keyword syntax, it’s just a suggestion. The core idea is that
 you define an interface and you define the types it closes over. Somehow.)</p>
 
 <p>A better example would be an interface for a message-passing system for Raft:</p>
 
-<pre><code class="go">type VoteRequest struct {
+<pre><code class="language-go">type VoteRequest struct {
     CandidateId uint
     Term uint
     // ...
@@ -549,7 +546,7 @@ type RaftMessage interface {
 
 <p>Now, you use type switches for dealing with these:</p>
 
-<pre><code class="go">switch value := msg.(type) {
+<pre><code class="language-go">switch value := msg.(type) {
     case VoteRequest:
         if value.Term &lt;= me.Term {
             me.reject_vote(value.CandidateId)
@@ -564,13 +561,13 @@ type RaftMessage interface {
 
 <p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
 
-<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I&rsquo;m not sure
-what this entails for the GC design, but I&rsquo;d love to hear thoughts on this.</p>
+<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I’m not sure
+what this entails for the GC design, but I’d love to hear thoughts on this.</p>
 
 <p>We also make it possible to add methods to closed interfaces. This is in the spirit of
 <a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
 
-<pre><code class="go">func (message RaftMessage) Process(me Me) error {
+<pre><code class="language-go">func (message RaftMessage) Process(me Me) error {
     // message handling logic
 }
 </code></pre>
@@ -580,12 +577,12 @@ what this entails for the GC design, but I&rsquo;d love to hear thoughts on this
 <p>This aligns more with how sum types are written and used in other languages; instead of assuming
 that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
 on the type but it can also just call other methods. This is really nice because you can write
-methods in <em>both</em> ways &ndash; if it&rsquo;s a &ldquo;responsibility of the inner type&rdquo; kind of method, require it in
-the interface and delegate it to the individual types. If it&rsquo;s a &ldquo;responsibility of the interface&rdquo;
+methods in <em>both</em> ways – if it’s a “responsibility of the inner type” kind of method, require it in
+the interface and delegate it to the individual types. If it’s a “responsibility of the interface”
 method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
 you sometimes end up writing things like:</p>
 
-<pre><code class="rust">match foo {
+<pre><code class="language-rust">match foo {
     Foo::Stringy(s) =&gt; s.process(),
     Foo::Numerical(n) =&gt; n.process(),
     // ...
@@ -597,9 +594,10 @@ proposal Go can have it both ways.</p>
 
 <hr />
 
-<p>Anyway, thoughts? This is a really rough proposal, and I&rsquo;m not sure how receptive other Gophers will be
-to this, nor how complex its implementation would be. I don&rsquo;t really intend to submit this as a formal proposal,
+<p>Anyway, thoughts? This is a really rough proposal, and I’m not sure how receptive other Gophers will be
+to this, nor how complex its implementation would be. I don’t really intend to submit this as a formal proposal,
 but if someone else wants to they are more than welcome to build on this idea.</p>
+
 ]]></content>
   </entry>
   
@@ -608,57 +606,57 @@ but if someone else wants to they are more than welcome to build on this idea.</
     <link href="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/"/>
     <updated>2018-01-10T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about</id>
-    <content type="html"><![CDATA[<p>The Rust community lately has been focusing a lot on &ldquo;async I/O&rdquo; through the <a href="https://github.com/tokio-rs/">tokio</a>
+    <content type="html"><![CDATA[<p>The Rust community lately has been focusing a lot on “async I/O” through the <a href="https://github.com/tokio-rs/">tokio</a>
 project. This is pretty great!</p>
 
-<p>But for many in the community who haven&rsquo;t worked with web servers and related things it&rsquo;s pretty
-confusing as to what we&rsquo;re trying to achieve there. When this stuff was being discussed around 1.0,
+<p>But for many in the community who haven’t worked with web servers and related things it’s pretty
+confusing as to what we’re trying to achieve there. When this stuff was being discussed around 1.0,
 I was pretty lost as well, having never worked with this stuff before.</p>
 
-<p>What&rsquo;s all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How
+<p>What’s all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How
 does this all fit together?</p>
 
-<h2>What problem are we trying to solve?</h2>
+<h2 id="what-problem-are-we-trying-to-solve">What problem are we trying to solve?</h2>
 
-<p>One of Rust&rsquo;s key features is &ldquo;fearless concurrency&rdquo;. But the kind of concurrency required for handling a
-large amount of I/O bound tasks &ndash; the kind of concurrency found in Go, Elixir, Erlang &ndash; is absent
+<p>One of Rust’s key features is “fearless concurrency”. But the kind of concurrency required for handling a
+large amount of I/O bound tasks – the kind of concurrency found in Go, Elixir, Erlang – is absent
 from Rust.</p>
 
-<p>Let&rsquo;s say you want to build something like a web service. It&rsquo;s going to be handling thousands of
-requests at any point in time (known as the &ldquo;<a href="https://en.wikipedia.org/wiki/C10k_problem">c10k</a> problem&rdquo;). In general, the problem we&rsquo;re
+<p>Let’s say you want to build something like a web service. It’s going to be handling thousands of
+requests at any point in time (known as the “<a href="https://en.wikipedia.org/wiki/C10k_problem">c10k</a> problem”). In general, the problem we’re
 considering is having a huge number of I/O bound (usually network I/O) tasks.</p>
 
-<p>&ldquo;Handling N things at once&rdquo; is best done by using threads. But &hellip; <em>thousands</em> of threads? That
+<p>“Handling N things at once” is best done by using threads. But … <em>thousands</em> of threads? That
 sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack,
 setting up a thread involves a bunch of syscalls, and context switching is expensive.</p>
 
 <p>Of course, thousands of threads <em>all doing work</em> at once is not going to work anyway. You only
 have a fixed number of cores, and at any one time only one thread will be running on a core.</p>
 
-<p>But for cases like web servers, most of these threads won&rsquo;t be doing work. They&rsquo;ll be waiting on the
+<p>But for cases like web servers, most of these threads won’t be doing work. They’ll be waiting on the
 network. Most of these threads will either be listening for a request, or waiting for their response
 to get sent.</p>
 
 <p>With regular threads, when you perform a blocking I/O operation, the syscall returns control
-to the kernel, which won&rsquo;t yield control back, because the I/O operation is probably not finished.
+to the kernel, which won’t yield control back, because the I/O operation is probably not finished.
 Instead, it will use this as an opportunity to swap in a different thread, and will swap the original
-thread back when its I/O operation is finished (i.e. it&rsquo;s &ldquo;unblocked&rdquo;). Without Tokio and friends,
+thread back when its I/O operation is finished (i.e. it’s “unblocked”). Without Tokio and friends,
 this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
 scheduling based on I/O.</p>
 
-<p>But, as we already discovered, threads don&rsquo;t scale well for things like this<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+<p>But, as we already discovered, threads don’t scale well for things like this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
 
-<p>We need &ldquo;lighter&rdquo; threads.</p>
+<p>We need “lighter” threads.</p>
 
-<h2>Lightweight threading</h2>
+<h2 id="lightweight-threading">Lightweight threading</h2>
 
 <p>I think the best way to understand lightweight threading is to forget about Rust for a moment
 and look at a language that does this well, Go.</p>
 
-<p>Instead of using OS threads, Go has lightweight threads, called &ldquo;goroutines&rdquo;. You spawn these with the <code>go</code>
+<p>Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the <code>go</code>
 keyword. A web server might do something like this:</p>
 
-<pre><code class="go">listener, err = net.Listen(...)
+<pre><code class="language-go">listener, err = net.Listen(...)
 // handle err
 for {
     conn, err := listener.Accept()
@@ -671,20 +669,20 @@ for {
 
 <p>This is a loop which waits for new TCP connections, and spawns a goroutine with the connection
 and the function <code>handler</code>. Each connection will be a new goroutine, and the goroutine will shut down
-when <code>handler</code> finishes. In the meantime, the main loop continues executing, because it&rsquo;s running in
+when <code>handler</code> finishes. In the meantime, the main loop continues executing, because it’s running in
 a different goroutine.</p>
 
-<p>So if these aren&rsquo;t &ldquo;real&rdquo; (operating system) threads, what&rsquo;s going on?</p>
+<p>So if these aren’t “real” (operating system) threads, what’s going on?</p>
 
-<p>A goroutine is an example of a &ldquo;lightweight&rdquo; thread. The operating system doesn&rsquo;t know about these,
-it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, swapping
-goroutines in and out much like the operating system scheduler. It&rsquo;s able to do this because
+<p>A goroutine is an example of a “lightweight” thread. The operating system doesn’t know about these,
+it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, swapping
+goroutines in and out much like the operating system scheduler. It’s able to do this because
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.</p>
 
 <p>Essentialy, a compiled Go function will have a bunch of points scattered throughout it where it
-tells the scheduler and GC &ldquo;take over if you want&rdquo; (and also &ldquo;I&rsquo;m waiting on stuff, please take
-over&rdquo;).</p>
+tells the scheduler and GC “take over if you want” (and also “I’m waiting on stuff, please take
+over”).</p>
 
 <p>When a goroutine is swapped on an OS thread, some registers will be saved, and
 the program counter will switch to the new goroutine.</p>
@@ -693,63 +691,63 @@ the program counter will switch to the new goroutine.</p>
 and stuff to work.</p>
 
 <p>What Go used to do was segmented stacks. The reason a thread needs a large stack is that most
-programming languages, including C, expect the stack to be contiguous, and stacks can&rsquo;t just be
-&ldquo;reallocated&rdquo; like we do with growable buffers since we expect stack data to stay put so that
-pointers to stack data to continue to work. So we reserve all the stack we think we&rsquo;ll ever need
-(~8MB), and hope we don&rsquo;t need more.</p>
+programming languages, including C, expect the stack to be contiguous, and stacks can’t just be
+“reallocated” like we do with growable buffers since we expect stack data to stay put so that
+pointers to stack data to continue to work. So we reserve all the stack we think we’ll ever need
+(~8MB), and hope we don’t need more.</p>
 
-<p>But the expectation of stacks being contiguous isn&rsquo;t strictly necessary. In Go, stacks are made of tiny
-chunks. When a function is called, it checks if there&rsquo;s enough space on the stack for it to run, and if not,
+<p>But the expectation of stacks being contiguous isn’t strictly necessary. In Go, stacks are made of tiny
+chunks. When a function is called, it checks if there’s enough space on the stack for it to run, and if not,
 allocates a new chunk of stack and runs on it. So if you have thousands of threads doing a small amount of work,
-they&rsquo;ll all get thousands of tiny stacks and it will be fine.</p>
+they’ll all get thousands of tiny stacks and it will be fine.</p>
 
-<p>These days, Go actually does something different; it <a href="https://blog.cloudflare.com/how-stacks-are-handled-in-go/">copies stacks</a>. I mentioned that stacks can&rsquo;t
-just be &ldquo;reallocated&rdquo; we expect stack data to stay put. But that&rsquo;s not necessarily true &mdash;
+<p>These days, Go actually does something different; it <a href="https://blog.cloudflare.com/how-stacks-are-handled-in-go/">copies stacks</a>. I mentioned that stacks can’t
+just be “reallocated” we expect stack data to stay put. But that’s not necessarily true —
 because Go has a GC it knows what all the pointers are <em>anyway</em>, and it can rewrite pointers to
 stack data on demand.</p>
 
-<p>Either way, Go&rsquo;s rich runtime lets it handle this stuff well. Goroutines are super cheap, and you can spawn
+<p>Either way, Go’s rich runtime lets it handle this stuff well. Goroutines are super cheap, and you can spawn
 thousands without your computer having problems.</p>
 
-<p>Rust <em>used</em> to support lightweight/&ldquo;green&rdquo; threads (I believe it used segmented stacks). However, Rust cares
-a lot about not paying for things you don&rsquo;t use, and this imposes a penalty on all your code even if you
-aren&rsquo;t using green threads, and it was removed pre-1.0.</p>
+<p>Rust <em>used</em> to support lightweight/”green” threads (I believe it used segmented stacks). However, Rust cares
+a lot about not paying for things you don’t use, and this imposes a penalty on all your code even if you
+aren’t using green threads, and it was removed pre-1.0.</p>
 
-<h2>Async I/O</h2>
+<h2 id="async-io">Async I/O</h2>
 
 <p>A core building block of this is Async I/O. As mentioned in the previous section,
 with regular blocking I/O, the moment you request I/O your thread will not be allowed to run
-(&ldquo;blocked&rdquo;) until the operation is done. This is perfect when working with OS threads (the OS
+(“blocked”) until the operation is done. This is perfect when working with OS threads (the OS
 scheduler does all the work for you!), but if you have lightweight threads you instead want to
 replace the lightweight thread running on the OS thread with a different one.</p>
 
 <p>Instead, you use non-blocking I/O, where the thread queues a request for I/O with the OS and continues
 execution. The I/O request is executed at some later point by the kernel. The thread then needs to ask the
-OS &ldquo;Is this I/O request ready yet?&rdquo; before looking at the result of the I/O.</p>
+OS “Is this I/O request ready yet?” before looking at the result of the I/O.</p>
 
-<p>Of course, repeatedly asking the OS if it&rsquo;s done can be tedious and consume resources. This is why
+<p>Of course, repeatedly asking the OS if it’s done can be tedious and consume resources. This is why
 there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code>epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
 and then ask the OS to wake up your thread when <em>any</em> of these completes. So you can have a scheduler
-thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there&rsquo;s nothing
+thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there’s nothing
 else happening it can itself go to sleep with an <code>epoll</code> call until the OS wakes it up (when one of the I/O
 requests completes).</p>
 
 <p>(The exact mechanism involved here is probably more complex)</p>
 
 <p>So, bringing this to Rust, Rust has the <a href="https://github.com/carllerche/mio">mio</a> library, which is a platform-agnostic
-wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It&rsquo;s a building block; and while
-those used to directly using <code>epoll</code> in C may find it helpful, it doesn&rsquo;t provide a nice programming
+wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It’s a building block; and while
+those used to directly using <code>epoll</code> in C may find it helpful, it doesn’t provide a nice programming
 model like Go does. But we can get there.</p>
 
-<h2>Futures</h2>
+<h2 id="futures">Futures</h2>
 
 <p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code>Future</code></a> is the promise of eventually having a value
 (in fact, in Javascript these are called <code>Promise</code>s).</p>
 
 <p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back  (actually, a
-<code>Stream</code>, which is like a future but for a sequence of values). This <code>Future</code> won&rsquo;t contain the
-response <em>yet</em>, but will know when it&rsquo;s ready. You can <code>wait()</code> on a <code>Future</code>, which will block
-until you have a result, and you can also <code>poll()</code> it, asking it if it&rsquo;s done yet (it will give you
+<code>Stream</code>, which is like a future but for a sequence of values). This <code>Future</code> won’t contain the
+response <em>yet</em>, but will know when it’s ready. You can <code>wait()</code> on a <code>Future</code>, which will block
+until you have a result, and you can also <code>poll()</code> it, asking it if it’s done yet (it will give you
 the result if it is).</p>
 
 <p>Futures can also be chained, so you can do stuff like <code>future.then(|result| process(result))</code>.
@@ -764,24 +762,24 @@ call returns a struct wrapping around the inner future, which may contain an add
 Closures themselves carry their references and data with them, so this really ends up being
 very similar to a tiny stack!</p>
 
-<h2>🗼 Tokio 🗼</h2>
+<h2 id="-tokio-">🗼 Tokio 🗼</h2>
 
-<p>Tokio&rsquo;s essentially a nice wrapper around mio that uses futures. Tokio has a core
+<p>Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
+are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
-You have to manually set up the Tokio event loop (the &ldquo;scheduler&rdquo;), but once you do
+You have to manually set up the Tokio event loop (the “scheduler”), but once you do
 you can feed it tasks which intermittently do I/O, and the event loop takes
 care of swapping over to a new task when one is blocked on I/O. A crucial difference is
 that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads
 for execution. However, you can offload CPU-critical tasks onto other OS threads and
-use channels to coordinate so this isn&rsquo;t that big a deal.</p>
+use channels to coordinate so this isn’t that big a deal.</p>
 
-<p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn&rsquo;t look so pretty. For the following Go code:</p>
+<p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn’t look so pretty. For the following Go code:</p>
 
-<pre><code class="go">// error handling ignored for simplicity
+<pre><code class="language-go">// error handling ignored for simplicity
 
 func foo(...) ReturnType {
     data := doIo()
@@ -795,7 +793,7 @@ func foo(...) ReturnType {
 
 <p>The Rust code will look something like</p>
 
-<pre><code class="rust">// error handling ignored for simplicity
+<pre><code class="language-rust">// error handling ignored for simplicity
 
 fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
     do_io().and_then(|data| do_more_io(compute(data)))
@@ -808,13 +806,13 @@ fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
 into a kind of state machine. Ew.</p>
 
-<h2>Generators and async/await</h2>
+<h2 id="generators-and-asyncawait">Generators and async/await</h2>
 
 <p>This is where generators (also called coroutines) come in.</p>
 
-<p><a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html">Generators</a> are an experimental feature in Rust. Here&rsquo;s an example:</p>
+<p><a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html">Generators</a> are an experimental feature in Rust. Here’s an example:</p>
 
-<pre><code class="rust">let mut generator = || {
+<pre><code class="language-rust">let mut generator = || {
     let i = 0;
     loop {
         yield i;
@@ -827,20 +825,20 @@ assert_eq!(generator.resume(), GeneratorState::Yielded(2));
 </code></pre>
 
 <p>Functions are things which execute a task and return once. On the other hand, generators
-return multiple times; they pause execution to &ldquo;yield&rdquo; some data, and can be resumed
-at which point they will run until the next yield. While my example doesn&rsquo;t show this, generators
+return multiple times; they pause execution to “yield” some data, and can be resumed
+at which point they will run until the next yield. While my example doesn’t show this, generators
 can also finish executing like regular functions.</p>
 
 <p>Closures in Rust are
 <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code>Fn</code> traits to make it callable</a>.</p>
 
-<p>Generators are similar, except they implement the <code>Generator</code> trait<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>, and usually store an enum representing various states.</p>
+<p>Generators are similar, except they implement the <code>Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
 
 <p>The <a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines">unstable book</a> has some examples on what the generator state machine enum will look like.</p>
 
 <p>This is much closer to what we were looking for! Now our code can look like this:</p>
 
-<pre><code class="rust">fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
+<pre><code class="language-rust">fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
     let generator = || {
         let mut future = do_io();
         let data;
@@ -869,15 +867,15 @@ finishes executing.</p>
 <p>But wait, this is even <em>more</em> ugly! What was the point of converting our relatively
 clean callback-chaining code into this mess?</p>
 
-<p>Well, if you look at it, this code now looks <em>linear</em>. We&rsquo;ve converted our callback
+<p>Well, if you look at it, this code now looks <em>linear</em>. We’ve converted our callback
 code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate
 and the <code>futurify</code> function and is overall not very neat.</p>
 
-<p>And that&rsquo;s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code>futures-await</code> is a procedural macro that
+<p>And that’s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code>futures-await</code> is a procedural macro that
 does the last-mile work of packaging away this boilerplate. It essentially lets you write
 the above function as</p>
 
-<pre><code class="rust">#[async]
+<pre><code class="language-rust">#[async]
 fn foo(...) -&gt; Result&lt;ReturnType, ErrorType&gt; {
     let data = await!(do_io());
     let result = compute(data);
@@ -889,42 +887,44 @@ fn foo(...) -&gt; Result&lt;ReturnType, ErrorType&gt; {
 await calls are basically providing the same function as the interruption points that Go code
 gets implicitly.</p>
 
-<p>And, of course, since it&rsquo;s using a generator under the hood, you can loop and branch and do whatever
+<p>And, of course, since it’s using a generator under the hood, you can loop and branch and do whatever
 else you want as normal, and the code will still be clean.</p>
 
-<h2>Tying it together</h2>
+<h2 id="tying-it-together">Tying it together</h2>
 
 <p>So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
 you can neatly write these future chains, and <code>await</code> provides explicit interruption points on each I/O operation.
-Tokio provides an event loop &ldquo;scheduler&rdquo; abstraction, which you can feed async functions to, and under the hood it
+Tokio provides an event loop “scheduler” abstraction, which you can feed async functions to, and under the hood it
 uses mio to abstract over low level non-blocking I/O primitives.</p>
 
-<p>These are components which can be used independently &mdash; you can use tokio with futures without
+<p>These are components which can be used independently — you can use tokio with futures without
 using async/await. You can use async/await without using Tokio. For example, I think this would be
-useful for Servo&rsquo;s networking stack. It doesn&rsquo;t need to do <em>much</em> parallel I/O (not at the order
-of thousands of threads), so it can just use multiplexed OS threads. However, we&rsquo;d still want
+useful for Servo’s networking stack. It doesn’t need to do <em>much</em> parallel I/O (not at the order
+of thousands of threads), so it can just use multiplexed OS threads. However, we’d still want
 to pool threads and pipeline data well, and async/await would help here.</p>
 
 <p>Put together, all these components get something almost as clean as the Go stuff, with a little more
 explicit boilerplate. Because generators (and thus async/await) play nice with the borrow checker
-(they&rsquo;re just enum state machines under the hood), Rust&rsquo;s safety guarantees are all still in play,
-and we get to have &ldquo;fearless concurrency&rdquo; for programs having a huge quantity of I/O bound tasks!</p>
+(they’re just enum state machines under the hood), Rust’s safety guarantees are all still in play,
+and we get to have “fearless concurrency” for programs having a huge quantity of I/O bound tasks!</p>
 
 <p><em>Thanks to Arshia Mufti, Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Note that this isn&rsquo;t necessarily true for <em>all</em> network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Lightweight threading is also often called M:N threading (also &ldquo;green threading&rdquo;)<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>In general future combinators aren&rsquo;t really aware of tokio or even I/O, so there&rsquo;s no easy way to ask a combinator &ldquo;hey, what I/O operation are you waiting for?&rdquo;. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code>Waker</code> concept that handles passing things up the stack</em>)<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>The <code>Generator</code> trait has a <code>resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Note that this isn’t necessarily true for <em>all</em> network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Lightweight threading is also often called M:N threading (also “green threading”) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code>Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>The <code>Generator</code> trait has a <code>resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -937,11 +937,11 @@ and we get to have &ldquo;fearless concurrency&rdquo; for programs having a huge
 
 <p>This is mine.</p>
 
-<h2>Overall focus</h2>
+<h2 id="overall-focus">Overall focus</h2>
 
 <p>I think 2017 was a great year for Rust. Near the beginning of the year, after custom derive
-and a bunch of things stabilized, I had a strong feeling that Rust was &ldquo;complete&rdquo;. Not really &ldquo;finished&rdquo;,
-there&rsquo;s still tons of stuff to improve, but this was the first time stable Rust was the language
+and a bunch of things stabilized, I had a strong feeling that Rust was “complete”. Not really “finished”,
+there’s still tons of stuff to improve, but this was the first time stable Rust was the language
 I wanted it to be, and was something I could recommend for most kinds of work without reservations.</p>
 
 <p>I think this is a good signal to wind down the frightening pace of new features Rust has been getting.
@@ -953,74 +953,75 @@ we have, implementing all the things, and improving our approachability as a lan
 
 <p>Basically, I want to see this as an extended impl period.</p>
 
-<p>This doesn&rsquo;t mean I&rsquo;m looking for a moratorium on RFCs, really. Hell, in the past few days I&rsquo;ve posted
-one pre-pre-RFC<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, one pre-RFC, and one RFC (from the pre-RFC). I&rsquo;m mostly looking for <em>prioritizing</em> impl
+<p>This doesn’t mean I’m looking for a moratorium on RFCs, really. Hell, in the past few days I’ve posted
+one pre-pre-RFC<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, one pre-RFC, and one RFC (from the pre-RFC). I’m mostly looking for <em>prioritizing</em> impl
 work over designing new things, but still having <em>some</em> focus on design.</p>
 
-<h2>Language</h2>
+<h2 id="language">Language</h2>
 
-<p>I think Rust still has some &ldquo;missing bits&rdquo; which make it hard to justify for some use cases. Rust&rsquo;s
-async story is being fleshed out. We don&rsquo;t yet have stable SIMD or stable inline ASM. The microcontroller
-story is kinda iffy. RLS/clippy need nightly. I&rsquo;d like to see these crystallize and stabilize this year.</p>
+<p>I think Rust still has some “missing bits” which make it hard to justify for some use cases. Rust’s
+async story is being fleshed out. We don’t yet have stable SIMD or stable inline ASM. The microcontroller
+story is kinda iffy. RLS/clippy need nightly. I’d like to see these crystallize and stabilize this year.</p>
 
-<p>I think this year we need to continue to take a critical look at Rust&rsquo;s ergonomics. Last year the
-ergonomics initiative was really good for Rust, and I&rsquo;d like to see more of that. This is kind of at
-odds with my &ldquo;focus on polishing Rust&rdquo; statement, but fixing ergonomics is not just new features. It&rsquo;s
+<p>I think this year we need to continue to take a critical look at Rust’s ergonomics. Last year the
+ergonomics initiative was really good for Rust, and I’d like to see more of that. This is kind of at
+odds with my “focus on polishing Rust” statement, but fixing ergonomics is not just new features. It’s
 also about figuring out barriers in Rust, polishing mental models, improving docs/diagnostics, and in
-general figuring out how to best present Rust&rsquo;s features. Starting dialogues about confusing bits of
+general figuring out how to best present Rust’s features. Starting dialogues about confusing bits of
 the language and figuring out the best mental model to present them with is something we should
 continue doing. Sometimes this may need new features, indeed, but not always. We must continue
 to take a critical look at how our language presents itself to newcomers.</p>
 
-<h2>Community</h2>
+<h2 id="community">Community</h2>
 
-<p>I&rsquo;d like to see a stronger focus on mentoring. Mentoring on rustc, mentoring on major libraries, mentoring on
-Rust tooling, mentoring everywhere. This includes not just the mentors, but the associated infrastructure &ndash;
+<p>I’d like to see a stronger focus on mentoring. Mentoring on rustc, mentoring on major libraries, mentoring on
+Rust tooling, mentoring everywhere. This includes not just the mentors, but the associated infrastructure –
 contribution docs, sites like <a href="http://starters.servo.org/">servo-starters</a> and <a href="https://www.rustaceans.org/findwork">findwork</a>, and similar tooling.</p>
 
-<p>I&rsquo;m also hoping for more companies to invest back into Rust. This year <a href="http://buoyant.io/">Buoyant</a> became pretty well
+<p>I’m also hoping for more companies to invest back into Rust. This year <a href="http://buoyant.io/">Buoyant</a> became pretty well
 known within the community, and many of their employees are paid to work on various important parts
 of the Rust ecosystem. There are also multiple consulting groups that contribute to the ecosystem.
-It&rsquo;s nice to see that &ldquo;paid to work on Rust&rdquo; is no longer limited to Mozilla, and this is crucial
+It’s nice to see that “paid to work on Rust” is no longer limited to Mozilla, and this is crucial
 for the health of the language. I hope this trend continues.</p>
 
 <p>Finally, I want to see more companies <em>talk</em> about Rust. Success stories are really nice to hear.
-I&rsquo;ve heard many amazing success stories this year, but a lot of them are things which can&rsquo;t be shared.</p>
+I’ve heard many amazing success stories this year, but a lot of them are things which can’t be shared.</p>
 
-<h2>Governance</h2>
+<h2 id="governance">Governance</h2>
 
 <p>Last year we started seeing the limits of the RFC process. Large RFCs were stressful for both the RFC authors
 and participating community members, and rather opaque for newer community members wishing to participate.
-Alternative models have been discussed; I&rsquo;d like to see more movement on this front.</p>
+Alternative models have been discussed; I’d like to see more movement on this front.</p>
 
-<p>I&rsquo;d also like to grow the moderation team; it is currently rather small and doesn&rsquo;t have the capacity to handle
+<p>I’d also like to grow the moderation team; it is currently rather small and doesn’t have the capacity to handle
 incidents in a timely fashion.</p>
 
-<h2>Docs / Learning</h2>
+<h2 id="docs--learning">Docs / Learning</h2>
 
-<p>I&rsquo;d like to see a focus on improving Rust for folks who learn the language by <em>trying things</em> over reading books <sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>&nbsp;<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+<p>I’d like to see a focus on improving Rust for folks who learn the language by <em>trying things</em> over reading books <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>.</p>
 
 <p>This means better diagnostics, better alternative resources like rustbyexample, etc. Improving mentorship helps here
 as well.</p>
 
-<p>Of course, I&rsquo;d like to see our normal docs work continue to happen.</p>
+<p>Of course, I’d like to see our normal docs work continue to happen.</p>
 
 <hr />
 
-<p>I&rsquo;m overall really excited for 2018. I think we&rsquo;re doing great on most fronts so far, and if we
-maintain the momentum we&rsquo;ll have an even-more-awesome Rust by the end of this year!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>This isn&rsquo;t a &ldquo;pre rfc&rdquo; because I&rsquo;ve written it as a much looser sketch of the problem and a solution<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>There is literally no programming language I&rsquo;ve personally learned through a book or formal teaching. I&rsquo;ve often read books after I know a language because it&rsquo;s fun and instructive, but it&rsquo;s always started out as &ldquo;learn extreme basics&rdquo; followed by &ldquo;look at existing code, tweak stuff, and write your own code&rdquo;.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Back in <em>my</em> day Rust didn&rsquo;t have a book, just this tiny thing called &ldquo;The Tutorial&rdquo;. <em>grouches incessantly</em><a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p>I’m overall really excited for 2018. I think we’re doing great on most fronts so far, and if we
+maintain the momentum we’ll have an even-more-awesome Rust by the end of this year!</p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>This isn’t a “pre rfc” because I’ve written it as a much looser sketch of the problem and a solution <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>There is literally no programming language I’ve personally learned through a book or formal teaching. I’ve often read books after I know a language because it’s fun and instructive, but it’s always started out as “learn extreme basics” followed by “look at existing code, tweak stuff, and write your own code”. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Back in <em>my</em> day Rust didn’t have a book, just this tiny thing called “The Tutorial”. <em>grouches incessantly</em> <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   

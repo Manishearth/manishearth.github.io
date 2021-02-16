@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Unicode | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/unicode/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-16T02:06:43+00:00</updated>
+  <updated>2021-02-16T06:17:04+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -18,234 +18,234 @@
     <link href="http://manishearth.github.io/blog/2018/02/15/picking-apart-the-crashing-ios-string/"/>
     <updated>2018-02-15T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2018/02/15/picking-apart-the-crashing-ios-string</id>
-    <content type="html"><![CDATA[<p>So there&rsquo;s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
+    <content type="html"><![CDATA[<p>So there’s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
 iOS. Basically, if you put this string in any system text box (and other places), it crashes that
-process. I&rsquo;ve been testing it by copy-pasting characters into Spotlight so I don&rsquo;t end up crashing
+process. I’ve been testing it by copy-pasting characters into Spotlight so I don’t end up crashing
 my browser.</p>
 
 <p>The original sequence is U+0C1C U+0C4D U+0C1E U+200C U+0C3E, which is a sequence of Telugu
-characters: the consonant ja (జ), a virama (&#8239;్&#8239;), the consonant nya (ఞ), a zero-width non-joiner, and
-the vowel aa (&#8239;ా).</p>
+characters: the consonant ja (జ), a virama ( ్ ), the consonant nya (ఞ), a zero-width non-joiner, and
+the vowel aa ( ా).</p>
 
-<p>I was pretty interested in what made this sequence &ldquo;special&rdquo;, and started investigating.</p>
+<p>I was pretty interested in what made this sequence “special”, and started investigating.</p>
 
 <p>So first when looking into this, I thought that the &lt;ja, virama, nya&gt; sequence was the culprit.
 That sequence forms a special ligature in many Indic scripts (ज्ञ in Devanagari) which is often
-considered a letter of its own. However, the ligature for Telugu doesn&rsquo;t seem very &ldquo;special&rdquo;.</p>
+considered a letter of its own. However, the ligature for Telugu doesn’t seem very “special”.</p>
 
 <p>Also, from some experimentation, this bug seemed to occur for <em>any</em> pair of Telugu consonants with
-a vowel, as long as the vowel is not &nbsp;&#8239;ై (ai). Huh.</p>
+a vowel, as long as the vowel is not   ై (ai). Huh.</p>
 
 <p>The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
-pretty common sequence in any Indic script; but ZWNJ before a vowel isn&rsquo;t very useful for most
-scripts (except for Bengali and Oriya, but I&rsquo;ll get to that).</p>
+pretty common sequence in any Indic script; but ZWNJ before a vowel isn’t very useful for most
+scripts (except for Bengali and Oriya, but I’ll get to that).</p>
 
 <p>And then I saw that <a href="https://twitter.com/FakeUnicode/status/963300865762254848">there was a sequence in Bengali</a> that also crashed.</p>
 
-<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant &ldquo;so&rdquo; (স), a virama (&#8239;্&#8239;),
-the consonant &ldquo;ro&rdquo; (র), a ZWNJ, and vowel u (&nbsp;&#8239;ু).</p>
+<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant “so” (স), a virama ( ্ ),
+the consonant “ro” (র), a ZWNJ, and vowel u (  ু).</p>
 
-<p>Before we get too into this, let&rsquo;s first take a little detour to learn how Indic scripts work:</p>
+<p>Before we get too into this, let’s first take a little detour to learn how Indic scripts work:</p>
 
-<h2>Indic scripts and consonant clusters</h2>
+<h2 id="indic-scripts-and-consonant-clusters">Indic scripts and consonant clusters</h2>
 
-<p>Indic scripts are <em>abugidas</em>; which means that their &ldquo;letters&rdquo; are consonants, which you
+<p>Indic scripts are <em>abugidas</em>; which means that their “letters” are consonants, which you
 can attach diacritics to to change the vowel. By default, consonants have a base vowel.
-So, for example, क is &ldquo;kuh&rdquo; (kə, often transcribed as &ldquo;ka&rdquo;), but I can change the vowel to make it के
-(the &ldquo;ka&rdquo; in &ldquo;okay&rdquo;) का (&ldquo;kaa&rdquo;, like &ldquo;car&rdquo;).</p>
+So, for example, क is “kuh” (kə, often transcribed as “ka”), but I can change the vowel to make it के
+(the “ka” in “okay”) का (“kaa”, like “car”).</p>
 
-<p>Usually, the default vowel is the ə sound, though not always (in Bengali it&rsquo;s more of an o sound).</p>
+<p>Usually, the default vowel is the ə sound, though not always (in Bengali it’s more of an o sound).</p>
 
-<p>Because of the &ldquo;default&rdquo; vowel, you need a way to combine consonants. For example, if you wished to
-write the word &ldquo;ski&rdquo;, you can&rsquo;t write it as स + की (sa + ki = &ldquo;saki&rdquo;), you must write it as स्की.
-What&rsquo;s happened here is that the स got its vowel &ldquo;killed&rdquo;, and got tacked on to the की to form a
+<p>Because of the “default” vowel, you need a way to combine consonants. For example, if you wished to
+write the word “ski”, you can’t write it as स + की (sa + ki = “saki”), you must write it as स्की.
+What’s happened here is that the स got its vowel “killed”, and got tacked on to the की to form a
 consonant cluster ligature.</p>
 
-<p>You can <em>also</em> write this as स्&zwnj;की . That little tail you see on the स is known as a &ldquo;virama&rdquo;;
-it basically means &ldquo;remove this vowel&rdquo;. Explicit viramas are sometimes used when there&rsquo;s no easy way
-to form a ligature, e.g. in ङ्&zwnj;ठ because there is no simple way to ligatureify ङ into ठ. Some scripts
-also <em>prefer</em> explicit viramas, e.g. &ldquo;ski&rdquo; in Malayalam is written as സ്കീ, where the little crescent
+<p>You can <em>also</em> write this as स्‌की . That little tail you see on the स is known as a “virama”;
+it basically means “remove this vowel”. Explicit viramas are sometimes used when there’s no easy way
+to form a ligature, e.g. in ङ्‌ठ because there is no simple way to ligatureify ङ into ठ. Some scripts
+also <em>prefer</em> explicit viramas, e.g. “ski” in Malayalam is written as സ്കീ, where the little crescent
 is the explicit virama.</p>
 
 <p>In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
-&lt;स, &#8239;्, क, &#8239;ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
+&lt;स,  ्, क,  ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
 as a ligature, otherwise it will use an explicit virama.</p>
 
 <p>For Devanagari and Bengali, <em>usually</em>, in a consonant cluster the first consonant is munged a bit and the second consonant stays intact.
-There are exceptions &ndash; sometimes they&rsquo;ll form an entirely new glyph (क + ष = क्ष), and sometimes both
+There are exceptions – sometimes they’ll form an entirely new glyph (क + ष = क्ष), and sometimes both
 glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = द्ब). Those last ones should look like this in conjunct form:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/conjuncts.png" width="200" ></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/conjuncts.png" width="200" /></p>
 
-<h2>Investigating the Bengali case</h2>
+<h2 id="investigating-the-bengali-case">Investigating the Bengali case</h2>
 
 <p>Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
-consonant is র (&ldquo;ro&rdquo;). However, I can trigger it for any choice of the first consonant or vowel, except
-when the vowel is &#8239;ো (o) or &#8239;ৌ (au).</p>
+consonant is র (“ro”). However, I can trigger it for any choice of the first consonant or vowel, except
+when the vowel is  ো (o) or  ৌ (au).</p>
 
 <p>Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
-it looks like र (&ldquo;ra&rdquo;). However, it does all kinds of things when forming a cluster. If you&rsquo;re having it
+it looks like र (“ra”). However, it does all kinds of things when forming a cluster. If you’re having it
 precede another consonant in a cluster, it forms a little feather-like stroke, like in र्क (rka). In Marathi,
-that stroke can also look like a tusk, as in र्&zwj;क. As a suffix consonant, it can provide a little
-&ldquo;extra leg&rdquo;, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
+that stroke can also look like a tusk, as in र्‍क. As a suffix consonant, it can provide a little
+“extra leg”, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
 ठ्र (thra).</p>
 
 <p>Basically, while most consonants retain some of their form when put inside a cluster, र does not. And
-a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster &ndash; as I mentioned
+a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster – as I mentioned
 before, for most consonant clusters the second consonant stays intact. While there are exceptions, they are usually
 specific to the cluster; it is only र for which this happens for all clusters.</p>
 
-<p>It&rsquo;s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
+<p>It’s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
 প + র (po + ro) gives প্র (pro).</p>
 
-<p>But it&rsquo;s not just র that does this in Bengali, the consonant &ldquo;jo&rdquo; does as well. প + য (po + jo) forms প্য (pjo),
-and the য is transformed into a wavy line called a &ldquo;jophola&rdquo;.</p>
+<p>But it’s not just র that does this in Bengali, the consonant “jo” does as well. প + য (po + jo) forms প্য (pjo),
+and the য is transformed into a wavy line called a “jophola”.</p>
 
-<p>So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
-So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#8239;ো or &#8239;ৌ.</p>
+<p>So I tried it with য  — , and it turns out that the Bengali crash occurs for  য as well!
+So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not   ো or  ৌ.</p>
 
-<h2>Suffix-joining consonants</h2>
+<h2 id="suffix-joining-consonants">Suffix-joining consonants</h2>
 
-<p>So we&rsquo;re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
+<p>So we’re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
 combines with the first consonant without modifying its form much.</p>
 
 <p>In fact, this is the case for Telugu as well! Consonant clusters in Telugu are usually formed by preserving the
 original consonant, and tacking the second consonant on below!</p>
 
-<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn&rsquo;t
+<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn’t
 really modified, but the second is.</p>
 
 <p>From this, we can guess that it will also occur for Devanagari with र. Indeed it does! U+0915 U+094D U+0930 U+200C U+093E, that is,
-&lt;क, &#8239;्, र, zwnj, &#8239;ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
+&lt;क,  ्, र, zwnj,  ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
 
-<p>But this isn&rsquo;t really the whole story, is it? For example, the crash does occur for &ldquo;kro&rdquo; + zwnj + vowel in Bengali,
-and in &ldquo;kro&rdquo; (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
-the crash doesn&rsquo;t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
+<p>But this isn’t really the whole story, is it? For example, the crash does occur for “kro” + zwnj + vowel in Bengali,
+and in “kro” (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
+the crash doesn’t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
 
 <p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
-form &ldquo;suffix joining consonants&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> (a term I made up) when preceded by a virama. This seems to
+form “suffix joining consonants”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> (a term I made up) when preceded by a virama. This seems to
 correspond to the <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_pt#tag-pstf"><code>pstf</code> OpenType feature</a>, as well as <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_uz#vatu"><code>vatu</code></a>.</p>
 
-<p>For example, the sequence virama + क gives &nbsp;&#8239;्क, i.e. it renders a virama with a placeholder followed by a क.</p>
+<p>For example, the sequence virama + क gives   ्क, i.e. it renders a virama with a placeholder followed by a क.</p>
 
-<p>But, for र, virama + र renders &#8239;्र, which for me looks like this:</p>
+<p>But, for र, virama + र renders  ्र, which for me looks like this:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/virama-ra.png" width="200" ></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-ra.png" width="200" /></p>
 
-<p>In fact, this is the case for the other consonants as well. For me, &#8239;्र &#8239;্র &#8239;্য &#8239;్ఞ &#8239;్క
+<p>In fact, this is the case for the other consonants as well. For me,  ्र  ্র  ্য  ్ఞ  ్క
 (Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
-all render as &ldquo;suffix joining consonants&rdquo;:</p>
+all render as “suffix joining consonants”:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/virama-consonant.png" width="200" ></p>
+<p><img class="center" src="http://manishearth.github.io/images/post/unicode-crash/virama-consonant.png" width="200" /></p>
 
 <p>(This is true for all Telugu consonants, not just the ones listed).</p>
 
 <p>An interesting bit is that the crash does not occur for &lt;र, virama, र, zwnj, vowel&gt;, because र-virama-र
 uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ or য. Because the virama
-is &ldquo;stickier&rdquo; to the left in these cases, it doesn&rsquo;t cause a crash. (h/t <a href="https://github.com/hackbunny">hackbunny</a> for discovering this
+is “stickier” to the left in these cases, it doesn’t cause a crash. (h/t <a href="https://github.com/hackbunny">hackbunny</a> for discovering this
 using a <a href="https://github.com/hackbunny/viramarama">script</a> to enumerate all cases).</p>
 
-<p>Kannada <em>also</em> has &ldquo;suffix joining consonants&rdquo;, but for some reason I cannot trigger the crash with it. Ya in Gurmukhi
+<p>Kannada <em>also</em> has “suffix joining consonants”, but for some reason I cannot trigger the crash with it. Ya in Gurmukhi
 is also suffix-joining.</p>
 
-<h2>The ZWNJ</h2>
+<h2 id="the-zwnj">The ZWNJ</h2>
 
-<p>The ZWNJ is curious. The crash doesn&rsquo;t happen without it, but as I mentioned before a ZWNJ before a vowel
-doesn&rsquo;t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
-virama if used after the virama (I used it to write स्&zwnj;की in this post), however that&rsquo;s not how it&rsquo;s being used here.</p>
+<p>The ZWNJ is curious. The crash doesn’t happen without it, but as I mentioned before a ZWNJ before a vowel
+doesn’t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
+virama if used after the virama (I used it to write स्‌की in this post), however that’s not how it’s being used here.</p>
 
 <p>In Bengali and Oriya specifically, a ZWNJ can be used to force a different vowel form when used before a vowel
-(e.g. রু vs র&zwnj;ু), however this bug seems to apply to vowels for which there is only one form, and this bug
-also applies to other scripts where this isn&rsquo;t the case anyway.</p>
+(e.g. রু vs র‌ু), however this bug seems to apply to vowels for which there is only one form, and this bug
+also applies to other scripts where this isn’t the case anyway.</p>
 
-<p>The exception vowels are interesting. They&rsquo;re basically all vowels that are made up of <em>two</em> glyph components. Philippe Verdy
+<p>The exception vowels are interesting. They’re basically all vowels that are made up of <em>two</em> glyph components. Philippe Verdy
 points out:</p>
 
-<blockquote><p>And why this bug does not occur with some vowels is because these are vowels in two parts,
+<blockquote>
+  <p>And why this bug does not occur with some vowels is because these are vowels in two parts,
 that are first decomposed into two separate glyphs reordered in the buffer of glyphs, while
 other vowels do not need this prior mapping and keep their initial direct mapping from their
 codepoints in fonts, which means that this has to do to the way the ZWNJ looks for the glyphs
-of the vowels in the glyphs buffer and not in the initial codepoints buffer: there&rsquo;s some desynchronization,
+of the vowels in the glyphs buffer and not in the initial codepoints buffer: there’s some desynchronization,
 and more probably an uninitialized data field (for the lookup made in handling ZWNJ) if no vowel decomposition was done
 (the same data field is correctly initialized when it is the first consonnant which takes an alternate form before
-a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.</p></blockquote>
+a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.</p>
+</blockquote>
 
-<h2>Generalizing</h2>
+<h2 id="generalizing">Generalizing</h2>
 
 <p>So, ultimately, the full set of cases that cause the crash are:</p>
 
 <p>Any sequence <code>&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
 
 <ul>
-<li><code>consonant2</code> is suffix-joining (<code>pstf</code>/<code>vatu</code>) &ndash; i.e. र, র, য, ৰ, and all Telugu consonants</li>
-<li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
-<li><code>vowel</code> does not have two glyph components, i.e. it is not &nbsp;&#8239;ై, &nbsp;&#8239;ো, or &nbsp;&#8239;ৌ</li>
+  <li><code>consonant2</code> is suffix-joining (<code>pstf</code>/<code>vatu</code>) – i.e. र, র, য, ৰ, and all Telugu consonants</li>
+  <li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
+  <li><code>vowel</code> does not have two glyph components, i.e. it is not   ై,   ো, or   ৌ</li>
 </ul>
-
 
 <p>This leaves one question open:</p>
 
-<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;?</p>
+<p>Why doesn’t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a “coeng”?</p>
 
-<h2>Are these valid strings?</h2>
+<h2 id="are-these-valid-strings">Are these valid strings?</h2>
 
-<p>A recurring question I&rsquo;m getting is if these strings are valid in the language, or unicode gibberish
+<p>A recurring question I’m getting is if these strings are valid in the language, or unicode gibberish
 like Zalgo text. Breaking it down:</p>
 
 <ul>
-<li>All of the <em>rendered</em> glyphs are valid. The original Telugu one is the root of the word for
-&ldquo;knowledge&rdquo; (and I&rsquo;ve taken to calling this bug &ldquo;forbidden knowledge&rdquo; for that reason).</li>
-<li>In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
+  <li>All of the <em>rendered</em> glyphs are valid. The original Telugu one is the root of the word for
+“knowledge” (and I’ve taken to calling this bug “forbidden knowledge” for that reason).</li>
+  <li>In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
 should not be there, and one would not expect it in typical text.</li>
-<li>In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
+  <li>In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
 mentioned in the Unicode spec. However, it seems rare for native speakers to use this.</li>
-<li>In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
+  <li>In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
 over a ligature. That is not the position ZWNJ is used here, but it gives a hint that this
 might have been a mistype. Doing this is <em>also</em> rare at least for Devanagari (and I believe
 for the other two scripts as well)</li>
-<li>Android has an explicit key for ZWNJ on its keyboards for these languages<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, right next to the spacebar. iOS has this as
+  <li>Android has an explicit key for ZWNJ on its keyboards for these languages<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, right next to the spacebar. iOS has this as
 well on the long-press of the virama key. <em>Very</em> easy to mistype, at least for Android.</li>
 </ul>
 
-
 <p>So while the crashing strings are usually invalid, and when not, very rare, they are easy enough to mistype.</p>
 
-<p>An example by <a href="https://twitter.com/FakeUnicode">@FakeUnicode</a> was the string &ldquo;For/k&rdquo; (or &ldquo;Foŕk&rdquo;, if accents were easier to type). A
-slash isn&rsquo;t something you&rsquo;d normally type there, and the produced string is gibberish, but it&rsquo;s easy enough to type
+<p>An example by <a href="https://twitter.com/FakeUnicode">@FakeUnicode</a> was the string “For/k” (or “Foŕk”, if accents were easier to type). A
+slash isn’t something you’d normally type there, and the produced string is gibberish, but it’s easy enough to type
 by accident.</p>
 
-<p>Except of course that the mistake in &ldquo;For/k&rdquo;/&ldquo;Foŕk&rdquo; is visually obvious and would be fixed; this
-isn&rsquo;t the case for most of the crashing strings.</p>
+<p>Except of course that the mistake in “For/k”/”Foŕk” is visually obvious and would be fixed; this
+isn’t the case for most of the crashing strings.</p>
 
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
-<p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
-guess is that the &ldquo;affinity&rdquo; of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
-viramas into thinking the ZWNJ applies to the virama (it doesn&rsquo;t, there&rsquo;s a consonant in between), and this leads to some numbers
-not matching up and causing a buffer overflow or something. Philippe&rsquo;s diagnosis of the vowel situation matches up with this.</p>
+<p>I don’t really have <em>one</em> guess as to what’s going on here – I’d love to see what people think – but my current
+guess is that the “affinity” of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
+viramas into thinking the ZWNJ applies to the virama (it doesn’t, there’s a consonant in between), and this leads to some numbers
+not matching up and causing a buffer overflow or something. Philippe’s diagnosis of the vowel situation matches up with this.</p>
 
 <p>An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.</p>
 
 <p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which
-means that either the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m
+means that either the crash isn’t deterministic, or it occurs in some process <em>after</em> rendering. I’m
 not sure what to think of either. Looking at the backtraces, the crash seems to occur in different
-places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncovered later.</p>
+places, so it’s likely that it’s memory corruption that gets uncovered later.</p>
 
-<p>I&rsquo;d love to hear if folks have further insight into this.</p>
+<p>I’d love to hear if folks have further insight into this.</p>
 
 <p>Update: Philippe on the Unicode mailing list has <a href="https://www.unicode.org/mail-arch/unicode-ml/y2018-m02/0103.html">an interesting theory</a></p>
 
-<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that&rsquo;s no fun 😂</small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Philippe Verdy points out that these may be called &ldquo;phala forms&rdquo; at least for Bengali<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>I don&rsquo;t think the Android keyboard <em>needs</em> this key; the keyboard seems very much a dump of &ldquo;what does this unicode block let us do&rdquo;, and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as <em>extremely</em> archaic characters, whilst neglecting more common things like the eyelash reph (which doesn&rsquo;t have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence).<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that’s no fun 😂</small></p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Philippe Verdy points out that these may be called “phala forms” at least for Bengali <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>I don’t think the Android keyboard <em>needs</em> this key; the keyboard seems very much a dump of “what does this unicode block let us do”, and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as <em>extremely</em> archaic characters, whilst neglecting more common things like the eyelash reph (which doesn’t have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence). <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -263,65 +263,65 @@ text so these complexities never come up.</p>
 
 <p>I thought it would be useful to share my personal list of
 <a href="https://twitter.com/ManishEarth/status/810582690906931200">scripts that break our Latin-1 assumptions</a>. This is a list I mentally check against
-whenever I am attempting to reason about text. I check if I&rsquo;m making any assumptions that
+whenever I am attempting to reason about text. I check if I’m making any assumptions that
 break in these scripts. <em>Most</em> of these concepts are independent of Unicode; so any program
 would have to deal with this regardless of encoding.</p>
 
-<p>I again recommend going through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">eevee&rsquo;s post</a>, since it covers many related issues.
+<p>I again recommend going through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">eevee’s post</a>, since it covers many related issues.
 <a href="https://github.com/jagracey/Awesome-Unicode">Awesome-Unicode</a> also has a lot of random tidbits about Unicode.</p>
 
-<p>Anyway, here&rsquo;s the list. Note that a lot of the concepts here exist in scripts other than the
+<p>Anyway, here’s the list. Note that a lot of the concepts here exist in scripts other than the
 ones listed, these are just the scripts <em>I</em> use for comparing.</p>
 
-<h2>Arabic / Hebrew</h2>
+<h2 id="arabic--hebrew">Arabic / Hebrew</h2>
 
 <p>Both Arabic and Hebrew are RTL scripts; they read right-to-left. This may even affect how
 a page is laid out, see the <a href="https://he.wikipedia.org/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99">Hebrew Wikipedia</a>.</p>
 
 <p>They both have a concept of letters changing how they look depending on where they are in the word.
-Hebrew has the &ldquo;sofit&rdquo; letters, which use separate code points. For example, Kaf (כ) should be typed
+Hebrew has the “sofit” letters, which use separate code points. For example, Kaf (כ) should be typed
 as ך at the end of a word. Greek has something similar with the sigma.</p>
 
 <p>In Arabic, the letters can have up to four different forms, depending on whether they start a word,
 end a word, are inside a word, or are used by themselves. These forms can look very different. They
-don&rsquo;t use separate code points for this; however. You can see a list of these forms <a href="https://en.wikipedia.org/wiki/Arabic_alphabet#Table_of_basic_letters">here</a></p>
+don’t use separate code points for this; however. You can see a list of these forms <a href="https://en.wikipedia.org/wiki/Arabic_alphabet#Table_of_basic_letters">here</a></p>
 
-<p>Arabic can get pretty tricky &ndash; the characters have to join up; and in cursive fonts (like those for Nastaliq),
+<p>Arabic can get pretty tricky – the characters have to join up; and in cursive fonts (like those for Nastaliq),
 you get a lot of complex ligatures.</p>
 
 <p>As I mentioned in the last post, U+FDFD (﷽), a ligature representing the Basamala,
 is also a character that breaks a lot of assumptions.</p>
 
-<h2>Indic scripts</h2>
+<h2 id="indic-scripts">Indic scripts</h2>
 
 <p>Indic scripts are <em>abugidas</em>, where you have consonants with vowel modifiers. For example, क is
-&ldquo;kə&rdquo;, where the upside down &ldquo;e&rdquo; is a schwa, something like an &ldquo;uh&rdquo; vowel sound. You can change the
-vowel by adding a diacritic (e.g <code>ा</code>); getting things like का (&ldquo;kaa&rdquo;) को (&ldquo;koh&rdquo;) कू (&ldquo;koo&rdquo;).</p>
+“kə”, where the upside down “e” is a schwa, something like an “uh” vowel sound. You can change the
+vowel by adding a diacritic (e.g <code>ा</code>); getting things like का (“kaa”) को (“koh”) कू (“koo”).</p>
 
-<p>You can also mash together consonants to create consonant clusters. The &ldquo;virama&rdquo; is a vowel-killer
+<p>You can also mash together consonants to create consonant clusters. The “virama” is a vowel-killer
 symbol that removes the inherent schwa vowel. So, <code>क</code> + <code>्</code> becomes <code>क्</code>. This sound itself is
 unpronounceable since क is a stop consonant (vowel-killed consonants can be pronounced for nasal and some other
-consonants though), but you can combine it with another consonant, as <code>क्</code> + <code>र</code> (&ldquo;rə&rdquo;), to get <code>क्र</code>
-(&ldquo;krə&rdquo;). Consonants can be strung up infinitely, and you can stick one or more vowel diacritics
-after that. Usually, you won&rsquo;t see more than two consonants in a cluster, but larger ones are not
+consonants though), but you can combine it with another consonant, as <code>क्</code> + <code>र</code> (“rə”), to get <code>क्र</code>
+(“krə”). Consonants can be strung up infinitely, and you can stick one or more vowel diacritics
+after that. Usually, you won’t see more than two consonants in a cluster, but larger ones are not
 uncommon in Sanskrit (or when writing down some onomatopoeia). They may not get rendered as single
 glyphs, depending on the font.</p>
 
-<p>One thing that crops up is that there&rsquo;s no unambiguous concept of a letter here. There
-is a concept of an &ldquo;akshara&rdquo;, which basically includes the vowel diacritics, and
+<p>One thing that crops up is that there’s no unambiguous concept of a letter here. There
+is a concept of an “akshara”, which basically includes the vowel diacritics, and
 depending on who you talk to may also include consonant clusters. Often things are
-clusters an akshara depending on whether they&rsquo;re drawn with an explicit virama
+clusters an akshara depending on whether they’re drawn with an explicit virama
 or form a single glyph.</p>
 
 <p>In general the nature of the virama as a two-way combining character in Unicode is pretty new.</p>
 
-<h2>Hangul</h2>
+<h2 id="hangul">Hangul</h2>
 
 <p>Korean does its own fun thing when it comes to conjoining characters. Hangul has a concept
-of a &ldquo;syllable block&rdquo;, which is basically a letter. It&rsquo;s made up of a leading consonant,
-medial vowel, and an optional tail consonant. &#x1100;&#x1161;&#x11A8; is an example of
-such a syllable block, and it can be typed as &#x1100; + &#x1161; + &#x11A8;. It can
-also be typed as &#xAC01;, which is a &ldquo;precomposed form&rdquo; (and a single code point).</p>
+of a “syllable block”, which is basically a letter. It’s made up of a leading consonant,
+medial vowel, and an optional tail consonant. 각 is an example of
+such a syllable block, and it can be typed as ᄀ + ᅡ + ᆨ. It can
+also be typed as 각, which is a “precomposed form” (and a single code point).</p>
 
 <p>These characters are examples of combining characters with very specific combining rules. Unlike
 accents or other diacritics, these combining characters will combine with the surrounding characters
@@ -329,14 +329,14 @@ only when the surrounding characters form an L-V-T or L-V syllable block.</p>
 
 <p>As I mentioned in my previous post, apparently syllable blocks with more (adjacent) Ls, Vs, and Ts are
 also valid and used in Old Korean, so the grapheme segmentation algorithm in Unicode considers
-&ldquo;ᄀᄀᄀ&#x1100;&#x1161;&#x11A8;ᆨᆨ&rdquo; to be a single grapheme (<a href="http://www.unicode.org/reports/tr29/#Hangul_Syllable_Boundary_Determination">it explicitly mentions this</a>).
-I&rsquo;m not aware of any fonts which render these as a single syllable block, or if that&rsquo;s even
+“ᄀᄀᄀ각ᆨᆨ” to be a single grapheme (<a href="http://www.unicode.org/reports/tr29/#Hangul_Syllable_Boundary_Determination">it explicitly mentions this</a>).
+I’m not aware of any fonts which render these as a single syllable block, or if that’s even
 a valid thing to do.</p>
 
-<h2>Han scripts</h2>
+<h2 id="han-scripts">Han scripts</h2>
 
-<p>So Chinese (Hanzi), Japanese (Kanji<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>), Korean (Hanja<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>), and Vietnamese (Hán tự, along with Chữ
-Nôm <sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>) all share glyphs, collectively called &ldquo;Han characters&rdquo; (or CJK characters<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>). These
+<p>So Chinese (Hanzi), Japanese (Kanji<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>), Korean (Hanja<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>), and Vietnamese (Hán tự, along with Chữ
+Nôm <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>) all share glyphs, collectively called “Han characters” (or CJK characters<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">4</a></sup>). These
 languages at some point in their history borrowed the Chinese writing system, and made their own
 changes to it to tailor to their needs.</p>
 
@@ -347,17 +347,17 @@ the language used. There are around 80,000 Han ideographs in Unicode right now.<
 
 <p>The concept of ideographs itself breaks some of our Latin-1 assumptions. For example, how
 do you define Levenshtein edit distance for text using Han ideographs? The straight answer is that
-you can&rsquo;t, though if you step back and decide <em>why</em> you need edit distance you might be able
-to find a workaround. For example, if you need it to detect typos, the user&rsquo;s input method
-may help. If it&rsquo;s based on pinyin or bopomofo, you might be able to reverse-convert to the
+you can’t, though if you step back and decide <em>why</em> you need edit distance you might be able
+to find a workaround. For example, if you need it to detect typos, the user’s input method
+may help. If it’s based on pinyin or bopomofo, you might be able to reverse-convert to the
 phonetic script, apply edit distance in that space, and convert back. Or not. I only maintain
-an idle curiosity in these scripts and don&rsquo;t actually use them, so I&rsquo;m not sure how well this would
+an idle curiosity in these scripts and don’t actually use them, so I’m not sure how well this would
 work.</p>
 
 <p>The concept of halfwidth character is a quirk that breaks some assumptions.</p>
 
 <p>In the space of Unicode in particular, all of these scripts are represented by a single set of
-ideographs. This is known as &ldquo;Han unification&rdquo;. This is a pretty controversial issue, but the
+ideographs. This is known as “Han unification”. This is a pretty controversial issue, but the
 end result is that rendering may sometimes be dependent on the language of the text, which
 e.g. in HTML you set with a <code>&lt;span lang=whatever&gt;</code>. <a href="https://en.wikipedia.org/wiki/Han_unification#Examples_of_language-dependent_glyphs">The wiki page</a> has some examples of
 encoding-dependent characters.</p>
@@ -366,48 +366,48 @@ encoding-dependent characters.</p>
 select between variations for a code point that has multiple ways of being drawn. These
 do get used in Han scripts.</p>
 
-<p>While this doesn&rsquo;t affect rendering, Unicode, as a system for <em>describing</em> text,
+<p>While this doesn’t affect rendering, Unicode, as a system for <em>describing</em> text,
 also has a concept of interlinear annotation characters. These are used to represent
-<a href="https://en.wikipedia.org/wiki/Ruby_character">furigana / ruby</a>. Fonts don&rsquo;t render this, but it&rsquo;s useful if you want to represent
+<a href="https://en.wikipedia.org/wiki/Ruby_character">furigana / ruby</a>. Fonts don’t render this, but it’s useful if you want to represent
 text that uses ruby. Similarly, there are <a href="https://en.wikipedia.org/wiki/Chinese_character_description_languages#Ideographic_Description_Sequences">ideographic description sequences</a> which
-can be used to &ldquo;build up&rdquo; glyphs from smaller ones when the glyph can&rsquo;t be encoded in
+can be used to “build up” glyphs from smaller ones when the glyph can’t be encoded in
 Unicode. These, too, are not to be rendered, but can be used when you want to describe
 the existence of a character like <a href="https://en.wikipedia.org/wiki/Biangbiang_noodles#Chinese_character_for_bi.C3.A1ng">biáng</a>. These are not things a programmer
-needs to worry about; I just find them interesting and couldn&rsquo;t resist mentioning them :)</p>
+needs to worry about; I just find them interesting and couldn’t resist mentioning them :)</p>
 
-<p>Japanese speakers haven&rsquo;t completely moved to Unicode; there are a lot of things out there
+<p>Japanese speakers haven’t completely moved to Unicode; there are a lot of things out there
 using Shift-JIS, and IIRC there are valid reasons for that (perhaps Han unification?). This
 is another thing you may have to consider.</p>
 
 <p>Finally, these scripts are often written <em>vertically</em>, top-down. <a href="https://en.wikipedia.org/wiki/Mongolian_script">Mongolian</a>, while
 not being a Han script, is written vertically sideways, which is pretty unique. The
-CSS <a href="https://drafts.csswg.org/css-writing-modes/">writing modes</a> spec introduces various concepts related to this, though that&rsquo;s mostly in the
+CSS <a href="https://drafts.csswg.org/css-writing-modes/">writing modes</a> spec introduces various concepts related to this, though that’s mostly in the
 context of the Web.</p>
 
-<h2>Thai / Khmer / Burmese / Lao</h2>
+<h2 id="thai--khmer--burmese--lao">Thai / Khmer / Burmese / Lao</h2>
 
-<p>These scripts don&rsquo;t use spaces to split words. Instead, they have rules for what kinds of sequences
+<p>These scripts don’t use spaces to split words. Instead, they have rules for what kinds of sequences
 of characters start and end a word. This can be determined programmatically, however IIRC the
 Unicode spec does not attempt to deal with this. There are libraries you can use here instead.</p>
 
-<h2>Latin scripts themselves!</h2>
+<h2 id="latin-scripts-themselves">Latin scripts themselves!</h2>
 
-<p>Turkish is a latin-based script. But it has a quirk: The uppercase of &ldquo;i&rdquo; is
-a dotted &ldquo;İ&rdquo;, and the lowercase of &ldquo;I&rdquo; is &ldquo;ı&rdquo;. If doing case-based operations, try to use
+<p>Turkish is a latin-based script. But it has a quirk: The uppercase of “i” is
+a dotted “İ”, and the lowercase of “I” is “ı”. If doing case-based operations, try to use
 a Unicode-aware library, and try to provide the locale if possible.</p>
 
 <p>Also, not all code points have a single-codepoint uppercase version. The eszett (ß) capitalizes
-to &ldquo;SS&rdquo;. There&rsquo;s also the &ldquo;capital&rdquo; eszett ẞ, but its usage seems to vary and I&rsquo;m not exactly
+to “SS”. There’s also the “capital” eszett ẞ, but its usage seems to vary and I’m not exactly
 sure how it interacts here.</p>
 
 <p>While Latin-1 uses precomposed characters, Unicode also introduces ways to specify the same
 characters via combining diacritics. Treating these the same involves using the normalization
 algorithms (NFC/NFD).</p>
 
-<h2>Emoji</h2>
+<h2 id="emoji">Emoji</h2>
 
-<p>Well, not a script<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. But emoji is weird enough that it breaks many of our assumptions. The
-scripts above cover most of these, but it&rsquo;s sometimes easier to think of them
+<p>Well, not a script<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>. But emoji is weird enough that it breaks many of our assumptions. The
+scripts above cover most of these, but it’s sometimes easier to think of them
 in the context of emoji.</p>
 
 <p>The main thing with emoji is that you can use a zero-width-joiner character to glue emoji together.</p>
@@ -418,47 +418,53 @@ emoji and gluing them together with ZWJs. You can see its decomposition in <a hr
 <p>There are more sequences like this, which you can see in the <a href="http://unicode.org/Public/emoji/4.0/emoji-zwj-sequences.txt">emoji-zwj-sequences</a> file. For
 example, MAN + ZWJ + COOK will give a male cook emoji (font support is sketchy).
 Similarly, SWIMMER + ZWJ + FEMALE SIGN is a female swimmer. You have both sequences of
-the form &ldquo;gendered person + zwj + thing&rdquo;, and &ldquo;emoji containing human + zwj + gender&rdquo;,
-IIRC due to legacy issues<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup></p>
+the form “gendered person + zwj + thing”, and “emoji containing human + zwj + gender”,
+IIRC due to legacy issues<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">6</a></sup></p>
 
 <p>There are also <a href="http://www.unicode.org/reports/tr51/#Diversity">modifier characters</a> that let you change the skin tone of an emoji that
 contains a human (or human body part, like the hand-gesture emojis) in it.</p>
 
 <p>Finally, the flag emoji are pretty special snowflakes. For example, 🇪🇸 is the Spanish
-flag. It&rsquo;s made up of <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%87%AA%F0%9F%87%B8">two regional indicator characters for &ldquo;E&rdquo; and &ldquo;S&rdquo;</a>.</p>
+flag. It’s made up of <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%87%AA%F0%9F%87%B8">two regional indicator characters for “E” and “S”</a>.</p>
 
-<p>Unicode didn&rsquo;t want to deal with adding new flags each time a new country or territory pops up. Nor
+<p>Unicode didn’t want to deal with adding new flags each time a new country or territory pops up. Nor
 did they want to get into the tricky business of determining what a country <em>is</em>, for example
 when dealing with disputed territories. So instead, they just defined these regional indicator
-symbols. Fonts are supposed to take pairs of RI symbols<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup> and map the country code to a flag.
-This mapping is up to them, so it&rsquo;s totally valid for a font to render a regional indicator
-pair &ldquo;E&rdquo; + &ldquo;S&rdquo; as something other than the flag of Spain. On some Chinese systems, for example,
+symbols. Fonts are supposed to take pairs of RI symbols<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote">7</a></sup> and map the country code to a flag.
+This mapping is up to them, so it’s totally valid for a font to render a regional indicator
+pair “E” + “S” as something other than the flag of Spain. On some Chinese systems, for example,
 the flag for Taiwan (🇹🇼) may not render.</p>
 
 <hr />
 
 <p>I hightly recommend comparing against this relatively small list of scripts the next time you
 are writing code that does heavy manipulation of user-provided strings.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Supplemented (but not replaced) by the Hiragana and Katakana phonetic scripts. In widespread use.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Replaced by Hangul in modern usage<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Replaced by chữ quốc ngữ in modern usage, which is based on the Latin alphabet<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>&ldquo;CJK&rdquo; (Chinese-Japanese-Korean) is probably more accurate here, though it probably should include &ldquo;V&rdquo; for Vietnamese too. Not all of these ideographs come from Han; the other scripts invented some of their own. See: Kokuji, Gukja, Chữ Nôm.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Back in <em>my</em> day we painstakingly typed actual real words on numeric phone keypads, while trudging to 🏫 in three feet of ❄️️, and it was uphill both ways, and we weren&rsquo;t even <em>allowed</em> 📱s in 🏫. Get off my lawn!<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>We previously had individual code points for professions and stuff and they decided to switch over to using existing object emoji with combiners instead of inventing new profession emoji all the time<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>676 countries should be enough for anybody<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Supplemented (but not replaced) by the Hiragana and Katakana phonetic scripts. In widespread use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Replaced by Hangul in modern usage <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Replaced by chữ quốc ngữ in modern usage, which is based on the Latin alphabet <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>“CJK” (Chinese-Japanese-Korean) is probably more accurate here, though it probably should include “V” for Vietnamese too. Not all of these ideographs come from Han; the other scripts invented some of their own. See: Kokuji, Gukja, Chữ Nôm. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Back in <em>my</em> day we painstakingly typed actual real words on numeric phone keypads, while trudging to 🏫 in three feet of ❄️️, and it was uphill both ways, and we weren’t even <em>allowed</em> 📱s in 🏫. Get off my lawn! <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>We previously had individual code points for professions and stuff and they decided to switch over to using existing object emoji with combiners instead of inventing new profession emoji all the time <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:6" role="doc-endnote">
+      <p>676 countries should be enough for anybody <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   
@@ -469,24 +475,24 @@ are writing code that does heavy manipulation of user-provided strings.</p>
     <id>http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points</id>
     <content type="html"><![CDATA[<p><em>Update: This post got a sequel, <a href="http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions/">Breaking our latin-1 assumptions</a>.</em></p>
 
-<p>I&rsquo;ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
-misconception I&rsquo;ve seen is that <em>code points have cross-language intrinsic meaning</em>.</p>
+<p>I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
+misconception I’ve seen is that <em>code points have cross-language intrinsic meaning</em>.</p>
 
 <p>It usually comes up when people are comparing UTF8 and UTF32. Folks start implying that code points
 <em>mean</em> something, and that O(1) indexing or slicing at code point boundaries is a useful operation.
-I&rsquo;ve also seen this assumption manifest itself in actual programs which make incorrect assumptions
+I’ve also seen this assumption manifest itself in actual programs which make incorrect assumptions
 about the nature of code points and mess things up when fed non-Latin text.</p>
 
-<p>If you like reading about unicode, you might also want to go through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">Eevee&rsquo;s article</a>
+<p>If you like reading about unicode, you might also want to go through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">Eevee’s article</a>
 on the dark corners of unicode. Great read!</p>
 
-<h2>Encodings</h2>
+<h2 id="encodings">Encodings</h2>
 
 <p>So, anyway, we have some popular encodings for Unicode. UTF8 encodes 7-bit code points as a single
 byte, 11-bit code points as two bytes, 16-bit code points as 3 bytes, and 21-bit code points as four
 bytes. UTF-16 encodes the first three in two bytes, and the last one as four bytes (logically, a
 pair of two-byte code units). UTF-32 encodes all code points as 4-byte code units. UTF-16 is mostly
-a &ldquo;worst of both worlds&rdquo; compromise at this point, and the main programming language I can think of
+a “worst of both worlds” compromise at this point, and the main programming language I can think of
 that uses it (and exposes it in this form) is Javascript, and that too in a broken way.</p>
 
 <p>The nice thing about UTF8 is that it saves space. Of course, that is subjective and dependent on
@@ -496,138 +502,140 @@ the ASCII block). It also uses more space over the very non-hypothetical UTF-16 
 tend to use code points in the U+0800 - U+FFFF range. It always uses less space than UTF-32 however.</p>
 
 <p>A commonly touted disadvantage of UTF-8 is that string indexing is <code>O(n)</code>. Because code points take
-up a variable number of bytes, you won&rsquo;t know where the 5th codepoint is until you scan the string
-and look for it. UTF-32 doesn&rsquo;t have this problem; it&rsquo;s always <code>4 * index</code> bytes away.</p>
+up a variable number of bytes, you won’t know where the 5th codepoint is until you scan the string
+and look for it. UTF-32 doesn’t have this problem; it’s always <code>4 * index</code> bytes away.</p>
 
-<p>The problem here is that indexing by code point shouldn&rsquo;t be an operation you ever need!</p>
+<p>The problem here is that indexing by code point shouldn’t be an operation you ever need!</p>
 
-<h2>Indexing by code point</h2>
+<h2 id="indexing-by-code-point">Indexing by code point</h2>
 
-<p>The main time you want to be able to index by code point is if you&rsquo;re implementing algorithms
+<p>The main time you want to be able to index by code point is if you’re implementing algorithms
 defined in the unicode spec that operate on unicode strings (casefolding, segmentation, NFD/NFC).
 Most if not all of these algorithms operate on whole strings, so implementing them
-as an iteration pass is usually necessary anyway, so you don&rsquo;t lose anything if you can&rsquo;t
+as an iteration pass is usually necessary anyway, so you don’t lose anything if you can’t
 do arbitrary code point indexing.</p>
 
-<p>But for application logic, dealing with code points doesn&rsquo;t really make sense. This is because
-code points have no intrinsic meaning. They are not &ldquo;characters&rdquo;. I&rsquo;m using scare quotes here
-because a &ldquo;character&rdquo; isn&rsquo;t a well-defined concept either, but we&rsquo;ll get to that later.</p>
+<p>But for application logic, dealing with code points doesn’t really make sense. This is because
+code points have no intrinsic meaning. They are not “characters”. I’m using scare quotes here
+because a “character” isn’t a well-defined concept either, but we’ll get to that later.</p>
 
-<p>For example, &ldquo;e&#x0301;&rdquo; is two code points (<code>e</code> +<code>́</code>), where one of them is a combining accent. My name,
-&ldquo;मनीष&rdquo;, visually looks like three &ldquo;characters&rdquo;, but is four code points. The &ldquo;नी&rdquo; is made up of <code>न</code>
-+ <code>ी</code>. My last name contains a &ldquo;character&rdquo; made up of three code points (and multiple two-code-point
-&ldquo;characters&rdquo;). The flag emoji &ldquo;🇺🇸&rdquo; is also made of two code points, <code>🇺</code> + <code>🇸</code>.</p>
+<p>For example, “é” is two code points (<code>e</code> +<code> ́</code>), where one of them is a combining accent. My name,
+“मनीष”, visually looks like three “characters”, but is four code points. The “नी” is made up of <code>न</code></p>
+<ul>
+  <li><code>ी</code>. My last name contains a “character” made up of three code points (and multiple two-code-point
+“characters”). The flag emoji “🇺🇸” is also made of two code points, <code>🇺</code> + <code>🇸</code>.</li>
+</ul>
 
-<p>One false assumption that&rsquo;s often made is that code points are a single column wide. They&rsquo;re not.
-They sometimes bunch up to form characters that fit in single &ldquo;columns&rdquo;. This is often dependent on
+<p>One false assumption that’s often made is that code points are a single column wide. They’re not.
+They sometimes bunch up to form characters that fit in single “columns”. This is often dependent on
 the font, and if your application relies on this, you should be querying the font. There are even
 code points like U+FDFD (﷽) which are often rendered multiple columns wide. In fact, in my
 <em>monospace</em> font in my text editor, that character is rendered <em>almost</em> 12 columns wide. Yes,
-&ldquo;almost&rdquo;, subsequent characters get offset a tiny bit. I don&rsquo;t know why.</p>
+“almost”, subsequent characters get offset a tiny bit. I don’t know why.</p>
 
 <p>Another false assumption is that editing actions (selection, backspace, cut, paste) operate on code
 points. In both Chrome and Firefox, selection will often include multiple code points. All the
 multi-code-point examples I gave above fall into this category. An interesting testcase for this is
-the string &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo;, which will rarely if ever render as a single &ldquo;character&rdquo; but will be considered
-as one for the purposes of selection, pretty much universally. I&rsquo;ll get to why this is later.</p>
+the string “ᄀᄀᄀ각ᆨᆨ”, which will rarely if ever render as a single “character” but will be considered
+as one for the purposes of selection, pretty much universally. I’ll get to why this is later.</p>
 
 <p>Backspace can gobble multiple code points at once too, but the heuristics are different. The reason
 behind this is that backspace needs to mirror the act of typing, and while typing sometimes
 constructs multi-codepoint characters, backspace decomposes it piece by piece. In cases where a
-multi-codepoint &ldquo;character&rdquo; <em>can</em> be logically decomposed (e.g. &ldquo;letter + accent&rdquo;), backspace will
+multi-codepoint “character” <em>can</em> be logically decomposed (e.g. “letter + accent”), backspace will
 decompose it, by removing the accent or whatever. But some multi-codepoint characters are not
-&ldquo;constructions&rdquo; of general concepts that should be exposed to the user. For example, a user should
-never need to know that the &ldquo;🇺🇸&rdquo; flag emoji is made of <code>🇺</code> + <code>🇸</code>, and hitting backspace on it should
-delete both codepoints. Similarly, variation selectors and other such code points shouldn&rsquo;t
+“constructions” of general concepts that should be exposed to the user. For example, a user should
+never need to know that the “🇺🇸” flag emoji is made of <code>🇺</code> + <code>🇸</code>, and hitting backspace on it should
+delete both codepoints. Similarly, variation selectors and other such code points shouldn’t
 be treated as their own unit when backspacing.</p>
 
 <p>On my Mac most builtin apps (which I presume use the OSX UI toolkits) seem to use the same
 heuristics that Firefox/Chrome use for selection for both selection and backspace. While the
 treatment of code points in editing contexts is not consistent, it seems like applications
-consistently do not consider code points as &ldquo;editing units&rdquo;.</p>
+consistently do not consider code points as “editing units”.</p>
 
 <p>Now, it is true that you often need <em>some</em> way to index a string. For example, if you have a large
 document and need to represent a slice of it. This could be a user-selection, or something delimeted
-by markup. Basically, you&rsquo;ve already gone through the document and have a section you want to be
+by markup. Basically, you’ve already gone through the document and have a section you want to be
 able to refer to later without copying it out.</p>
 
-<p>However, you don&rsquo;t need code point indexing here, byte
-indexing works fine! UTF8 is designed so that you can check if you&rsquo;re on a code point boundary even
+<p>However, you don’t need code point indexing here, byte
+indexing works fine! UTF8 is designed so that you can check if you’re on a code point boundary even
 if you just byte-index directly. It does this by restricting the kinds of bytes allowed. One-byte
 code points never have the high bit set (ASCII). All other code points have the high bit set in each
 byte. The first byte of multibyte codepoints always starts with a sequence that specifies the number
-of bytes in the codepoint, and such sequences can&rsquo;t be found in the lower-order bytes of any
+of bytes in the codepoint, and such sequences can’t be found in the lower-order bytes of any
 multibyte codepoint. You can see this visually in the table <a href="https://en.wikipedia.org/wiki/UTF-8#Description">here</a>. The upshot of all this
-is that you just need to check the current byte if you want to be sure you&rsquo;re on a codepoint
+is that you just need to check the current byte if you want to be sure you’re on a codepoint
 boundary, and if you receive an arbitrarily byte-sliced string, you will not mistake it for
-something else. It&rsquo;s not possible to have a valid code point be a subslice of another, or form a
+something else. It’s not possible to have a valid code point be a subslice of another, or form a
 valid code point by subslicing a sequence of two different ones by cutting each in half.</p>
 
 <p>So all you need to do is keep track of the byte indices, and use them for slicing it later.</p>
 
-<p>All in all, it&rsquo;s important to always remember that &ldquo;code point&rdquo; doesn&rsquo;t have intrinsic meaning. If
-you need to do a segmentation operation on a string, find out what <em>exactly</em> you&rsquo;re looking for, and
-what concept maps closest to that. It&rsquo;s rare that &ldquo;code point&rdquo; is the concept you&rsquo;re looking for.
-In <em>most</em> cases, what you&rsquo;re looking for instead is &ldquo;grapheme cluster&rdquo;.</p>
+<p>All in all, it’s important to always remember that “code point” doesn’t have intrinsic meaning. If
+you need to do a segmentation operation on a string, find out what <em>exactly</em> you’re looking for, and
+what concept maps closest to that. It’s rare that “code point” is the concept you’re looking for.
+In <em>most</em> cases, what you’re looking for instead is “grapheme cluster”.</p>
 
-<h2>Grapheme clusters</h2>
+<h2 id="grapheme-clusters">Grapheme clusters</h2>
 
-<p>The concept of a &ldquo;character&rdquo; is a nebulous one. Is &ldquo;&#x1100;&#x1161;&#x11A8;&rdquo; a single character, or
-three? How about &ldquo;नी&rdquo;? Or &ldquo;நி&rdquo;? Or the &ldquo;👨‍❤️‍👨&rdquo; emoji<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>? Or the &ldquo;👨‍👨‍👧‍👧&rdquo; family emoji<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>?
-Different scripts have different concepts which may not clearly map to the Latin notion of &ldquo;letter&rdquo;
-or our programmery notion of &ldquo;character&rdquo;.</p>
+<p>The concept of a “character” is a nebulous one. Is “각” a single character, or
+three? How about “नी”? Or “நி”? Or the “👨‍❤️‍👨” emoji<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>? Or the “👨‍👨‍👧‍👧” family emoji<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>?
+Different scripts have different concepts which may not clearly map to the Latin notion of “letter”
+or our programmery notion of “character”.</p>
 
-<p>Unicode itself gives the term <a href="http://unicode.org/glossary/#character">&ldquo;character&rdquo;</a> multiple incompatible meanings, and as
-far as I know doesn&rsquo;t use the term in any normative text.</p>
+<p>Unicode itself gives the term <a href="http://unicode.org/glossary/#character">“character”</a> multiple incompatible meanings, and as
+far as I know doesn’t use the term in any normative text.</p>
 
 <p>Often, you need to deal with what is actually displayed to the user. A lot of terminal emulators do
 this wrong, and end up messing up cursor placement. I used to use irssi-xmpp to keep my Facebook and
 Gchat conversations in my IRC client, but I eventually stopped as I was increasingly chatting in
-Marathi or Hindi and I prefer using the actual script over romanizing<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>, and it would just break
-my terminal<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Also, they got rid of the XMPP bridge but I&rsquo;d already cut down on it by then.</p>
+Marathi or Hindi and I prefer using the actual script over romanizing<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, and it would just break
+my terminal<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>. Also, they got rid of the XMPP bridge but I’d already cut down on it by then.</p>
 
 <p>So sometimes, you need an API querying what the font is doing. Generally, when talking about the
-actual rendered image, the term &ldquo;glyph&rdquo; or &ldquo;glyph image&rdquo; is used.</p>
+actual rendered image, the term “glyph” or “glyph image” is used.</p>
 
-<p>However, you can&rsquo;t always query the font. Text itself exists independent of rendering, and sometimes
-you need a rendering-agnostic way of segmenting it into &ldquo;characters&rdquo;.</p>
+<p>However, you can’t always query the font. Text itself exists independent of rendering, and sometimes
+you need a rendering-agnostic way of segmenting it into “characters”.</p>
 
-<p>For this, Unicode has a concept of <a href="http://unicode.org/glossary/#grapheme_cluster">&ldquo;grapheme cluster&rdquo;</a>. There&rsquo;s also &ldquo;extended grapheme
-cluster&rdquo; (EGC), which is basically an updated version of the concept. In this post, whenever
-I use the term &ldquo;grapheme cluster&rdquo;, I am talking about EGCs.</p>
+<p>For this, Unicode has a concept of <a href="http://unicode.org/glossary/#grapheme_cluster">“grapheme cluster”</a>. There’s also “extended grapheme
+cluster” (EGC), which is basically an updated version of the concept. In this post, whenever
+I use the term “grapheme cluster”, I am talking about EGCs.</p>
 
 <p>The term is defined and explored in <a href="http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries">UAX #29</a>. It starts by pinning down the still-nebulous
-concept of &ldquo;user-perceived character&rdquo; (&ldquo;a basic unit of a writing system for a language&rdquo;),
-and then declares the concept of a &ldquo;grapheme cluster&rdquo; to be an approximation to this notion
+concept of “user-perceived character” (“a basic unit of a writing system for a language”),
+and then declares the concept of a “grapheme cluster” to be an approximation to this notion
 that we can determine programmatically.</p>
 
-<p>A rough definition of grapheme cluster is a &ldquo;horizontally segmentable unit of text&rdquo;.</p>
+<p>A rough definition of grapheme cluster is a “horizontally segmentable unit of text”.</p>
 
 <p>The spec goes into detail as to the exact algorithm that segments text at grapheme cluster
 boundaries. All of the examples I gave in the first paragraph of this section are single grapheme
-clusters. So is &ldquo;ᄀᄀᄀ각ᆨᆨ&rdquo; (or &ldquo;ᄀᄀᄀ&#x1100;&#x1161;&#x11A8;ᆨᆨ&rdquo;), which apparently is considered a
+clusters. So is “ᄀᄀᄀ각ᆨᆨ” (or “ᄀᄀᄀ각ᆨᆨ”), which apparently is considered a
 single syllable block in Hangul even though it is not of the typical form of leading consonant +
-vowel + optional tail consonant, but is not something you&rsquo;d see in modern Korean. The spec
+vowel + optional tail consonant, but is not something you’d see in modern Korean. The spec
 explicitly talks of this case so it seems to be on purpose. I like this string because nothing I
 know of renders it as a single glyph; so you can easily use it to tell if a particular segmentation-
 aware operation uses grapheme clusters as segmentation. If you try and select it, in most browsers
 you will be forced to select the whole thing, but backspace will delete the jamos one by one. For
 the second string, backspace will decompose the core syllable block too (in the first string the
-syllable block &#x1100;&#x1161;&#x11A8; is &ldquo;precomposed&rdquo; as a single code point, in the second one I
+syllable block 각 is “precomposed” as a single code point, in the second one I
 built it using combining jamos).</p>
 
 <p>Basically, unless you have very specific requirements or are able to query the font, use an API that
-segments strings into grapheme clusters wherever you need to deal with the notion of &ldquo;character&rdquo;.</p>
+segments strings into grapheme clusters wherever you need to deal with the notion of “character”.</p>
 
-<h2>Language defaults</h2>
+<h2 id="language-defaults">Language defaults</h2>
 
 <p>Now, a lot of languages by default are now using Unicode-aware encodings. This is great. It gets rid
 of the misconception that characters are one byte long.</p>
 
-<p>But it doesn&rsquo;t get rid of the misconception that user-perceived characters are one code point long.</p>
+<p>But it doesn’t get rid of the misconception that user-perceived characters are one code point long.</p>
 
-<p>There are only two languages I know of which handle this well: Swift and Perl 6. I don&rsquo;t know much
-about Perl 6&rsquo;s thing so I can&rsquo;t really comment on it, but I am really happy with what Swift does:</p>
+<p>There are only two languages I know of which handle this well: Swift and Perl 6. I don’t know much
+about Perl 6’s thing so I can’t really comment on it, but I am really happy with what Swift does:</p>
 
 <p>In Swift, the <code>Character</code> type is an extended grapheme cluster. This does mean that a
 character itself is basically a string, since EGCs can be arbitrarily many code points long.</p>
@@ -637,27 +645,27 @@ are indexed by EGC. Iteration yields EGCs. The default comparison algorithm uses
 canonical equivalence, which I think is kind of neat. Of course, APIs that work with code
 points are exposed too, you can iterate over the code points using <code>.unicodeScalars</code>.</p>
 
-<p>The internal encoding itself is &hellip; weird (and as far as I can tell not publicly exposed), but as a
-higher level language I think it&rsquo;s fine to do things like that.</p>
+<p>The internal encoding itself is … weird (and as far as I can tell not publicly exposed), but as a
+higher level language I think it’s fine to do things like that.</p>
 
 <p>I strongly feel that languages should be moving in this direction, having defaults involving
 grapheme clusters.</p>
 
-<p>Rust, for example, gets a lot of things right &ndash; it has UTF-8 strings. It internally uses byte
+<p>Rust, for example, gets a lot of things right – it has UTF-8 strings. It internally uses byte
 indices in slices. Explicit slicing usually uses byte indices too, and will panic if out of bounds.
 The non-O(1) methods are all explicit, since you will use an iterator to perform the operation (E.g.
 <code>.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
-to coalesce the cost with nearby iterations &ndash; if you are going to do multiple <code>O(n)</code> things, do
+to coalesce the cost with nearby iterations – if you are going to do multiple <code>O(n)</code> things, do
 them in a single iteration! Rust <code>char</code>s represent code points. <code>.char_indices()</code> is
 a useful string iteration method that bridges the gap between byte indexing and code points.</p>
 
 <p>However, while the documentation does mention grapheme clusters, the stdlib is not aware of the
-concept of grapheme clusters at all. The default &ldquo;fundamental&rdquo; unit of the string in Rust is
+concept of grapheme clusters at all. The default “fundamental” unit of the string in Rust is
 a code point, and the operations revolve around that. If you want grapheme clusters, you
 may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code>unicode-segmentation</code></a></p>
 
-<p>Now, Rust is a systems programming language and it just wouldn&rsquo;t do to have expensive grapheme
-segmentation operations all over your string defaults. I&rsquo;m very happy that the expensive <code>O(n)</code>
+<p>Now, Rust is a systems programming language and it just wouldn’t do to have expensive grapheme
+segmentation operations all over your string defaults. I’m very happy that the expensive <code>O(n)</code>
 operations are all only possible with explicit acknowledgement of the cost. So I do think that going
 the Swift route would be counterproductive for Rust. Not that it <em>can</em> anyway, due to backwards
 compatibility :)</p>
@@ -665,20 +673,23 @@ compatibility :)</p>
 <p>But I would prefer if the grapheme segmentation methods were in the stdlib (they used to be).
 This is probably not something that will happen, though I should probably push for the unicode
 crates being move into the nursery at least.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Emoji may not render as a single glyph depending on the font.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>While writing this paragraph I discovered that wrapping text that contains lots of family emoji hangs Sublime. Neat.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Part of the reason here is that I just find romanization confusing. There are some standardized ways to romanize which don&rsquo;t get used much. My friends and I romanize one way, different from the standardizations. My family members romanize things a completely different way and it&rsquo;s a bit hard to read. Then again, romanization <em>does</em> hide the fact that my spelling in Hindi is atrocious :)<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>It&rsquo;s possible to make work. You need a good terminal emulator, with the right settings, the right settings in your env vars, the right settings in irssi, and the right settings in screen. I think my current setup works well with non-ascii text but I&rsquo;m not sure what I did to make it happen.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Emoji may not render as a single glyph depending on the font. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>While writing this paragraph I discovered that wrapping text that contains lots of family emoji hangs Sublime. Neat. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Part of the reason here is that I just find romanization confusing. There are some standardized ways to romanize which don’t get used much. My friends and I romanize one way, different from the standardizations. My family members romanize things a completely different way and it’s a bit hard to read. Then again, romanization <em>does</em> hide the fact that my spelling in Hindi is atrocious :) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>It’s possible to make work. You need a good terminal emulator, with the right settings, the right settings in your env vars, the right settings in irssi, and the right settings in screen. I think my current setup works well with non-ascii text but I’m not sure what I did to make it happen. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   

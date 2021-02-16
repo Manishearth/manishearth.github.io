@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these and one of these&rdquo;,
-a sum type is &ldquo;This &hellip;">
+  <meta name="description" content="Sum types are pretty cool. Just like how a struct is basically “This contains one of these and one of these”,
+a sum type is “This contains one of &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +18,8 @@ a sum type is &ldquo;This &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="A rough proposal for sum types in Go">
-      <meta property="twitter:description" content="Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these and one of these&rdquo;,
-a sum type is &ldquo;This contains one of these or one of these&rdquo;. So &hellip;">
+      <meta property="twitter:description" content="Sum types are pretty cool. Just like how a struct is basically “This contains one of these and one of these”,
+a sum type is “This contains one of these or one of these”. So for example, the following &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -66,7 +66,7 @@ a sum type is &ldquo;This contains one of these or one of these&rdquo;. So &hell
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -105,235 +105,172 @@ a sum type is &ldquo;This contains one of these or one of these&rdquo;. So &hell
 
 
 
-<time class='entry-date' datetime='2018-02-01T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>1</span><span class='date-suffix'>st</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
   </header>
 
 
-<div class="entry-content"><p>Sum types are pretty cool. Just like how a struct is basically &ldquo;This contains one of these <em>and</em> one of these&rdquo;,
-a sum type is &ldquo;This contains one of these <em>or</em> one of these&rdquo;.</p>
+<div class="entry-content"><p>Sum types are pretty cool. Just like how a struct is basically “This contains one of these <em>and</em> one of these”,
+a sum type is “This contains one of these <em>or</em> one of these”.</p>
 
 <p>So for example, the following sum type in Rust:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Stringy</span><span class="p">(</span><span class="n">String</span><span class="p">),</span>
-</span><span class='line'>    <span class="n">Numerical</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">enum Foo {
+    Stringy(String),
+    Numerical(u32)
+}
+</code></pre>
 
 <p>or Swift:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">stringy</span><span class="p">(</span><span class="n">String</span><span class="p">),</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">numerical</span><span class="p">(</span><span class="n">Int</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-swift">enum Foo {
+    case stringy(String),
+    case numerical(Int)
+}
+</code></pre>
 
-
-<p>would be one where it&rsquo;s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
+<p>would be one where it’s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
 <em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
 
-<p>This can be pretty useful. For example, messages between threads are often of a &ldquo;this or that or that or that&rdquo;
+<p>This can be pretty useful. For example, messages between threads are often of a “this or that or that or that”
 form.</p>
 
-<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> &ndash; you must list all
+<p>The nice thing is, matching (switching) on these enums is usually <em>exhaustive</em> – you must list all
 the cases (or include a default arm) for your code to compile. This leads to a useful component
-of type safety &ndash; if you add a message to your message passing system, you&rsquo;ll know where to update it.</p>
+of type safety – if you add a message to your message passing system, you’ll know where to update it.</p>
 
-<p>Go doesn&rsquo;t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
+<p>Go doesn’t have these. Go <em>does</em> have interfaces, which are dynamically dispatched. The drawback here
 is that you do not get the exhaustiveness condition, and consumers of your library can even add further
 cases. (And, of course, dynamic dispatch can be slow). You <em>can</em> get exhaustiveness in Go with <a href="https://github.com/haya14busa/gosum">external tools</a>,
-but it&rsquo;s preferable to have such things in the language IMO.</p>
+but it’s preferable to have such things in the language IMO.</p>
 
 <p>Many years ago when I was learning Go I wrote a <a href="http://inpursuitoflaziness.blogspot.in/2015/02/thoughts-of-rustacean-learning-go.html">blog post</a> about what I liked and disliked
-as a Rustacean learning Go. Since then, I&rsquo;ve spent a lot more time with Go, and I&rsquo;ve learned to like each Go design decision that I initially
-disliked, <em>except</em> for the lack of sum types. Most of my issues arose from &ldquo;trying to program Rust in Go&rdquo;,
-i.e. using idioms that are natural to Rust (or other languages I&rsquo;d used previously). Once I got used to the
-programming style, I realized that aside from the lack of sum types I really didn&rsquo;t find much missing
+as a Rustacean learning Go. Since then, I’ve spent a lot more time with Go, and I’ve learned to like each Go design decision that I initially
+disliked, <em>except</em> for the lack of sum types. Most of my issues arose from “trying to program Rust in Go”,
+i.e. using idioms that are natural to Rust (or other languages I’d used previously). Once I got used to the
+programming style, I realized that aside from the lack of sum types I really didn’t find much missing
 from the language. Perhaps improvements to error handling.</p>
 
-<p>Now, my intention here isn&rsquo;t really to sell sum types. They&rsquo;re somewhat controversial for Go, and
+<p>Now, my intention here isn’t really to sell sum types. They’re somewhat controversial for Go, and
 there are good arguments on both sides. You can see one discussion on this topic <a href="https://github.com/golang/go/issues/19412">here</a>.
-If I were to make a more concrete proposal I&rsquo;d probably try to motivate this in much more depth. But even
-I&rsquo;m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
+If I were to make a more concrete proposal I’d probably try to motivate this in much more depth. But even
+I’m not very <em>strongly</em> of the opinion that Go needs sum types; I have a slight preference for it.</p>
 
-<p>Instead, I&rsquo;m going to try and sketch this proposal for sum types that has been floating around my
-mind for a while. I end up mentioning it often and it&rsquo;s nice to have something to link to. Overall,
-I think this &ldquo;fits well&rdquo; with the existing Go language design.</p>
+<p>Instead, I’m going to try and sketch this proposal for sum types that has been floating around my
+mind for a while. I end up mentioning it often and it’s nice to have something to link to. Overall,
+I think this “fits well” with the existing Go language design.</p>
 
-<h2>The proposal</h2>
+<h2 id="the-proposal">The proposal</h2>
 
-<p>The essence is pretty straightforward: Extend interfaces to allow for &ldquo;closed interfaces&rdquo;. These are
+<p>The essence is pretty straightforward: Extend interfaces to allow for “closed interfaces”. These are
 interfaces that are only implemented for a small list of types.</p>
 
 <p>Writing the <code>Foo</code> sum type above would be:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="kd">type</span> <span class="nx">Foo</span> <span class="kd">interface</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">SomeFunction</span><span class="p">()</span>
-</span><span class='line'>    <span class="nx">OtherFunction</span><span class="p">()</span>
-</span><span class='line'>    <span class="k">for</span> <span class="kt">string</span><span class="p">,</span> <span class="kt">int</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-go">type Foo interface {
+    SomeFunction()
+    OtherFunction()
+    for string, int
+}
+</code></pre>
 
-
-<p>It doesn&rsquo;t even need to have functions defined on it.</p>
+<p>It doesn’t even need to have functions defined on it.</p>
 
 <p>The interface functions can only be called if you have an interface object; they are not directly available
 on variant types without explicitly casting (<code>Foo("...").SomeFunction()</code>).</p>
 
-<p>(I&rsquo;m not strongly for the <code>for</code> keyword syntax, it&rsquo;s just a suggestion. The core idea is that
+<p>(I’m not strongly for the <code>for</code> keyword syntax, it’s just a suggestion. The core idea is that
 you define an interface and you define the types it closes over. Somehow.)</p>
 
 <p>A better example would be an interface for a message-passing system for Raft:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="kd">type</span> <span class="nx">VoteRequest</span> <span class="kd">struct</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">CandidateId</span> <span class="kt">uint</span>
-</span><span class='line'>    <span class="nx">Term</span> <span class="kt">uint</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">type</span> <span class="nx">VoteResponse</span> <span class="kd">struct</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">Term</span> <span class="kt">uint</span>
-</span><span class='line'>    <span class="nx">VoteGranted</span> <span class="kt">bool</span>
-</span><span class='line'>    <span class="nx">VoterId</span> <span class="kt">uint</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">type</span> <span class="nx">AppendRequest</span> <span class="kd">struct</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">//...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">type</span> <span class="nx">AppendResponse</span> <span class="kd">struct</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">//...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="c1">// ...</span>
-</span><span class='line'><span class="kd">type</span> <span class="nx">RaftMessage</span> <span class="kd">interface</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">for</span> <span class="nx">VoteRequest</span><span class="p">,</span> <span class="nx">VoteResponse</span><span class="p">,</span> <span class="nx">AppendRequest</span><span class="p">,</span> <span class="nx">AppendResponse</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-go">type VoteRequest struct {
+    CandidateId uint
+    Term uint
+    // ...
+}
 
+type VoteResponse struct {
+    Term uint
+    VoteGranted bool
+    VoterId uint
+}
+
+type AppendRequest struct {
+    //...
+}
+
+type AppendResponse struct {
+    //...
+}
+// ...
+type RaftMessage interface {
+    for VoteRequest, VoteResponse, AppendRequest, AppendResponse
+}
+</code></pre>
 
 <p>Now, you use type switches for dealing with these:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="k">switch</span> <span class="nx">value</span> <span class="o">:=</span> <span class="nx">msg</span><span class="p">.(</span><span class="kd">type</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="nx">VoteRequest</span><span class="p">:</span>
-</span><span class='line'>        <span class="k">if</span> <span class="nx">value</span><span class="p">.</span><span class="nx">Term</span> <span class="o">&lt;=</span> <span class="nx">me</span><span class="p">.</span><span class="nx">Term</span> <span class="p">{</span>
-</span><span class='line'>            <span class="nx">me</span><span class="p">.</span><span class="nx">reject_vote</span><span class="p">(</span><span class="nx">value</span><span class="p">.</span><span class="nx">CandidateId</span><span class="p">)</span>
-</span><span class='line'>        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span><span class='line'>            <span class="nx">me</span><span class="p">.</span><span class="nx">accept_vote</span><span class="p">(</span><span class="nx">value</span><span class="p">.</span><span class="nx">CandidateId</span><span class="p">,</span> <span class="nx">value</span><span class="p">.</span><span class="nx">Term</span><span class="p">)</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="k">case</span> <span class="nx">VoteResponse</span><span class="p">:</span> <span class="c1">// ...</span>
-</span><span class='line'>    <span class="k">case</span> <span class="nx">AppendRequest</span><span class="p">:</span> <span class="c1">// ...</span>
-</span><span class='line'>    <span class="k">case</span> <span class="nx">AppendResponse</span><span class="p">:</span> <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-go">switch value := msg.(type) {
+    case VoteRequest:
+        if value.Term &lt;= me.Term {
+            me.reject_vote(value.CandidateId)
+        } else {
+            me.accept_vote(value.CandidateId, value.Term)
+        }
+    case VoteResponse: // ...
+    case AppendRequest: // ...
+    case AppendResponse: // ...
+}
+</code></pre>
 
 <p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
 
-<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I&rsquo;m not sure
-what this entails for the GC design, but I&rsquo;d love to hear thoughts on this.</p>
+<p>Ideally, these could be implemented as inline structs instead of using dynamic dispatch. I’m not sure
+what this entails for the GC design, but I’d love to hear thoughts on this.</p>
 
 <p>We also make it possible to add methods to closed interfaces. This is in the spirit of
 <a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='go'><span class='line'><span class="kd">func</span> <span class="p">(</span><span class="nx">message</span> <span class="nx">RaftMessage</span><span class="p">)</span> <span class="nx">Process</span><span class="p">(</span><span class="nx">me</span> <span class="nx">Me</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// message handling logic</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-go">func (message RaftMessage) Process(me Me) error {
+    // message handling logic
+}
+</code></pre>
 
 <p>for closed interfaces.</p>
 
 <p>This aligns more with how sum types are written and used in other languages; instead of assuming
 that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
 on the type but it can also just call other methods. This is really nice because you can write
-methods in <em>both</em> ways &ndash; if it&rsquo;s a &ldquo;responsibility of the inner type&rdquo; kind of method, require it in
-the interface and delegate it to the individual types. If it&rsquo;s a &ldquo;responsibility of the interface&rdquo;
+methods in <em>both</em> ways – if it’s a “responsibility of the inner type” kind of method, require it in
+the interface and delegate it to the individual types. If it’s a “responsibility of the interface”
 method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
 you sometimes end up writing things like:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Foo</span><span class="o">::</span><span class="n">Stringy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">s</span><span class="p">.</span><span class="n">process</span><span class="p">(),</span>
-</span><span class='line'>    <span class="n">Foo</span><span class="o">::</span><span class="n">Numerical</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">n</span><span class="p">.</span><span class="n">process</span><span class="p">(),</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">match foo {
+    Foo::Stringy(s) =&gt; s.process(),
+    Foo::Numerical(n) =&gt; n.process(),
+    // ...
+}
+</code></pre>
 
 <p>Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
 proposal Go can have it both ways.</p>
 
 <hr />
 
-<p>Anyway, thoughts? This is a really rough proposal, and I&rsquo;m not sure how receptive other Gophers will be
-to this, nor how complex its implementation would be. I don&rsquo;t really intend to submit this as a formal proposal,
+<p>Anyway, thoughts? This is a really rough proposal, and I’m not sure how receptive other Gophers will be
+to this, nor how complex its implementation would be. I don’t really intend to submit this as a formal proposal,
 but if someone else wants to they are more than welcome to build on this idea.</p>
+
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -341,10 +278,8 @@ but if someone else wants to they are more than welcome to build on this idea.</
 
 
 
-<time class='entry-date' datetime='2018-02-01T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>1</span><span class='date-suffix'>st</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 <span class="aftersep beforesep">
@@ -388,9 +323,9 @@ but if someone else wants to they are more than welcome to build on this idea.</
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -398,7 +333,7 @@ but if someone else wants to they are more than welcome to build on this idea.</
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>

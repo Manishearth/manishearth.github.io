@@ -64,7 +64,7 @@
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -103,7 +103,7 @@
 
 
 
-<time class='entry-date' datetime='2017-03-02T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>2</span><span class='date-suffix'>nd</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
@@ -113,7 +113,7 @@
 <div class="entry-content"><p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
 
 <p>The <a href="https://underhanded.rs/blog/2017/02/28/extending-submission-deadline.en-US.html">submission deadline for the Underhanded Rust competition has been extended</a>, so
-let&rsquo;s talk more about how to keep your code working and free from bugs/underhandedness!</p>
+let’s talk more about how to keep your code working and free from bugs/underhandedness!</p>
 
 <p><a href="http://manishearth.github.io/blog/2017/01/21/mitigating-underhandedness-clippy/">Previously, we talked about Clippy</a>.</p>
 
@@ -122,19 +122,19 @@ let&rsquo;s talk more about how to keep your code working and free from bugs/und
 <p>We write unit tests. We run the code under Valgrind, ASan, MSan, UBSan, TSan, and any other sanitizer
 we can get our hands on. Tests tests tests. More tests. Tests.</p>
 
-<p>But, there&rsquo;s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
-fed to your code after which you check whatever invariants your code has. There&rsquo;s
+<p>But, there’s a problem here. You need to write <em>test cases</em> to make this work. These are inputs
+fed to your code after which you check whatever invariants your code has. There’s
 no guarantee that the test cases you write will exercise all the code paths in your
 program. This applies for sanitizers too, sanitizers are limited to testing the code paths
 that your test cases hit.</p>
 
 <p>Of course, you can use code coverage tools to ensure that all these code paths will be hit.
-However, there&rsquo;s a conflict here &ndash; your code will have many code paths that are
+However, there’s a conflict here – your code will have many code paths that are
 <em>not supposed to be hit ever</em>. Things like redundant bounds checks, null checks, etc.
 In Rust programs such code paths generally use panics.</p>
 
-<p>Now, these code paths are never <em>supposed</em> to be hit, so they&rsquo;ll never show up in your
-code coverage. But you don&rsquo;t have a guarantee that they can never be hit, short
+<p>Now, these code paths are never <em>supposed</em> to be hit, so they’ll never show up in your
+code coverage. But you don’t have a guarantee that they can never be hit, short
 of formally verifying your program. The only solution here is writing more test cases.</p>
 
 <p>Aside from that, even ignoring those code paths, you still need to manually write
@@ -143,9 +143,9 @@ be sure.</p>
 
 <p>Who wants to manually write a million test cases?</p>
 
-<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400" ></p>
+<p><img class="center" src="/images/post/memes/aint-nobody.jpg" width="400" /></p>
 
-<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400" ></p>
+<p><img class="center" src="/images/post/memes/that-would-be-great.jpg" width="400" /></p>
 
 <p>Enter fuzzing. What fuzzing will do is feed your program random inputs, carefully watching the
 codepaths being taken, and try to massage the inputs so that new, interesting (usually crashy)
@@ -155,29 +155,25 @@ the fuzzer will find cases where they crash or panic.</p>
 <p>One of the most popular fuzzers out there is <a href="http://lcamtuf.coredump.cx/afl/">AFL</a>, which takes a binary and feeds it random
 input. Rust <a href="https://github.com/rust-fuzz/afl.rs">has a library that you can use for running AFL</a>, however it currently needs
 to be run via a Docker image or needs a recompilation of rustc, since it adds a custom LLVM pass.
-We&rsquo;re working on making this step unnecessary.</p>
+We’re working on making this step unnecessary.</p>
 
 <p>However, as of a few weeks ago, we now have bindings for <a href="http://llvm.org/docs/LibFuzzer.html">libFuzzer</a>, which uses existing
 instrumentation options built in to LLVM itself! libFuzzer works a bit differently; instead
 of giving it a binary, you write a function in a special way and give it a library containing
 that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
-inside the binary itself and it doesn&rsquo;t need to execute a new program each time.</p>
+inside the binary itself and it doesn’t need to execute a new program each time.</p>
 
 <p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo install cargo-fuzz
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-sh">$ cargo install cargo-fuzz
+</code></pre>
 
 <p>Now, within your crate, initialize the fuzz setup:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz init
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-sh">$ cargo fuzz init
+</code></pre>
 
-
-<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single &ldquo;fuzz target&rdquo;, <code>fuzzer_script_1</code>.
+<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single “fuzz target”, <code>fuzzer_script_1</code>.
 You can add more such targets with <code>cargo fuzz add name_of_target</code>. Fuzz targets are small libraries
 with a single function in them; the function that will be called over and over again by the fuzzer.
 It is up to you to fill in the body of this function, such that the program will crash or panic
@@ -187,79 +183,60 @@ if and only if something goes wrong.</p>
 takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
 the new string is the same.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">extern</span> <span class="k">fn</span> <span class="n">go</span><span class="p">(</span><span class="n">data</span><span class="o">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// we only deal with unicode input</span>
-</span><span class='line'>    <span class="c1">// bail early, *without panicking* if the input isn&#39;t utf8</span>
-</span><span class='line'>    <span class="k">if</span> <span class="kd">let</span> <span class="nb">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="kt">str</span><span class="o">::</span><span class="n">from_utf8</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="c1">// split into graphemes, recollect</span>
-</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">UnicodeSegmentation</span><span class="o">::</span><span class="n">graphemes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="k">true</span><span class="p">).</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
-</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
-</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="c1">// split into words, recollect</span>
-</span><span class='line'>        <span class="kd">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">split_word_bounds</span><span class="p">().</span><span class="n">flat_map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span> <span class="n">s</span><span class="p">.</span><span class="n">chars</span><span class="p">()).</span><span class="n">collect</span><span class="o">::&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">();</span>
-</span><span class='line'>        <span class="c1">// recollected string should be the same as the input, panic if not</span>
-</span><span class='line'>        <span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">pub extern fn go(data: &amp;[u8]) {
+    // we only deal with unicode input
+    // bail early, *without panicking* if the input isn't utf8
+    if let Ok(s) = str::from_utf8(data) {
+        // split into graphemes, recollect
+        let result = UnicodeSegmentation::graphemes(s, true).flat_map(|s| s.chars()).collect::&lt;String&gt;();
+        // recollected string should be the same as the input, panic if not
+        assert_eq!(s, result);
 
+        // split into words, recollect
+        let result = s.split_word_bounds().flat_map(|s| s.chars()).collect::&lt;String&gt;();
+        // recollected string should be the same as the input, panic if not
+        assert_eq!(s, result);
+    }
+}
+</code></pre>
 
 <p>The other targets ensure that the forward and reverse word/grapheme
 iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
-(silently failing  &ndash; NOT panicking &ndash; if not possible), and then use the string as an input
+(silently failing  – NOT panicking – if not possible), and then use the string as an input
 testcase.</p>
 
 <p>Now, these targets will panic if the test fails, and the fuzzer will try and force that panic to
 happen. But also, these targets put together exercise most of the API surface of the crate, so
 the fuzzer may also find panics (or even segmentation faults!) in the crate itself. For example,
-the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn&rsquo;t itself assert; all it does is try to parse the given
+the <a href="https://github.com/servo/rust-url/blob/3e5541e51e02d8acb10a6ea8ab174ba1bc23ce41/fuzz/fuzzers/parse.rs#L10">fuzz target for rust-url</a> doesn’t itself assert; all it does is try to parse the given
 string. The fuzzer will try to get the URL parser to panic.</p>
 
 <p>To run a fuzz script:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>cargo fuzz run fuzzer_script_1
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-sh">$ cargo fuzz run fuzzer_script_1
+</code></pre>
 
 <p>This will start the fuzzer, running until it finds a crash or panic. It may also
 find other things like inputs which make the code abnormally slow.</p>
 
 <p>Fuzzing can find some interesting bugs. For example, the unicode-segmentation
 fuzzers found <a href="https://github.com/unicode-rs/unicode-segmentation/issues/19">this bug</a>, where an emoji followed by <em>two</em> skin tone modifiers
-isn&rsquo;t handled correctly. We&rsquo;d probably never have been able to come up with this testcase on our
+isn’t handled correctly. We’d probably never have been able to come up with this testcase on our
 own. But the fuzzer could find it!</p>
 
-<p>The Rust Cap&#8217;n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
+<p>The Rust Cap’n Proto crate ran cargo-fuzz and found <a href="https://dwrensha.github.io/capnproto-rust/2017/02/27/cargo-fuzz.html">a whole ton of bugs</a>. There
 are more such examples <a href="https://github.com/rust-fuzz/cargo-fuzz#trophy-case">in the trophy case</a> (be sure to add any of your own findings
 to the trophy case, too!)</p>
 
 <p>cargo-fuzz is relatively new, so the API and behavior may still be tweaked a bit before 1.0.
 But you can start taking it for a spin now, and finding bugs!</p>
+
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -267,10 +244,8 @@ But you can start taking it for a spin now, and finding bugs!</p>
 
 
 
-<time class='entry-date' datetime='2017-03-02T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>2</span><span class='date-suffix'>nd</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 <span class="aftersep beforesep">
@@ -314,9 +289,9 @@ But you can start taking it for a spin now, and finding bugs!</p>
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -324,7 +299,7 @@ But you can start taking it for a spin now, and finding bugs!</p>
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>

@@ -9,7 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="See also: Tony&rsquo;s post on the same topic You often hear people saying &ldquo;Language X1 has sum types&rdquo; or &ldquo;I wish language X had &hellip;">
+  <meta name="description" content="See also: Tony’s post on the same topic You often hear people saying “Language X1 has sum types” or “I wish language X had sum types”2,
+or “Sum types &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -17,8 +18,8 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="What are sum, product, and pi types?">
-      <meta property="twitter:description" content="See also: Tony&rsquo;s post on the same topic You often hear people saying &ldquo;Language X1 has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;2,
-or &ldquo;Sum types are cool& &hellip;">
+      <meta property="twitter:description" content="See also: Tony’s post on the same topic You often hear people saying “Language X1 has sum types” or “I wish language X had sum types”2,
+or “Sum types are cool”. Much like fezzes and bow ties, sum &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -69,7 +70,7 @@ or &ldquo;Sum types are cool& &hellip;">
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -108,185 +109,123 @@ or &ldquo;Sum types are cool& &hellip;">
 
 
 
-<time class='entry-date' datetime='2017-03-04T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>4</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
   </header>
 
 
-<div class="entry-content"><p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony&rsquo;s post on the same topic</a></em></p>
+<div class="entry-content"><p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony’s post on the same topic</a></em></p>
 
-<p>You often hear people saying &ldquo;Language X<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> has sum types&rdquo; or &ldquo;I wish language X had sum types&rdquo;<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>,
-or &ldquo;Sum types are cool&rdquo;.</p>
+<p>You often hear people saying “Language X<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> has sum types” or “I wish language X had sum types”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>,
+or “Sum types are cool”.</p>
 
 <p>Much like fezzes and bow ties, sum types are indeed cool.</p>
 
-<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400" ></p>
+<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400" /></p>
 
-<p>These days, I&rsquo;ve also seen people asking about &ldquo;Pi types&rdquo;, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
+<p>These days, I’ve also seen people asking about “Pi types”, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
 
-<p>But what does &ldquo;sum type&rdquo; mean? And why is it called that? And what, in the name of sanity, is
+<p>But what does “sum type” mean? And why is it called that? And what, in the name of sanity, is
 a Pi type?</p>
 
-<p>Before I start, I&rsquo;ll mention that while I will be covering some type theory to explain the names
-&ldquo;sum&rdquo; and &ldquo;product&rdquo;, you don&rsquo;t need to understand these names to use these things! Far too often
+<p>Before I start, I’ll mention that while I will be covering some type theory to explain the names
+“sum” and “product”, you don’t need to understand these names to use these things! Far too often
 do people have trouble understanding relatively straightforward concepts in languages because
-they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+they have confusing names with confusing mathematical backgrounds<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>.</p>
 
-<h2>So what&rsquo;s a sum type? (the no-type-theory version)</h2>
+<h2 id="so-whats-a-sum-type-the-no-type-theory-version">So what’s a sum type? (the no-type-theory version)</h2>
 
-<p>In it&rsquo;s essence, a sum type is basically an &ldquo;or&rdquo; type. Let&rsquo;s first look at structs.</p>
+<p>In it’s essence, a sum type is basically an “or” type. Let’s first look at structs.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="n">String</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">struct Foo {
+    x: bool,
+    y: String,
+}
+</code></pre>
 
 <p><code>Foo</code> is a <code>bool</code> AND a <code>String</code>. You need one of each to make one.
-This is an &ldquo;and&rdquo; type, or a &ldquo;product&rdquo; type (I&rsquo;ll explain the name later).</p>
+This is an “and” type, or a “product” type (I’ll explain the name later).</p>
 
-<p>So what would an &ldquo;or&rdquo; type be? It would be one where the value can be a
+<p>So what would an “or” type be? It would be one where the value can be a
 <code>bool</code> OR a <code>String</code>. You can achieve this with C++ with a union:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">union</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span> <span class="c1">// set it to a bool</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">&quot;blah&quot;</span><span class="p">;</span> <span class="c1">// set it to a string</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-cpp">union Foo {
+    bool x;
+    string y;
+}
 
+foo.x = true; // set it to a bool
+foo.y = "blah"; // set it to a string
+</code></pre>
 
-<p>However, this isn&rsquo;t <em>exactly</em> right, since the value doesn&rsquo;t store the information
-of which variant it is. You could store <code>false</code> and the reader wouldn&rsquo;t know
+<p>However, this isn’t <em>exactly</em> right, since the value doesn’t store the information
+of which variant it is. You could store <code>false</code> and the reader wouldn’t know
 if you had stored an empty <code>string</code> or a <code>false</code> <code>bool</code>.</p>
 
-<p>There&rsquo;s a pattern called &ldquo;tagged union&rdquo; (or &ldquo;discriminated union&rdquo;) in C++ which bridges this gap.</p>
+<p>There’s a pattern called “tagged union” (or “discriminated union”) in C++ which bridges this gap.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='cpp'><span class='line'><span class="k">union</span> <span class="n">FooUnion</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">enum</span> <span class="n">FooTag</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">BOOL</span><span class="p">,</span> <span class="n">STRING</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">FooUnion</span> <span class="n">data</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">FooTag</span> <span class="n">tag</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// set it to a bool</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">BOOL</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// set it to a string</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">&quot;blah&quot;</span><span class="p">;</span>
-</span><span class='line'><span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">STRING</span><span class="p">;</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-cpp">union FooUnion {
+    bool x;
+    string y;
+}
 
+enum FooTag {
+    BOOL, STRING
+}
+
+struct Foo {
+    FooUnion data;
+    FooTag tag;
+}
+
+// set it to a bool
+foo.data.x = true;
+foo.tag = BOOL;
+
+// set it to a string
+foo.data.y = "blah";
+foo.tag = STRING;
+</code></pre>
 
 <p>Here, you manually set the tag when setting the value. C++ also has <code>std::variant</code> (or
 <code>boost::variant</code>) that encapsulates this pattern with a better API.</p>
 
-<p>While I&rsquo;m calling these &ldquo;or&rdquo; types here, the technical term for such types is &ldquo;sum&rdquo; types.
+<p>While I’m calling these “or” types here, the technical term for such types is “sum” types.
 Other languages have built-in sum types.</p>
 
-<p>Rust has them and calls them &ldquo;enums&rdquo;. These are a more generalized version of the
+<p>Rust has them and calls them “enums”. These are a more generalized version of the
 enums you see in other languages.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Str</span><span class="p">(</span><span class="n">String</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">::</span><span class="nb">Bool</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// &quot;pattern matching&quot;</span>
-</span><span class='line'><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="cm">/* do something with string `s` */</span><span class="p">,</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="cm">/* do something with bool `b` */</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">enum Foo {
+    Str(String),
+    Bool(bool)
+}
 
+let foo = Foo::Bool(true);
+
+// "pattern matching"
+match foo {
+    Str(s) =&gt; /* do something with string `s` */,
+    Bool(b) =&gt; /* do something with bool `b` */,
+}
+</code></pre>
 
 <p>Swift is similar, and also calls them enums</p>
+<pre><code class="language-swift">enum Foo {
+    case str(String)
+    case boolean(bool)
+}
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='swift'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">str</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">case</span> <span class="n">boolean</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-</span><span class='line'><span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="k">let</span> <span class="n">s</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with string `s`</span>
-</span><span class='line'>    <span class="k">case</span> <span class="p">.</span><span class="n">boolean</span><span class="p">(</span><span class="k">let</span> <span class="n">b</span><span class="p">)</span><span class="o">:</span>
-</span><span class='line'>        <span class="c1">// do something with boolean `b`</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+let foo = Foo.boolean(true);
+switch foo {
+    case .str(let s):
+        // do something with string `s`
+    case .boolean(let b):
+        // do something with boolean `b`
+}
+</code></pre>
 
 <p>You can fake these in Go using interfaces, as well. Typescript has built-in
 unions which can be typechecked without any special effort, but you need
@@ -294,229 +233,166 @@ to add a tag (like in C++) to pattern match on them.</p>
 
 <p>Of course, Haskell has them:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="kr">data</span> <span class="kt">Foo</span> <span class="ow">=</span> <span class="kt">B</span> <span class="kt">Bool</span> <span class="o">|</span> <span class="kt">S</span> <span class="kt">String</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">-- define a function</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="ow">::</span> <span class="kt">Foo</span> <span class="ow">-&gt;</span> <span class="kt">SomeReturnType</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="n">b</span><span class="p">)</span> <span class="ow">=</span> <span class="c1">-- do something with boolean b</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="n">s</span><span class="p">)</span> <span class="ow">=</span> <span class="c1">-- do something with string s</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">-- call it</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="s">&quot;blah&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="nf">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="kt">True</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-haskell">data Foo = B Bool | S String
 
+-- define a function
+doThing :: Foo -&gt; SomeReturnType
+doThing (B b) = -- do something with boolean b
+doThing (S s) = -- do something with string s
+
+-- call it
+doThing (S "blah")
+doThing (B True)
+</code></pre>
 
 <p>One of the very common things that languages with sum types do is express nullability
 as a sum type;</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// an Option is either &quot;something&quot;, containing a type, or &quot;nothing&quot;</span>
-</span><span class='line'><span class="k">enum</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Some</span><span class="p">(</span><span class="n">T</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">None</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nb">Some</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
-</span><span class='line'><span class="k">match</span> <span class="n">x</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Some</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">None</span> <span class="o">=&gt;</span> <span class="nb">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;no string for you&quot;</span><span class="p">),</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">// an Option is either "something", containing a type, or "nothing"
+enum Option&lt;T&gt; {
+    Some(T),
+    None
+}
 
+let x = Some("hello");
+match x {
+    Some(s) =&gt; println!("{}", s),
+    None =&gt; println!("no string for you"),
+}
+</code></pre>
 
-<p>Generally, these languages have &ldquo;pattern matching&rdquo;, which is like a <code>switch</code>
+<p>Generally, these languages have “pattern matching”, which is like a <code>switch</code>
 statement on steroids. It lets you match on and destructure all kinds of things,
-sum types being one of them. Usually, these are &ldquo;exhaustive&rdquo;, which means that
+sum types being one of them. Usually, these are “exhaustive”, which means that
 you are forced to handle all possible cases. In Rust, if you remove that <code>None</code>
-branch, the program won&rsquo;t compile. So you&rsquo;re forced to deal with the none case,
+branch, the program won’t compile. So you’re forced to deal with the none case,
 <em>somehow</em>.</p>
 
 <p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
 tend to make heavy use of them, almost as much as they use structs.</p>
 
-<h2>Why do we call it a sum type?</h2>
+<h2 id="why-do-we-call-it-a-sum-type">Why do we call it a sum type?</h2>
 
 <p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
 
-<p>Let&rsquo;s step back a bit and figure out what a type is.</p>
+<p>Let’s step back a bit and figure out what a type is.</p>
 
-<p>It&rsquo;s really a restriction on the values allowed. It can have things like methods and whatnot
-dangling off it, but that&rsquo;s not so important here.</p>
+<p>It’s really a restriction on the values allowed. It can have things like methods and whatnot
+dangling off it, but that’s not so important here.</p>
 
-<p>In other words, it&rsquo;s like<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set \(\{\mathtt{true}, \mathtt{false}\}\). An 8-bit unsigned integer
-(<code>u8</code> in Rust) is the set \(\{0, 1, 2, 3, &hellip;. 254, 255\}\). A string is a set with
-infinite elements, containing all possible valid strings<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+<p>In other words, it’s like<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set &lt;div class='bogus-wrapper'&gt;<notextile>\\(\\\{\mathtt{true}, \mathtt{false}\\\}\\)</notextile>&lt;/div&gt;. An 8-bit unsigned integer
+(<code>u8</code> in Rust) is the set &lt;div class='bogus-wrapper'&gt;<notextile>\\(\\\{0, 1, 2, 3, .... 254, 255\\\}\\)</notextile>&lt;/div&gt;. A string is a set with
+infinite elements, containing all possible valid strings<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>.</p>
 
-<p>What&rsquo;s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
+<p>What’s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="kt">u8</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">struct Foo {
+    x: bool,
+    y: u8,
+}
+</code></pre>
 
 <p>The set of possible values of <code>Foo</code> is</p>
 
-&#92;[&#92;{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}&#92;}&#92;]
+<div class="bogus-wrapper"><notextile>\\[\\{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}\\}\\]</notextile></div>
 
+<p>(Read as “The set of all &lt;div class='bogus-wrapper'&gt;<notextile>\\((\mathtt{x}, \mathtt{y})\\)</notextile>&lt;/div&gt; where &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt x\\)</notextile>&lt;/div&gt; is in &lt;div class='bogus-wrapper'&gt;<notextile>\\(\mathtt{bool}\\)</notextile>&lt;/div&gt; and &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt y\\)</notextile>&lt;/div&gt; is in &lt;div class='bogus-wrapper'&gt;<notextile>\\(\mathtt{u8}\\)</notextile>&lt;/div&gt;”)</p>
 
-<p>(Read as &ldquo;The set of all \((\mathtt{x}, \mathtt{y})\) where \(\tt x\) is in \(\mathtt{bool}\) and \(\tt y\) is in \(\mathtt{u8}\)&rdquo;)</p>
-
-<p>This is called a <em>Cartesian product</em>, and is often represented as \(\tt Foo = bool \times u8\).
+<p>This is called a <em>Cartesian product</em>, and is often represented as &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt Foo = bool \times u8\\)</notextile>&lt;/div&gt;.
 An easy way to view this as a product is to count the possible values: The number of possible values
 of <code>Foo</code> is the number of possible values of <code>bool</code> (2) <em>times</em> the number of possible values of <code>u8</code> (256).</p>
 
-<p>A general struct would be a &ldquo;product&rdquo; of the types of each field, so something like</p>
+<p>A general struct would be a “product” of the types of each field, so something like</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">x</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">y</span><span class="o">:</span> <span class="kt">u8</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">z</span><span class="o">:</span> <span class="kt">bool</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">w</span><span class="o">:</span> <span class="n">String</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">struct Bar {
+    x: bool,
+    y: u8,
+    z: bool,
+    w: String
+}
+</code></pre>
 
+<p>is &lt;div class='bogus-wrapper'&gt;<notextile>\\(\mathtt{Bar = bool \times u8 \times bool \times String}\\)</notextile>&lt;/div&gt;</p>
 
-<p>is \(\mathtt{Bar = bool \times u8 \times bool \times String}\)</p>
+<p>This is why structs are called “product types”<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">6</a></sup>.</p>
 
-<p>This is why structs are called &ldquo;product types&rdquo;<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>.</p>
-
-<p>You can probably guess what comes next &ndash; Rust/Swift enums are &ldquo;sum types&rdquo;, because they are the
+<p>You can probably guess what comes next – Rust/Swift enums are “sum types”, because they are the
 <em>sum</em> of the two sets.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nb">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Integer</span><span class="p">(</span><span class="kt">u8</span><span class="p">),</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">enum Foo {
+    Bool(bool),
+    Integer(u8),
+}
+</code></pre>
 
 <p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
-is a sum of sets, \(\tt Foo = bool + u8\). More accurately, it&rsquo;s a <em>disjoint union</em>, where if the input
-sets have overlap, the overlap is &ldquo;discriminated&rdquo; out.</p>
+is a sum of sets, &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt Foo = bool + u8\\)</notextile>&lt;/div&gt;. More accurately, it’s a <em>disjoint union</em>, where if the input
+sets have overlap, the overlap is “discriminated” out.</p>
 
 <p>An example of this being a disjoint union is:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">enum</span> <span class="n">Bar</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Bool1</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="n">Bool2</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
-</span><span class='line'>    <span class="nb">Integer</span><span class="p">(</span><span class="kt">u8</span><span class="p">).</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">enum Bar {
+    Bool1(bool),
+    Bool2(bool),
+    Integer(u8).
+}
+</code></pre>
 
+<p>This is not &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt Bar = bool + bool + u8\\)</notextile>&lt;/div&gt;, because &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt bool + bool = bool\\)</notextile>&lt;/div&gt;, (regular set addition doesn’t duplicate the overlap).</p>
 
-<p>This is not \(\tt Bar = bool + bool + u8\), because \(\tt bool + bool = bool\), (regular set addition doesn&rsquo;t duplicate the overlap).</p>
+<p>Instead, it’s something like</p>
 
-<p>Instead, it&rsquo;s something like</p>
+<div class="bogus-wrapper"><notextile>\\[\tt Bar = bool + otherbool + u8\\]</notextile></div>
 
-&#92;[\tt Bar = bool + otherbool + u8&#92;]
+<p>where &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt otherbool\\)</notextile>&lt;/div&gt; is also a set &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt \\\{true, false\\\}\\)</notextile>&lt;/div&gt;,
+except that these elements are <em>different</em> from those in &lt;div class='bogus-wrapper'&gt;<notextile>\\(\tt bool\\)</notextile>&lt;/div&gt;. You can look at it as if</p>
 
-
-<p>where \(\tt otherbool\) is also a set \(\tt \{true, false\}\),
-except that these elements are <em>different</em> from those in \(\tt bool\). You can look at it as if</p>
-
-&#92;[\tt otherbool = &#92;{true_2, false_2&#92;}&#92;]
-
+<div class="bogus-wrapper"><notextile>\\[\tt otherbool = \\{true_2, false_2\\}\\]</notextile></div>
 
 <p>so that</p>
 
-&#92;[\mathtt{bool + otherbool} = &#92;{\mathtt{true, false, true_2, false_2}&#92;}&#92;]
-
+<div class="bogus-wrapper"><notextile>\\[\mathtt{bool + otherbool} = \\{\mathtt{true, false, true_2, false_2}\\}\\]</notextile></div>
 
 <p>For sum types, the number of possible values is the sum of the number of possible values of
 each of its component types.</p>
 
-<p>So, Rust/Swift enums are &ldquo;sum types&rdquo;.</p>
+<p>So, Rust/Swift enums are “sum types”.</p>
 
-<p>You may often notice the terminology &ldquo;algebraic datatypes&rdquo; (ADT) being used, usually that&rsquo;s just
-talking about sum and product types together &ndash; a language with ADTs will have both.</p>
+<p>You may often notice the terminology “algebraic datatypes” (ADT) being used, usually that’s just
+talking about sum and product types together – a language with ADTs will have both.</p>
 
-<p>In fact, you can even have <em>exponential</em> types! The notation A<sup>B</sup> in set theory does mean something,
-it&rsquo;s the set of all possible mappings from \(B\) to \(A\). The number of elements is \({N_A}^{N_B}\). So
-basically, the type of a function (which is a mapping) is an &ldquo;exponential&rdquo; type. You can also view it as
+<p>In fact, you can even have <em>exponential</em> types! The notation A^B in set theory does mean something,
+it’s the set of all possible mappings from &lt;div class='bogus-wrapper'&gt;<notextile>\\(B\\)</notextile>&lt;/div&gt; to &lt;div class='bogus-wrapper'&gt;<notextile>\\(A\\)</notextile>&lt;/div&gt;. The number of elements is &lt;div class='bogus-wrapper'&gt;<notextile>\\({N_A}^{N_B}\\)</notextile>&lt;/div&gt;. So
+basically, the type of a function (which is a mapping) is an “exponential” type. You can also view it as
 an iterated product type, a function from type <code>B</code> to <code>A</code> is really a struct like this:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// the type</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">my_func</span><span class="p">(</span><span class="n">b</span><span class="o">:</span> <span class="n">B</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">A</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// is conceptually (each possible my_func can be written as an instance of)</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">my_func</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">b1</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for first element in B</span>
-</span><span class='line'>    <span class="n">b2</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for second element in B</span>
-</span><span class='line'>    <span class="n">b3</span><span class="o">:</span> <span class="n">A</span><span class="p">,</span>
-</span><span class='line'>    <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">// the type
+fn my_func(b: B) -&gt; A;
 
+// is conceptually (each possible my_func can be written as an instance of)
+
+struct my_func {
+    b1: A, // value for first element in B
+    b2: A, // value for second element in B
+    b3: A,
+    // ... 
+}
+</code></pre>
 
 <p>given a value of the input <code>b</code>, the function will find the right field of <code>my_func</code> and return
 the mapping. Since a struct is a product type, this is</p>
 
-&#92;[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots&#92;]
-
+<div class="bogus-wrapper"><notextile>\\[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots\\]</notextile></div>
 
 <p>making it an exponential type.</p>
 
 <p><a href="https://web.archive.org/web/20190706084116/https://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
 
-<h2>What, in the name of sanity, is a Pi type?</h2>
+<h2 id="what-in-the-name-of-sanity-is-a-pi-type">What, in the name of sanity, is a Pi type?</h2>
 
-<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400" ></p>
+<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400" /></p>
 
-<p>It&rsquo;s essentially a form of dependent type. A dependent type is when your type
+<p>It’s essentially a form of dependent type. A dependent type is when your type
 can depend on a value. An example of this is integer generics, where you
 can do things like <code>Array&lt;bool, 5&gt;</code>, or <code>template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
 
@@ -525,120 +401,99 @@ different array lengths.</p>
 
 <p>The name comes from how a constructor for these types would look:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="c1">// create an array of booleans from a given integer</span>
-</span><span class='line'><span class="c1">// I made up this syntax, this is _not_ from the Rust Pi type RFC</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">make_array</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// ...</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// or</span>
-</span><span class='line'><span class="c1">// (the proposed rust syntax)</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">make_array</span><span class="o">&lt;</span><span class="kr">const</span> <span class="n">x</span><span class="o">:</span> <span class="kt">u8</span><span class="o">&gt;</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>   <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">// create an array of booleans from a given integer
+// I made up this syntax, this is _not_ from the Rust Pi type RFC
+fn make_array(x: u8) -&gt; Array&lt;bool, x&gt; {
+    // ...
+}
 
+// or
+// (the proposed rust syntax)
+fn make_array&lt;const x: u8&gt;() -&gt; Array&lt;bool, x&gt; {
+   // ... 
+}
+</code></pre>
 
-<p>What&rsquo;s the type of <code>make_array</code> here? It&rsquo;s a function which can accept any integer
+<p>What’s the type of <code>make_array</code> here? It’s a function which can accept any integer
 and return a different type in each case. You can view it as a set of functions,
-where each function corresponds to a different integer input. It&rsquo;s basically:</p>
+where each function corresponds to a different integer input. It’s basically:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">make_array</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">make_array_0</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">0</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_1</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_2</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_3</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">3</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_4</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">make_array_5</span><span class="o">:</span> <span class="k">fn</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">,</span> <span class="mi">5</span><span class="o">&gt;</span><span class="p">,</span>
-</span><span class='line'>    <span class="c1">// ... </span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">struct make_array {
+    make_array_0: fn() -&gt; Array&lt;bool, 0&gt;,
+    make_array_1: fn() -&gt; Array&lt;bool, 1&gt;,
+    make_array_2: fn() -&gt; Array&lt;bool, 2&gt;,
+    make_array_3: fn() -&gt; Array&lt;bool, 3&gt;,
+    make_array_4: fn() -&gt; Array&lt;bool, 4&gt;,
+    make_array_5: fn() -&gt; Array&lt;bool, 5&gt;,
+    // ... 
+}
+</code></pre>
 
 <p>Given an input, the function chooses the right child function here, and calls it.</p>
 
-<p>This is a struct, or a product type! But it&rsquo;s a product of an infinite number of types<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
+<p>This is a struct, or a product type! But it’s a product of an infinite number of types<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">7</a></sup>.</p>
 
 <p>We can look at it as</p>
 
-&#92;[&#92;texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]
+<div class="bogus-wrapper"><notextile>\\[\\texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)\\]</notextile></div>
 
-
-<p>The usage of the \(\Pi\) symbol to denote an iterative product gives this the name &ldquo;Pi type&rdquo;.</p>
+<p>The usage of the &lt;div class='bogus-wrapper'&gt;<notextile>\\(\Pi\\)</notextile>&lt;/div&gt; symbol to denote an iterative product gives this the name “Pi type”.</p>
 
 <p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
 that can give you a value, and actually having the value. So, the type of <code>make_array</code> is the type
 of <code>Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
 
-<p>There&rsquo;s also a notion of a &ldquo;sigma&rdquo; type, which is basically</p>
+<p>There’s also a notion of a “sigma” type, which is basically</p>
 
-&#92;[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)&#92;]
+<div class="bogus-wrapper"><notextile>\\[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)\\]</notextile></div>
 
-
-<p>With the Pi type, we had &ldquo;for all N we can
-construct an array&rdquo;, with the sigma type we have &ldquo;there exists some N for which we can construct this array&rdquo;.
+<p>With the Pi type, we had “for all N we can
+construct an array”, with the sigma type we have “there exists some N for which we can construct this array”.
 As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
 are basically instances of <code>Array&lt;bool, N&gt;</code> for some specific <code>N</code> where the <code>N</code> is only known at runtime.
 (much like how regular sum types are instances of one amongst multiple types, where the exact type
 is only known at runtime). <code>Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code>Array&lt;bool, ?&gt;</code>,
 as is <code>&amp;[bool]</code>.</p>
 
-<h2>Wrapping up</h2>
+<h2 id="wrapping-up">Wrapping up</h2>
 
 <p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
 
-<p>Let&rsquo;s try to avoid using confusing terminology, however. If Rust <em>does</em> get &ldquo;pi types&rdquo;,
-let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generics&rdquo; :)</p>
+<p>Let’s try to avoid using confusing terminology, however. If Rust <em>does</em> get “pi types”,
+let’s just call them “dependent types” or “const generics” :)</p>
 
 <p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>Lookin&#8217; at you, Go.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Moooooooooooooooonads<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it&rsquo;s still a finite set.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>Like with strings, in practice this would probably be bounded by the integer type chosen<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-</ol>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Lookin’ at you, Go. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Moooooooooooooooonads <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:10" role="doc-endnote">
+      <p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it’s still a finite set. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a> <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>Like with strings, in practice this would probably be bounded by the integer type chosen <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -646,10 +501,8 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
 
 
 
-<time class='entry-date' datetime='2017-03-04T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>4</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 <span class="aftersep beforesep">
@@ -693,9 +546,9 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -703,7 +556,7 @@ let&rsquo;s just call them &ldquo;dependent types&rdquo; or &ldquo;const generic
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>

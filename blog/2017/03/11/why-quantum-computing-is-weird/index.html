@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="I&rsquo;ve been meaning to write about physics for a while. When I started this blog the intention was to
-write about a wide variety of interests, &hellip;">
+  <meta name="description" content="I’ve been meaning to write about physics for a while. When I started this blog the intention was to
+write about a wide variety of interests, but I &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +18,8 @@ write about a wide variety of interests, &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Why quantum computing is weird">
-      <meta property="twitter:description" content="I&rsquo;ve been meaning to write about physics for a while. When I started this blog the intention was to
-write about a wide variety of interests, but I ended up focusing on programming, despite the &hellip;">
+      <meta property="twitter:description" content="I’ve been meaning to write about physics for a while. When I started this blog the intention was to
+write about a wide variety of interests, but I ended up focusing on programming, despite the fact &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -66,7 +66,7 @@ write about a wide variety of interests, but I ended up focusing on programming,
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -105,99 +105,99 @@ write about a wide variety of interests, but I ended up focusing on programming,
 
 
 
-<time class='entry-date' datetime='2017-03-11T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
   </header>
 
 
-<div class="entry-content"><p><em>I&rsquo;ve been meaning to write about physics for a while. When I started this blog the intention was to
+<div class="entry-content"><p><em>I’ve been meaning to write about physics for a while. When I started this blog the intention was to
 write about a wide variety of interests, but I ended up focusing on programming, despite the fact
 that I was doing more physics than programming for most of the lifetime of this blog. Time to change
 that, and hopefully write about other non-programming topics too.</em></p>
 
-<p>Quantum Computing. It&rsquo;s the new hip thing that&rsquo;s going to change the world<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Someday.</p>
+<p>Quantum Computing. It’s the new hip thing that’s going to change the world<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. Someday.</p>
 
-<p>In it&rsquo;s essence, where classical computing deals with &ldquo;bits&rdquo;, which are on/off states, quantum
-computing deals with &ldquo;qubits&rdquo;, which are probabalistic quantum states that are often a mixture of on
+<p>In it’s essence, where classical computing deals with “bits”, which are on/off states, quantum
+computing deals with “qubits”, which are probabalistic quantum states that are often a mixture of on
 and off. These have interesting properties which make certain kinds of so-far-hard computation very
 easy to perform.</p>
 
 <p>The goal of this post is not to teach quantum computing, rather to garner interest. I come to praise
-quantum computing, not bury it<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As a result, this post doesn&rsquo;t require a background in physics.
+quantum computing, not bury it<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. As a result, this post doesn’t require a background in physics.
 Having worked with very simple logic circuits is probably enough, though you may not even need that.</p>
 
-<p>I&rsquo;m basically going to sketch out an example of a very simple quantum algorithm. One that&rsquo;s very
-logic-defying. It&rsquo;s even logic-defying for many who have studied quantum mechanics; it certainly
+<p>I’m basically going to sketch out an example of a very simple quantum algorithm. One that’s very
+logic-defying. It’s even logic-defying for many who have studied quantum mechanics; it certainly
 was for me. When I learned this first I could understand <em>why</em> it worked but there was a lot of
 dissonance between that and my intuitive conviction that it was <em>wrong</em>.</p>
 
-<h2>The algorithm</h2>
+<h2 id="the-algorithm">The algorithm</h2>
 
-<p><img class="center" src="/images/post/deutsch/deutsch-jozsa.png" width="600" ></p>
+<p><img class="center" src="/images/post/deutsch/deutsch-jozsa.png" width="600" /></p>
 
 <p>This is a quantum circuit (specifically, the circuit for the <a href="https://en.wikipedia.org/wiki/Deutsch%E2%80%93Jozsa_algorithm">Deutsch-Jozsa algorithm</a>).
-It&rsquo;s used to find out the nature of a black-box function <code>f(x)</code>, which takes in one qubit and outputs
-another<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>. For now, you can try to interpret this circuit as if it were a regular logic circuit.
-You&rsquo;ll soon see that this interpretation is wrong, but it&rsquo;s useful for the purposes of this explanation.</p>
+It’s used to find out the nature of a black-box function <code>f(x)</code>, which takes in one qubit and outputs
+another<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>. For now, you can try to interpret this circuit as if it were a regular logic circuit.
+You’ll soon see that this interpretation is wrong, but it’s useful for the purposes of this explanation.</p>
 
-<p>To run this algorithm, you first construct an &ldquo;oracle&rdquo; out of the black-box function. The oracle,
+<p>To run this algorithm, you first construct an “oracle” out of the black-box function. The oracle,
 given inputs <code>x</code> and <code>y</code>, has outputs <code>x</code> and <code>y ⊕ f(x)</code> (where <code>⊕</code> is the symbol for XOR, the
-&ldquo;exclusive OR&rdquo;).</p>
+“exclusive OR”).</p>
 
 <p>As with logic circuits, data flow here goes from left to right. This circuit has two constant
-inputs, a zero and a one. This is similar to how we might have constant &ldquo;true&rdquo; and &ldquo;false&rdquo; inputs
+inputs, a zero and a one. This is similar to how we might have constant “true” and “false” inputs
 to logic circuits.</p>
 
-<p>They are then passed through &ldquo;Hadamard gates&rdquo;. These are <em>like</em> NOT gates, in that applying them
-twice is a no-op (they are their own inverse), but they&rsquo;re not actually NOT gates. I like to
-describe them as &ldquo;sideways NOT gates&rdquo; since that description somewhat intuitively captures what&rsquo;s
-going on with the qubits. What&rsquo;s important to note here is that they have one input and one
-output, so they&rsquo;re unaffected by the goings-on in a different wire.</p>
+<p>They are then passed through “Hadamard gates”. These are <em>like</em> NOT gates, in that applying them
+twice is a no-op (they are their own inverse), but they’re not actually NOT gates. I like to
+describe them as “sideways NOT gates” since that description somewhat intuitively captures what’s
+going on with the qubits. What’s important to note here is that they have one input and one
+output, so they’re unaffected by the goings-on in a different wire.</p>
 
-<p>Once these inputs have been Hadamard&#8217;ed, they are fed to the oracle we constructed. The top input
-goes on to become the top output. It&rsquo;s also passed through <code>f(x)</code> and XORd with the bottom input to make
+<p>Once these inputs have been Hadamard’ed, they are fed to the oracle we constructed. The top input
+goes on to become the top output. It’s also passed through <code>f(x)</code> and XORd with the bottom input to make
 the bottom output.</p>
 
-<p>The top output is then Hadamard&#8217;ed again, and finally we observe its value.</p>
+<p>The top output is then Hadamard’ed again, and finally we observe its value.</p>
 
-<p>Here&rsquo;s where the magic comes in. By observing the top output, <em>we will know the nature of <code>f(x)</code></em><sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+<p>Here’s where the magic comes in. By observing the top output, <em>we will know the nature of <code>f(x)</code></em><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
 
-<p>Wait, what? The top output doesn&rsquo;t appear to have any interaction with <code>f(x)</code> at all! How can that work?</p>
+<p>Wait, what? The top output doesn’t appear to have any interaction with <code>f(x)</code> at all! How can that work?</p>
 
 <p>In fact, we could try to rewrite this circuit such that the measured output definitely has no interaction with
-<code>f(x)</code> whatever, assuming that the Hadamard gate isn&rsquo;t doing anything funky<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup> (it isn&rsquo;t):</p>
+<code>f(x)</code> whatever, assuming that the Hadamard gate isn’t doing anything funky<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">5</a></sup> (it isn’t):</p>
 
-<p><img class="center" src="/images/post/deutsch/deutsch-jozsa-wrong.png" width="600" ></p>
+<p><img class="center" src="/images/post/deutsch/deutsch-jozsa-wrong.png" width="600" /></p>
 
 <p>How in the world does this work?</p>
 
-<h2>Why it works</h2>
+<h2 id="why-it-works">Why it works</h2>
 
-<p>Sadly, I can&rsquo;t give a satisfying explanation to <em>exactly</em> why this works. This requires some quantum mechanics
-background<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup> to grasp.</p>
+<p>Sadly, I can’t give a satisfying explanation to <em>exactly</em> why this works. This requires some quantum mechanics
+background<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">6</a></sup> to grasp.</p>
 
-<p>However, I can give a hopefully-satisfying explanation as to why our regular intuition doesn&rsquo;t work here.</p>
+<p>However, I can give a hopefully-satisfying explanation as to why our regular intuition doesn’t work here.</p>
 
-<p>First and foremost: The rewritten circuit I showed above? It&rsquo;s wrong. If this was a logic circuit, we could always do that,
-but in quantum computing, T-junctions like the following can&rsquo;t exist:</p>
+<p>First and foremost: The rewritten circuit I showed above? It’s wrong. If this was a logic circuit, we could always do that,
+but in quantum computing, T-junctions like the following can’t exist:</p>
 
-<p><img class="center" src="/images/post/deutsch/deutsch-jozsa-tjunction.png" width="600" ></p>
+<p><img class="center" src="/images/post/deutsch/deutsch-jozsa-tjunction.png" width="600" /></p>
 
-<p>This is due to the <a href="https://en.wikipedia.org/wiki/No-cloning_theorem">&ldquo;No Cloning theorem&rdquo;</a>. Unlike regular logic circuits, you can&rsquo;t
-just &ldquo;duplicate&rdquo; a qubit. In some cases (like this one), you can try to create a similar qubit
+<p>This is due to the <a href="https://en.wikipedia.org/wiki/No-cloning_theorem">“No Cloning theorem”</a>. Unlike regular logic circuits, you can’t
+just “duplicate” a qubit. In some cases (like this one), you can try to create a similar qubit
 via the same process (e.g. here we could take another 0 and pass it through a Hadamard gate), but
-it&rsquo;s not the &ldquo;same&rdquo; qubit. Unlike bits, qubits have a stronger notion of unique identity.</p>
+it’s not the “same” qubit. Unlike bits, qubits have a stronger notion of unique identity.</p>
 
-<p>And it&rsquo;s this sense of identity that fuels this algorithm (and most of quantum computing).</p>
+<p>And it’s this sense of identity that fuels this algorithm (and most of quantum computing).</p>
 
-<p>You see, while the top output of the oracle was <code>x</code>, it wasn&rsquo;t exactly the <em>same</em> <code>x</code>. This <code>x</code> had
+<p>You see, while the top output of the oracle was <code>x</code>, it wasn’t exactly the <em>same</em> <code>x</code>. This <code>x</code> had
 been mixed with the lower output. This means that the upper and lower outputs are now <em>entangled</em>,
-with their state depending on each other. In fact, it&rsquo;s really misleading to show the output as two
-wires in the first place &ndash; it&rsquo;s really a single &ldquo;entangled&rdquo; state of two qubits that can&rsquo;t be
-decomposed as a &ldquo;top half&rdquo; and a &ldquo;bottom half&rdquo;. Of course, this way of representing quantum circuits
-is still used because it&rsquo;s a tidy way of visualizing these circuits, and physicists are aware of the
+with their state depending on each other. In fact, it’s really misleading to show the output as two
+wires in the first place – it’s really a single “entangled” state of two qubits that can’t be
+decomposed as a “top half” and a “bottom half”. Of course, this way of representing quantum circuits
+is still used because it’s a tidy way of visualizing these circuits, and physicists are aware of the
 caveats involved.</p>
 
 <p>So what happens is that when you observe the top output, you are really doing a partial observation
@@ -206,35 +206,38 @@ leaks out when you perform the observation.</p>
 
 <p>These properties of qubits make quantum circuits work significantly differently from regular logic
 ones. On one hand, this severely restricts what you can do with them, but at the same time, new
-avenues of erstwhile-impossible operations open up. Most useful quantum algorithms (like Shor&rsquo;s
+avenues of erstwhile-impossible operations open up. Most useful quantum algorithms (like Shor’s
 factorization algorithm) involve a mixture of a classical algorithm and a quantum circuit due to
-this reason. It&rsquo;s pretty cool!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>What isn&rsquo;t?<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>The abstruseness of physics lives after it; the coolness is oft interred with its bones.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>This actually can be generalized to a function with n input and n output qubits, and the circuit stays mostly the same, except the top &ldquo;x&rdquo; line becomes n lines all initialized to 0 and passing through n parallel H gates.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Specifically, if the observation is 1, the function is a constant, whereas if the observation is 0, the function is &ldquo;balanced&rdquo; (gives a different output for inputs 1 and 0)<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>For Hadamard is an honorable gate. So are they all, all honorable gates.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>If you do have this background, it&rsquo;s relatively straightforward; the Wikipedia page has the equations for it.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
+this reason. It’s pretty cool!</p>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>What isn’t? <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>The abstruseness of physics lives after it; the coolness is oft interred with its bones. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>This actually can be generalized to a function with n input and n output qubits, and the circuit stays mostly the same, except the top “x” line becomes n lines all initialized to 0 and passing through n parallel H gates. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Specifically, if the observation is 1, the function is a constant, whereas if the observation is 0, the function is “balanced” (gives a different output for inputs 1 and 0) <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>For Hadamard is an honorable gate. So are they all, all honorable gates. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>If you do have this background, it’s relatively straightforward; the Wikipedia page has the equations for it. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -242,10 +245,8 @@ this reason. It&rsquo;s pretty cool!</p>
 
 
 
-<time class='entry-date' datetime='2017-03-11T00:00:00+00:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 
@@ -285,9 +286,9 @@ this reason. It&rsquo;s pretty cool!</p>
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -295,7 +296,7 @@ this reason. It&rsquo;s pretty cool!</p>
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>

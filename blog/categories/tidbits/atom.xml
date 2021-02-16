@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Tidbits | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/tidbits/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-16T02:06:43+00:00</updated>
+  <updated>2021-02-16T06:17:04+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -20,33 +20,33 @@
     <id>http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules</id>
     <content type="html"><![CDATA[<p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
 learning the language. A lot of these confusions stem from a misunderstanding of how it works.
-In explaining this I&rsquo;ve seen that it&rsquo;s usually a common set of misunderstandings.</p>
+In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
 
-<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">&ldquo;You&rsquo;re doing it wrong&rdquo;</a>, I want to try and explain one
-&ldquo;right&rdquo; way of looking at it. You can go pretty far<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> without knowing this, but it&rsquo;s useful
+<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
+“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> without knowing this, but it’s useful
 and helps avoid confusion.</p>
 
 <hr />
 
-<p><br></p>
+<p><br /></p>
 
 <p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
-&ldquo;look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents&rdquo;.
-It&rsquo;s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
-itself can be confusing at first, but it&rsquo;s not what I wish to focus on here. The Rust book explains this more
+“look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents”.
+It’s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
+itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
 in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
 
 <p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
 but keep in mind that the stuff here applies equally to multi-file crates.</p>
 
-<h3>Motivating examples</h3>
+<h3 id="motivating-examples">Motivating examples</h3>
 
-<p>To start off, I&rsquo;m going to provide some examples of Rust code which compiles. Some of these may be
+<p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
 counterintuitive, based on your existing model.</p>
 
-<pre><code class="rust">pub mod foo {
+<pre><code class="language-rust">pub mod foo {
     extern crate regex;
-
+    
     mod bar {
         use foo::regex::Regex;
     }
@@ -55,7 +55,7 @@ counterintuitive, based on your existing model.</p>
 
 <p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="rust">use std::mem;
+<pre><code class="language-rust">use std::mem;
 
 
 pub mod foo {
@@ -70,7 +70,7 @@ pub mod foo {
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="rust">pub mod foo {
+<pre><code class="language-rust">pub mod foo {
     use bar;
     use bar::bar_inner;
 
@@ -80,16 +80,16 @@ pub mod foo {
         bar::bar_inner();
         // this doesn't
         // baz::baz_inner();
-
+        
         // but these do!
         ::baz::baz_inner();
         super::baz::baz_inner();
-
+        
         // these do too!
         ::bar::bar_inner();
         super::bar::bar_inner();
         self::bar::bar_inner();
-
+        
     }
 }
 
@@ -103,16 +103,16 @@ pub mod baz {
 
 <p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="rust">pub mod foo {
+<pre><code class="language-rust">pub mod foo {
     use bar::baz;
     // this won't work
     // use baz::inner();
-
+    
     // this will
     use self::baz::inner;
     // or
     // use bar::baz::inner
-
+    
     pub fn foo() {
         // but this will work!
         baz::inner();
@@ -128,39 +128,36 @@ pub mod bar {
 
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
-<p>These examples remind me of the &ldquo;point at infinity&rdquo; in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
-you add in things that don&rsquo;t normally exist. Similarly, these examples may contain code which
+<p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
+physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. Sometimes, for something to make sense,
+you add in things that don’t normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.</p>
 
-<h3>Imports</h3>
+<h3 id="imports">Imports</h3>
 
 <p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
 
 <ul>
-<li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
-
-<ul>
-<li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
-</ul>
-</li>
-<li><code>foo::bar::baz</code> within your code<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
-
-<ul>
-<li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
-</ul>
-</li>
+  <li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
+    <ul>
+      <li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
+    </ul>
+  </li>
+  <li><code>foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
+    <ul>
+      <li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
+    </ul>
+  </li>
 </ul>
 
+<p>That’s actually … it. There are no further caveats. The rest of this is modelling what
+constitutes as “being within a module”.</p>
 
-<p>That&rsquo;s actually &hellip; it. There are no further caveats. The rest of this is modelling what
-constitutes as &ldquo;being within a module&rdquo;.</p>
-
-<p>Let&rsquo;s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
+<p>Let’s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
 module:</p>
 
-<pre><code class="rust">extern crate regex;
+<pre><code class="language-rust">extern crate regex;
 
 mod foo {
     use regex::Regex;
@@ -174,23 +171,23 @@ mod foo {
 </code></pre>
 
 <p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
-pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we&rsquo;ve imported
+pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
 the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
 <code>use regex::Regex</code> works fine inside the module.</p>
 
-<p>Inline in code, <code>regex::Regex</code> won&rsquo;t work because as mentioned before inline paths are relative
+<p>Inline in code, <code>regex::Regex</code> won’t work because as mentioned before inline paths are relative
 to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
 
-<p>Since we&rsquo;ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
+<p>Since we’ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
 the module directly, so the code can just say <code>Regex::new()</code>.</p>
 
 <p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
-<code>blah</code> &ldquo;within the module&rdquo;, which is basically something like a symbolic link, saying
-&ldquo;yes this item named <code>blah</code> is actually elsewhere but we&rsquo;ll pretend it&rsquo;s within the module&rdquo;</p>
+<code>blah</code> “within the module”, which is basically something like a symbolic link, saying
+“yes this item named <code>blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
 
 <p>The error message from this code may further drive this home:</p>
 
-<pre><code class="rust">use foo::replace;
+<pre><code class="language-rust">use foo::replace;
 
 pub mod foo {
     use std::mem::replace;
@@ -208,11 +205,11 @@ pub mod foo {
   |     ^^^^^^^^^^^^
 </code></pre>
 
-<p>There&rsquo;s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
+<p>There’s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
 
-<p>That&rsquo;s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
+<p>That’s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
 
-<pre><code class="rust">pub mod foo {
+<pre><code class="language-rust">pub mod foo {
     fn replace(...) -&gt; ... {
         ...
     }
@@ -226,15 +223,15 @@ pub mod foo {
 }
 </code></pre>
 
-<p>except it&rsquo;s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
+<p>except it’s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
 are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
 a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
 any extra qualification in inline paths.</p>
 
-<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says &ldquo;make this symlink, but let
-others see it too&rdquo;:</p>
+<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says “make this symlink, but let
+others see it too”:</p>
 
-<pre><code class="rust">// works now!
+<pre><code class="language-rust">// works now!
 use foo::replace;
 
 pub mod foo {
@@ -244,11 +241,11 @@ pub mod foo {
 
 <hr />
 
-<p><br></p>
+<p><br /></p>
 
-<p>Folks often get annoyed when this doesn&rsquo;t work:</p>
+<p>Folks often get annoyed when this doesn’t work:</p>
 
-<pre><code class="rust">mod foo {
+<pre><code class="language-rust">mod foo {
     use std::mem;
     // nope
     // use mem::replace;
@@ -256,10 +253,10 @@ pub mod foo {
 </code></pre>
 
 <p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
-in the root module, so this won&rsquo;t work. We can make it work via <code>self</code>, which I mentioned
+in the root module, so this won’t work. We can make it work via <code>self</code>, which I mentioned
 before:</p>
 
-<pre><code class="rust">mod foo {
+<pre><code class="language-rust">mod foo {
     use std::mem;
     // yep!
     use self::mem::replace;
@@ -270,22 +267,21 @@ before:</p>
 which occur in the import/path system:</p>
 
 <ul>
-<li><code>use self::foo</code> means &ldquo;find me <code>foo</code> within the current module&rdquo;</li>
-<li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
-<li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-<li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
+  <li><code>use self::foo</code> means “find me <code>foo</code> within the current module”</li>
+  <li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
+  <li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+  <li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
 </ul>
 
-
-<p>Oh well, at least it&rsquo;s not <code>static</code>.</p>
+<p>Oh well, at least it’s not <code>static</code>.</p>
 
 <hr />
 
-<p><br><br></p>
+<p><br /><br /></p>
 
 <p>Going back to one of the examples I gave at the beginning:</p>
 
-<pre><code class="rust">use std::mem;
+<pre><code class="language-rust">use std::mem;
 
 
 pub mod foo {
@@ -299,12 +295,12 @@ pub mod foo {
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone&rsquo;s point
-of view, there&rsquo;s an item called <code>mem</code> in the root.</p>
+<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone’s point
+of view, there’s an item called <code>mem</code> in the root.</p>
 
 <p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
 already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
-actually belonging to the module. (Non-child modules won&rsquo;t see it because of privacy, we
+actually belonging to the module. (Non-child modules won’t see it because of privacy, we
 saw an example of this already)</p>
 
 <p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
@@ -315,52 +311,49 @@ Nothing in the parent module is private from the child, so we can <code>use foo:
 
 <p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
 or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
-This is why we rarely see shenanigans like the above; there&rsquo;s nothing in the root crate
+This is why we rarely see shenanigans like the above; there’s nothing in the root crate
 to import, aside from other crates specified by <code>extern crate</code>. The trick of
-&ldquo;reimport something from the parent module&rdquo; is also pretty rare because there&rsquo;s basically no
+“reimport something from the parent module” is also pretty rare because there’s basically no
 point to using that (just import it directly!). So this is not the kind of code
-you&rsquo;ll see in the wild.</p>
+you’ll see in the wild.</p>
 
 <hr />
 
-<p><br></p>
+<p><br /></p>
 
 <p>Basically, the way the import system works can be summed up as:</p>
 
 <ul>
-<li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-<li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
-<li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
-<li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-<li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-<li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+  <li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+  <li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
+  <li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
+  <li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+  <li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+  <li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
 </ul>
-
 
 <p>Alright, on to the other half of this. Privacy.</p>
 
-<h3>Privacy</h3>
+<h3 id="privacy">Privacy</h3>
 
 <p>So how does privacy work?</p>
 
 <p>Privacy, too, follows some basic rules:</p>
 
 <ul>
-<li>If you can access a module, you can access all of its <code>pub</code> contents</li>
-<li>A module can always access its child modules, but not recursively
-
-<ul>
-<li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
+  <li>If you can access a module, you can access all of its <code>pub</code> contents</li>
+  <li>A module can always access its child modules, but not recursively
+    <ul>
+      <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
+    </ul>
+  </li>
+  <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
+  <li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
 </ul>
-</li>
-<li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-<li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it&rsquo;s experimental so we won&rsquo;t deal with it here</li>
-</ul>
-
 
 <p>Giving some examples,</p>
 
-<pre><code class="rust">mod foo {
+<pre><code class="language-rust">mod foo {
     mod bar {
         // can access `foo::foofunc`, even though `foofunc` is private
 
@@ -372,7 +365,7 @@ you&rsquo;ll see in the wild.</p>
 }
 </code></pre>
 
-<pre><code class="rust">mod foo {
+<pre><code class="language-rust">mod foo {
     mod bar {
         // We can access our parent and _all_ its contents,
         // so we have access to `foo::baz`. We can access
@@ -386,10 +379,10 @@ you&rsquo;ll see in the wild.</p>
 }
 </code></pre>
 
-<p>It&rsquo;s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>:</p>
+<p>It’s important to note that this is all contextual; whether or not a particular
+path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
 
-<pre><code class="rust">pub mod foo {
+<pre><code class="language-rust">pub mod foo {
     /* not pub */ mod bar {
         pub mod baz {
             pub fn bazfunc() {}
@@ -407,26 +400,30 @@ path works is a function of where you are. For example, this works<sup id="fnref
 
 <hr />
 
-<p><br></p>
+<p><br /></p>
 
-<p>Hopefully this is helpful to some of you. I&rsquo;m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn&rsquo;t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the &ldquo;empty lifetime&rdquo;</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can&rsquo;t exist, so we get a lifetime error.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>When I say &ldquo;within your code&rdquo;, I mean &ldquo;anywhere but a <code>use</code> statement&rdquo;. I may also term these as &ldquo;inline paths&rdquo;.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a><a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>!</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>When I say “within your code”, I mean “anywhere but a <code>use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -435,35 +432,36 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5"><a href="#fn
     <link href="http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa/"/>
     <updated>2017-03-18T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa</id>
-    <content type="html"><![CDATA[<p>Imagine never hearing the phrase &lsquo;INHTPAMA&rsquo; again.</p>
+    <content type="html"><![CDATA[<p>Imagine never hearing the phrase ‘INHTPAMA’ again.</p>
 
-<p>Oh, that&rsquo;s already the case? Bummer.</p>
+<p>Oh, that’s already the case? Bummer.</p>
 
-<p>Often, when talking about Rust, folks refer to the core aliasing rule as &ldquo;that <code>&amp;mut</code> thing&rdquo;,
-&ldquo;compile-time <code>RWLock</code>&rdquo; (or &ldquo;compile-time <code>RefCell</code>&rdquo;), or something similar. Basically, referring to
-the fact that you can&rsquo;t mutate the data that is currently held via an <code>&amp;</code> reference, and that you
-can&rsquo;t mutate or read the data currently held via an <code>&amp;mut</code> reference except through that reference
+<p>Often, when talking about Rust, folks refer to the core aliasing rule as “that <code>&amp;mut</code> thing”,
+“compile-time <code>RWLock</code>” (or “compile-time <code>RefCell</code>”), or something similar. Basically, referring to
+the fact that you can’t mutate the data that is currently held via an <code>&amp;</code> reference, and that you
+can’t mutate or read the data currently held via an <code>&amp;mut</code> reference except through that reference
 itself.</p>
 
-<p>It&rsquo;s always bugged me that we really don&rsquo;t have a name for this thing. It&rsquo;s one of the core
+<p>It’s always bugged me that we really don’t have a name for this thing. It’s one of the core
 bits of Rust, and crops up often in discussions.</p>
 
-<p>But we did have a name for it! It was &ldquo;INHTPAMA&rdquo; (which was later butchered into &ldquo;INHTWAMA&rdquo;).</p>
+<p>But we did have a name for it! It was “INHTPAMA” (which was later butchered into “INHTWAMA”).</p>
 
-<p>This is a reference to <a href="http://smallcultfollowing.com/babysteps/blog/2012/11/18/imagine-never-hearing-the-phrase-aliasable/">Niko&rsquo;s 2012 blog post</a>, titled
-&ldquo;Imagine Never Hearing The Phrase &lsquo;aliasable, mutable&rsquo; again&rdquo;. It&rsquo;s where the aliasing
-rules came from. Go read it, it&rsquo;s great. It talks about this weird language with at symbols
+<p>This is a reference to <a href="http://smallcultfollowing.com/babysteps/blog/2012/11/18/imagine-never-hearing-the-phrase-aliasable/">Niko’s 2012 blog post</a>, titled
+“Imagine Never Hearing The Phrase ‘aliasable, mutable’ again”. It’s where the aliasing
+rules came from. Go read it, it’s great. It talks about this weird language with at symbols
 and purity, but I assure you, that language is Baby Rust. Or maybe Teenage Rust. The
-<a href="https://www.ars.usda.gov/images/docs/9910_10104/Pg-lifecycle.jpg">lifecycle of rusts is complex and interesting</a> and I don&rsquo;t know how to categorize it.</p>
+<a href="https://www.ars.usda.gov/images/docs/9910_10104/Pg-lifecycle.jpg">lifecycle of rusts is complex and interesting</a> and I don’t know how to categorize it.</p>
 
-<p>The point of this post isn&rsquo;t really to encourage reviving the use of &ldquo;INHTWAMA&rdquo;; it&rsquo;s
+<p>The point of this post isn’t really to encourage reviving the use of “INHTWAMA”; it’s
 a rather weird acronym that will probably confuse folks. I would like to have a better
-way of refering to &ldquo;that <code>&amp;mut</code> thing&rdquo;, but I&rsquo;d prefer if it wasn&rsquo;t a confusing acronym
-that carries no meaning of its own if you don&rsquo;t know the history of it. That&rsquo;s a recipe for
+way of refering to “that <code>&amp;mut</code> thing”, but I’d prefer if it wasn’t a confusing acronym
+that carries no meaning of its own if you don’t know the history of it. That’s a recipe for
 making new community members feel like outsiders.</p>
 
-<p>But that post is amazing and I&rsquo;d hate to see it drop out of the collective
+<p>But that post is amazing and I’d hate to see it drop out of the collective
 memory of the Rust community.</p>
+
 ]]></content>
   </entry>
   
@@ -473,11 +471,11 @@ memory of the Rust community.</p>
     <updated>2017-01-11T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
     <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
+found that a lot of these aren’t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I’ve
+decided to try writing about these things whenever I come across them. “Tribal Knowledge” shouldn’t
 be a thing in a programming community; and trivia is fun!</em></p>
 
 <p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
@@ -489,44 +487,44 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
-<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code>Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
 <code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
-I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
+I’ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You’ll find that the spec is
 full of similar <code>__cxa</code> functions. While the spec just expects certain types,
-e.g. <code>std::type_traits</code> (&ldquo;Type properties&rdquo; § 20.10.4.3), to be magic and exist in certain locations,
-the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren&rsquo;t defined
+e.g. <code>std::type_traits</code> (“Type properties” § 20.10.4.3), to be magic and exist in certain locations,
+the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren’t defined
 in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
-to known ABI functions, and they partly implement &ldquo;special&rdquo; types via intrinsics which
+to known ABI functions, and they partly implement “special” types via intrinsics which
 are detected and magicked when the compiler comes across them.</p>
 
-<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
+<p>However, this is not Rust’s solution. It does not care what the <code>Add</code> trait is named or where it is
 placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
 When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
 encounters the addition operator. Of course, usually the compiler will already have been told about
 such a trait since libcore is usually the first library in the pipeline. If you want to actually use
 this, you need to <em>replace libcore</em>.</p>
 
-<p>Huh? You can&rsquo;t do that, can you?</p>
+<p>Huh? You can’t do that, can you?</p>
 
-<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
-<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
-rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
-that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
+<p>It’s not a big secret that you can compile rust without the stdlib using
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can’t
+rely on an allocator existing. It’s also useful for writing your own alternate stdlib, though
+that’s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
 because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
 libstd and the universe will implode.</p>
 
-<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
+<p>What’s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, <code>no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code>#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
-<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
+<p>Still, it’s possible to write a working Rust binary in <code>no_core</code> mode:</p>
 
-<pre><code class="rust">#![feature(no_core)]
+<pre><code class="language-rust">#![feature(no_core)]
 #![feature(lang_items)]
 
 // Look at me.
@@ -566,7 +564,7 @@ fn main() {}
 
 <p>If you run this, the program will exit with exit code 42.</p>
 
-<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
+<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It’s usually worth
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
 tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
 to exist, it expects it to make sense. There are properties of the lang item that it assumes
@@ -576,13 +574,13 @@ the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</
 will work.</p>
 
 <p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
-deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
+deprecated lang items and we only had to define three of them here. “start” is necessary to, well,
 start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
 must exist.</p>
 
-<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
+<p>But let’s try doing something that will trigger a lang item to be required:</p>
 
-<pre><code class="rust">pub static X: u8 = 1;
+<pre><code class="language-rust">pub static X: u8 = 1;
 </code></pre>
 
 <p>Rust will immediately complain:</p>
@@ -592,26 +590,26 @@ error: requires `sync` lang_item
 </code></pre>
 
 <p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
-are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
-so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
+are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven’t defined <code>Sync</code> yet,
+so Rust doesn’t know how to enforce this restruction. The <code>Sync</code> trait is defined with the “sync”
 lang item, so we need to do:</p>
 
-<pre><code class="rust">pub static X: u8 = 1;
+<pre><code class="language-rust">pub static X: u8 = 1;
 
 #[lang = "sync"]
 pub unsafe trait Sync {}
 unsafe impl Sync for u8 {}
 </code></pre>
 
-<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
+<p>Note that the trait doesn’t have to be called <code>Sync</code> here, any trait name would work. This
 definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
 should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
 since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
 
-<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
-what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
+<p>Alright, let’s try defining our own addition trait as before. First, let’s see
+what happens if we try to add a struct when addition isn’t defined:</p>
 
-<pre><code class="rust">struct Foo;
+<pre><code class="language-rust">struct Foo;
 #[lang = "start"]
 fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
     Foo + Foo
@@ -638,10 +636,10 @@ error: aborting due to previous error
 
 <p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
 This is because the diagnostics in the compiler are free to assume that libcore
-exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
+exists. However, the actual error just noted that it doesn’t know how to add two
 <code>Foo</code>s. But we can tell it how!</p>
 
-<pre><code class="rust">#[lang = "add"]
+<pre><code class="language-rust">#[lang = "add"]
 trait MyAdd&lt;RHS&gt; {
     type Output;
     fn add(self, other: RHS) -&gt; Self::Output;
@@ -664,10 +662,10 @@ fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
 <p>This will compile fine and the exit code of the program will be 42.</p>
 
 <p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
-same kind of error, even though the addition of concrete primitives doesn&rsquo;t
-go through <code>Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code>Add::add</code> is implemented, even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+same kind of error, even though the addition of concrete primitives doesn’t
+go through <code>Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code>Add::add</code> is implemented, even though it won’t get <em>used</em> in the case of a primitive. We can even verify this!</p>
 
-<pre><code class="rust">#[lang = "add"]
+<pre><code class="language-rust">#[lang = "add"]
 trait MyAdd&lt;RHS&gt; {
     type Output;
     fn add(self, other: RHS) -&gt; Self::Output;
@@ -688,35 +686,34 @@ fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
 </code></pre>
 
 <p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
-wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+wrap and we haven’t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
 
 <p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
-check, it doesn&rsquo;t actually get used.</p>
+check, it doesn’t actually get used.</p>
 
 <hr />
 
-<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
-compiler. Let&rsquo;s go through them:</p>
+<p>So what lang items <em>are</em> there, and why are they lang items? There’s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
+compiler. Let’s go through them:</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
 primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
-coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
-&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
+coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn’t defined
+… in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
 applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
-a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
+a single crate gets the honor of adding methods to <code>char</code>, so we don’t have any of the issues that
 arise from sidestepping coherence.</p>
 
 <p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
 
 <ul>
-<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
-<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
-<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
-<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
-<li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
+  <li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+  <li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+  <li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+  <li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
+  <li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can’t be reused on user-defined marker traits.</li>
 </ul>
-
 
 <p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
 these destructors.</p>
@@ -760,11 +757,11 @@ box.</p>
 <p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
 but is no longer used.</p>
 
-<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
-minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
-with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
+<p>We’ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
+minimal example program. This function is basically where you find Rust’s “runtime”: it gets called
+with a pointer to main and the command line arguments, it sets up the “runtime”, calls main, and
 tears down anything it needs to. Rust has a C-like minimal runtime, so
-<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
+<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn’t do much.
 But you theoretically could stick a very heavy runtime initialization routine here.</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
@@ -772,13 +769,13 @@ platform-specific modules) specify various bits of the exception handling behavi
 called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
 or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
 called when the unwinding code wishes to resume unwinding after calling destructors in a landing
-pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
+pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don’t
 understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
 the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
-compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
-actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
+compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn’t
+actually have a type name (like <code>bool</code>) that can be used if you’re writing libcore or libstd. This
 lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
 but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
 
@@ -788,11 +785,11 @@ of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/ph
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
 a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
-like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
+like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> – we know that the pointers in these can/should never be null, so they
 contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
-(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
+(the “tag” value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
 we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
-are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
+are zero. Beware, this optimization also applies to C-like enums that don’t have a variant
 corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
 
 <p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
@@ -802,20 +799,20 @@ There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>Covaria
 predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
 type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
 <code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
-The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
-removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
-seems unnecessary. It&rsquo;s probably an oversight.</p>
+The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don’t know why these lang items haven’t been
+removed (they don’t work anymore anyway); the only consumer of them is libcore so “deprecating” them
+seems unnecessary. It’s probably an oversight.</p>
 
 <p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
 loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
 <code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
 <code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
 resolution is done, so withut this, libcore would not be able to use for loops since the compiler
-wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
+wouldn’t know what calls to insert in place of the loops while compiling.</p>
 
 <hr />
 
-<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
+<p>Basically, whenever the compiler needs to use special treatment with an item – whether it be
 dispatching calls to functions and trait methods in various situations, conferring special semantics
 to types/traits, or requiring traits to be implemented, the type will be defined in the standard
 library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
@@ -824,18 +821,18 @@ library (libstd, libcore, or one of the crates behind the libstd façade), and m
 you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
 useful outside of the realm of compiler hacking.</p>
 
-<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
+<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn’t generally
 useful!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>To be clear, I’m not aware of any plans to eventually stabilize this. It’s something that could happen. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   
@@ -845,23 +842,23 @@ useful!</p>
     <updated>2017-01-10T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special</id>
     <content type="html"><![CDATA[<p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
+found that a lot of these aren’t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I’ve
+decided to try writing about these things whenever I come across them. “Tribal Knowledge” shouldn’t
 be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.</p>
+<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
 <a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
 
-<p>Let&rsquo;s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
+<p>Let’s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
 
-<pre><code class="rust">#[stable(feature = "rust1", since = "1.0.0")]
+<pre><code class="language-rust">#[stable(feature = "rust1", since = "1.0.0")]
 impl&lt;T: ?Sized&gt; Deref for Box&lt;T&gt; {
     type Target = T;
 
@@ -880,24 +877,24 @@ impl&lt;T: ?Sized&gt; DerefMut for Box&lt;T&gt; {
 
 <p>Wait, what? <em>Squints</em></p>
 
-<pre><code class="rust">    fn deref(&amp;self) -&gt; &amp;T {
+<pre><code class="language-rust">    fn deref(&amp;self) -&gt; &amp;T {
         &amp;**self
     }
 </code></pre>
 
 <p><em>The call is coming from inside the house!</em></p>
 
-<p>In case you didn&rsquo;t realize it, this deref impl returns <code>&amp;**self</code> &ndash; since <code>self</code>
+<p>In case you didn’t realize it, this deref impl returns <code>&amp;**self</code> – since <code>self</code>
 is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
 will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
 
-<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that&rsquo;s what <code>Deref::deref</code> is
-for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That&rsquo;s infinite recursion.</p>
+<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that’s what <code>Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That’s infinite recursion.</p>
 
 <p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
 <a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
 
-<pre><code class="rust">use std::ops::Deref;
+<pre><code class="language-rust">use std::ops::Deref;
 
 struct LolBox&lt;T&gt;(T);
 
@@ -911,7 +908,7 @@ impl&lt;T&gt; Deref for LolBox&lt;T&gt; {
 
 <p>the compiler will warn you:</p>
 
-<pre><code class="text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+<pre><code class="language-text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
  --&gt; &lt;anon&gt;:7:5
   |
 7 |     fn deref(&amp;self) -&gt; &amp;T {
@@ -941,32 +938,32 @@ which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a reg
 <p>This is partly due to historical accident.</p>
 
 <p>To understand this, we must look back to Ye Olde days of pre-1.0 Rust (ca 2014). Back in these days,
-we had none of this newfangled &ldquo;stability&rdquo; business. The compiler broke your code every two weeks.
-Of course, you wouldn&rsquo;t <em>know</em> that because the compiler would usually crash before it could tell
+we had none of this newfangled “stability” business. The compiler broke your code every two weeks.
+Of course, you wouldn’t <em>know</em> that because the compiler would usually crash before it could tell
 you that your code was broken! Sigils roamed the lands freely, and cargo was but a newborn child
 which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
 that their closures were safely boxed and their threads sufficiently green.</p>
 
-<p>Back in these days, we didn&rsquo;t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
+<p>Back in these days, we didn’t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
 The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
-they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant &ldquo;owned&rdquo;, though
+they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant “owned”, though
 IMO that caused more confusion than it was worth.</p>
 
 <p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
 operator, and autoderef worked much like it does today.</p>
 
-<p>As a &ldquo;primitive&rdquo; type; like all primitive types, <code>~T</code> was special. The compiler knew things about
+<p>As a “primitive” type; like all primitive types, <code>~T</code> was special. The compiler knew things about
 it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
 traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
 though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. Then, the
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
 <a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
 a very confusing detour with <code>StrBuf</code> first).</p>
 
 <p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
-constructed, but it was still internally a special type. It didn&rsquo;t even have a <code>Deref</code> impl yet,
+constructed, but it was still internally a special type. It didn’t even have a <code>Deref</code> impl yet,
 that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
 as it is today.</p>
 
@@ -974,64 +971,65 @@ as it is today.</p>
 ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
 were a regular type.</p>
 
-<p>Turns out that Rust didn&rsquo;t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+<p>Turns out that Rust didn’t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
 dereference semantics were implemented in a different part of the code. And, these semantics were
 not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
-pointers. I don&rsquo;t know if the possibility of being used for <code>~T</code> was considered when
+pointers. I don’t know if the possibility of being used for <code>~T</code> was considered when
 <code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
 three pieces of behavior that could not be replicated in pure Rust at the time:</p>
 
 <ul>
-<li><code>box foo</code> in a pattern would destructure a box into its contents. It&rsquo;s somewhat the opposite of <code>ref</code></li>
-<li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
-<li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+  <li><code>box foo</code> in a pattern would destructure a box into its contents. It’s somewhat the opposite of <code>ref</code></li>
+  <li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+  <li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
 </ul>
 
-
-<p>The third one is the one that really gets to us here<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.
+<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.
 For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
 You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
 <code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
 this:</p>
 
-<pre><code class="rust">let x = Box::new(vec![1,2,3,4]);
+<pre><code class="language-rust">let x = Box::new(vec![1,2,3,4]);
 let y = *x; // moves the vec out into `y`, then deallocates the box
             // but does not call a destructor on the vec
 </code></pre>
 
-<p>For any other type, such an operation will produce a &ldquo;cannot move out of a borrow&rdquo; error.</p>
+<p>For any other type, such an operation will produce a “cannot move out of a borrow” error.</p>
 
 <p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
 past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
-removed from <code>Box&lt;T&gt;</code> before 1.0 (I don&rsquo;t find it <em>necessary</em>), but people had better things to do,
-like fixing the million other rough edges of the language that can&rsquo;t be touched after backwards
+removed from <code>Box&lt;T&gt;</code> before 1.0 (I don’t find it <em>necessary</em>), but people had better things to do,
+like fixing the million other rough edges of the language that can’t be touched after backwards
 compatibility is a thing.</p>
 
-<p>So now we&rsquo;re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
-compiler. By &ldquo;special type&rdquo; I don&rsquo;t just mean that the compiler treats it a bit differently (this is
+<p>So now we’re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+compiler. By “special type” I don’t just mean that the compiler treats it a bit differently (this is
 true for any lang item), I mean that it literally is treated as
 <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
-There&rsquo;s a TON of cruft in the compiler related to this type, much of which can be removed, but some
-of which can&rsquo;t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
-writing this post I&rsquo;m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+There’s a TON of cruft in the compiler related to this type, much of which can be removed, but some
+of which can’t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
+writing this post I’m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
 cleaning up the code myself.</p>
 
-<p>Most of this isn&rsquo;t really useful to know unless you actually come across a case where you can make
+<p>Most of this isn’t really useful to know unless you actually come across a case where you can make
 use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
 
 <p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Seriously though, does anyone use it much? I&rsquo;ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>It&rsquo;s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
 
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Seriously though, does anyone use it much? I’ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>It’s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 ]]></content>
   </entry>
   

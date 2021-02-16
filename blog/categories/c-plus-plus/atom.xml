@@ -4,7 +4,7 @@
   <title><![CDATA[Category: C++ | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/c-plus-plus/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-16T02:06:43+00:00</updated>
+  <updated>2021-02-16T06:17:04+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -18,23 +18,24 @@
     <link href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
     <updated>2015-06-26T00:00:00+00:00</updated>
     <id>http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
-    <content type="html"><![CDATA[<p>For a while now I&rsquo;ve been quite interested in compilers and systems programming in general; and I
-feel that an important feature of systems programming is that it&rsquo;s relatively easy to figure out
-what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Conversely, it&rsquo;s
+    <content type="html"><![CDATA[<p>For a while now I’ve been quite interested in compilers and systems programming in general; and I
+feel that an important feature of systems programming is that it’s relatively easy to figure out
+what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">1</a></sup>. Conversely, it’s
 important to know how your tools work more than ever in systems programming. So when I see a
-language feature I&rsquo;m not familiar with, I&rsquo;m interested in finding out how it works under the hood.</p>
+language feature I’m not familiar with, I’m interested in finding out how it works under the hood.</p>
 
-<p>I&rsquo;m not a C++ expert. I can work on C++ codebases, but I&rsquo;m not anywhere near knowing all of the
+<p>I’m not a C++ expert. I can work on C++ codebases, but I’m not anywhere near knowing all of the
 features and nuances of C++. However, I am pretty good at Rust and understand a decent portion of
-the compiler internals. This gives me a great perspective &mdash; I&rsquo;ve not yet internalized most C++
-features to take them for granted, and I&rsquo;m well equipped to investigate these features.</p>
+the compiler internals. This gives me a great perspective — I’ve not yet internalized most C++
+features to take them for granted, and I’m well equipped to investigate these features.</p>
 
-<p>Today I came across some C++ code similar to the following<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
+<p>Today I came across some C++ code similar to the following<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">2</a></sup>:</p>
 
-<pre><code class="cpp">void foo() {
+<pre><code class="language-cpp">void foo() {
     static SomeType bar = Env()-&gt;someMethod();
     static OtherType baz = Env()-&gt;otherMethod(bar);
 }
+
 </code></pre>
 
 <p>This code piqued my interest. Specifically, the local <code>static</code> stuff. I knew that when you have a
@@ -45,14 +46,15 @@ static like</p>
 
 <p>the <code>1</code> is stored somewhere in the <code>.data</code> section of the program. This is easily verified with <code>gdb</code>:</p>
 
-<pre><code class="cpp">static int THING = 0xAAAA;
+<pre><code class="language-cpp">static int THING = 0xAAAA;
 
 int main() {
  return 1;
 }
+
 </code></pre>
 
-<pre><code class="text">$ g++ test.cpp -g
+<pre><code class="language-text">$ g++ test.cpp -g
 $ gdb a.out
 (gdb) info addr THING
 Symbol "THING" is static storage at address 0x601038.
@@ -62,10 +64,10 @@ THING in section .data
 
 <p>This is basically a part of the compiled program as it is loaded into memory.</p>
 
-<p>Similarly, when you have a <code>static</code> that is initialized with a function, it&rsquo;s stored in the <code>.bss</code>
+<p>Similarly, when you have a <code>static</code> that is initialized with a function, it’s stored in the <code>.bss</code>
 section, and initialized before <code>main()</code>. Again, easily verified:</p>
 
-<pre><code class="cpp">#include&lt;iostream&gt;
+<pre><code class="language-cpp">#include&lt;iostream&gt;
 using namespace std;
 
 int bar() {
@@ -79,9 +81,10 @@ int main() {
  cout&lt;&lt;"main called\n";
  return 0;
 }
+
 </code></pre>
 
-<pre><code class="text">$ ./a.out 
+<pre><code class="language-text">$ ./a.out 
 bar called
 main called
 $ gdb a.out
@@ -91,29 +94,30 @@ Symbol "THING" is static storage at address 0x601198.
 THING in section .bss
 </code></pre>
 
-<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>.</p>
+<p>We can also leave statics uninitialized (<code>static int THING;</code>) and they will be placed in <code>.bss</code><sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote">3</a></sup>.</p>
 
 <p>So far so good.</p>
 
 <p>Now back to the original snippet:</p>
 
-<pre><code class="cpp">void foo() {
+<pre><code class="language-cpp">void foo() {
     static SomeType bar = Env()-&gt;someMethod();
     static OtherType baz = Env()-&gt;otherMethod(bar);
 }
+
 </code></pre>
 
-<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It&rsquo;s
-not much different from <code>static THING = bar()</code> aside from the fact that it isn&rsquo;t a global
+<p>Naïvely one might say that these are statics which are scoped locally to avoid name clashes. It’s
+not much different from <code>static THING = bar()</code> aside from the fact that it isn’t a global
 identifier.</p>
 
-<p>However, this isn&rsquo;t the case. What tipped me off was that this called <code>Env()</code>, and I wasn&rsquo;t so sure
+<p>However, this isn’t the case. What tipped me off was that this called <code>Env()</code>, and I wasn’t so sure
 that the environment was guaranteed to be properly initialized and available before <code>main()</code> is
-called <sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>.</p>
+called <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">4</a></sup>.</p>
 
 <p>Instead, these are statics which are initialized the first time the function is called.</p>
 
-<pre><code class="cpp">#include&lt;iostream&gt;
+<pre><code class="language-cpp">#include&lt;iostream&gt;
 using namespace std;
 
 int bar() {
@@ -135,8 +139,7 @@ int main() {
  return 0;
 }
 </code></pre>
-
-<pre><code class="text">$ g++ test.cpp
+<pre><code class="language-text">$ g++ test.cpp
 $ ./a.out
 main called
 foo called
@@ -148,9 +151,9 @@ foo called
 Static is:16448250
 </code></pre>
 
-<p>Wait, &ldquo;the first time the function is called&rdquo;? <em>Alarm bells go off&hellip;</em> Surely there&rsquo;s some cost to that! Let&rsquo;s investigate.</p>
+<p>Wait, “the first time the function is called”? <em>Alarm bells go off…</em> Surely there’s some cost to that! Let’s investigate.</p>
 
-<pre><code class="text">$ gdb a.out
+<pre><code class="language-text">$ gdb a.out
 (gdb) disas bar
    // snip
    0x0000000000400c72 &lt;+15&gt;:    test   %al,%al
@@ -178,15 +181,15 @@ functions.</p>
 <p>We can take a naïve guess at what this does: It probably just sets a hidden static flag on
 initialization which ensures that it only runs once.</p>
 
-<p>Of course, the actual solution isn&rsquo;t as simple. It needs to avoid data races, handle errors, and
+<p>Of course, the actual solution isn’t as simple. It needs to avoid data races, handle errors, and
 somehow take care of recursive initialization.</p>
 
-<p>Let&rsquo;s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
+<p>Let’s look at the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#once-ctor">spec</a> and one <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">implementation</a>, found by searching for
 <code>__cxa_guard</code>.</p>
 
 <p>Both of them show us the generated code for initializing things like local statics:</p>
 
-<pre><code class="cpp">  if (obj_guard.first_byte == 0) {
+<pre><code class="language-cpp">  if (obj_guard.first_byte == 0) {
     if ( __cxa_guard_acquire (&amp;obj_guard) ) {
       try {
       // ... initialize the object ...;
@@ -200,12 +203,12 @@ somehow take care of recursive initialization.</p>
   }
 </code></pre>
 
-<p>Here, <code>obj_guard</code> is our &ldquo;hidden static flag&rdquo;, with some other extra data.</p>
+<p>Here, <code>obj_guard</code> is our “hidden static flag”, with some other extra data.</p>
 
 <p><code>__cxa_guard_acquire</code> and <code>__cxa_guard_release</code> acquire and release a lock to prevent recursive
 initialization. So this program will crash:</p>
 
-<pre><code class="cpp">#include&lt;iostream&gt;
+<pre><code class="language-cpp">#include&lt;iostream&gt;
 using namespace std;
 
 void foo(bool recur);
@@ -232,7 +235,7 @@ int main() {
 }
 </code></pre>
 
-<pre><code class="text">$ g++ test.cpp
+<pre><code class="language-text">$ g++ test.cpp
 $ ./a.out 
 foo called
 bar called
@@ -243,94 +246,97 @@ Aborted (core dumped)
 </code></pre>
 
 <p>Over here, to initialize <code>i</code>, <code>bar()</code> needs to be called, but <code>bar()</code> calls <code>foo()</code> which needs <code>i</code>
-to be initialized, which again will call <code>bar()</code> (though this time it won&rsquo;t recurse). If <code>i</code> wasn&rsquo;t
-<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it&rsquo;s unclear as
+to be initialized, which again will call <code>bar()</code> (though this time it won’t recurse). If <code>i</code> wasn’t
+<code>static</code> it would be fine, but now we have two calls trying to initialize <code>i</code>, and it’s unclear as
 to which value should be used.</p>
 
 <p>The implementation is pretty interesting. Before looking at the code my quick guess was that the
 following would happen for local statics:</p>
 
 <ul>
-<li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
-&ldquo;uninitialized&rdquo;, &ldquo;initializing&rdquo;, and &ldquo;initialized&rdquo;. Alternatively, use an atomic state indicator.</li>
-<li>When we try to initialize for the first time, the mutex is locked, the flag is set
-to &ldquo;initializing&rdquo;, the mutex is released, the value is initialized, and the flag is set to &ldquo;initialized&rdquo;.</li>
-<li>If when acquiring the mutex, the value is &ldquo;initialized&rdquo;, don&rsquo;t initialize again</li>
-<li>If when acquiring the mutex, the value is &ldquo;initializing&rdquo;, throw some exception</li>
+  <li><code>obj_guard</code> is a struct containing a mutex and a flag with three states:
+“uninitialized”, “initializing”, and “initialized”. Alternatively, use an atomic state indicator.</li>
+  <li>When we try to initialize for the first time, the mutex is locked, the flag is set
+to “initializing”, the mutex is released, the value is initialized, and the flag is set to “initialized”.</li>
+  <li>If when acquiring the mutex, the value is “initialized”, don’t initialize again</li>
+  <li>If when acquiring the mutex, the value is “initializing”, throw some exception</li>
 </ul>
 
+<p>(We need the tristate flag because without it recursion would cause deadlocks)</p>
 
-<p> (We need the tristate flag because without it recursion would cause deadlocks)</p>
-
-<p>I suppose that this implementation would work, though it&rsquo;s not the one being used. The
+<p>I suppose that this implementation would work, though it’s not the one being used. The
 <a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
 uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. This is okay because the C++
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">5</a></sup>. This is okay because the C++
 spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
 
-<blockquote><p>If control re-enters the declaration (recursively) while the object is being initialized, the
-behavior is undefined.</p></blockquote>
+<blockquote>
+  <p>If control re-enters the declaration (recursively) while the object is being initialized, the
+behavior is undefined.</p>
+</blockquote>
 
 <p>However, the implementations in <a href="https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc">gcc/libstdc++</a> (also <a href="http://www.opensource.apple.com/source/libcppabi/libcppabi-14/src/cxa_guard.cxx">this version</a> of
 <code>libcppabi</code> from Apple, which is a bit more readable) do something different. They use a global
 recursive mutex to handle reentrancy. Recursive mutexes basically can be locked multiple times by a
 single thread, but cannot be locked by another thread till the locking thread unlocks them the same
-number of times. This means that recursion/reentrancy won&rsquo;t cause deadlocks, but we still have one-
+number of times. This means that recursion/reentrancy won’t cause deadlocks, but we still have one-
 thread-at-a-time access. What these implementations do is:</p>
 
 <ul>
-<li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
-and one which indicates that the static is being initialized (&ldquo;in use&rdquo;)</li>
-<li>If the object is initialized, do nothing (this doesn&rsquo;t use mutexes and is cheap).
-This isn&rsquo;t exactly part of the implementation in the library, but is part of the generated code.</li>
-<li>If it isn&rsquo;t initialized, acquire the global recursive lock</li>
-<li>If the object is initialized by the time the lock was acquired, unlock and return</li>
-<li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
-&ldquo;in use&rdquo;, throw an exception.</li>
-<li>If it wasn&rsquo;t, mark the second flag of the static&rsquo;s guard object as being &ldquo;in use&rdquo;</li>
-<li>Call the initialization function, bubble errors</li>
-<li>Unlock the global mutex</li>
-<li>Mark the second flag as &ldquo;not in use&rdquo;</li>
+  <li><code>guard_object</code> is a set of two flags, one which indicates if the static is initialized,
+and one which indicates that the static is being initialized (“in use”)</li>
+  <li>If the object is initialized, do nothing (this doesn’t use mutexes and is cheap).
+This isn’t exactly part of the implementation in the library, but is part of the generated code.</li>
+  <li>If it isn’t initialized, acquire the global recursive lock</li>
+  <li>If the object is initialized by the time the lock was acquired, unlock and return</li>
+  <li>If not, check if the static is being initialized from the second <code>guard_object</code> flag. If it is
+“in use”, throw an exception.</li>
+  <li>If it wasn’t, mark the second flag of the static’s guard object as being “in use”</li>
+  <li>Call the initialization function, bubble errors</li>
+  <li>Unlock the global mutex</li>
+  <li>Mark the second flag as “not in use”</li>
 </ul>
-
 
 <p>At any one time, only one thread will be in the process of running initialization routines, due to
 the global recursive mutex. Since the mutex is recursive, a function (eg <code>bar()</code>) used for
-initializing local statics may itself use (different) local statics. Due to the &ldquo;in use&rdquo; flag, the
+initializing local statics may itself use (different) local statics. Due to the “in use” flag, the
 initialization of a local static may not recursively call its parent function without causing an
 error.</p>
 
-<p>This doesn&rsquo;t need per-static atomics, and doesn&rsquo;t deadlock, however it has the cost of a global
+<p>This doesn’t need per-static atomics, and doesn’t deadlock, however it has the cost of a global
 mutex which is called at most once per local static. In a highly threaded situation with lots of
 such statics, one might want to reevaluate directly using local statics.</p>
 
-<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM&rsquo;s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
+<p><a href="https://github.com/llvm-mirror/libcxxabi/blob/master/src/cxa_guard.cpp#L188">LLVM’s libcxxabi</a> is similar to the <code>libstdc++</code> implementation, but instead of a recursive
 mutex it uses a regular mutex (on non-ARM Apple systems) which is unlocked before
 <code>__cxa_guard_acquire</code> exits and tests for reentrancy by noting the thread ID in the guard object
-instead of the &ldquo;in use&rdquo; flag. Condvars are used for waiting for a thread to stop using an object. On
-other platforms, it seems to deadlock, though I&rsquo;m not sure.</p>
+instead of the “in use” flag. Condvars are used for waiting for a thread to stop using an object. On
+other platforms, it seems to deadlock, though I’m not sure.</p>
 
 <p>So here we have a rather innocent-looking feature that has some hidden costs and pitfalls. But now I
-can look at a line of code where this feature is being used, and have a good idea of what&rsquo;s
+can look at a line of code where this feature is being used, and have a good idea of what’s
 happening there. One step closer to being a better systems programmer!</p>
 
 <p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Emphasis on <em>relatively</em>. This article will show that it&rsquo;s definitely not &ldquo;easy&rdquo; all the time.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>Unless it has a constructor or otherwise isn&rsquo;t made out of trivially constructible types; in this case it is treated similar to the previous case.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-</ol>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:5" role="doc-endnote">
+      <p>Emphasis on <em>relatively</em>. This article will show that it’s definitely not “easy” all the time. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:0" role="doc-endnote">
+      <p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:8" role="doc-endnote">
+      <p>Unless it has a constructor or otherwise isn’t made out of trivially constructible types; in this case it is treated similar to the previous case. <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1" role="doc-endnote">
+      <p>I checked later, and it was indeed the case that global statics are initialized before <code>Env()</code> is ready <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 ]]></content>
   </entry>
   

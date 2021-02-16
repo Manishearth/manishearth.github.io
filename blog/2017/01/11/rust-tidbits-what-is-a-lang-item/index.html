@@ -10,7 +10,7 @@
 
   
   <meta name="description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of &hellip;">
+that most folks aren’t aware of. Many of these &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -19,7 +19,7 @@ that most folks aren&rsquo;t aware of. Many of &hellip;">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Rust Tidbits: What is a lang item?">
       <meta property="twitter:description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically &hellip;">
+that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -66,7 +66,7 @@ that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may 
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -105,7 +105,7 @@ that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may 
 
 
 
-<time class='entry-date' datetime='2017-01-11T00:00:00+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
@@ -113,11 +113,11 @@ that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may 
 
 
 <div class="entry-content"><p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren&rsquo;t aware of. Many of these tidbits are ones which may not practically matter
-much for everyday Rust programming, but are interesting to know. Others may be more useful. I&rsquo;ve
-found that a lot of these aren&rsquo;t documented anywhere (not that they always should be), and sometimes
-depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I&rsquo;ve
-decided to try writing about these things whenever I come across them. &ldquo;Tribal Knowledge&rdquo; shouldn&rsquo;t
+that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
+found that a lot of these aren’t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I’ve
+decided to try writing about these things whenever I come across them. “Tribal Knowledge” shouldn’t
 be a thing in a programming community; and trivia is fun!</em></p>
 
 <p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
@@ -129,121 +129,84 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
-<code>Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code>Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
 <code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
-I&rsquo;ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You&rsquo;ll find that the spec is
+I’ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You’ll find that the spec is
 full of similar <code>__cxa</code> functions. While the spec just expects certain types,
-e.g. <code>std::type_traits</code> (&ldquo;Type properties&rdquo; § 20.10.4.3), to be magic and exist in certain locations,
-the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren&rsquo;t defined
+e.g. <code>std::type_traits</code> (“Type properties” § 20.10.4.3), to be magic and exist in certain locations,
+the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren’t defined
 in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
-to known ABI functions, and they partly implement &ldquo;special&rdquo; types via intrinsics which
+to known ABI functions, and they partly implement “special” types via intrinsics which
 are detected and magicked when the compiler comes across them.</p>
 
-<p>However, this is not Rust&rsquo;s solution. It does not care what the <code>Add</code> trait is named or where it is
+<p>However, this is not Rust’s solution. It does not care what the <code>Add</code> trait is named or where it is
 placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
 When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
 encounters the addition operator. Of course, usually the compiler will already have been told about
 such a trait since libcore is usually the first library in the pipeline. If you want to actually use
 this, you need to <em>replace libcore</em>.</p>
 
-<p>Huh? You can&rsquo;t do that, can you?</p>
+<p>Huh? You can’t do that, can you?</p>
 
-<p>It&rsquo;s not a big secret that you can compile rust without the stdlib using
-<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can&rsquo;t
-rely on an allocator existing. It&rsquo;s also useful for writing your own alternate stdlib, though
-that&rsquo;s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
+<p>It’s not a big secret that you can compile rust without the stdlib using
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can’t
+rely on an allocator existing. It’s also useful for writing your own alternate stdlib, though
+that’s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
 because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
 libstd and the universe will implode.</p>
 
-<p>What&rsquo;s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
+<p>What’s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, <code>no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. <code>#![no_core]</code> is something that&rsquo;s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code>#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
-<p>Still, it&rsquo;s possible to write a working Rust binary in <code>no_core</code> mode:</p>
+<p>Still, it’s possible to write a working Rust binary in <code>no_core</code> mode:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="err">#</span><span class="o">!</span><span class="p">[</span><span class="n">feature</span><span class="p">(</span><span class="n">no_core</span><span class="p">)]</span>
-</span><span class='line'><span class="err">#</span><span class="o">!</span><span class="p">[</span><span class="n">feature</span><span class="p">(</span><span class="n">lang_items</span><span class="p">)]</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Look at me.</span>
-</span><span class='line'><span class="c1">// Look at me.</span>
-</span><span class='line'><span class="c1">// I&#39;m the libcore now.</span>
-</span><span class='line'><span class="err">#</span><span class="o">!</span><span class="p">[</span><span class="n">no_core</span><span class="p">]</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Tell the compiler to link to appropriate runtime libs</span>
-</span><span class='line'><span class="c1">// (This way I don&#39;t have to specify `-l` flags explicitly)</span>
-</span><span class='line'><span class="cp">#[cfg(target_os = </span><span class="s">&quot;linux&quot;</span><span class="cp">)]</span>
-</span><span class='line'><span class="cp">#[link(name = </span><span class="s">&quot;c&quot;</span><span class="cp">)]</span>
-</span><span class='line'><span class="k">extern</span> <span class="p">{}</span>
-</span><span class='line'><span class="cp">#[cfg(target_os = </span><span class="s">&quot;macos&quot;</span><span class="cp">)]</span>
-</span><span class='line'><span class="cp">#[link(name = </span><span class="s">&quot;System&quot;</span><span class="cp">)]</span>
-</span><span class='line'><span class="k">extern</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Compiler needs these to proceed</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;sized&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">pub</span> <span class="k">trait</span> <span class="nb">Sized</span> <span class="p">{}</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;copy&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">pub</span> <span class="k">trait</span> <span class="n">Copy</span> <span class="p">{}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// `main` isn&#39;t the actual entry point, `start` is.</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;start&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">start</span><span class="p">(</span><span class="n">_main</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="o">:</span> <span class="n">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// we can&#39;t really do much in this benighted hellhole of</span>
-</span><span class='line'>    <span class="c1">// an environment without bringing in more libraries.</span>
-</span><span class='line'>    <span class="c1">// We can make syscalls, segfault, and set the exit code.</span>
-</span><span class='line'>    <span class="c1">// To be sure that this actually ran, let&#39;s set the exit code.</span>
-</span><span class='line'>    <span class="mi">42</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// still need a main unless we want to use `#![no_main]`</span>
-</span><span class='line'><span class="c1">// won&#39;t actually get called; `start()` is supposed to call it</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">#![feature(no_core)]
+#![feature(lang_items)]
 
+// Look at me.
+// Look at me.
+// I'm the libcore now.
+#![no_core]
+
+// Tell the compiler to link to appropriate runtime libs
+// (This way I don't have to specify `-l` flags explicitly)
+#[cfg(target_os = "linux")]
+#[link(name = "c")]
+extern {}
+#[cfg(target_os = "macos")]
+#[link(name = "System")]
+extern {}
+
+// Compiler needs these to proceed
+#[lang = "sized"]
+pub trait Sized {}
+#[lang = "copy"]
+pub trait Copy {}
+
+// `main` isn't the actual entry point, `start` is.
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    // we can't really do much in this benighted hellhole of
+    // an environment without bringing in more libraries.
+    // We can make syscalls, segfault, and set the exit code.
+    // To be sure that this actually ran, let's set the exit code.
+    42
+}
+
+// still need a main unless we want to use `#![no_main]`
+// won't actually get called; `start()` is supposed to call it
+fn main() {}
+</code></pre>
 
 <p>If you run this, the program will exit with exit code 42.</p>
 
-<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It&rsquo;s usually worth
+<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It’s usually worth
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
 tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
 to exist, it expects it to make sense. There are properties of the lang item that it assumes
@@ -253,217 +216,146 @@ the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</
 will work.</p>
 
 <p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
-deprecated lang items and we only had to define three of them here. &ldquo;start&rdquo; is necessary to, well,
+deprecated lang items and we only had to define three of them here. “start” is necessary to, well,
 start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
 must exist.</p>
 
-<p>But let&rsquo;s try doing something that will trigger a lang item to be required:</p>
+<p>But let’s try doing something that will trigger a lang item to be required:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="o">:</span> <span class="kt">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">pub static X: u8 = 1;
+</code></pre>
 
 <p>Rust will immediately complain:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="err">$</span> <span class="n">rustc</span> <span class="n">test</span><span class="p">.</span><span class="n">rs</span>
-</span><span class='line'><span class="n">error</span><span class="o">:</span> <span class="n">requires</span> <span class="err">`</span><span class="n">sync</span><span class="err">`</span> <span class="n">lang_item</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code>$ rustc test.rs
+error: requires `sync` lang_item
+</code></pre>
 
 <p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
-are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven&rsquo;t defined <code>Sync</code> yet,
-so Rust doesn&rsquo;t know how to enforce this restruction. The <code>Sync</code> trait is defined with the &ldquo;sync&rdquo;
+are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven’t defined <code>Sync</code> yet,
+so Rust doesn’t know how to enforce this restruction. The <code>Sync</code> trait is defined with the “sync”
 lang item, so we need to do:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="o">:</span> <span class="kt">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;sync&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
-</span><span class='line'><span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="kt">u8</span> <span class="p">{}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">pub static X: u8 = 1;
 
+#[lang = "sync"]
+pub unsafe trait Sync {}
+unsafe impl Sync for u8 {}
+</code></pre>
 
-<p>Note that the trait doesn&rsquo;t have to be called <code>Sync</code> here, any trait name would work. This
+<p>Note that the trait doesn’t have to be called <code>Sync</code> here, any trait name would work. This
 definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
 should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
 since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
 
-<p>Alright, let&rsquo;s try defining our own addition trait as before. First, let&rsquo;s see
-what happens if we try to add a struct when addition isn&rsquo;t defined:</p>
+<p>Alright, let’s try defining our own addition trait as before. First, let’s see
+what happens if we try to add a struct when addition isn’t defined:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;start&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">start</span><span class="p">(</span><span class="n">_main</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="o">:</span> <span class="n">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<pre><code class="language-rust">struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
 
 <p>We get an error:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="err">$</span> <span class="n">rustc</span> <span class="n">test</span><span class="p">.</span><span class="n">rs</span>
-</span><span class='line'><span class="n">error</span><span class="p">[</span><span class="n">E0369</span><span class="p">]</span><span class="o">:</span> <span class="n">binary</span> <span class="n">operation</span> <span class="err">`</span><span class="o">+</span><span class="err">`</span> <span class="n">cannot</span> <span class="kr">be</span> <span class="n">applied</span> <span class="n">to</span> <span class="k">type</span> <span class="err">`</span><span class="n">Foo</span><span class="err">`</span>
-</span><span class='line'>  <span class="o">--&gt;</span> <span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="mi">33</span><span class="o">:</span><span class="mi">5</span>
-</span><span class='line'>   <span class="o">|</span>
-</span><span class='line'><span class="mi">33</span> <span class="o">|</span>     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
-</span><span class='line'>   <span class="o">|</span>     <span class="o">^^^</span>
-</span><span class='line'>   <span class="o">|</span>
-</span><span class='line'><span class="n">note</span><span class="o">:</span> <span class="n">an</span> <span class="n">implementation</span> <span class="n">of</span> <span class="err">`</span><span class="n">std</span><span class="o">::</span><span class="n">ops</span><span class="o">::</span><span class="nb">Add</span><span class="err">`</span> <span class="n">might</span> <span class="kr">be</span> <span class="n">missing</span> <span class="k">for</span> <span class="err">`</span><span class="n">Foo</span><span class="err">`</span>
-</span><span class='line'>  <span class="o">--&gt;</span> <span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="mi">33</span><span class="o">:</span><span class="mi">5</span>
-</span><span class='line'>   <span class="o">|</span>
-</span><span class='line'><span class="mi">33</span> <span class="o">|</span>     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
-</span><span class='line'>   <span class="o">|</span>     <span class="o">^^^</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">error</span><span class="o">:</span> <span class="n">aborting</span> <span class="n">due</span> <span class="n">to</span> <span class="n">previous</span> <span class="n">error</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code>$ rustc test.rs
+error[E0369]: binary operation `+` cannot be applied to type `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+   |
+note: an implementation of `std::ops::Add` might be missing for `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
 
+error: aborting due to previous error
+</code></pre>
 
 <p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
 This is because the diagnostics in the compiler are free to assume that libcore
-exists. However, the actual error just noted that it doesn&rsquo;t know how to add two
+exists. However, the actual error just noted that it doesn’t know how to add two
 <code>Foo</code>s. But we can tell it how!</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;add&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="o">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="o">::</span><span class="n">Output</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="n">isize</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="o">:</span> <span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>        <span class="k">return</span> <span class="mi">42</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;start&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">start</span><span class="p">(</span><span class="n">_main</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="o">:</span> <span class="n">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
 
+impl MyAdd&lt;Foo&gt; for Foo {
+    type Output = isize;
+    fn add(self, other: Foo) -&gt; isize {
+        return 42;
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    Foo + Foo
+}
+</code></pre>
 
 <p>This will compile fine and the exit code of the program will be 42.</p>
 
 <p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
-same kind of error, even though the addition of concrete primitives doesn&rsquo;t
-go through <code>Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code>Add::add</code> is implemented, even though it won&rsquo;t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+same kind of error, even though the addition of concrete primitives doesn’t
+go through <code>Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code>Add::add</code> is implemented, even though it won’t get <em>used</em> in the case of a primitive. We can even verify this!</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;add&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="o">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="o">::</span><span class="n">Output</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="n">isize</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">fn</span> <span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="o">:</span> <span class="n">isize</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">self</span> <span class="o">+</span> <span class="n">other</span> <span class="o">+</span> <span class="mi">50</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
-</span><span class='line'><span class="cp">#[lang = </span><span class="s">&quot;start&quot;</span><span class="cp">]</span>
-</span><span class='line'><span class="k">fn</span> <span class="n">start</span><span class="p">(</span><span class="n">_main</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="o">:</span> <span class="n">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="o">:</span> <span class="o">*</span><span class="kr">const</span> <span class="o">*</span><span class="kr">const</span> <span class="kt">u8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">isize</span> <span class="p">{</span>
-</span><span class='line'>    <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<pre><code class="language-rust">#[lang = "add"]
+trait MyAdd&lt;RHS&gt; {
+    type Output;
+    fn add(self, other: RHS) -&gt; Self::Output;
+}
 
+impl MyAdd&lt;isize&gt; for isize {
+    type Output = isize;
+    fn add(self, other: isize) -&gt; isize {
+        self + other + 50
+    }
+}
+
+struct Foo;
+#[lang = "start"]
+fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
+    40 + 2
+}
+</code></pre>
 
 <p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
-wrap and we haven&rsquo;t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+wrap and we haven’t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
 
 <p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
-check, it doesn&rsquo;t actually get used.</p>
+check, it doesn’t actually get used.</p>
 
 <hr />
 
-<p>So what lang items <em>are</em> there, and why are they lang items? There&rsquo;s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
-compiler. Let&rsquo;s go through them:</p>
+<p>So what lang items <em>are</em> there, and why are they lang items? There’s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
+compiler. Let’s go through them:</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
 primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
-coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn&rsquo;t defined
-&hellip; in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
+coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn’t defined
+… in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
 applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
-a single crate gets the honor of adding methods to <code>char</code>, so we don&rsquo;t have any of the issues that
+a single crate gets the honor of adding methods to <code>char</code>, so we don’t have any of the issues that
 arise from sidestepping coherence.</p>
 
 <p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
 
 <ul>
-<li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
-<li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
-<li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
-<li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
-<li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can&rsquo;t be reused on user-defined marker traits.</li>
+  <li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+  <li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+  <li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+  <li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
+  <li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can’t be reused on user-defined marker traits.</li>
 </ul>
-
 
 <p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
 these destructors.</p>
@@ -507,11 +399,11 @@ box.</p>
 <p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
 but is no longer used.</p>
 
-<p>We&rsquo;ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
-minimal example program. This function is basically where you find Rust&rsquo;s &ldquo;runtime&rdquo;: it gets called
-with a pointer to main and the command line arguments, it sets up the &ldquo;runtime&rdquo;, calls main, and
+<p>We’ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
+minimal example program. This function is basically where you find Rust’s “runtime”: it gets called
+with a pointer to main and the command line arguments, it sets up the “runtime”, calls main, and
 tears down anything it needs to. Rust has a C-like minimal runtime, so
-<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn&rsquo;t do much.
+<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn’t do much.
 But you theoretically could stick a very heavy runtime initialization routine here.</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
@@ -519,13 +411,13 @@ platform-specific modules) specify various bits of the exception handling behavi
 called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
 or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
 called when the unwinding code wishes to resume unwinding after calling destructors in a landing
-pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don&rsquo;t
+pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don’t
 understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
 the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
-compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn&rsquo;t
-actually have a type name (like <code>bool</code>) that can be used if you&rsquo;re writing libcore or libstd. This
+compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn’t
+actually have a type name (like <code>bool</code>) that can be used if you’re writing libcore or libstd. This
 lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
 but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
 
@@ -535,11 +427,11 @@ of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/ph
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
 a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
-like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> &ndash; we know that the pointers in these can/should never be null, so they
+like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> – we know that the pointers in these can/should never be null, so they
 contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
-(the &ldquo;tag&rdquo; value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
+(the “tag” value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
 we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
-are zero. Beware, this optimization also applies to C-like enums that don&rsquo;t have a variant
+are zero. Beware, this optimization also applies to C-like enums that don’t have a variant
 corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
 
 <p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
@@ -549,20 +441,20 @@ There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>Covaria
 predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
 type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
 <code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
-The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don&rsquo;t know why these lang items haven&rsquo;t been
-removed (they don&rsquo;t work anymore anyway); the only consumer of them is libcore so &ldquo;deprecating&rdquo; them
-seems unnecessary. It&rsquo;s probably an oversight.</p>
+The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don’t know why these lang items haven’t been
+removed (they don’t work anymore anyway); the only consumer of them is libcore so “deprecating” them
+seems unnecessary. It’s probably an oversight.</p>
 
 <p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
 loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
 <code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
 <code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
 resolution is done, so withut this, libcore would not be able to use for loops since the compiler
-wouldn&rsquo;t know what calls to insert in place of the loops while compiling.</p>
+wouldn’t know what calls to insert in place of the loops while compiling.</p>
 
 <hr />
 
-<p>Basically, whenever the compiler needs to use special treatment with an item &ndash; whether it be
+<p>Basically, whenever the compiler needs to use special treatment with an item – whether it be
 dispatching calls to functions and trait methods in various situations, conferring special semantics
 to types/traits, or requiring traits to be implemented, the type will be defined in the standard
 library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
@@ -571,26 +463,24 @@ library (libstd, libcore, or one of the crates behind the libstd façade), and m
 you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
 useful outside of the realm of compiler hacking.</p>
 
-<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn&rsquo;t generally
+<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn’t generally
 useful!</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>To be clear, I&rsquo;m not aware of any plans to eventually stabilize this. It&rsquo;s something that could happen.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>To be clear, I’m not aware of any plans to eventually stabilize this. It’s something that could happen. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -598,10 +488,8 @@ useful!</p>
 
 
 
-<time class='entry-date' datetime='2017-01-11T00:00:00+00:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>11</span><span class='date-suffix'>th</span>, <span class='date-year'>2017</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 <span class="aftersep beforesep">
@@ -632,7 +520,7 @@ useful!</p>
         <a class="basic-alignment left" href="/blog/2017/01/10/rust-tidbits-box-is-special/" title="Previous Post: Rust tidbits: Box is special">&laquo; Rust tidbits: Box is special</a>
       
       
-        <a class="basic-alignment right" href="/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/" title="Next Post: Let's stop ascribing meaning to code points">Let&#8217;s stop ascribing meaning to code points &raquo;</a>
+        <a class="basic-alignment right" href="/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/" title="Next Post: Let's stop ascribing meaning to code points">Let's stop ascribing meaning to code points &raquo;</a>
       
     </p>
   </footer>
@@ -645,9 +533,9 @@ useful!</p>
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -655,7 +543,7 @@ useful!</p>
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>

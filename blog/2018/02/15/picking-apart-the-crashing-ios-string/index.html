@@ -9,8 +9,8 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="So there&rsquo;s yet another iOS text crash, where just looking at a particular string crashes
-iOS. Basically, if you put this string in any system &hellip;">
+  <meta name="description" content="So there’s yet another iOS text crash, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system text &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +18,9 @@ iOS. Basically, if you put this string in any system &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Picking apart the crashing iOS string">
-      <meta property="twitter:description" content="So there&rsquo;s yet another iOS text crash, where just looking at a particular string crashes
-iOS. Basically, if you put this string in any system text box (and other places), it crashes that &hellip;">
+      <meta property="twitter:description" content="So there’s yet another iOS text crash, where just looking at a particular string crashes
+iOS. Basically, if you put this string in any system text box (and other places), it crashes that
+process. I’ &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -66,7 +67,7 @@ iOS. Basically, if you put this string in any system text box (and other places)
   <header role="banner"><hgroup>
   <h1><a href="/">In Pursuit of Laziness</a></h1>
   
-    <h2>Manish Goregaokar&#8217;s blog</h2>
+    <h2>Manish Goregaokar's blog</h2>
   
 </hgroup>
 
@@ -105,249 +106,247 @@ iOS. Basically, if you put this string in any system text box (and other places)
 
 
 
-<time class='entry-date' datetime='2018-02-15T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+
         
       </p>
     
   </header>
 
 
-<div class="entry-content"><p>So there&rsquo;s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
+<div class="entry-content"><p>So there’s <a href="https://www.theverge.com/2018/2/15/17015654/apple-iphone-crash-ios-11-bug-imessage">yet another iOS text crash</a>, where just looking at a particular string crashes
 iOS. Basically, if you put this string in any system text box (and other places), it crashes that
-process. I&rsquo;ve been testing it by copy-pasting characters into Spotlight so I don&rsquo;t end up crashing
+process. I’ve been testing it by copy-pasting characters into Spotlight so I don’t end up crashing
 my browser.</p>
 
 <p>The original sequence is U+0C1C U+0C4D U+0C1E U+200C U+0C3E, which is a sequence of Telugu
-characters: the consonant ja (జ), a virama (&#8239;్&#8239;), the consonant nya (ఞ), a zero-width non-joiner, and
-the vowel aa (&#8239;ా).</p>
+characters: the consonant ja (జ), a virama ( ్ ), the consonant nya (ఞ), a zero-width non-joiner, and
+the vowel aa ( ా).</p>
 
-<p>I was pretty interested in what made this sequence &ldquo;special&rdquo;, and started investigating.</p>
+<p>I was pretty interested in what made this sequence “special”, and started investigating.</p>
 
 <p>So first when looking into this, I thought that the &lt;ja, virama, nya&gt; sequence was the culprit.
 That sequence forms a special ligature in many Indic scripts (ज्ञ in Devanagari) which is often
-considered a letter of its own. However, the ligature for Telugu doesn&rsquo;t seem very &ldquo;special&rdquo;.</p>
+considered a letter of its own. However, the ligature for Telugu doesn’t seem very “special”.</p>
 
 <p>Also, from some experimentation, this bug seemed to occur for <em>any</em> pair of Telugu consonants with
-a vowel, as long as the vowel is not &nbsp;&#8239;ై (ai). Huh.</p>
+a vowel, as long as the vowel is not   ై (ai). Huh.</p>
 
 <p>The ZWNJ must be doing something weird, then. &lt;consonant, virama, consonant, vowel&gt; is a
-pretty common sequence in any Indic script; but ZWNJ before a vowel isn&rsquo;t very useful for most
-scripts (except for Bengali and Oriya, but I&rsquo;ll get to that).</p>
+pretty common sequence in any Indic script; but ZWNJ before a vowel isn’t very useful for most
+scripts (except for Bengali and Oriya, but I’ll get to that).</p>
 
 <p>And then I saw that <a href="https://twitter.com/FakeUnicode/status/963300865762254848">there was a sequence in Bengali</a> that also crashed.</p>
 
-<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant &ldquo;so&rdquo; (স), a virama (&#8239;্&#8239;),
-the consonant &ldquo;ro&rdquo; (র), a ZWNJ, and vowel u (&nbsp;&#8239;ু).</p>
+<p>The sequence is U+09B8 U+09CD U+09B0 U+200C U+09C1, which is the consonant “so” (স), a virama ( ্ ),
+the consonant “ro” (র), a ZWNJ, and vowel u (  ু).</p>
 
-<p>Before we get too into this, let&rsquo;s first take a little detour to learn how Indic scripts work:</p>
+<p>Before we get too into this, let’s first take a little detour to learn how Indic scripts work:</p>
 
-<h2>Indic scripts and consonant clusters</h2>
+<h2 id="indic-scripts-and-consonant-clusters">Indic scripts and consonant clusters</h2>
 
-<p>Indic scripts are <em>abugidas</em>; which means that their &ldquo;letters&rdquo; are consonants, which you
+<p>Indic scripts are <em>abugidas</em>; which means that their “letters” are consonants, which you
 can attach diacritics to to change the vowel. By default, consonants have a base vowel.
-So, for example, क is &ldquo;kuh&rdquo; (kə, often transcribed as &ldquo;ka&rdquo;), but I can change the vowel to make it के
-(the &ldquo;ka&rdquo; in &ldquo;okay&rdquo;) का (&ldquo;kaa&rdquo;, like &ldquo;car&rdquo;).</p>
+So, for example, क is “kuh” (kə, often transcribed as “ka”), but I can change the vowel to make it के
+(the “ka” in “okay”) का (“kaa”, like “car”).</p>
 
-<p>Usually, the default vowel is the ə sound, though not always (in Bengali it&rsquo;s more of an o sound).</p>
+<p>Usually, the default vowel is the ə sound, though not always (in Bengali it’s more of an o sound).</p>
 
-<p>Because of the &ldquo;default&rdquo; vowel, you need a way to combine consonants. For example, if you wished to
-write the word &ldquo;ski&rdquo;, you can&rsquo;t write it as स + की (sa + ki = &ldquo;saki&rdquo;), you must write it as स्की.
-What&rsquo;s happened here is that the स got its vowel &ldquo;killed&rdquo;, and got tacked on to the की to form a
+<p>Because of the “default” vowel, you need a way to combine consonants. For example, if you wished to
+write the word “ski”, you can’t write it as स + की (sa + ki = “saki”), you must write it as स्की.
+What’s happened here is that the स got its vowel “killed”, and got tacked on to the की to form a
 consonant cluster ligature.</p>
 
-<p>You can <em>also</em> write this as स्&zwnj;की . That little tail you see on the स is known as a &ldquo;virama&rdquo;;
-it basically means &ldquo;remove this vowel&rdquo;. Explicit viramas are sometimes used when there&rsquo;s no easy way
-to form a ligature, e.g. in ङ्&zwnj;ठ because there is no simple way to ligatureify ङ into ठ. Some scripts
-also <em>prefer</em> explicit viramas, e.g. &ldquo;ski&rdquo; in Malayalam is written as സ്കീ, where the little crescent
+<p>You can <em>also</em> write this as स्‌की . That little tail you see on the स is known as a “virama”;
+it basically means “remove this vowel”. Explicit viramas are sometimes used when there’s no easy way
+to form a ligature, e.g. in ङ्‌ठ because there is no simple way to ligatureify ङ into ठ. Some scripts
+also <em>prefer</em> explicit viramas, e.g. “ski” in Malayalam is written as സ്കീ, where the little crescent
 is the explicit virama.</p>
 
 <p>In unicode, the virama character is always used to form a consonant cluster. So स्की was written as
-&lt;स, &#8239;्, क, &#8239;ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
+&lt;स,  ्, क,  ी&gt;, or &lt;sa, virama, ka, i&gt;. If the font supports the cluster, it will show up
 as a ligature, otherwise it will use an explicit virama.</p>
 
 <p>For Devanagari and Bengali, <em>usually</em>, in a consonant cluster the first consonant is munged a bit and the second consonant stays intact.
-There are exceptions &ndash; sometimes they&rsquo;ll form an entirely new glyph (क + ष = क्ष), and sometimes both
+There are exceptions – sometimes they’ll form an entirely new glyph (क + ष = क्ष), and sometimes both
 glyphs will change (ड + ड = ड्ड, द + म = द्म, द + ब = द्ब). Those last ones should look like this in conjunct form:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/conjuncts.png" width="200" ></p>
+<p><img class="center" src="/images/post/unicode-crash/conjuncts.png" width="200" /></p>
 
-<h2>Investigating the Bengali case</h2>
+<h2 id="investigating-the-bengali-case">Investigating the Bengali case</h2>
 
 <p>Now, interestingly, unlike the Telugu crash, the Bengali crash seemed to only occur when the second
-consonant is র (&ldquo;ro&rdquo;). However, I can trigger it for any choice of the first consonant or vowel, except
-when the vowel is &#8239;ো (o) or &#8239;ৌ (au).</p>
+consonant is র (“ro”). However, I can trigger it for any choice of the first consonant or vowel, except
+when the vowel is  ো (o) or  ৌ (au).</p>
 
 <p>Now, র is an interesting consonant in some Indic scripts, including Devanagari. In Devanagari,
-it looks like र (&ldquo;ra&rdquo;). However, it does all kinds of things when forming a cluster. If you&rsquo;re having it
+it looks like र (“ra”). However, it does all kinds of things when forming a cluster. If you’re having it
 precede another consonant in a cluster, it forms a little feather-like stroke, like in र्क (rka). In Marathi,
-that stroke can also look like a tusk, as in र्&zwj;क. As a suffix consonant, it can provide a little
-&ldquo;extra leg&rdquo;, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
+that stroke can also look like a tusk, as in र्‍क. As a suffix consonant, it can provide a little
+“extra leg”, as in क्र (kra). For letters without a vertical stroke, like ठ (tha), it does this caret-like thing,
 ठ्र (thra).</p>
 
 <p>Basically, while most consonants retain some of their form when put inside a cluster, र does not. And
-a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster &ndash; as I mentioned
+a more special thing about र is that this happens even when र is the <em>second</em> consonant in a cluster – as I mentioned
 before, for most consonant clusters the second consonant stays intact. While there are exceptions, they are usually
 specific to the cluster; it is only र for which this happens for all clusters.</p>
 
-<p>It&rsquo;s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
+<p>It’s similar in Bengali, র as the second consonant adds a tentacle-like thing on the existing consonant. For example,
 প + র (po + ro) gives প্র (pro).</p>
 
-<p>But it&rsquo;s not just র that does this in Bengali, the consonant &ldquo;jo&rdquo; does as well. প + য (po + jo) forms প্য (pjo),
-and the য is transformed into a wavy line called a &ldquo;jophola&rdquo;.</p>
+<p>But it’s not just র that does this in Bengali, the consonant “jo” does as well. প + য (po + jo) forms প্য (pjo),
+and the য is transformed into a wavy line called a “jophola”.</p>
 
-<p>So I tried it with য  &mdash; , and it turns out that the Bengali crash occurs for  য as well!
-So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not  &#8239;ো or &#8239;ৌ.</p>
+<p>So I tried it with য  — , and it turns out that the Bengali crash occurs for  য as well!
+So the general Bengali case is &lt;consonant, virama, র OR য, ZWNJ, vowel&gt;, where the vowel is not   ো or  ৌ.</p>
 
-<h2>Suffix-joining consonants</h2>
+<h2 id="suffix-joining-consonants">Suffix-joining consonants</h2>
 
-<p>So we&rsquo;re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
+<p>So we’re getting close, here. At least for Bengali, it occurs when the second consonant is such that it often
 combines with the first consonant without modifying its form much.</p>
 
 <p>In fact, this is the case for Telugu as well! Consonant clusters in Telugu are usually formed by preserving the
 original consonant, and tacking the second consonant on below!</p>
 
-<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn&rsquo;t
+<p>For example, the original crashy string contains the cluster జ + ఞ, which looks like జ్ఞ. The first letter isn’t
 really modified, but the second is.</p>
 
 <p>From this, we can guess that it will also occur for Devanagari with र. Indeed it does! U+0915 U+094D U+0930 U+200C U+093E, that is,
-&lt;क, &#8239;्, र, zwnj, &#8239;ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
+&lt;क,  ्, र, zwnj,  ा&gt; (&lt; ka, virama, ra, zwnj, aa &gt;) is one such crashing sequence.</p>
 
-<p>But this isn&rsquo;t really the whole story, is it? For example, the crash does occur for &ldquo;kro&rdquo; + zwnj + vowel in Bengali,
-and in &ldquo;kro&rdquo; (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
-the crash doesn&rsquo;t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
+<p>But this isn’t really the whole story, is it? For example, the crash does occur for “kro” + zwnj + vowel in Bengali,
+and in “kro” (ক্র = ক + র = ko + ro) the resultant cluster involves the munging of both the prefix and suffix. But
+the crash doesn’t occur for द्ब or ड्ड. It seems to be specific to the letter, not the nature of the cluster.</p>
 
 <p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
-form &ldquo;suffix joining consonants&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> (a term I made up) when preceded by a virama. This seems to
+form “suffix joining consonants”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> (a term I made up) when preceded by a virama. This seems to
 correspond to the <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_pt#tag-pstf"><code>pstf</code> OpenType feature</a>, as well as <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_uz#vatu"><code>vatu</code></a>.</p>
 
-<p>For example, the sequence virama + क gives &nbsp;&#8239;्क, i.e. it renders a virama with a placeholder followed by a क.</p>
+<p>For example, the sequence virama + क gives   ्क, i.e. it renders a virama with a placeholder followed by a क.</p>
 
-<p>But, for र, virama + र renders &#8239;्र, which for me looks like this:</p>
+<p>But, for र, virama + र renders  ्र, which for me looks like this:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/virama-ra.png" width="200" ></p>
+<p><img class="center" src="/images/post/unicode-crash/virama-ra.png" width="200" /></p>
 
-<p>In fact, this is the case for the other consonants as well. For me, &#8239;्र &#8239;্র &#8239;্য &#8239;్ఞ &#8239;్క
+<p>In fact, this is the case for the other consonants as well. For me,  ्र  ্র  ্য  ్ఞ  ్క
 (Devanagari virama-ra, Bengali virama-ro, Bengali virama-jo, Telugu virama-nya, Telugu virama-ka)
-all render as &ldquo;suffix joining consonants&rdquo;:</p>
+all render as “suffix joining consonants”:</p>
 
-<p><img class="center" src="/images/post/unicode-crash/virama-consonant.png" width="200" ></p>
+<p><img class="center" src="/images/post/unicode-crash/virama-consonant.png" width="200" /></p>
 
 <p>(This is true for all Telugu consonants, not just the ones listed).</p>
 
 <p>An interesting bit is that the crash does not occur for &lt;र, virama, र, zwnj, vowel&gt;, because र-virama-र
 uses the prefix-joining form of the first र (र्र). The same occurs for র with itself or ৰ or য. Because the virama
-is &ldquo;stickier&rdquo; to the left in these cases, it doesn&rsquo;t cause a crash. (h/t <a href="https://github.com/hackbunny">hackbunny</a> for discovering this
+is “stickier” to the left in these cases, it doesn’t cause a crash. (h/t <a href="https://github.com/hackbunny">hackbunny</a> for discovering this
 using a <a href="https://github.com/hackbunny/viramarama">script</a> to enumerate all cases).</p>
 
-<p>Kannada <em>also</em> has &ldquo;suffix joining consonants&rdquo;, but for some reason I cannot trigger the crash with it. Ya in Gurmukhi
+<p>Kannada <em>also</em> has “suffix joining consonants”, but for some reason I cannot trigger the crash with it. Ya in Gurmukhi
 is also suffix-joining.</p>
 
-<h2>The ZWNJ</h2>
+<h2 id="the-zwnj">The ZWNJ</h2>
 
-<p>The ZWNJ is curious. The crash doesn&rsquo;t happen without it, but as I mentioned before a ZWNJ before a vowel
-doesn&rsquo;t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
-virama if used after the virama (I used it to write स्&zwnj;की in this post), however that&rsquo;s not how it&rsquo;s being used here.</p>
+<p>The ZWNJ is curious. The crash doesn’t happen without it, but as I mentioned before a ZWNJ before a vowel
+doesn’t really <em>do</em> anything for most Indic scripts. In Indic scripts, a ZWNJ can be used to explicitly force a
+virama if used after the virama (I used it to write स्‌की in this post), however that’s not how it’s being used here.</p>
 
 <p>In Bengali and Oriya specifically, a ZWNJ can be used to force a different vowel form when used before a vowel
-(e.g. রু vs র&zwnj;ু), however this bug seems to apply to vowels for which there is only one form, and this bug
-also applies to other scripts where this isn&rsquo;t the case anyway.</p>
+(e.g. রু vs র‌ু), however this bug seems to apply to vowels for which there is only one form, and this bug
+also applies to other scripts where this isn’t the case anyway.</p>
 
-<p>The exception vowels are interesting. They&rsquo;re basically all vowels that are made up of <em>two</em> glyph components. Philippe Verdy
+<p>The exception vowels are interesting. They’re basically all vowels that are made up of <em>two</em> glyph components. Philippe Verdy
 points out:</p>
 
-<blockquote><p>And why this bug does not occur with some vowels is because these are vowels in two parts,
+<blockquote>
+  <p>And why this bug does not occur with some vowels is because these are vowels in two parts,
 that are first decomposed into two separate glyphs reordered in the buffer of glyphs, while
 other vowels do not need this prior mapping and keep their initial direct mapping from their
 codepoints in fonts, which means that this has to do to the way the ZWNJ looks for the glyphs
-of the vowels in the glyphs buffer and not in the initial codepoints buffer: there&rsquo;s some desynchronization,
+of the vowels in the glyphs buffer and not in the initial codepoints buffer: there’s some desynchronization,
 and more probably an uninitialized data field (for the lookup made in handling ZWNJ) if no vowel decomposition was done
 (the same data field is correctly initialized when it is the first consonnant which takes an alternate form before
-a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.</p></blockquote>
+a virama, like in most Indic consonnant clusters, because the a glyph buffer is created.</p>
+</blockquote>
 
-<h2>Generalizing</h2>
+<h2 id="generalizing">Generalizing</h2>
 
 <p>So, ultimately, the full set of cases that cause the crash are:</p>
 
 <p>Any sequence <code>&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
 
 <ul>
-<li><code>consonant2</code> is suffix-joining (<code>pstf</code>/<code>vatu</code>) &ndash; i.e. र, র, য, ৰ, and all Telugu consonants</li>
-<li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
-<li><code>vowel</code> does not have two glyph components, i.e. it is not &nbsp;&#8239;ై, &nbsp;&#8239;ো, or &nbsp;&#8239;ৌ</li>
+  <li><code>consonant2</code> is suffix-joining (<code>pstf</code>/<code>vatu</code>) – i.e. र, র, য, ৰ, and all Telugu consonants</li>
+  <li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
+  <li><code>vowel</code> does not have two glyph components, i.e. it is not   ై,   ো, or   ৌ</li>
 </ul>
-
 
 <p>This leaves one question open:</p>
 
-<p>Why doesn&rsquo;t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a &ldquo;coeng&rdquo;?</p>
+<p>Why doesn’t it apply to Kannada? Or, for that matter, Khmer, which has a similar virama-like thing called a “coeng”?</p>
 
-<h2>Are these valid strings?</h2>
+<h2 id="are-these-valid-strings">Are these valid strings?</h2>
 
-<p>A recurring question I&rsquo;m getting is if these strings are valid in the language, or unicode gibberish
+<p>A recurring question I’m getting is if these strings are valid in the language, or unicode gibberish
 like Zalgo text. Breaking it down:</p>
 
 <ul>
-<li>All of the <em>rendered</em> glyphs are valid. The original Telugu one is the root of the word for
-&ldquo;knowledge&rdquo; (and I&rsquo;ve taken to calling this bug &ldquo;forbidden knowledge&rdquo; for that reason).</li>
-<li>In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
+  <li>All of the <em>rendered</em> glyphs are valid. The original Telugu one is the root of the word for
+“knowledge” (and I’ve taken to calling this bug “forbidden knowledge” for that reason).</li>
+  <li>In Telugu and Devanagari, there is no functional use of the ZWNJ as used before a vowel. It
 should not be there, and one would not expect it in typical text.</li>
-<li>In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
+  <li>In Bengali (also Oriya), putting a ZWNJ before some vowels prevents them from ligatureifying, and this is
 mentioned in the Unicode spec. However, it seems rare for native speakers to use this.</li>
-<li>In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
+  <li>In all of these scripts, putting a ZWNJ after viramas can be used to force an explicit virama
 over a ligature. That is not the position ZWNJ is used here, but it gives a hint that this
 might have been a mistype. Doing this is <em>also</em> rare at least for Devanagari (and I believe
 for the other two scripts as well)</li>
-<li>Android has an explicit key for ZWNJ on its keyboards for these languages<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, right next to the spacebar. iOS has this as
+  <li>Android has an explicit key for ZWNJ on its keyboards for these languages<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, right next to the spacebar. iOS has this as
 well on the long-press of the virama key. <em>Very</em> easy to mistype, at least for Android.</li>
 </ul>
 
-
 <p>So while the crashing strings are usually invalid, and when not, very rare, they are easy enough to mistype.</p>
 
-<p>An example by <a href="https://twitter.com/FakeUnicode">@FakeUnicode</a> was the string &ldquo;For/k&rdquo; (or &ldquo;Foŕk&rdquo;, if accents were easier to type). A
-slash isn&rsquo;t something you&rsquo;d normally type there, and the produced string is gibberish, but it&rsquo;s easy enough to type
+<p>An example by <a href="https://twitter.com/FakeUnicode">@FakeUnicode</a> was the string “For/k” (or “Foŕk”, if accents were easier to type). A
+slash isn’t something you’d normally type there, and the produced string is gibberish, but it’s easy enough to type
 by accident.</p>
 
-<p>Except of course that the mistake in &ldquo;For/k&rdquo;/&ldquo;Foŕk&rdquo; is visually obvious and would be fixed; this
-isn&rsquo;t the case for most of the crashing strings.</p>
+<p>Except of course that the mistake in “For/k”/”Foŕk” is visually obvious and would be fixed; this
+isn’t the case for most of the crashing strings.</p>
 
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
-<p>I don&rsquo;t really have <em>one</em> guess as to what&rsquo;s going on here &ndash; I&rsquo;d love to see what people think &ndash; but my current
-guess is that the &ldquo;affinity&rdquo; of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
-viramas into thinking the ZWNJ applies to the virama (it doesn&rsquo;t, there&rsquo;s a consonant in between), and this leads to some numbers
-not matching up and causing a buffer overflow or something. Philippe&rsquo;s diagnosis of the vowel situation matches up with this.</p>
+<p>I don’t really have <em>one</em> guess as to what’s going on here – I’d love to see what people think – but my current
+guess is that the “affinity” of the virama to the left instead of the right confuses the algorithm that handles ZWNJs after
+viramas into thinking the ZWNJ applies to the virama (it doesn’t, there’s a consonant in between), and this leads to some numbers
+not matching up and causing a buffer overflow or something. Philippe’s diagnosis of the vowel situation matches up with this.</p>
 
 <p>An interesting thing is that I can cause this crash to happen more reliably in browsers by clicking on the string.</p>
 
 <p>Additionally, <em>sometimes</em> it actually renders in spotlight for a split second before crashing; which
-means that either the crash isn&rsquo;t deterministic, or it occurs in some process <em>after</em> rendering. I&rsquo;m
+means that either the crash isn’t deterministic, or it occurs in some process <em>after</em> rendering. I’m
 not sure what to think of either. Looking at the backtraces, the crash seems to occur in different
-places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncovered later.</p>
+places, so it’s likely that it’s memory corruption that gets uncovered later.</p>
 
-<p>I&rsquo;d love to hear if folks have further insight into this.</p>
+<p>I’d love to hear if folks have further insight into this.</p>
 
 <p>Update: Philippe on the Unicode mailing list has <a href="https://www.unicode.org/mail-arch/unicode-ml/y2018-m02/0103.html">an interesting theory</a></p>
 
-<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that&rsquo;s no fun 😂</small></p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>Philippe Verdy points out that these may be called &ldquo;phala forms&rdquo; at least for Bengali<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>I don&rsquo;t think the Android keyboard <em>needs</em> this key; the keyboard seems very much a dump of &ldquo;what does this unicode block let us do&rdquo;, and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as <em>extremely</em> archaic characters, whilst neglecting more common things like the eyelash reph (which doesn&rsquo;t have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence).<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-</ol>
+<p><small>Yes, I could attach a debugger to the crashing process and investigate that instead, but that’s no fun 😂</small></p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Philippe Verdy points out that these may be called “phala forms” at least for Bengali <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>I don’t think the Android keyboard <em>needs</em> this key; the keyboard seems very much a dump of “what does this unicode block let us do”, and includes things like Sindhi-specific or Kashmiri-specific characters for the Marathi keyboard as well as <em>extremely</em> archaic characters, whilst neglecting more common things like the eyelash reph (which doesn’t have its own code point but is a special unicode sequence; native speakers should not be expected to be aware of this sequence). <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
 </div>
-
 </div>
 
 
   <footer>
     <p class="meta">
       
-  
-
 <span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
 
       
@@ -355,10 +354,8 @@ places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncover
 
 
 
-<time class='entry-date' datetime='2018-02-15T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
-      
 
-    
+      
 
 
 
@@ -398,9 +395,9 @@ places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncover
     <section>
 <h1> About Me </h1>
 <div id="about">
-    I&#8217;m a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
 
-    I&#8217;m currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
 </div>
 <div id="doodads">
  <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
@@ -408,7 +405,7 @@ places, so it&rsquo;s likely that it&rsquo;s memory corruption that gets uncover
 </div>
 </section>
 <section>
-<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> &#8211;>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
 </section>
 <section>
   <h1>Recent Posts</h1>
