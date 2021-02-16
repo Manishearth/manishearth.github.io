@@ -5,21 +5,19 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>TBD - In Pursuit of Laziness</title>
+  <title>Integrating Rust and C++ in Firefox - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="Last year I worked on the Stylo project, uplifting Servo&rsquo;s CSS engine (&ldquo;style system&rdquo;) into Firefox&rsquo;s browser engine
-(&ldquo; &hellip;">
+  <meta name="description" content="This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="TBD">
-      <meta property="twitter:description" content="Last year I worked on the Stylo project, uplifting Servo&rsquo;s CSS engine (&ldquo;style system&rdquo;) into Firefox&rsquo;s browser engine
-(&ldquo;Gecko&rdquo;). This involved a lot of gnarly FFI &hellip;">
+      <meta property="twitter:title" content="Integrating Rust and C++ in Firefox">
+      <meta property="twitter:description" content="This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) are outdated, given the relative infancy of the &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -96,7 +94,7 @@
   
   <header>
     
-      <h1 class="entry-title">TBD</h1>
+      <h1 class="entry-title">Integrating Rust and C++ in Firefox</h1>
     
     
       <p class="meta">
@@ -105,28 +103,32 @@
 
 
 
-<time class='entry-date' datetime='2018-09-29T00:00:00+00:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+<time class='entry-date' datetime='2021-02-15T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2021</span></span> <span class='time'>12:00 am</span></time>
         
       </p>
     
   </header>
 
 
-<div class="entry-content"><p>Last year I worked on the <a href="https://hacks.mozilla.org/2017/08/inside-a-super-fast-css-engine-quantum-css-aka-stylo/">Stylo</a> project, uplifting Servo&rsquo;s CSS engine (&ldquo;style system&rdquo;) into Firefox&rsquo;s browser engine
+<div class="entry-content"><p><em>This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) are outdated, given the relative infancy of the interop space at the time. I was recently told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark outdated things as such when I notice them. Everything after the allocators section was written near the time of publication.</em></p>
+
+<p>In 2017 I worked on the <a href="https://hacks.mozilla.org/2017/08/inside-a-super-fast-css-engine-quantum-css-aka-stylo/">Stylo</a> project, uplifting Servo&rsquo;s CSS engine (&ldquo;style system&rdquo;) into Firefox&rsquo;s browser engine
 (&ldquo;Gecko&rdquo;). This involved a <em>lot</em> of gnarly FFI between Servo&rsquo;s Rust codebase and Firefox&rsquo;s C++ codebase. There were a
 lot of challenges in doing this, and I feel like it&rsquo;s worth sharing things from our experiences.</p>
 
-<p>If you&rsquo;re interested in Rust integrations, you may find <a href="https://www.youtube.com/watch?v=_CdQHfLhmvI">this talk by Isis and Chelsea on integrating Rust in Tor</a>, <a href="https://www.youtube.com/watch?v=x9acx2zgx4Q">this talk by Katharina on Rust - C++ FFI</a>, and <a href="https://hsivonen.fi/modern-cpp-in-rust/">this blog post by Henri on integrating encoding-rs into Firefox</a> useful as well.</p>
+<p>If you&rsquo;re interested in Rust integrations, you may find <a href="https://www.youtube.com/watch?v=x9acx2zgx4Q">this talk by Katharina on Rust - C++ FFI</a>, and <a href="https://hsivonen.fi/modern-cpp-in-rust/">this blog post by Henri on integrating encoding-rs into Firefox</a> useful as well.</p>
 
 <h2>Who is this post for?</h2>
 
 <p>So, first off the bat, I&rsquo;ll mention that when integrating Rust into a C++ codebase, you
 want to <em>avoid</em> having integrations as tight as Stylo. Don&rsquo;t do what we did; make your Rust
 component mostly self-contained so that you just have to maintain something like ten FFI functions
-for interacting with it.</p>
+for interacting with it. If this is possible to do, you should do it and your life will be <em>much</em> easier. Pick a clean API boundary, define a straightforward API, use cbindgen or bindgen if necessary without any tricks, and you should be good to go.</p>
 
 <p>That said, sometimes you <em>have</em> to have gnarly integrations, and this blog post is for those use cases.
-These techniques mostly use bindgen for implementation, however you can potentially use them with hand-rolled bindings as well.</p>
+These techniques mostly use bindgen in their examples, however you can potentially use them with hand-rolled bindings or another tool as well. If you&rsquo;re at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it.</p>
+
+<p><em>Note from 2021: <a href="https://github.com/dtolnay/cxx">cxx</a> is probably a better tool for many of the use cases here, though many of the techniques still transfer.</em></p>
 
 <h2>What was involved in Stylo&rsquo;s FFI?</h2>
 
@@ -138,7 +140,7 @@ make a jagged edge of an integration surface.</p>
 
 <p>The style system is more self-contained than other parts, but it&rsquo;s still quite tightly integrated.</p>
 
-<p>The main job of a &ldquo;style system&rdquo; is to take the CSS rules and DOM tree, and run them through &ldquo;the cascade&rdquo;
+<p>The main job of a &ldquo;style system&rdquo; is to take the CSS rules and DOM tree, and run them through &ldquo;the cascade&rdquo;<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>
 with an output of &ldquo;computed styles&rdquo; tagged on each node in the tree. So, for example, it will take a document like
 the following:</p>
 
@@ -173,7 +175,7 @@ the following:</p>
 
 <ul>
 <li><code>&lt;body&gt;</code> has a <code>font-size</code> of <code>12px</code>, everything else is the default</li>
-<li>the <code>div</code> <code>#foo</code> has a computed <code>height</code> of <code>24px</code>, everything else is the default</li>
+<li>the <code>div</code> <code>#foo</code> has a computed <code>height</code> of <code>24px</code>, everything else is the default. It &ldquo;inherits&rdquo; the <code>font-size</code> from <code>&lt;body&gt;</code> as <code>12px</code></li>
 </ul>
 
 
@@ -200,7 +202,7 @@ that C++ code may hold onto as opaque pointers, and manipulating them via FFI.</
 </ul>
 
 
-<p>All of this conspires to make for some complicated FFI code :)</p>
+<p>All of this conspires to make for some really complicated FFI code.</p>
 
 <h1>The actual techniques</h1>
 
@@ -224,31 +226,35 @@ C++ compilation step.</p>
 
 <h2>cbindgen</h2>
 
-<p>We don&rsquo;t use <a href="https://github.com/eqrion/cbindgen">cbindgen</a> in Stylo, but it&rsquo;s <a href="https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/webrender_ffi_generated.h">used for Webrender</a>. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public API. It&rsquo;s also quite configurable, however I&rsquo;ve not used it much so I don&rsquo;t have many tips for it. I thought it&rsquo;s worth mentioning either way.</p>
+<p>We don&rsquo;t use [cbindgen] in Stylo, but it&rsquo;s [used for Webrender]. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public <code>extern "C"</code> API. It&rsquo;s also quite configurable.</p>
+
+<h2>cxx</h2>
+
+<p><a href="https://github.com/dtolnay/cxx">cxx</a> is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It&rsquo;s definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in C++.</p>
 
 <h2>Bindgen-aided C++ calling Rust</h2>
 
-<p>So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I&rsquo;m not sure if it&rsquo;s advisable to have <em>both</em> bindgen and cbindgen operating on the same codebase.</p>
+<p>So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I&rsquo;m not sure if it&rsquo;s advisable to have <em>both</em> bindgen and cbindgen operating near each other on the same codebase.</p>
 
 <p>In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">one file</a>, and are all named <code>Gecko_*</code>. Bindgen supports regexes for things like whitelisting, so this naming scheme makes it easy to deal with.</p>
 
 <p>We also declare the FFI functions defined in Rust that C++ calls in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">another file</a>, named <code>Servo_*</code>. They&rsquo;re also all <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/glue.rs">defined in one place</a></p>
 
-<p>However, there&rsquo;s nothing ensuring that the signatures match! If we&rsquo;re not careful, there may be mismatches. We use a small <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/servo_function_signatures.rs">autogenerated</a> to ensure the validity of the signatures.</p>
+<p>However, there&rsquo;s nothing ensuring that the signatures match! If we&rsquo;re not careful, there may be mismatches, causing bad things to happen at link time or runtime. We use a small <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/servo_function_signatures.rs">autogenerated</a> to ensure the validity of the signatures.</p>
 
 <p>This is especially important as we do things like type replacement, and we need tests to ensure that the rug isn&rsquo;t pulled out from underneath us.</p>
 
 <h2>Type replacing for fun and profit</h2>
 
-<p>Using <a href="https://rust-lang-nursery.github.io/rust-bindgen/blacklisting.html">blacklisting</a> in conjunction with the <code>--raw-line</code>/<code>raw_line()</code> flag, one can effectively ask bindgen to &ldquo;replace&rdquo; types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings referring to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type). <code>--raw-line</code> lets you request bindgen to add a line of raw rust code to the file,
-and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets
-you replace types.</p>
+<p>Using <a href="https://rust-lang-nursery.github.io/rust-bindgen/blacklisting.html">blacklisting</a> in conjunction with the <code>--raw-line</code>/<code>raw_line()</code> flag, one can effectively ask bindgen to &ldquo;replace&rdquo; types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings <em>referring</em> to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). <code>--raw-line</code> lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets you replace types.</p>
 
 <p>Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).</p>
 
 <p>There are various ways this can be used:</p>
 
 <h3>Safe references across FFI</h3>
+
+<p><em>Note from 2021: <a href="https://github.com/dtolnay/cxx">cxx</a> does this automatically</em></p>
 
 <p>Calling into C++ (and accepting data from C++) is unsafe. However, there&rsquo;s no reason we should have to worry about this more than we have to. For example, it would be nice if accessor FFI functions (take a foreign object, return something from inside it) could use lifetimes. And if nullability were represented on the FFI boundary so that you
 don&rsquo;t miss null checks (and can assume non-nullness when the C++ API is okay with it).</p>
@@ -280,11 +286,11 @@ don&rsquo;t miss null checks (and can assume non-nullness when the C++ API is ok
 
 
 <p><code>Option&lt;&amp;Foo&gt;</code> <a href="https://doc.rust-lang.org/nomicon/repr-rust.html">is represented as a single nullable pointer in Rust</a>, so this is a clean translation.
-We&rsquo;re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is <code>fn Gecko_GetLastChild&lt;'a&gt;(x: &amp;'a RawGeckoNode) -&gt; Option&lt;&amp;'a RawGeckoNode&gt;</code>, which ensures we won&rsquo;t let the returned reference outlive the passed reference.</p>
+We&rsquo;re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is <code>fn Gecko_GetLastChild&lt;'a&gt;(x: &amp;'a RawGeckoNode) -&gt; Option&lt;&amp;'a RawGeckoNode&gt;</code>, which ensures we won&rsquo;t let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions &ldquo;safely&rdquo; with the appropriate lifetime requirements, even though C++ has no such concept!</p>
 
-<p>Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to pass us valid references, and we rely on it to not pass nulls when not marked as such. Most C++ codebases internally rely on such invariants for safety anyway, so this isn&rsquo;t much of a stretch.</p>
+<p>Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn&rsquo;t much of a stretch.</p>
 
-<p>We do this on both sides, actually: Many of our Rust-defined <code>extern "C"</code> functions that C++ calls get to be safe because the types let us assume the validity of the pointers obtaned from C++.</p>
+<p>We do this on both sides, actually: Many of our Rust-defined <code>extern "C"</code> functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtaned from C++.</p>
 
 <h3>Making C++ abstractions Rust-accessible</h3>
 
@@ -362,11 +368,11 @@ We&rsquo;re forced to null-check it, but once we do we can safely assume that th
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>The <code>MyString_Destroy</code> isn&rsquo;t necessary with bindgen &ndash; bindgen will generate a <code>MyString::destruct()</code> function for you &ndash; but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time.</p>
+<p>The <code>MyString_Destroy</code> isn&rsquo;t necessary with bindgen &ndash; bindgen will generate a <code>MyString::destruct()</code> function for you &ndash; but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time.</p>
 
 <p>In Stylo we went down the route of manually defining <code>_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code>destruct()</code> if we want to now.</p>
 
-<p>When it comes to generic types, it&rsquo;s a bit trickier, since <code>Drop</code> can&rsquo;t be implemented piecewise. You have to do something like:</p>
+<p>When it comes to generic types, it&rsquo;s a bit trickier, since <code>Drop</code> can&rsquo;t be implemented piecewise on a generic type (you cannot <code>impl Drop for MyVector&lt;Foo&gt;</code>). You have to do something like:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -455,7 +461,7 @@ We&rsquo;re forced to null-check it, but once we do we can safely assume that th
 
 <p>We implement the <code>RefCounted</code> trait for C++ types that are wrapped in <code>RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn&rsquo;t know how to manage various C++ types.</p>
 
-<p>However, <code>RefPtr&lt;T&gt;</code> here can&rsquo;t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, so we can&rsquo;t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all &ndash; which would be a lot of work.</p>
+<p>However, <code>RefPtr&lt;T&gt;</code> here can&rsquo;t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>, so we can&rsquo;t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all &ndash; which would be a lot of work.</p>
 
 <p>Instead, we let bindgen generate its own <code>RefPtr&lt;T&gt;</code>, called <code>structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code>structs::</code> module). <code>structs::RefPtr&lt;T&gt;</code> itself doesn&rsquo;t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the &ldquo;safe&rdquo; mirror <code>RefPtr&lt;T&gt;</code> (but only if <code>T: RefCounted</code>). So if you need to manipulate a <code>RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don&rsquo;t have the <code>RefCounted</code> implementation won&rsquo;t have conversion methods: they may exist in the data you&rsquo;re manipulating, however you won&rsquo;t be able to work with them.</p>
 
@@ -479,20 +485,114 @@ and C++ code don&rsquo;t share allocators, deallocating memory allocated on the 
 </ul>
 
 
-<h2>Crazy stuff</h2>
+<h2>Triomphe</h2>
 
-<p>@@</p>
+<p>This isn&rsquo;t really a generalizable technique, but it&rsquo;s pretty cool and generally instructive, so I&rsquo;m including it here.</p>
 
-<p>@@ Transparent</p>
+<p>Stylo uses a lot of <code>Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code>Arc::make_mut</code>&rsquo;s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>@@ C enums</p>
+<p>Many of these <code>Arc</code>s need to be readable from C++. Rust&rsquo;s <code>Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code>Arc</code> allocation, which we&rsquo;d rather not do.</p>
 
-<p>@@ ABI concerns</p>
+<p>We picked a different route: We created a crate duplicating <code>Arc&lt;T&gt;</code> which behaves almost exactly the same as <code>Arc&lt;T&gt;</code>, but it can be converted to <code>OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code>T</code> begins. To C++, this just looks like a <code>*const T</code>! We were then able to make it work with <code>RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code>OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
+
+<p>The external version of this crate can be found in <a href="https://docs.rs/triomphe">triomphe</a>. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like <code>ArcBorrow</code> which is essentially &ldquo;<code>&amp;Arc&lt;T&gt;</code> without double indirection&rdquo;, <code>UniqueArc&lt;T&gt;</code>, a mutable <code>Arc&lt;T&gt;</code> known to be uniquely owned, and <code>ArcUnion&lt;T, U&gt;</code>, which is a space-efficient union of <code>Arc&lt;T&gt;</code> and <code>Arc&lt;U&gt;</code>.</p>
+
+<h2>Other pitfalls</h2>
+
+<h3>Transparent</h3>
+
+<p>It&rsquo;s <em>very</em> tempting to wrap C++ types in tuple structs and pass them over FFI. For example, one might imagine that the following is okay:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='rust'><span class='line'><span class="k">struct</span> <span class="n">Wrapper</span><span class="p">(</span><span class="n">bindings</span><span class="o">::</span><span class="n">SomeCppType</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// C++ signature: `SomeCppType get_cpp_type();`</span>
+</span><span class='line'>    <span class="k">fn</span> <span class="n">get_cpp_type</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Wrapper</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This kind of thing is quite useful to get around coherence, or for adding additional semantics to a type.</p>
+
+<p>While there&rsquo;s basically one obvious way <code>Wrapper</code> can be represented, ABI stuff can be tricky, and Rust&rsquo;s layout isn&rsquo;t defined. It is safer to use <code>#[repr(transparent)]</code>, which guarantees that <code>Wrapper</code> will have the same representation as the type it contains.</p>
+
+<h3>C enums</h3>
+
+<p>Rust supports C-like enums, but there&rsquo;s a crucial difference between them. In C, it is not undefined behavior for an enum to have an unlisted value. In fact, the following pattern is not uncommon:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="k">enum</span> <span class="n">Flags</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">Flag1</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0001</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">Flag2</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0010</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">Flag3</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0100</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">Flag4</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b1000</span><span class="p">;</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>where the enum is actually used for bitflags, and <code>Flag1 | Flag2</code> and <code>0</code> are both valid values for <code>Flags</code>.</p>
+
+<p>This is not the case in Rust, if you are type-replacing C enums with Rust ones, make sure they are <code>#[repr(C)]</code>. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent <code>Option&lt;Option&lt;... 255 times .. Option&lt;bool&gt;&gt;</code> as a single byte.</p>
+
+<h3>ABI concerns</h3>
+
+<p>ABIs can be tricky. If you <em>just</em> use bindgen with no special flags, you can be pretty much guaranteed to have an okay ABI, but as you start doing type replacements, stuff can get murkier.</p>
+
+<p>Firstly, make sure you&rsquo;re not passing owned C++ classes with destructors/etc across FFI boundaries. See <a href="#potential-pitfall-passing-c-classes-by-value-over-ffi">above</a> for why. There&rsquo;s a bunch of subtle stuff here, but you can avoid most of it it if you just don&rsquo;t pass these things across FFI in an owned way.</p>
+
+<p>Also, try to make sure everything is <code>#[repr(C)]</code> across the boundary. Rust&rsquo;s <code>improper-ctypes</code> lints will help here.</p>
+
+<h2>Should C++ APIs be unconditionally <code>unsafe</code>?</h2>
+
+<p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve&rsquo;s <code>cxx</code> post</a> came out, there was a bunch of brouhaha about C++ functions not being universally marked <code>unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code>unsafe</code> (and that tools like <code>cxx</code> should follow these rules).</p>
+
+<p>Back then I wrote <a href="https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3">a Reddit comment</a> about my thoughts on this. It&rsquo;s a comment that&rsquo;s the length of a blog post in and of itself so I&rsquo;m not going to reproduce all of it here, but I&rsquo;ll try to get the gist. I highly suggest you read it instead of this section.</p>
+
+<p>In short, I would recommend people doing heavy C++ interop to be generally okay with marking functions calling into C++ as &ldquo;safe&rdquo; provided that function would be considered &ldquo;safe to call without thinking too much about it&rdquo; on the C++ side, whatever that means for your codebase.</p>
+
+<p>From [my post on &ldquo;undefined&rdquo; vs &ldquo;unsafe&rdquo;][undefined-post], for Rust I define &ldquo;safe&rdquo; as</p>
+
+<blockquote><p>Basically, in Rust a bit of code is “safe” if it cannot exhibit undefined behavior under all circumstances of that code being used.</p></blockquote>
+
+<p>C++ doesn&rsquo;t have a rigid language-level concept of safety that can be applied the same way. Instead, most C++ code follows a similar heuristic:</p>
+
+<blockquote><p>a bit of code is &ldquo;safe&rdquo; if it cannot exhibit undefined behavior under all <strong>expected</strong> circumstances of that code being used.</p></blockquote>
+
+<p>This is, perhaps, not as good or useful a heuristic as the one we have for Rust, but it&rsquo;s still a heuristic that gets used in deciding how careful one needs to be when using various APIs. After all, there are <em>plenty</em> of giant C++ codebases out there, they have got to be able to reason about safety <em>somehow</em>.</p>
+
+<p>When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust&rsquo;s safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save <code>unsafe</code> on the FFI boundary for truly unsafe functions which you actually do need to be careful to call.</p>
+
+<p><code>unsafe</code> is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it&rsquo;s already well known that the C++-side is introducing badness, marking every simple C++ getter as <code>unsafe</code> will lead to alarm fatigue and make it <em>harder</em> to find the real problems.</p>
+
+<p>It&rsquo;s worth figuring out where this boundary lies for you. Tools like <code>cxx</code> make it possible to call C++ functions through a safe interface.</p>
+
+<h2>Closing comments</h2>
+
+<p>Again, before going down this route it&rsquo;s worth wondering if you <em>really</em> need tight Rust-C++ integration. When possible, it&rsquo;s always better to pick a small, well-defined API boundary, rather than Stylo-esque tight integration with shared objects and a highly criscrossed callgraph.</p>
+
+<p>These days <a href="https://github.com/dtolnay/cxx">cxx</a> is probably the most complete tool for such integrations. <a href="https://github.com/rust-lang-nursery/rust-bindgen/">bindgen</a> and [cbindgen] are still quite good, but cxx is C++-first, with a lot more magic, and generally seems to Just Work without too much configuration.</p>
+
+<p><a href="https://github.com/google/autocxx">autocxx</a> is a cool concept by Adrian Taylor which melds bindgen and cxx to make something even <em>more</em> magical. It&rsquo;s currently experimental, but I&rsquo;m going to be watching it with interest.</p>
+
+<p>Overall the field of Rust and C++ integration is at a stage where it&rsquo;s mature enough for integrations to be <em>possible</em> without too much effort, but there are still tons of ways things could be improved and I&rsquo;m super excited to see that happen as more people work on such integrations!</p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p><code>Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code>RefPtr</code> is defined as <code>RefPtr&lt;T: RefCounted&gt;</code>. It&rsquo;s not possible to have a generic type that has an impl of <code>Drop</code> for only <em>some</em> possible instantiations of its generics.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>The <em>cascade</em> in &ldquo;Cascading Style Sheets&rdquo; is the process used to take all the potential rules which could apply to an element and find the &ldquo;most applicable&rdquo; one that gets actually used.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p><code>Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code>RefPtr</code> is defined as <code>RefPtr&lt;T: RefCounted&gt;</code>. It&rsquo;s not possible to have a generic type that has an impl of <code>Drop</code> for only <em>some</em> possible instantiations of its generics.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
@@ -511,7 +611,7 @@ and C++ code don&rsquo;t share allocators, deallocating memory allocated on the 
 
 
 
-<time class='entry-date' datetime='2018-09-29T00:00:00+00:00'><span class='date'><span class='date-month'>Sep</span> <span class='date-day'>29</span><span class='date-suffix'>th</span>, <span class='date-year'>2018</span></span> <span class='time'>12:00 am</span></time>
+<time class='entry-date' datetime='2021-02-15T00:00:00+00:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2021</span></span> <span class='time'>12:00 am</span></time>
       
 
     
@@ -594,7 +694,7 @@ and C++ code don&rsquo;t share allocators, deallocating memory allocated on the 
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2020 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2021 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 
