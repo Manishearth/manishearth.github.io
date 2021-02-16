@@ -66,7 +66,7 @@ the following:
 and turn it into something like:
 
  - `<body>` has a `font-size` of `12px`, everything else is the default
- - the `div` `#foo` has a computed `height` of `24px`, everything else is the default. It "inherits" the `font-size` from `<body>` as `12px`
+ - the `div` `#foo` has a computed `height` of `24px` [^3], everything else is the default. It "inherits" the `font-size` from `<body>` as `12px`
 
 From a code point of view, this means that Stylo takes in Gecko's C++ DOM tree. It parses all the CSS,
 and then runs the cascade on the tree. It stores computed styles on each element in a way that Gecko can read
@@ -78,8 +78,7 @@ deal with this impedence mismatch.
 
 Since the output of Stylo is C++-readable structs, Stylo needs to be able to read and write nontrivial C++
 abstractions. Typical FFI involves passing values over a boundary, never to be seen again, however here we're
-dealing with persistent state that is accessed by both sides. At best you may have some persistent rust structs
-that C++ code may hold onto as opaque pointers, and manipulating them via FFI.
+dealing with persistent state that is accessed by both sides.
 
 To sum up, we have:
 
@@ -90,11 +89,10 @@ To sum up, we have:
 
 All of this conspires to make for some really complicated FFI code.
 
+ [^3]: The `em` unit is font-size-relative, so `2em` with a `font-size` of `12px` is computed to `2 * 12 = 24px`.
  [^1]: The _cascade_ in "Cascading Style Sheets" is the process used to take all the potential rules which could apply to an element and find the "most applicable" one that gets actually used.
 
 # The actual techniques
-
-Alright, on to the actual techniques.
 
 I'll try to structure this so that the more broadly useful (and/or less gnarly) techniques come earlier in the post.
 
@@ -106,7 +104,7 @@ To use it for an integration, write a header file containing the functions your 
 checking in the generate file suffices, but if your C++ code is going to change a lot, [run it as a build dependency instead][bindgen-build-dep]. Beware that this can adversely impact build times, since your Rust build now has a partial
 C++ compilation step.
 
-For large C++ codebases, pulling in a single header will likely pull in a _lot_ of stuff. You should [whitelist], [blacklist], and/or mark things as [opaque] to reduce the amount of bindings generated. It's best to go the whitelisting route &mdash; give bindgen a whitelisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it's sometimes worth finding structs you're not using and marking them as opaque so that their bindings aren't necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it's just some bits you don't care about.
+For large C++ codebases, pulling in a single header will likely pull in a _lot_ of stuff. You should [whitelist], [blacklist], and/or mark things as [opaque] to reduce the amount of bindings generated. It's best to go the whitelisting route &mdash; give bindgen a whitelisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it's sometimes worth finding structs you're not using and marking them as opaque so that their bindings aren't necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it's just some bits you don't care about and can't introspect further.
 
 Bindgen [_does_ support some C++ features][bindgen-cpp] (you may need to pass `-x c++`). This is pretty good for generating bindings to e.g. templated structs. However, it's not possible to support _all_ C++ features here, so you may need to blacklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You'll typically get an error when generating bindings or when compiling the generated bindings, so don't worry about this unless that happens.
 
@@ -127,9 +125,10 @@ Bindgen is _quite_ configurable. Stylo has a [script][build_gecko] that consumes
 We don't use [cbindgen] in Stylo, but it's used for Webrender. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public `extern "C"` API. It's also quite configurable.
 
  [cbindgen]: https://github.com/eqrion/cbindgen
+
 ## cxx
 
-[cxx] is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It's definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in C++. 
+[cxx] is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It's definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in cxx. For example, it automatically figures out what types need to be opaque, it automatically converts between `&T` and `T*` across FFI, and it is overall more targeted for the use case of an FFI layer where Rust and C++ both call each other. 
 
 
 ## Bindgen-aided C++ calling Rust
@@ -193,7 +192,7 @@ We're forced to null-check it, but once we do we can safely assume that the refe
 
 Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn't much of a stretch.
 
-We do this on both sides, actually: Many of our Rust-defined `extern "C"` functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtaned from C++.
+We do this on both sides, actually: Many of our Rust-defined `extern "C"` functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtained from C++.
 
 
 
@@ -238,7 +237,7 @@ In Stylo we handle this by using some macro-generated intermediate types which a
 
 ## Sharing abstractions with destructors
 
-If you're passing ownership of abstractions across FFI, you probably want for Rust code to be able to destroy C++ objects, and vice versa.
+If you're passing ownership of collections or other templated types across FFI, you probably want Rust code to be able to destroy C++ objects, and vice versa.
 
 One way of doing this is to implement `Drop` on the generated struct. If you have `class MyString`, you can do:
 
@@ -264,7 +263,7 @@ impl Drop for bindings::MyString {
 }
 ```
 
-The `MyString_Destroy` isn't necessary with bindgen -- bindgen will generate a `MyString::destruct()` function for you -- but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ _methods_, your bindings become platform specific and are best regenerated at build time.
+The `MyString_Destroy` isn't necessary with bindgen -- bindgen will generate a `MyString::destruct()` function for you -- but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ _methods_, your bindings become platform specific and are best regenerated at build time[^4].
 
 In Stylo we went down the route of manually defining `_Destroy()` functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using `destruct()` if we want to now.
 
@@ -294,7 +293,9 @@ impl<T> Drop for bindings::MyVector<T> {
 
 ```
 
-Note that if you forget to add a `Drop` implementation for `T`, this won't work. See [the next section](#mirror-types) for some ways to handle this by creating a "safe" mirror type.
+Note that if you forget to add a `Drop` implementation for `T`, this will silently forget to clean up the contents of the vector. See [the next section](#mirror-types) for some ways to handle this by creating a "safe" mirror type.
+
+ [^4]: C++ name mangling <a href="https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions">is not standardized</a>, so any function with the C++ ABI will generate a `#[link_name = "_Z1foobarbaz"]` attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn't work on Windows due to MSVC using a different scheme.
 
 ## Mirror types
 
@@ -329,8 +330,7 @@ However, `RefPtr<T>` here can't be the type that ends up being used in bindgen. 
 
 Instead, we let bindgen generate its own `RefPtr<T>`, called `structs::RefPtr<T>` (all the structs that bindgen generates for Gecko go in a `structs::` module). `structs::RefPtr<T>` itself doesn't have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has [some methods][structs-refptr-methods] that allow for conversion into the "safe" mirror `RefPtr<T>` (but only if `T: RefCounted`). So if you need to manipulate a `RefPtr<T>` in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and _then_ do things to it. Refcounted types that don't have the `RefCounted` implementation won't have conversion methods: they may exist in the data you're manipulating, however you won't be able to work with them.
 
-
-In general, whenever attaching extra semantics to generic bindgen types doesn't work, an alternative is to create a mirror type that's completely safe to use from Rust, with a trait that gates conversion to the mirror type.
+In general, whenever attaching extra semantics to generic bindgen types doesn't work create a mirror type that's completely safe to use from Rust, with a trait that gates conversion to the mirror type.
 
  [rust-refcount-macro]: https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315
  [cpp-refcount-macro]: https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60
@@ -352,22 +352,26 @@ In such cases you have one of three options:
  - Call destructors over FFI, as detailed in [the section on destructors above](#sharing-abstractions-with-destructors)
  - Set Rust's allocator to be the same as documented [in the `std::alloc` module][stdalloc]. Basically, can use the `#[global_allocator]` attribute to select which allocator you wish to use, and if necessary you can implement the `GlobalAlloc` trait on a custom allocator type that calls into whatever custom allocator C++ is using.
 
+_Note from 2021: Most stdlib collections ([`Vec`], for example) now have an optional "custom allocator" parameter that can be used to swap in a different allocator for a specific use site._
+
+
  [stdalloc]: https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute
+ [`Vec`]: https://doc.rust-lang.org/nightly/std/vec/struct.Vec.html
 
-
-## Triomphe
+## Arcs over FFI: Triomphe
 
 This isn't really a generalizable technique, but it's pretty cool and generally instructive, so I'm including it here.
 
 Stylo uses a lot of `Arc`s. A _lot_ of them. The entire computation of styles makes heavy use of `Arc::make_mut`'s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.
 
-Many of these `Arc`s need to be readable from C++. Rust's `Arc`, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the `Arc` allocation, which we'd rather not do.
+Many of these `Arc`s need to be readable from C++. Rust's `Arc`, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the `Arc` allocation, which we'd rather not do[^5].
 
 We picked a different route: We created a crate duplicating `Arc<T>` which behaves almost exactly the same as `Arc<T>`, but it can be converted to `OffsetArc<T>` which has its pointer point to the _middle_ of the allocation, where the `T` begins. To C++, this just looks like a `*const T`! We were then able to make it work with `RefPtr<T>` on the C++ side so that C++ can transparently read from the `OffsetArc<T>`, and only needs to call into Rust if it wishes to clone or drop it.
 
 The external version of this crate can be found in [triomphe]. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like `ArcBorrow` which is essentially "`&Arc<T>` without double indirection", `UniqueArc<T>`, a mutable `Arc<T>` known to be uniquely owned, and `ArcUnion<T, U>`, which is a space-efficient union of `Arc<T>` and `Arc<U>`.
 
 
+ [^5]: Rust's standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a `#[repr]` attribute. This would _work_, but it would be brittle and prone to breakage.
  [triomphe]: https://docs.rs/triomphe
 
 ## Other pitfalls
@@ -404,7 +408,11 @@ enum Flags {
 
 where the enum is actually used for bitflags, and `Flag1 | Flag2` and `0` are both valid values for `Flags`.
 
-This is not the case in Rust, if you are type-replacing C enums with Rust ones, make sure they are `#[repr(C)]`. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent `Option<Option<... 255 times .. Option<bool>>` as a single byte.
+This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are `#[repr(C)]`. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent `Option<Option<... 255 times .. Option<bool>>` as a single byte.
+
+If you are working with a C enum that is used for bitflags like above, please use an integer type instead. `#[repr(C)]` on enums in Rust guarantees layout, but it is [still undefined behavior for any enum to take on invalid values][ub-repr].
+
+ [ub-repr]: https://doc.rust-lang.org/stable/nomicon/other-reprs.html
 
 
 ### ABI concerns
@@ -441,7 +449,7 @@ When you decide to meld together a C++ and Rust codebase, or start rewriting par
 
 `unsafe` is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it's already well known that the C++-side is introducing badness, marking every simple C++ getter as `unsafe` will lead to alarm fatigue and make it _harder_ to find the real problems.
 
-It's worth figuring out where this boundary lies for you. Tools like `cxx` make it possible to call C++ functions through a safe interface.
+It's worth figuring out where this boundary lies for you. Tools like `cxx` make it straightforward to call C++ functions through a safe interface, and it's valuable to make use of that support.
 
 
  [chromium-interop]: https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability
