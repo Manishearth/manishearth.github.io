@@ -15,6 +15,8 @@ group :jekyll_plugins do
   gem "pygments.rb"
   gem "rdiscount"
   gem "jekyll-paginate"
+  gem 'compass', '~> 1.0.1'
+  gem 'sass-globbing', '~> 1.0.0'
 end
 
 # Windows and JRuby does not include zoneinfo files, so bundle the tzinfo-data gem
