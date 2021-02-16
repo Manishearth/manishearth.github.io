@@ -1,12 +1,12 @@
 ---
 layout: post
 title: "Integrating Rust and C++ in Firefox"
-date: 2018-09-29 12:08:46 -0700
+date: 2021-02-15 12:08:46 -0700
 comments: true
 categories: [rust, c++, programming]
 ---
 
-_This post was originally drafted in August 2018, but I never got around to finishing it. As such, **a lot of the recommendations in it may be outdated**, given the relative infancy of the interop space at the time. I was told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark things which are actually outdated._
+_This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) are outdated, given the relative infancy of the interop space at the time. I was recently told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark outdated things as such when I notice them. Everything after the allocators section was written near the time of publication._
 
 In 2017 I worked on the [Stylo] project, uplifting Servo's CSS engine ("style system") into Firefox's browser engine
 ("Gecko"). This involved a _lot_ of gnarly FFI between Servo's Rust codebase and Firefox's C++ codebase. There were a
@@ -25,12 +25,12 @@ If you're interested in Rust integrations, you may find [this talk by Katharina 
 So, first off the bat, I'll mention that when integrating Rust into a C++ codebase, you
 want to _avoid_ having integrations as tight as Stylo. Don't do what we did; make your Rust
 component mostly self-contained so that you just have to maintain something like ten FFI functions
-for interacting with it.
+for interacting with it. If this is possible to do, you should do it and your life will be _much_ easier. Pick a clean API boundary, define a straightforward API, use cbindgen or bindgen if necessary without any tricks, and you should be good to go.
 
 That said, sometimes you _have_ to have gnarly integrations, and this blog post is for those use cases.
-These techniques mostly use bindgen for implementation, however you can potentially use them with hand-rolled bindings as well. If you're at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it.
+These techniques mostly use bindgen in their examples, however you can potentially use them with hand-rolled bindings or another tool as well. If you're at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it.
 
-_Note from 2021: [cxx] is probably a better tool for many of the use cases here, though some of the techniques still transfer._
+_Note from 2021: [cxx] is probably a better tool for many of the use cases here, though many of the techniques still transfer._
 
 [cxx]: https://github.com/dtolnay/cxx
 
@@ -356,7 +356,7 @@ In such cases you have one of three options:
 
 ## Triomphe
 
-This isn't really a generalizable technique, but it's pretty cool, so I'm including it here.
+This isn't really a generalizable technique, but it's pretty cool and generally instructive, so I'm including it here.
 
 Stylo uses a lot of `Arc`s. A _lot_ of them. The entire computation of styles makes heavy use of `Arc::make_mut`'s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.
 
@@ -383,6 +383,8 @@ extern "C" {
     fn get_cpp_type() -> Wrapper;
 }
 ```
+
+This kind of thing is quite useful to get around coherence, or for adding additional semantics to a type.
 
 While there's basically one obvious way `Wrapper` can be represented, ABI stuff can be tricky, and Rust's layout isn't defined. It is safer to use `#[repr(transparent)]`, which guarantees that `Wrapper` will have the same representation as the type it contains.
 
@@ -414,7 +416,46 @@ Also, try to make sure everything is `#[repr(C)]` across the boundary. Rust's `i
 
  [cpp-classes-pitfall]: #potential-pitfall-passing-c-classes-by-value-over-ffi
 
+
+##  Should C++ APIs be unconditionally `unsafe`?
+
+
+I recall when [this Chromium post][chromium-interop] and [Steve's `cxx` post][steve-cxx] came out, there was a bunch of brouhaha about C++ functions not being universally marked `unsafe`. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked `unsafe` (and that tools like `cxx` should follow these rules).
+
+Back then I wrote [a Reddit comment][manishearth-cxx-comment] about my thoughts on this. It's a comment that's the length of a blog post in and of itself so I'm not going to reproduce all of it here, but I'll try to get the gist. I highly suggest you read it instead of this section.
+
+In short, I would recommend people doing heavy C++ interop to be generally okay with marking functions calling into C++ as "safe" provided that function would be considered "safe to call without thinking too much about it" on the C++ side, whatever that means for your codebase.
+
+From [my post on "undefined" vs "unsafe"][undefined-post], for Rust I define "safe" as
+
+> Basically, in Rust a bit of code is “safe” if it cannot exhibit undefined behavior under all circumstances of that code being used.
+
+C++ doesn't have a rigid language-level concept of safety that can be applied the same way. Instead, most C++ code follows a similar heuristic:
+
+> a bit of code is "safe" if it cannot exhibit undefined behavior under all **expected** circumstances of that code being used.
+
+This is, perhaps, not as good or useful a heuristic as the one we have for Rust, but it's still a heuristic that gets used in deciding how careful one needs to be when using various APIs. After all, there are _plenty_ of giant C++ codebases out there, they have got to be able to reason about safety _somehow_.
+
+When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust's safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save `unsafe` on the FFI boundary for truly unsafe functions which you actually do need to be careful to call.
+
+`unsafe` is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it's already well known that the C++-side is introducing badness, marking every simple C++ getter as `unsafe` will lead to alarm fatigue and make it _harder_ to find the real problems.
+
+It's worth figuring out where this boundary lies for you. Tools like `cxx` make it possible to call C++ functions through a safe interface.
+
+
+ [chromium-interop]: https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability
+ [steve-cxx]: https://steveklabnik.com/writing/the-cxx-debate
+ [manishearth-cxx-comment]: https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3
+ [undefined-unsafe]: https://manishearth.github.io/blog/2017/12/24/undefined-vs-unsafe-in-rust/
+
 ## Closing comments
 
+Again, before going down this route it's worth wondering if you _really_ need tight Rust-C++ integration. When possible, it's always better to pick a small, well-defined API boundary, rather than Stylo-esque tight integration with shared objects and a highly criscrossed callgraph.
 
+These days [cxx][cxx] is probably the most complete tool for such integrations. [bindgen] and [cbindgen] are still quite good, but cxx is C++-first, with a lot more magic, and generally seems to Just Work without too much configuration.
 
+[autocxx] is a cool concept by Adrian Taylor which melds bindgen and cxx to make something even _more_ magical. It's currently experimental, but I'm going to be watching it with interest.
+
+Overall the field of Rust and C++ integration is at a stage where it's mature enough for integrations to be _possible_ without too much effort, but there are still tons of ways things could be improved and I'm super excited to see that happen as more people work on such integrations!
+
+ [autocxx]: https://github.com/google/autocxx
