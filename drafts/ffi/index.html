@@ -320,7 +320,7 @@ void MyString_Destroy(*MyString x) {
 }
 </code></pre>
 
-<p>The <code>MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code>MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time.</p>
+<p>The <code>MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code>MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.</p>
 
 <p>In Stylo we went down the route of manually defining <code>_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code>destruct()</code> if we want to now.</p>
 
@@ -348,7 +348,7 @@ impl&lt;T&gt; Drop for bindings::MyVector&lt;T&gt; {
 
 </code></pre>
 
-<p>Note that if you forget to add a <code>Drop</code> implementation for <code>T</code>, this won’t work. See <a href="#mirror-types">the next section</a> for some ways to handle this by creating a “safe” mirror type.</p>
+<p>Note that if you forget to add a <code>Drop</code> implementation for <code>T</code>, this will silently forget to clean up the contents of the vector. See <a href="#mirror-types">the next section</a> for some ways to handle this by creating a “safe” mirror type.</p>
 
 <h2 id="mirror-types">Mirror types</h2>
 
@@ -377,7 +377,7 @@ pub struct RefPtr&lt;T: RefCounted&gt; {
 
 <p>We implement the <code>RefCounted</code> trait for C++ types that are wrapped in <code>RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
 
-<p>However, <code>RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
+<p>However, <code>RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
 
 <p>Instead, we let bindgen generate its own <code>RefPtr&lt;T&gt;</code>, called <code>structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code>structs::</code> module). <code>structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code>RefPtr&lt;T&gt;</code> (but only if <code>T: RefCounted</code>). So if you need to manipulate a <code>RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code>RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
@@ -400,13 +400,15 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
   <li>Set Rust’s allocator to be the same as documented <a href="https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute">in the <code>std::alloc</code> module</a>. Basically, can use the <code>#[global_allocator]</code> attribute to select which allocator you wish to use, and if necessary you can implement the <code>GlobalAlloc</code> trait on a custom allocator type that calls into whatever custom allocator C++ is using.</li>
 </ul>
 
-<h2 id="triomphe">Triomphe</h2>
+<p><em>Note from 2021: Most stdlib collections (<a href="https://doc.rust-lang.org/nightly/std/vec/struct.Vec.html"><code>Vec</code></a>, for example) now have an optional “custom allocator” parameter that can be used to swap in a different allocator for a specific use site.</em></p>
+
+<h2 id="arcs-over-ffi-triomphe">Arcs over FFI: Triomphe</h2>
 
 <p>This isn’t really a generalizable technique, but it’s pretty cool and generally instructive, so I’m including it here.</p>
 
 <p>Stylo uses a lot of <code>Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code>Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>Many of these <code>Arc</code>s need to be readable from C++. Rust’s <code>Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code>Arc</code> allocation, which we’d rather not do.</p>
+<p>Many of these <code>Arc</code>s need to be readable from C++. Rust’s <code>Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code>Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>.</p>
 
 <p>We picked a different route: We created a crate duplicating <code>Arc&lt;T&gt;</code> which behaves almost exactly the same as <code>Arc&lt;T&gt;</code>, but it can be converted to <code>OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code>T</code> begins. To C++, this just looks like a <code>*const T</code>! We were then able to make it work with <code>RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code>OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
 
@@ -500,8 +502,14 @@ extern "C" {
     <li id="fn:3" role="doc-endnote">
       <p>The <code>em</code> unit is font-size-relative, so <code>2em</code> with a <code>font-size</code> of <code>12px</code> is computed to <code>2 * 12 = 24px</code>. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>C++ name mangling <a href="https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions">is not standardized</a>, so any function with the C++ ABI will generate a <code>#[link_name = "_Z1foobarbaz"]</code> attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:2" role="doc-endnote">
       <p><code>Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code>RefPtr</code> is defined as <code>RefPtr&lt;T: RefCounted&gt;</code>. It’s not possible to have a generic type that has an impl of <code>Drop</code> for only <em>some</em> possible instantiations of its generics. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a <code>#[repr]</code> attribute. This would <em>work</em>, but it would be brittle and prone to breakage. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
