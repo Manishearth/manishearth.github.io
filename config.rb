@@ -1,3 +1,5 @@
+# This file used by compass for sass
+
 require 'sass-globbing'
 
 # Require any additional compass plugins here.
