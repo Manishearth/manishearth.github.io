@@ -428,12 +428,13 @@ Also, try to make sure everything is `#[repr(C)]` across the boundary. Rust's `i
 
 ##  Should C++ APIs be unconditionally `unsafe`?
 
+Before I get into this, I want to reiterate that most of the recommendations in this post are for _complex_ C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it's important to calibrate 
 
-I recall when [this Chromium post][chromium-interop] and [Steve's `cxx` post][steve-cxx] came out, there was a bunch of brouhaha about C++ functions not being universally marked `unsafe`. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked `unsafe` (and that tools like `cxx` should follow these rules).
+I recall when [this Chromium post][chromium-interop] and [Steve's `cxx` post][steve-cxx] came out, there was a bunch of discussion about C++ functions not being universally marked `unsafe`. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked `unsafe` (and that tools like `cxx` should follow these rules).
 
 Back then I wrote [a Reddit comment][manishearth-cxx-comment] about my thoughts on this. It's a comment that's the length of a blog post in and of itself so I'm not going to reproduce all of it here, but I'll try to get the gist. I highly suggest you read it instead of this section.
 
-In short, I would recommend people doing heavy C++ interop to be generally okay with marking functions calling into C++ as "safe" provided that function would be considered "safe to call without thinking too much about it" on the C++ side, whatever that means for your codebase.
+In short, I would recommend people in large, complex codebases doing heavy C++ interop to generally be okay with marking functions calling into C++ as "safe" provided that function would be considered "safe to call without thinking too much about it" on the C++ side, whatever that means for your codebase.
 
 From [my post on "undefined" vs "unsafe"][undefined-unsafe], for Rust I define "safe" as
 
@@ -451,7 +452,6 @@ When you decide to meld together a C++ and Rust codebase, or start rewriting par
 
 It's worth figuring out where this boundary lies for you. Tools like `cxx` make it straightforward to call C++ functions through a safe interface, and it's valuable to make use of that support.
 
-
  [chromium-interop]: https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability
  [steve-cxx]: https://steveklabnik.com/writing/the-cxx-debate
  [manishearth-cxx-comment]: https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3
@@ -468,3 +468,5 @@ These days [cxx][cxx] is probably the most complete tool for such integrations. 
 Overall the field of Rust and C++ integration is at a stage where it's mature enough for integrations to be _possible_ without too much effort, but there are still tons of ways things could be improved and I'm super excited to see that happen as more people work on such integrations!
 
  [autocxx]: https://github.com/google/autocxx
+
+ _Thanks to Adam Perry, Adrian Taylor, and Tyler Mandry for reviewing drafts of this post_
