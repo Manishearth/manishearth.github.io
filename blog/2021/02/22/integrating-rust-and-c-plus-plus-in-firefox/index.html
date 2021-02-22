@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/drafts/ffi/">
+  <link rel="canonical" href="http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -200,9 +200,9 @@ dealing with persistent state that is accessed by both sides.</p>
 checking in the generate file suffices, but if your C++ code is going to change a lot, <a href="https://rust-lang-nursery.github.io/rust-bindgen/tutorial-1.html">run it as a build dependency instead</a>. Beware that this can adversely impact build times, since your Rust build now has a partial
 C++ compilation step.</p>
 
-<p>For large C++ codebases, pulling in a single header will likely pull in a <em>lot</em> of stuff. You should <a href="https://rust-lang-nursery.github.io/rust-bindgen/whitelisting.html">whitelist</a>, <a href="https://rust-lang-nursery.github.io/rust-bindgen/blacklisting.html">blacklist</a>, and/or mark things as <a href="https://rust-lang-nursery.github.io/rust-bindgen/opaque.html">opaque</a> to reduce the amount of bindings generated. It’s best to go the whitelisting route — give bindgen a whitelisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it’s sometimes worth finding structs you’re not using and marking them as opaque so that their bindings aren’t necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it’s just some bits you don’t care about and can’t introspect further.</p>
+<p>For large C++ codebases, pulling in a single header will likely pull in a <em>lot</em> of stuff. You should <a href="https://rust-lang.github.io/rust-bindgen/allowlisting.html">allowlist</a>, <a href="https://rust-lang.github.io/rust-bindgen/blocklisting.html">blocklist</a>, and/or mark things as <a href="https://rust-lang.github.io/rust-bindgen/opaque.html">opaque</a> to reduce the amount of bindings generated. It’s best to go the allowlisting route — give bindgen an allowlisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it’s sometimes worth finding structs you’re not using and marking them as opaque so that their bindings aren’t necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it’s just some bits you don’t care about and can’t introspect further.</p>
 
-<p>Bindgen <a href="https://rust-lang-nursery.github.io/rust-bindgen/cpp.html"><em>does</em> support some C++ features</a> (you may need to pass <code>-x c++</code>). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support <em>all</em> C++ features here, so you may need to blacklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens.</p>
+<p>Bindgen <a href="https://rust-lang-nursery.github.io/rust-bindgen/cpp.html"><em>does</em> support some C++ features</a> (you may need to pass <code>-x c++</code>). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support <em>all</em> C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens.</p>
 
 <p>Bindgen is <em>quite</em> configurable. Stylo has a <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs">script</a> that consumes a <a href="https://searchfox.org/mozilla-central/source/layout/style/ServoBindings.toml">large toml file</a> containing all of the configuration.</p>
 
@@ -218,7 +218,7 @@ C++ compilation step.</p>
 
 <p>So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I’m not sure if it’s advisable to have <em>both</em> bindgen and cbindgen operating near each other on the same codebase.</p>
 
-<p>In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">one file</a>, and are all named <code>Gecko_*</code>. Bindgen supports regexes for things like whitelisting, so this naming scheme makes it easy to deal with.</p>
+<p>In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">one file</a>, and are all named <code>Gecko_*</code>. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with.</p>
 
 <p>We also declare the FFI functions defined in Rust that C++ calls in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">another file</a>, named <code>Servo_*</code>. They’re also all <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/glue.rs">defined in one place</a>.</p>
 
@@ -228,7 +228,7 @@ C++ compilation step.</p>
 
 <h2 id="type-replacing-for-fun-and-profit">Type replacing for fun and profit</h2>
 
-<p>Using <a href="https://rust-lang-nursery.github.io/rust-bindgen/blacklisting.html">blacklisting</a> in conjunction with the <code>--raw-line</code>/<code>raw_line()</code> flag, one can effectively ask bindgen to “replace” types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings <em>referring</em> to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). <code>--raw-line</code> lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets you replace types.</p>
+<p>Using <a href="https://rust-lang.github.io/rust-bindgen/blocklisting.html">blocklisting</a> in conjunction with the <code>--raw-line</code>/<code>raw_line()</code> flag, one can effectively ask bindgen to “replace” types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings <em>referring</em> to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). <code>--raw-line</code> lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types.</p>
 
 <p>Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).</p>
 
@@ -460,7 +460,7 @@ extern "C" {
 
 <h2 id="should-c-apis-be-unconditionally-unsafe">Should C++ APIs be unconditionally <code>unsafe</code>?</h2>
 
-<p>Before I get into this, I want to reiterate that most of the recommendations in this post are for <em>complex</em> C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate</p>
+<p>Before I get into this, I want to reiterate that most of the recommendations in this post are for <em>complex</em> C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate for that when judging what’s right for them.</p>
 
 <p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve’s <code>cxx</code> post</a> came out, there was a bunch of discussion about C++ functions not being universally marked <code>unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code>unsafe</code> (and that tools like <code>cxx</code> should follow these rules).</p>
 
@@ -498,7 +498,7 @@ extern "C" {
 
 <p>Overall the field of Rust and C++ integration is at a stage where it’s mature enough for integrations to be <em>possible</em> without too much effort, but there are still tons of ways things could be improved and I’m super excited to see that happen as more people work on such integrations!</p>
 
-<p><em>Thanks to Adam Perry, Adrian Taylor, and Tyler Mandry for reviewing drafts of this post</em></p>
+<p><em>Thanks to Adam Perry, Adrian Taylor, Nika Layzell, and Tyler Mandry for reviewing drafts of this post</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
@@ -547,7 +547,7 @@ extern "C" {
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/ffi/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/ffi/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/" >Tweet</a>
   
   
   
@@ -555,6 +555,8 @@ extern "C" {
 
     
     <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2019/10/09/on-voting-systems/" title="Previous Post: On Voting Systems">&laquo; On Voting Systems</a>
       
       
     </p>
@@ -585,6 +587,10 @@ extern "C" {
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
@@ -598,10 +604,6 @@ extern "C" {
     
       <li class="post">
         <a href="/blog/2018/08/26/why-i-enjoy-blogging/">Why I Enjoy Blogging</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2018/06/05/the-future-of-clippy-the-rust-linter/">The Future of Clippy</a>
       </li>
     
   </ul>

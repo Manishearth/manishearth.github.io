@@ -1,4 +1,411 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.1.1">Jekyll</generator><link href="http://manishearth.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="http://manishearth.github.io/" rel="alternate" type="text/html" /><updated>2021-02-22T08:36:27+00:00</updated><id>http://manishearth.github.io/feed.xml</id><title type="html">In Pursuit of Laziness</title><author><name>Manish Goregaokar</name></author><entry><title type="html">On Voting Systems</title><link href="http://manishearth.github.io/blog/2019/10/09/on-voting-systems/" rel="alternate" type="text/html" title="On Voting Systems" /><published>2019-10-09T00:00:00+00:00</published><updated>2019-10-09T00:00:00+00:00</updated><id>http://manishearth.github.io/blog/2019/10/09/on-voting-systems</id><content type="html" xml:base="http://manishearth.github.io/blog/2019/10/09/on-voting-systems/">&lt;p&gt;Election season is starting up again, and as with many other topics I’m seeing a lot of overconfident takes from people in tech wanting to “solve” how voting works with naïve techy solutions. Hell, &lt;a href=&quot;https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain&quot;&gt;even a presidential candidate seems to have proposed an extremely uninformed plan for “fixing” voting using blockchain technology&lt;/a&gt;.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.1.1">Jekyll</generator><link href="http://manishearth.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="http://manishearth.github.io/" rel="alternate" type="text/html" /><updated>2021-02-22T18:55:48+00:00</updated><id>http://manishearth.github.io/feed.xml</id><title type="html">In Pursuit of Laziness</title><author><name>Manish Goregaokar</name></author><entry><title type="html">Integrating Rust and C++ in Firefox</title><link href="http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/" rel="alternate" type="text/html" title="Integrating Rust and C++ in Firefox" /><published>2021-02-22T00:00:00+00:00</published><updated>2021-02-22T00:00:00+00:00</updated><id>http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox</id><content type="html" xml:base="http://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">&lt;p&gt;&lt;em&gt;This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) are outdated, given the relative infancy of the interop space at the time. I was recently told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark outdated things as such when I notice them. Everything after the allocators section was written near the time of publication.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;In 2017 I worked on the &lt;a href=&quot;https://hacks.mozilla.org/2017/08/inside-a-super-fast-css-engine-quantum-css-aka-stylo/&quot;&gt;Stylo&lt;/a&gt; project, uplifting Servo’s CSS engine (“style system”) into Firefox’s browser engine
+(“Gecko”). This involved a &lt;em&gt;lot&lt;/em&gt; of gnarly FFI between Servo’s Rust codebase and Firefox’s C++ codebase. There were a
+lot of challenges in doing this, and I feel like it’s worth sharing things from our experiences.&lt;/p&gt;
+
+&lt;p&gt;If you’re interested in Rust integrations, you may find &lt;a href=&quot;https://www.youtube.com/watch?v=x9acx2zgx4Q&quot;&gt;this talk by Katharina on Rust - C++ FFI&lt;/a&gt;, and &lt;a href=&quot;https://hsivonen.fi/modern-cpp-in-rust/&quot;&gt;this blog post by Henri on integrating encoding-rs into Firefox&lt;/a&gt; useful as well.&lt;/p&gt;
+
+&lt;h2 id=&quot;who-is-this-post-for&quot;&gt;Who is this post for?&lt;/h2&gt;
+
+&lt;p&gt;So, first off the bat, I’ll mention that when integrating Rust into a C++ codebase, you
+want to &lt;em&gt;avoid&lt;/em&gt; having integrations as tight as Stylo. Don’t do what we did; make your Rust
+component mostly self-contained so that you just have to maintain something like ten FFI functions
+for interacting with it. If this is possible to do, you should do it and your life will be &lt;em&gt;much&lt;/em&gt; easier. Pick a clean API boundary, define a straightforward API, use cbindgen or bindgen if necessary without any tricks, and you should be good to go.&lt;/p&gt;
+
+&lt;p&gt;That said, sometimes you &lt;em&gt;have&lt;/em&gt; to have gnarly integrations, and this blog post is for those use cases.
+These techniques mostly use bindgen in their examples, however you can potentially use them with hand-rolled bindings or another tool as well. If you’re at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Note from 2021: &lt;a href=&quot;https://github.com/dtolnay/cxx&quot;&gt;cxx&lt;/a&gt; is probably a better tool for many of the use cases here, though many of the techniques still transfer.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;what-was-involved-in-stylos-ffi&quot;&gt;What was involved in Stylo’s FFI?&lt;/h2&gt;
+
+&lt;p&gt;So, what made Stylo’s FFI so complicated?&lt;/p&gt;
+
+&lt;p&gt;It turns out that browsers are quite monolithic. You can split them into vaguely-defined components, but
+these components are still tightly integrated. If you intend to replace a component, you may need to
+make a jagged edge of an integration surface.&lt;/p&gt;
+
+&lt;p&gt;The style system is more self-contained than other parts, but it’s still quite tightly integrated.&lt;/p&gt;
+
+&lt;p&gt;The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;
+with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like
+the following:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-html&quot;&gt;&amp;lt;style type=&quot;text/css&quot;&amp;gt;
+    body {
+        font-size: 12px;
+    }
+    div {
+        height: 2em;
+    }
+&amp;lt;/style&amp;gt;
+&amp;lt;body&amp;gt;
+    &amp;lt;div id=&quot;foo&quot;&amp;gt;&amp;lt;/div&amp;gt;
+
+&amp;lt;/body&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;and turn it into something like:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;&amp;lt;body&amp;gt;&lt;/code&gt; has a &lt;code&gt;font-size&lt;/code&gt; of &lt;code&gt;12px&lt;/code&gt;, everything else is the default&lt;/li&gt;
+  &lt;li&gt;the &lt;code&gt;div&lt;/code&gt; &lt;code&gt;#foo&lt;/code&gt; has a computed &lt;code&gt;height&lt;/code&gt; of &lt;code&gt;24px&lt;/code&gt; &lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;, everything else is the default. It “inherits” the &lt;code&gt;font-size&lt;/code&gt; from &lt;code&gt;&amp;lt;body&amp;gt;&lt;/code&gt; as &lt;code&gt;12px&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS,
+and then runs the cascade on the tree. It stores computed styles on each element in a way that Gecko can read
+very cheaply.&lt;/p&gt;
+
+&lt;p&gt;Style computation can involve some complex steps that require calling back into C++ code. Servo’s style system
+is multithreaded, but Gecko is mostly designed to work off of a single main thread per process, so we need to
+deal with this impedence mismatch.&lt;/p&gt;
+
+&lt;p&gt;Since the output of Stylo is C++-readable structs, Stylo needs to be able to read and write nontrivial C++
+abstractions. Typical FFI involves passing values over a boundary, never to be seen again, however here we’re
+dealing with persistent state that is accessed by both sides.&lt;/p&gt;
+
+&lt;p&gt;To sum up, we have:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Lots and lots of back-and-forth FFI&lt;/li&gt;
+  &lt;li&gt;Thread safety concerns&lt;/li&gt;
+  &lt;li&gt;Rust code regularly dealing with nontrivial C++ abstractions&lt;/li&gt;
+  &lt;li&gt;A need for nontrivial abstractions to be passed over FFI&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;All of this conspires to make for some really complicated FFI code.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-actual-techniques&quot;&gt;The actual techniques&lt;/h1&gt;
+
+&lt;p&gt;I’ll try to structure this so that the more broadly useful (and/or less gnarly) techniques come earlier in the post.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-basics-of-bindgen&quot;&gt;The basics of bindgen&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/rust-lang-nursery/rust-bindgen/&quot;&gt;Bindgen&lt;/a&gt; is a tool that generates Rust bindings for structs and functions from the provided C or C++ header files. It’s often used for writing Rust bindings to existing C/C++ libraries, however it’s useful for integrations as well.&lt;/p&gt;
+
+&lt;p&gt;To use it for an integration, write a header file containing the functions your Rust code needs (referencing structs from other header files if necessary), and &lt;a href=&quot;https://rust-lang-nursery.github.io/rust-bindgen/command-line-usage.html&quot;&gt;run bindgen on it&lt;/a&gt;. For some codebases, doing this once and
+checking in the generate file suffices, but if your C++ code is going to change a lot, &lt;a href=&quot;https://rust-lang-nursery.github.io/rust-bindgen/tutorial-1.html&quot;&gt;run it as a build dependency instead&lt;/a&gt;. Beware that this can adversely impact build times, since your Rust build now has a partial
+C++ compilation step.&lt;/p&gt;
+
+&lt;p&gt;For large C++ codebases, pulling in a single header will likely pull in a &lt;em&gt;lot&lt;/em&gt; of stuff. You should &lt;a href=&quot;https://rust-lang.github.io/rust-bindgen/allowlisting.html&quot;&gt;allowlist&lt;/a&gt;, &lt;a href=&quot;https://rust-lang.github.io/rust-bindgen/blocklisting.html&quot;&gt;blocklist&lt;/a&gt;, and/or mark things as &lt;a href=&quot;https://rust-lang.github.io/rust-bindgen/opaque.html&quot;&gt;opaque&lt;/a&gt; to reduce the amount of bindings generated. It’s best to go the allowlisting route — give bindgen an allowlisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it’s sometimes worth finding structs you’re not using and marking them as opaque so that their bindings aren’t necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it’s just some bits you don’t care about and can’t introspect further.&lt;/p&gt;
+
+&lt;p&gt;Bindgen &lt;a href=&quot;https://rust-lang-nursery.github.io/rust-bindgen/cpp.html&quot;&gt;&lt;em&gt;does&lt;/em&gt; support some C++ features&lt;/a&gt; (you may need to pass &lt;code&gt;-x c++&lt;/code&gt;). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support &lt;em&gt;all&lt;/em&gt; C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens.&lt;/p&gt;
+
+&lt;p&gt;Bindgen is &lt;em&gt;quite&lt;/em&gt; configurable. Stylo has a &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs&quot;&gt;script&lt;/a&gt; that consumes a &lt;a href=&quot;https://searchfox.org/mozilla-central/source/layout/style/ServoBindings.toml&quot;&gt;large toml file&lt;/a&gt; containing all of the configuration.&lt;/p&gt;
+
+&lt;h2 id=&quot;cbindgen&quot;&gt;cbindgen&lt;/h2&gt;
+
+&lt;p&gt;We don’t use &lt;a href=&quot;https://github.com/eqrion/cbindgen&quot;&gt;cbindgen&lt;/a&gt; in Stylo, but it’s used for Webrender. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public &lt;code&gt;extern &quot;C&quot;&lt;/code&gt; API. It’s also quite configurable.&lt;/p&gt;
+
+&lt;h2 id=&quot;cxx&quot;&gt;cxx&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/dtolnay/cxx&quot;&gt;cxx&lt;/a&gt; is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It’s definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in cxx. For example, it automatically figures out what types need to be opaque, it automatically converts between &lt;code&gt;&amp;amp;T&lt;/code&gt; and &lt;code&gt;T*&lt;/code&gt; across FFI, and it is overall more targeted for the use case of an FFI layer where Rust and C++ both call each other.&lt;/p&gt;
+
+&lt;h2 id=&quot;bindgen-aided-c-calling-rust&quot;&gt;Bindgen-aided C++ calling Rust&lt;/h2&gt;
+
+&lt;p&gt;So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I’m not sure if it’s advisable to have &lt;em&gt;both&lt;/em&gt; bindgen and cbindgen operating near each other on the same codebase.&lt;/p&gt;
+
+&lt;p&gt;In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h&quot;&gt;one file&lt;/a&gt;, and are all named &lt;code&gt;Gecko_*&lt;/code&gt;. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with.&lt;/p&gt;
+
+&lt;p&gt;We also declare the FFI functions defined in Rust that C++ calls in &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h&quot;&gt;another file&lt;/a&gt;, named &lt;code&gt;Servo_*&lt;/code&gt;. They’re also all &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/glue.rs&quot;&gt;defined in one place&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;However, there’s nothing ensuring that the signatures match! If we’re not careful, there may be mismatches, causing bad things to happen at link time or runtime. We use a small &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/build.rs&quot;&gt;autogenerated&lt;/a&gt; &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/servo_function_signatures.rs&quot;&gt;unit test&lt;/a&gt; to ensure the validity of the signatures.&lt;/p&gt;
+
+&lt;p&gt;This is especially important as we do things like type replacement, and we need tests to ensure that the rug isn’t pulled out from underneath us.&lt;/p&gt;
+
+&lt;h2 id=&quot;type-replacing-for-fun-and-profit&quot;&gt;Type replacing for fun and profit&lt;/h2&gt;
+
+&lt;p&gt;Using &lt;a href=&quot;https://rust-lang.github.io/rust-bindgen/blocklisting.html&quot;&gt;blocklisting&lt;/a&gt; in conjunction with the &lt;code&gt;--raw-line&lt;/code&gt;/&lt;code&gt;raw_line()&lt;/code&gt; flag, one can effectively ask bindgen to “replace” types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings &lt;em&gt;referring&lt;/em&gt; to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). &lt;code&gt;--raw-line&lt;/code&gt; lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types.&lt;/p&gt;
+
+&lt;p&gt;Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).&lt;/p&gt;
+
+&lt;p&gt;There are various ways this can be used:&lt;/p&gt;
+
+&lt;h3 id=&quot;safe-references-across-ffi&quot;&gt;Safe references across FFI&lt;/h3&gt;
+
+&lt;p&gt;&lt;em&gt;Note from 2021: &lt;a href=&quot;https://github.com/dtolnay/cxx&quot;&gt;cxx&lt;/a&gt; does this automatically&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Calling into C++ (and accepting data from C++) is unsafe. However, there’s no reason we should have to worry about this more than we have to. For example, it would be nice if accessor FFI functions – functions which take a foreign object and return something from inside it –  could use lifetimes. It would be even nicer if nullability were represented on the FFI boundary so that you don’t miss null checks, and can assume non-nullness when the C++ API is okay with it.&lt;/p&gt;
+
+&lt;p&gt;In Stylo, we have lots of functions like the following:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-cpp&quot;&gt;RawGeckoNodeBorrowedOrNull Gecko_GetLastChild(RawGeckoNodeBorrowed node);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;which bindgen translates to:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;extern &quot;C&quot; {
+    fn Gecko_GetLastChild(x: &amp;amp;RawGeckoNode) -&amp;gt; Option&amp;lt;&amp;amp;RawGeckoNode&amp;gt;;   
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Using the &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs&quot;&gt;bindgen build script&lt;/a&gt; on a provided &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindings.toml#648-671&quot;&gt;list of borrow-able types&lt;/a&gt;, we’ve told bindgen that:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;FooBorrowedOrNull&lt;/code&gt; is actually &lt;code&gt;Option&amp;lt;&amp;amp;Foo&amp;gt;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;FooBorrowed&lt;/code&gt; is actually &lt;code&gt;&amp;amp;Foo&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;Option&amp;lt;&amp;amp;Foo&amp;gt;&lt;/code&gt; &lt;a href=&quot;https://doc.rust-lang.org/nomicon/repr-rust.html&quot;&gt;is represented as a single nullable pointer in Rust&lt;/a&gt;, so this is a clean translation. 
+We’re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is &lt;code&gt;fn Gecko_GetLastChild&amp;lt;'a&amp;gt;(x: &amp;amp;'a RawGeckoNode) -&amp;gt; Option&amp;lt;&amp;amp;'a RawGeckoNode&amp;gt;&lt;/code&gt;, which ensures we won’t let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions “safely” with the appropriate lifetime requirements, even though C++ has no such concept!&lt;/p&gt;
+
+&lt;p&gt;Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn’t much of a stretch.&lt;/p&gt;
+
+&lt;p&gt;We do this on both sides, actually: Many of our Rust-defined &lt;code&gt;extern &quot;C&quot;&lt;/code&gt; functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtained from C++.&lt;/p&gt;
+
+&lt;h3 id=&quot;making-c-abstractions-rust-accessible&quot;&gt;Making C++ abstractions Rust-accessible&lt;/h3&gt;
+
+&lt;p&gt;A very useful thing to do here is to replace various C++ abstractions with Rust versions of them that share semantics. In Gecko, most strings are stored in &lt;code&gt;nsString&lt;/code&gt;/&lt;code&gt;nsAString&lt;/code&gt;/etc.&lt;/p&gt;
+
+&lt;p&gt;We’ve written an &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/6ddb5fb144993fb5de044e2e8d900d7643b98a4d/servo/support/gecko/nsstring/src/lib.rs&quot;&gt;nsstring&lt;/a&gt; crate that represents layout-compatible &lt;code&gt;nsString&lt;/code&gt;s in a more Rusty way, with Rusty APIs. We then ask bindgen to replace Gecko &lt;code&gt;nsString&lt;/code&gt;s with these.&lt;/p&gt;
+
+&lt;p&gt;Usually it’s easier to just write an impl for the bindgen-generated abstraction, however sometimes you must replace it:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When the abstraction internally does a lot of template stuff not supported by bindgen&lt;/li&gt;
+  &lt;li&gt;When you want the code for the abstraction to be in a separate crate&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;potential-pitfall-passing-c-classes-by-value-over-ffi&quot;&gt;Potential pitfall: Passing C++ classes by-value over FFI&lt;/h2&gt;
+
+&lt;p&gt;It’s quite tempting to do stuff like&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-cpp&quot;&gt;RefPtr&amp;lt;Foo&amp;gt; Servo_Gimme(...);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;where you pass complicated classes by-value over FFI (&lt;code&gt;RefPtr&lt;/code&gt; is Gecko’s variant of &lt;code&gt;Rc&amp;lt;T&amp;gt;&lt;/code&gt;/&lt;code&gt;Arc&amp;lt;T&amp;gt;&lt;/code&gt;).&lt;/p&gt;
+
+&lt;p&gt;This works on some systems, but is broken on MSVC:
+&lt;a href=&quot;https://github.com/rust-lang/rust/issues/38258&quot;&gt;The ABI for passing non-POD types through functions is different&lt;/a&gt;. The linker usually notices this and complains, but it’s worth avoiding this entirely.&lt;/p&gt;
+
+&lt;p&gt;In Stylo we handle this by using some macro-generated intermediate types which are basically the same thing as the original class but without any constructors/destructors/operators. We convert to/from these types immediately before/after the FFI call, and on the Rust side we do similar conversions to Rust-compatible abstractions.&lt;/p&gt;
+
+&lt;h2 id=&quot;sharing-abstractions-with-destructors&quot;&gt;Sharing abstractions with destructors&lt;/h2&gt;
+
+&lt;p&gt;If you’re passing ownership of collections or other templated types across FFI, you probably want Rust code to be able to destroy C++ objects, and vice versa.&lt;/p&gt;
+
+&lt;p&gt;One way of doing this is to implement &lt;code&gt;Drop&lt;/code&gt; on the generated struct. If you have &lt;code&gt;class MyString&lt;/code&gt;, you can do:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-cpp&quot;&gt;class MyString {
+    // ...
+    ~MyString();
+}
+
+void MyString_Destroy(*MyString x) {
+    x-&amp;gt;~MyString()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;impl Drop for bindings::MyString {
+    fn drop(&amp;amp;mut self) {
+        // (bindgen only)
+        bindings::MyString::destruct(self)
+        // OR
+        bindings::MyString_Destroy(self)
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;MyString_Destroy&lt;/code&gt; isn’t necessary with bindgen – bindgen will generate a &lt;code&gt;MyString::destruct()&lt;/code&gt; function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ &lt;em&gt;methods&lt;/em&gt;, your bindings become platform specific and are best regenerated at build time&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;In Stylo we went down the route of manually defining &lt;code&gt;_Destroy()&lt;/code&gt; functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using &lt;code&gt;destruct()&lt;/code&gt; if we want to now.&lt;/p&gt;
+
+&lt;p&gt;When it comes to generic types, it’s a bit trickier, since &lt;code&gt;Drop&lt;/code&gt; can’t be implemented piecewise on a generic type (you cannot &lt;code&gt;impl Drop for MyVector&amp;lt;Foo&amp;gt;&lt;/code&gt;). You have to do something like:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-cpp&quot;&gt;template&amp;lt;typename T&amp;gt;
+class MyVector {
+    // ...
+}
+
+// Deallocate buffer, but do not call destructors on elements
+void MyVector_Deallocate_Buffer(MyVector&amp;lt;void&amp;gt;* x);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;// assume we have an implementation of Iterator for MyVector&amp;lt;T&amp;gt; somewhere
+
+impl&amp;lt;T&amp;gt; Drop for bindings::MyVector&amp;lt;T&amp;gt; {
+    fn drop(&amp;amp;mut self) {
+        for v in self.iter_mut() {
+            // calls the destructor for `v`, if any
+            std::ptr::drop_in_place(v)
+        }
+        bindings::MyVector_Deallocate_Buffer(self as *mut MyVector&amp;lt;T&amp;gt; as *mut MyVector&amp;lt;c_void&amp;gt;)
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Note that if you forget to add a &lt;code&gt;Drop&lt;/code&gt; implementation for &lt;code&gt;T&lt;/code&gt;, this will silently forget to clean up the contents of the vector. See &lt;a href=&quot;#mirror-types&quot;&gt;the next section&lt;/a&gt; for some ways to handle this by creating a “safe” mirror type.&lt;/p&gt;
+
+&lt;h2 id=&quot;mirror-types&quot;&gt;Mirror types&lt;/h2&gt;
+
+&lt;p&gt;C++ libraries often have useful templated abstractions, and it’s nice to be able to manipulate them from Rust. Sometimes, it’s possible to just tack on semantics on the Rust side (either by adding an implementation or by doing type replacement), but in some cases this is tricky.&lt;/p&gt;
+
+&lt;p&gt;For example, Gecko has &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt;, which is similar to &lt;code&gt;Rc&amp;lt;T&amp;gt;&lt;/code&gt;, except the actual refcounting logic is up to &lt;code&gt;T&lt;/code&gt; to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing &lt;code&gt;AddRef()&lt;/code&gt; and &lt;code&gt;Release()&lt;/code&gt; methods.&lt;/p&gt;
+
+&lt;p&gt;We mirror this in Rust by having a trait:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;/// Trait for all objects that have Addref() and Release
+/// methods and can be placed inside RefPtr&amp;lt;T&amp;gt;
+pub unsafe trait RefCounted {
+    /// Bump the reference count.
+    fn addref(&amp;amp;self);
+    /// Decrease the reference count.
+    unsafe fn release(&amp;amp;self);
+}
+
+/// A custom RefPtr implementation to take into account Drop semantics and
+/// a bit less-painful memory management.
+pub struct RefPtr&amp;lt;T: RefCounted&amp;gt; {
+    ptr: *mut T,
+    _marker: PhantomData&amp;lt;T&amp;gt;,
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We implement the &lt;code&gt;RefCounted&lt;/code&gt; trait for C++ types that are wrapped in &lt;code&gt;RefPtr&lt;/code&gt; which we wish to access through Rust. We have &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315&quot;&gt;some&lt;/a&gt; &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60&quot;&gt;macros&lt;/a&gt; that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.&lt;/p&gt;
+
+&lt;p&gt;However, &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like &lt;code&gt;impl&amp;lt;T: RefCounted&amp;gt; Drop for RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, so we can’t effectively make this work with the bindgen generated type unless we write a &lt;code&gt;RefCounted&lt;/code&gt; implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.&lt;/p&gt;
+
+&lt;p&gt;Instead, we let bindgen generate its own &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt;, called &lt;code&gt;structs::RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; (all the structs that bindgen generates for Gecko go in a &lt;code&gt;structs::&lt;/code&gt; module). &lt;code&gt;structs::RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has &lt;a href=&quot;https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234&quot;&gt;some methods&lt;/a&gt; that allow for conversion into the “safe” mirror &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; (but only if &lt;code&gt;T: RefCounted&lt;/code&gt;). So if you need to manipulate a &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and &lt;em&gt;then&lt;/em&gt; do things to it. Refcounted types that don’t have the &lt;code&gt;RefCounted&lt;/code&gt; implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.&lt;/p&gt;
+
+&lt;p&gt;In general, whenever attaching extra semantics to generic bindgen types doesn’t work create a mirror type that’s completely safe to use from Rust, with a trait that gates conversion to the mirror type.&lt;/p&gt;
+
+&lt;h2 id=&quot;potential-pitfall-allocators&quot;&gt;Potential pitfall: Allocators&lt;/h2&gt;
+
+&lt;p&gt;If you’re passing heap-managed abstractions across FFI, be careful about which code frees which objects. If your Rust
+and C++ code don’t share allocators, deallocating memory allocated on the other side can have disastrous consequences.&lt;/p&gt;
+
+&lt;p&gt;If you’re building a cdylib or staticlib with Rust (this is likely if you’re linking it with a C++ application), the compiler will by default pick the system allocator (&lt;code&gt;malloc&lt;/code&gt;), so if your C++ application also uses the same you’re all set.&lt;/p&gt;
+
+&lt;p&gt;On some platforms when building rlibs and binaries, Rust may choose jemalloc instead. It’s also possible that your C++ code uses a different allocator (lots of applications use allocators like jemalloc or tcmalloc, some have their own custom allocators like &lt;code&gt;tor_malloc&lt;/code&gt; in Tor).&lt;/p&gt;
+
+&lt;p&gt;In such cases you have one of three options:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Avoid transferring ownership of heap-allocated items, only share things as borrowed references&lt;/li&gt;
+  &lt;li&gt;Call destructors over FFI, as detailed in &lt;a href=&quot;#sharing-abstractions-with-destructors&quot;&gt;the section on destructors above&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Set Rust’s allocator to be the same as documented &lt;a href=&quot;https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute&quot;&gt;in the &lt;code&gt;std::alloc&lt;/code&gt; module&lt;/a&gt;. Basically, can use the &lt;code&gt;#[global_allocator]&lt;/code&gt; attribute to select which allocator you wish to use, and if necessary you can implement the &lt;code&gt;GlobalAlloc&lt;/code&gt; trait on a custom allocator type that calls into whatever custom allocator C++ is using.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;em&gt;Note from 2021: Most stdlib collections (&lt;a href=&quot;https://doc.rust-lang.org/nightly/std/vec/struct.Vec.html&quot;&gt;&lt;code&gt;Vec&lt;/code&gt;&lt;/a&gt;, for example) now have an optional “custom allocator” parameter that can be used to swap in a different allocator for a specific use site.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;arcs-over-ffi-triomphe&quot;&gt;Arcs over FFI: Triomphe&lt;/h2&gt;
+
+&lt;p&gt;This isn’t really a generalizable technique, but it’s pretty cool and generally instructive, so I’m including it here.&lt;/p&gt;
+
+&lt;p&gt;Stylo uses a lot of &lt;code&gt;Arc&lt;/code&gt;s. A &lt;em&gt;lot&lt;/em&gt; of them. The entire computation of styles makes heavy use of &lt;code&gt;Arc::make_mut&lt;/code&gt;’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.&lt;/p&gt;
+
+&lt;p&gt;Many of these &lt;code&gt;Arc&lt;/code&gt;s need to be readable from C++. Rust’s &lt;code&gt;Arc&lt;/code&gt;, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the &lt;code&gt;Arc&lt;/code&gt; allocation, which we’d rather not do&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;We picked a different route: We created a crate duplicating &lt;code&gt;Arc&amp;lt;T&amp;gt;&lt;/code&gt; which behaves almost exactly the same as &lt;code&gt;Arc&amp;lt;T&amp;gt;&lt;/code&gt;, but it can be converted to &lt;code&gt;OffsetArc&amp;lt;T&amp;gt;&lt;/code&gt; which has its pointer point to the &lt;em&gt;middle&lt;/em&gt; of the allocation, where the &lt;code&gt;T&lt;/code&gt; begins. To C++, this just looks like a &lt;code&gt;*const T&lt;/code&gt;! We were then able to make it work with &lt;code&gt;RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; on the C++ side so that C++ can transparently read from the &lt;code&gt;OffsetArc&amp;lt;T&amp;gt;&lt;/code&gt;, and only needs to call into Rust if it wishes to clone or drop it.&lt;/p&gt;
+
+&lt;p&gt;The external version of this crate can be found in &lt;a href=&quot;https://docs.rs/triomphe&quot;&gt;triomphe&lt;/a&gt;. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like &lt;code&gt;ArcBorrow&lt;/code&gt; which is essentially “&lt;code&gt;&amp;amp;Arc&amp;lt;T&amp;gt;&lt;/code&gt; without double indirection”, &lt;code&gt;UniqueArc&amp;lt;T&amp;gt;&lt;/code&gt;, a mutable &lt;code&gt;Arc&amp;lt;T&amp;gt;&lt;/code&gt; known to be uniquely owned, and &lt;code&gt;ArcUnion&amp;lt;T, U&amp;gt;&lt;/code&gt;, which is a space-efficient union of &lt;code&gt;Arc&amp;lt;T&amp;gt;&lt;/code&gt; and &lt;code&gt;Arc&amp;lt;U&amp;gt;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;other-pitfalls&quot;&gt;Other pitfalls&lt;/h2&gt;
+
+&lt;h3 id=&quot;transparent&quot;&gt;Transparent&lt;/h3&gt;
+
+&lt;p&gt;It’s &lt;em&gt;very&lt;/em&gt; tempting to wrap C++ types in tuple structs and pass them over FFI. For example, one might imagine that the following is okay:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;struct Wrapper(bindings::SomeCppType);
+
+extern &quot;C&quot; {
+    // C++ signature: `SomeCppType get_cpp_type();`
+    fn get_cpp_type() -&amp;gt; Wrapper;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This kind of thing is quite useful to get around coherence, or for adding additional semantics to a type.&lt;/p&gt;
+
+&lt;p&gt;While there’s basically one obvious way &lt;code&gt;Wrapper&lt;/code&gt; can be represented, ABI stuff can be tricky, and Rust’s layout isn’t defined. It is safer to use &lt;code&gt;#[repr(transparent)]&lt;/code&gt;, which guarantees that &lt;code&gt;Wrapper&lt;/code&gt; will have the same representation as the type it contains.&lt;/p&gt;
+
+&lt;h3 id=&quot;c-enums&quot;&gt;C enums&lt;/h3&gt;
+
+&lt;p&gt;Rust supports C-like enums, but there’s a crucial difference between them. In C, it is not undefined behavior for an enum to have an unlisted value. In fact, the following pattern is not uncommon:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c&quot;&gt;enum Flags {
+    Flag1 = 0b0001,
+    Flag2 = 0b0010,
+    Flag3 = 0b0100,
+    Flag4 = 0b1000;
+};
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;where the enum is actually used for bitflags, and &lt;code&gt;Flag1 | Flag2&lt;/code&gt; and &lt;code&gt;0&lt;/code&gt; are both valid values for &lt;code&gt;Flags&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are &lt;code&gt;#[repr(C)]&lt;/code&gt;. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent &lt;code&gt;Option&amp;lt;Option&amp;lt;... 255 times .. Option&amp;lt;bool&amp;gt;&amp;gt;&lt;/code&gt; as a single byte.&lt;/p&gt;
+
+&lt;p&gt;If you are working with a C enum that is used for bitflags like above, please use an integer type instead. &lt;code&gt;#[repr(C)]&lt;/code&gt; on enums in Rust guarantees layout, but it is &lt;a href=&quot;https://doc.rust-lang.org/stable/nomicon/other-reprs.html&quot;&gt;still undefined behavior for any enum to take on invalid values&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;abi-concerns&quot;&gt;ABI concerns&lt;/h3&gt;
+
+&lt;p&gt;ABIs can be tricky. If you &lt;em&gt;just&lt;/em&gt; use bindgen with no special flags, you can be pretty much guaranteed to have an okay ABI, but as you start doing type replacements, stuff can get murkier.&lt;/p&gt;
+
+&lt;p&gt;Firstly, make sure you’re not passing owned C++ classes with destructors/etc across FFI boundaries. See &lt;a href=&quot;#potential-pitfall-passing-c-classes-by-value-over-ffi&quot;&gt;above&lt;/a&gt; for why. There’s a bunch of subtle stuff here, but you can avoid most of it it if you just don’t pass these things across FFI in an owned way.&lt;/p&gt;
+
+&lt;p&gt;Also, try to make sure everything is &lt;code&gt;#[repr(C)]&lt;/code&gt; across the boundary. Rust’s &lt;code&gt;improper-ctypes&lt;/code&gt; lints will help here.&lt;/p&gt;
+
+&lt;h2 id=&quot;should-c-apis-be-unconditionally-unsafe&quot;&gt;Should C++ APIs be unconditionally &lt;code&gt;unsafe&lt;/code&gt;?&lt;/h2&gt;
+
+&lt;p&gt;Before I get into this, I want to reiterate that most of the recommendations in this post are for &lt;em&gt;complex&lt;/em&gt; C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate for that when judging what’s right for them.&lt;/p&gt;
+
+&lt;p&gt;I recall when &lt;a href=&quot;https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability&quot;&gt;this Chromium post&lt;/a&gt; and &lt;a href=&quot;https://steveklabnik.com/writing/the-cxx-debate&quot;&gt;Steve’s &lt;code&gt;cxx&lt;/code&gt; post&lt;/a&gt; came out, there was a bunch of discussion about C++ functions not being universally marked &lt;code&gt;unsafe&lt;/code&gt;. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked &lt;code&gt;unsafe&lt;/code&gt; (and that tools like &lt;code&gt;cxx&lt;/code&gt; should follow these rules).&lt;/p&gt;
+
+&lt;p&gt;Back then I wrote &lt;a href=&quot;https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3&quot;&gt;a Reddit comment&lt;/a&gt; about my thoughts on this. It’s a comment that’s the length of a blog post in and of itself so I’m not going to reproduce all of it here, but I’ll try to get the gist. I highly suggest you read it instead of this section.&lt;/p&gt;
+
+&lt;p&gt;In short, I would recommend people in large, complex codebases doing heavy C++ interop to generally be okay with marking functions calling into C++ as “safe” provided that function would be considered “safe to call without thinking too much about it” on the C++ side, whatever that means for your codebase.&lt;/p&gt;
+
+&lt;p&gt;From &lt;a href=&quot;https://manishearth.github.io/blog/2017/12/24/undefined-vs-unsafe-in-rust/&quot;&gt;my post on “undefined” vs “unsafe”&lt;/a&gt;, for Rust I define “safe” as&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Basically, in Rust a bit of code is “safe” if it cannot exhibit undefined behavior under all circumstances of that code being used.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;C++ doesn’t have a rigid language-level concept of safety that can be applied the same way. Instead, most C++ code follows a similar heuristic:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;a bit of code is “safe” if it cannot exhibit undefined behavior under all &lt;strong&gt;expected&lt;/strong&gt; circumstances of that code being used.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This is, perhaps, not as good or useful a heuristic as the one we have for Rust, but it’s still a heuristic that gets used in deciding how careful one needs to be when using various APIs. After all, there are &lt;em&gt;plenty&lt;/em&gt; of giant C++ codebases out there, they have got to be able to reason about safety &lt;em&gt;somehow&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust’s safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save &lt;code&gt;unsafe&lt;/code&gt; on the FFI boundary for truly unsafe functions which you actually do need to be careful to call.&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;unsafe&lt;/code&gt; is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it’s already well known that the C++-side is introducing badness, marking every simple C++ getter as &lt;code&gt;unsafe&lt;/code&gt; will lead to alarm fatigue and make it &lt;em&gt;harder&lt;/em&gt; to find the real problems.&lt;/p&gt;
+
+&lt;p&gt;It’s worth figuring out where this boundary lies for you. Tools like &lt;code&gt;cxx&lt;/code&gt; make it straightforward to call C++ functions through a safe interface, and it’s valuable to make use of that support.&lt;/p&gt;
+
+&lt;h2 id=&quot;closing-comments&quot;&gt;Closing comments&lt;/h2&gt;
+
+&lt;p&gt;Again, before going down this route it’s worth wondering if you &lt;em&gt;really&lt;/em&gt; need tight Rust-C++ integration. When possible, it’s always better to pick a small, well-defined API boundary, rather than Stylo-esque tight integration with shared objects and a highly criscrossed callgraph.&lt;/p&gt;
+
+&lt;p&gt;These days &lt;a href=&quot;https://github.com/dtolnay/cxx&quot;&gt;cxx&lt;/a&gt; is probably the most complete tool for such integrations. &lt;a href=&quot;https://github.com/rust-lang-nursery/rust-bindgen/&quot;&gt;bindgen&lt;/a&gt; and &lt;a href=&quot;https://github.com/eqrion/cbindgen&quot;&gt;cbindgen&lt;/a&gt; are still quite good, but cxx is C++-first, with a lot more magic, and generally seems to Just Work without too much configuration.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/google/autocxx&quot;&gt;autocxx&lt;/a&gt; is a cool concept by Adrian Taylor which melds bindgen and cxx to make something even &lt;em&gt;more&lt;/em&gt; magical. It’s currently experimental, but I’m going to be watching it with interest.&lt;/p&gt;
+
+&lt;p&gt;Overall the field of Rust and C++ integration is at a stage where it’s mature enough for integrations to be &lt;em&gt;possible&lt;/em&gt; without too much effort, but there are still tons of ways things could be improved and I’m super excited to see that happen as more people work on such integrations!&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Thanks to Adam Perry, Adrian Taylor, Nika Layzell, and Tyler Mandry for reviewing drafts of this post&lt;/em&gt;&lt;/p&gt;
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;The &lt;em&gt;cascade&lt;/em&gt; in “Cascading Style Sheets” is the process used to take all the potential rules which could apply to an element and find the “most applicable” one that gets actually used. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;The &lt;code&gt;em&lt;/code&gt; unit is font-size-relative, so &lt;code&gt;2em&lt;/code&gt; with a &lt;code&gt;font-size&lt;/code&gt; of &lt;code&gt;12px&lt;/code&gt; is computed to &lt;code&gt;2 * 12 = 24px&lt;/code&gt;. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;C++ name mangling &lt;a href=&quot;https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions&quot;&gt;is not standardized&lt;/a&gt;, so any function with the C++ ABI will generate a &lt;code&gt;#[link_name = &quot;_Z1foobarbaz&quot;]&lt;/code&gt; attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;code&gt;Drop&lt;/code&gt; impls are restricted in a bunch of ways for safety, in particular you cannot write &lt;code&gt;impl&amp;lt;T: RefCounted&amp;gt; Drop for RefPtr&amp;lt;T&amp;gt;&lt;/code&gt; unless &lt;code&gt;RefPtr&lt;/code&gt; is defined as &lt;code&gt;RefPtr&amp;lt;T: RefCounted&amp;gt;&lt;/code&gt;. It’s not possible to have a generic type that has an impl of &lt;code&gt;Drop&lt;/code&gt; for only &lt;em&gt;some&lt;/em&gt; possible instantiations of its generics. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a &lt;code&gt;#[repr]&lt;/code&gt; attribute. This would &lt;em&gt;work&lt;/em&gt;, but it would be brittle and prone to breakage. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;</content><author><name>Manish Goregaokar</name></author><category term="rust" /><category term="c++" /><category term="programming" /><summary type="html">This post was originally drafted in August 2018, but I never got around to finishing it. As such, parts of its framing (e.g. the focus on bindgen) are outdated, given the relative infancy of the interop space at the time. I was recently told that the post is still useful in this form so I decided to finish and publish it anyway, while attempting to mark outdated things as such when I notice them. Everything after the allocators section was written near the time of publication. In 2017 I worked on the Stylo project, uplifting Servo’s CSS engine (“style system”) into Firefox’s browser engine (“Gecko”). This involved a lot of gnarly FFI between Servo’s Rust codebase and Firefox’s C++ codebase. There were a lot of challenges in doing this, and I feel like it’s worth sharing things from our experiences. If you’re interested in Rust integrations, you may find this talk by Katharina on Rust - C++ FFI, and this blog post by Henri on integrating encoding-rs into Firefox useful as well. Who is this post for? So, first off the bat, I’ll mention that when integrating Rust into a C++ codebase, you want to avoid having integrations as tight as Stylo. Don’t do what we did; make your Rust component mostly self-contained so that you just have to maintain something like ten FFI functions for interacting with it. If this is possible to do, you should do it and your life will be much easier. Pick a clean API boundary, define a straightforward API, use cbindgen or bindgen if necessary without any tricks, and you should be good to go. That said, sometimes you have to have gnarly integrations, and this blog post is for those use cases. These techniques mostly use bindgen in their examples, however you can potentially use them with hand-rolled bindings or another tool as well. If you’re at this level of complexity, however, the potential for mistakes in the hand-rolled bindings is probably not worth it. Note from 2021: cxx is probably a better tool for many of the use cases here, though many of the techniques still transfer. What was involved in Stylo’s FFI? So, what made Stylo’s FFI so complicated? It turns out that browsers are quite monolithic. You can split them into vaguely-defined components, but these components are still tightly integrated. If you intend to replace a component, you may need to make a jagged edge of an integration surface. The style system is more self-contained than other parts, but it’s still quite tightly integrated. The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”1 with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like the following: &amp;lt;style type=&quot;text/css&quot;&amp;gt; body { font-size: 12px; } div { height: 2em; } &amp;lt;/style&amp;gt; &amp;lt;body&amp;gt; &amp;lt;div id=&quot;foo&quot;&amp;gt;&amp;lt;/div&amp;gt; &amp;lt;/body&amp;gt; and turn it into something like: &amp;lt;body&amp;gt; has a font-size of 12px, everything else is the default the div #foo has a computed height of 24px 2, everything else is the default. It “inherits” the font-size from &amp;lt;body&amp;gt; as 12px From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS, and then runs the cascade on the tree. It stores computed styles on each element in a way that Gecko can read very cheaply. Style computation can involve some complex steps that require calling back into C++ code. Servo’s style system is multithreaded, but Gecko is mostly designed to work off of a single main thread per process, so we need to deal with this impedence mismatch. Since the output of Stylo is C++-readable structs, Stylo needs to be able to read and write nontrivial C++ abstractions. Typical FFI involves passing values over a boundary, never to be seen again, however here we’re dealing with persistent state that is accessed by both sides. To sum up, we have: Lots and lots of back-and-forth FFI Thread safety concerns Rust code regularly dealing with nontrivial C++ abstractions A need for nontrivial abstractions to be passed over FFI All of this conspires to make for some really complicated FFI code. The actual techniques I’ll try to structure this so that the more broadly useful (and/or less gnarly) techniques come earlier in the post. The basics of bindgen Bindgen is a tool that generates Rust bindings for structs and functions from the provided C or C++ header files. It’s often used for writing Rust bindings to existing C/C++ libraries, however it’s useful for integrations as well. To use it for an integration, write a header file containing the functions your Rust code needs (referencing structs from other header files if necessary), and run bindgen on it. For some codebases, doing this once and checking in the generate file suffices, but if your C++ code is going to change a lot, run it as a build dependency instead. Beware that this can adversely impact build times, since your Rust build now has a partial C++ compilation step. For large C++ codebases, pulling in a single header will likely pull in a lot of stuff. You should allowlist, blocklist, and/or mark things as opaque to reduce the amount of bindings generated. It’s best to go the allowlisting route — give bindgen an allowlisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it’s sometimes worth finding structs you’re not using and marking them as opaque so that their bindings aren’t necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it’s just some bits you don’t care about and can’t introspect further. Bindgen does support some C++ features (you may need to pass -x c++). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support all C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens. Bindgen is quite configurable. Stylo has a script that consumes a large toml file containing all of the configuration. cbindgen We don’t use cbindgen in Stylo, but it’s used for Webrender. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public extern &quot;C&quot; API. It’s also quite configurable. cxx cxx is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It’s definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in cxx. For example, it automatically figures out what types need to be opaque, it automatically converts between &amp;amp;T and T* across FFI, and it is overall more targeted for the use case of an FFI layer where Rust and C++ both call each other. Bindgen-aided C++ calling Rust So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I’m not sure if it’s advisable to have both bindgen and cbindgen operating near each other on the same codebase. In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in one file, and are all named Gecko_*. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with. We also declare the FFI functions defined in Rust that C++ calls in another file, named Servo_*. They’re also all defined in one place. However, there’s nothing ensuring that the signatures match! If we’re not careful, there may be mismatches, causing bad things to happen at link time or runtime. We use a small autogenerated unit test to ensure the validity of the signatures. This is especially important as we do things like type replacement, and we need tests to ensure that the rug isn’t pulled out from underneath us. Type replacing for fun and profit Using blocklisting in conjunction with the --raw-line/raw_line() flag, one can effectively ask bindgen to “replace” types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings referring to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). --raw-line lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types. Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn). There are various ways this can be used: Safe references across FFI Note from 2021: cxx does this automatically Calling into C++ (and accepting data from C++) is unsafe. However, there’s no reason we should have to worry about this more than we have to. For example, it would be nice if accessor FFI functions – functions which take a foreign object and return something from inside it – could use lifetimes. It would be even nicer if nullability were represented on the FFI boundary so that you don’t miss null checks, and can assume non-nullness when the C++ API is okay with it. In Stylo, we have lots of functions like the following: RawGeckoNodeBorrowedOrNull Gecko_GetLastChild(RawGeckoNodeBorrowed node); which bindgen translates to: extern &quot;C&quot; { fn Gecko_GetLastChild(x: &amp;amp;RawGeckoNode) -&amp;gt; Option&amp;lt;&amp;amp;RawGeckoNode&amp;gt;; } Using the bindgen build script on a provided list of borrow-able types, we’ve told bindgen that: FooBorrowedOrNull is actually Option&amp;lt;&amp;amp;Foo&amp;gt; FooBorrowed is actually &amp;amp;Foo Option&amp;lt;&amp;amp;Foo&amp;gt; is represented as a single nullable pointer in Rust, so this is a clean translation. We’re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is fn Gecko_GetLastChild&amp;lt;'a&amp;gt;(x: &amp;amp;'a RawGeckoNode) -&amp;gt; Option&amp;lt;&amp;amp;'a RawGeckoNode&amp;gt;, which ensures we won’t let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions “safely” with the appropriate lifetime requirements, even though C++ has no such concept! Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn’t much of a stretch. We do this on both sides, actually: Many of our Rust-defined extern &quot;C&quot; functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtained from C++. Making C++ abstractions Rust-accessible A very useful thing to do here is to replace various C++ abstractions with Rust versions of them that share semantics. In Gecko, most strings are stored in nsString/nsAString/etc. We’ve written an nsstring crate that represents layout-compatible nsStrings in a more Rusty way, with Rusty APIs. We then ask bindgen to replace Gecko nsStrings with these. Usually it’s easier to just write an impl for the bindgen-generated abstraction, however sometimes you must replace it: When the abstraction internally does a lot of template stuff not supported by bindgen When you want the code for the abstraction to be in a separate crate Potential pitfall: Passing C++ classes by-value over FFI It’s quite tempting to do stuff like RefPtr&amp;lt;Foo&amp;gt; Servo_Gimme(...); where you pass complicated classes by-value over FFI (RefPtr is Gecko’s variant of Rc&amp;lt;T&amp;gt;/Arc&amp;lt;T&amp;gt;). This works on some systems, but is broken on MSVC: The ABI for passing non-POD types through functions is different. The linker usually notices this and complains, but it’s worth avoiding this entirely. In Stylo we handle this by using some macro-generated intermediate types which are basically the same thing as the original class but without any constructors/destructors/operators. We convert to/from these types immediately before/after the FFI call, and on the Rust side we do similar conversions to Rust-compatible abstractions. Sharing abstractions with destructors If you’re passing ownership of collections or other templated types across FFI, you probably want Rust code to be able to destroy C++ objects, and vice versa. One way of doing this is to implement Drop on the generated struct. If you have class MyString, you can do: class MyString { // ... ~MyString(); } void MyString_Destroy(*MyString x) { x-&amp;gt;~MyString() } impl Drop for bindings::MyString { fn drop(&amp;amp;mut self) { // (bindgen only) bindings::MyString::destruct(self) // OR bindings::MyString_Destroy(self) } } The MyString_Destroy isn’t necessary with bindgen – bindgen will generate a MyString::destruct() function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ methods, your bindings become platform specific and are best regenerated at build time3. In Stylo we went down the route of manually defining _Destroy() functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using destruct() if we want to now. When it comes to generic types, it’s a bit trickier, since Drop can’t be implemented piecewise on a generic type (you cannot impl Drop for MyVector&amp;lt;Foo&amp;gt;). You have to do something like: template&amp;lt;typename T&amp;gt; class MyVector { // ... } // Deallocate buffer, but do not call destructors on elements void MyVector_Deallocate_Buffer(MyVector&amp;lt;void&amp;gt;* x); // assume we have an implementation of Iterator for MyVector&amp;lt;T&amp;gt; somewhere impl&amp;lt;T&amp;gt; Drop for bindings::MyVector&amp;lt;T&amp;gt; { fn drop(&amp;amp;mut self) { for v in self.iter_mut() { // calls the destructor for `v`, if any std::ptr::drop_in_place(v) } bindings::MyVector_Deallocate_Buffer(self as *mut MyVector&amp;lt;T&amp;gt; as *mut MyVector&amp;lt;c_void&amp;gt;) } } Note that if you forget to add a Drop implementation for T, this will silently forget to clean up the contents of the vector. See the next section for some ways to handle this by creating a “safe” mirror type. Mirror types C++ libraries often have useful templated abstractions, and it’s nice to be able to manipulate them from Rust. Sometimes, it’s possible to just tack on semantics on the Rust side (either by adding an implementation or by doing type replacement), but in some cases this is tricky. For example, Gecko has RefPtr&amp;lt;T&amp;gt;, which is similar to Rc&amp;lt;T&amp;gt;, except the actual refcounting logic is up to T to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing AddRef() and Release() methods. We mirror this in Rust by having a trait: /// Trait for all objects that have Addref() and Release /// methods and can be placed inside RefPtr&amp;lt;T&amp;gt; pub unsafe trait RefCounted { /// Bump the reference count. fn addref(&amp;amp;self); /// Decrease the reference count. unsafe fn release(&amp;amp;self); } /// A custom RefPtr implementation to take into account Drop semantics and /// a bit less-painful memory management. pub struct RefPtr&amp;lt;T: RefCounted&amp;gt; { ptr: *mut T, _marker: PhantomData&amp;lt;T&amp;gt;, } We implement the RefCounted trait for C++ types that are wrapped in RefPtr which we wish to access through Rust. We have some macros that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types. However, RefPtr&amp;lt;T&amp;gt; here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like impl&amp;lt;T: RefCounted&amp;gt; Drop for RefPtr&amp;lt;T&amp;gt; 4, so we can’t effectively make this work with the bindgen generated type unless we write a RefCounted implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work. Instead, we let bindgen generate its own RefPtr&amp;lt;T&amp;gt;, called structs::RefPtr&amp;lt;T&amp;gt; (all the structs that bindgen generates for Gecko go in a structs:: module). structs::RefPtr&amp;lt;T&amp;gt; itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has some methods that allow for conversion into the “safe” mirror RefPtr&amp;lt;T&amp;gt; (but only if T: RefCounted). So if you need to manipulate a RefPtr&amp;lt;T&amp;gt; in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and then do things to it. Refcounted types that don’t have the RefCounted implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them. In general, whenever attaching extra semantics to generic bindgen types doesn’t work create a mirror type that’s completely safe to use from Rust, with a trait that gates conversion to the mirror type. Potential pitfall: Allocators If you’re passing heap-managed abstractions across FFI, be careful about which code frees which objects. If your Rust and C++ code don’t share allocators, deallocating memory allocated on the other side can have disastrous consequences. If you’re building a cdylib or staticlib with Rust (this is likely if you’re linking it with a C++ application), the compiler will by default pick the system allocator (malloc), so if your C++ application also uses the same you’re all set. On some platforms when building rlibs and binaries, Rust may choose jemalloc instead. It’s also possible that your C++ code uses a different allocator (lots of applications use allocators like jemalloc or tcmalloc, some have their own custom allocators like tor_malloc in Tor). In such cases you have one of three options: Avoid transferring ownership of heap-allocated items, only share things as borrowed references Call destructors over FFI, as detailed in the section on destructors above Set Rust’s allocator to be the same as documented in the std::alloc module. Basically, can use the #[global_allocator] attribute to select which allocator you wish to use, and if necessary you can implement the GlobalAlloc trait on a custom allocator type that calls into whatever custom allocator C++ is using. Note from 2021: Most stdlib collections (Vec, for example) now have an optional “custom allocator” parameter that can be used to swap in a different allocator for a specific use site. Arcs over FFI: Triomphe This isn’t really a generalizable technique, but it’s pretty cool and generally instructive, so I’m including it here. Stylo uses a lot of Arcs. A lot of them. The entire computation of styles makes heavy use of Arc::make_mut’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element. Many of these Arcs need to be readable from C++. Rust’s Arc, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the Arc allocation, which we’d rather not do5. We picked a different route: We created a crate duplicating Arc&amp;lt;T&amp;gt; which behaves almost exactly the same as Arc&amp;lt;T&amp;gt;, but it can be converted to OffsetArc&amp;lt;T&amp;gt; which has its pointer point to the middle of the allocation, where the T begins. To C++, this just looks like a *const T! We were then able to make it work with RefPtr&amp;lt;T&amp;gt; on the C++ side so that C++ can transparently read from the OffsetArc&amp;lt;T&amp;gt;, and only needs to call into Rust if it wishes to clone or drop it. The external version of this crate can be found in triomphe. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like ArcBorrow which is essentially “&amp;amp;Arc&amp;lt;T&amp;gt; without double indirection”, UniqueArc&amp;lt;T&amp;gt;, a mutable Arc&amp;lt;T&amp;gt; known to be uniquely owned, and ArcUnion&amp;lt;T, U&amp;gt;, which is a space-efficient union of Arc&amp;lt;T&amp;gt; and Arc&amp;lt;U&amp;gt;. Other pitfalls Transparent It’s very tempting to wrap C++ types in tuple structs and pass them over FFI. For example, one might imagine that the following is okay: struct Wrapper(bindings::SomeCppType); extern &quot;C&quot; { // C++ signature: `SomeCppType get_cpp_type();` fn get_cpp_type() -&amp;gt; Wrapper; } This kind of thing is quite useful to get around coherence, or for adding additional semantics to a type. While there’s basically one obvious way Wrapper can be represented, ABI stuff can be tricky, and Rust’s layout isn’t defined. It is safer to use #[repr(transparent)], which guarantees that Wrapper will have the same representation as the type it contains. C enums Rust supports C-like enums, but there’s a crucial difference between them. In C, it is not undefined behavior for an enum to have an unlisted value. In fact, the following pattern is not uncommon: enum Flags { Flag1 = 0b0001, Flag2 = 0b0010, Flag3 = 0b0100, Flag4 = 0b1000; }; where the enum is actually used for bitflags, and Flag1 | Flag2 and 0 are both valid values for Flags. This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are #[repr(C)]. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent Option&amp;lt;Option&amp;lt;... 255 times .. Option&amp;lt;bool&amp;gt;&amp;gt; as a single byte. If you are working with a C enum that is used for bitflags like above, please use an integer type instead. #[repr(C)] on enums in Rust guarantees layout, but it is still undefined behavior for any enum to take on invalid values. ABI concerns ABIs can be tricky. If you just use bindgen with no special flags, you can be pretty much guaranteed to have an okay ABI, but as you start doing type replacements, stuff can get murkier. Firstly, make sure you’re not passing owned C++ classes with destructors/etc across FFI boundaries. See above for why. There’s a bunch of subtle stuff here, but you can avoid most of it it if you just don’t pass these things across FFI in an owned way. Also, try to make sure everything is #[repr(C)] across the boundary. Rust’s improper-ctypes lints will help here. Should C++ APIs be unconditionally unsafe? Before I get into this, I want to reiterate that most of the recommendations in this post are for complex C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate for that when judging what’s right for them. I recall when this Chromium post and Steve’s cxx post came out, there was a bunch of discussion about C++ functions not being universally marked unsafe. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked unsafe (and that tools like cxx should follow these rules). Back then I wrote a Reddit comment about my thoughts on this. It’s a comment that’s the length of a blog post in and of itself so I’m not going to reproduce all of it here, but I’ll try to get the gist. I highly suggest you read it instead of this section. In short, I would recommend people in large, complex codebases doing heavy C++ interop to generally be okay with marking functions calling into C++ as “safe” provided that function would be considered “safe to call without thinking too much about it” on the C++ side, whatever that means for your codebase. From my post on “undefined” vs “unsafe”, for Rust I define “safe” as Basically, in Rust a bit of code is “safe” if it cannot exhibit undefined behavior under all circumstances of that code being used. C++ doesn’t have a rigid language-level concept of safety that can be applied the same way. Instead, most C++ code follows a similar heuristic: a bit of code is “safe” if it cannot exhibit undefined behavior under all expected circumstances of that code being used. This is, perhaps, not as good or useful a heuristic as the one we have for Rust, but it’s still a heuristic that gets used in deciding how careful one needs to be when using various APIs. After all, there are plenty of giant C++ codebases out there, they have got to be able to reason about safety somehow. When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust’s safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save unsafe on the FFI boundary for truly unsafe functions which you actually do need to be careful to call. unsafe is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it’s already well known that the C++-side is introducing badness, marking every simple C++ getter as unsafe will lead to alarm fatigue and make it harder to find the real problems. It’s worth figuring out where this boundary lies for you. Tools like cxx make it straightforward to call C++ functions through a safe interface, and it’s valuable to make use of that support. Closing comments Again, before going down this route it’s worth wondering if you really need tight Rust-C++ integration. When possible, it’s always better to pick a small, well-defined API boundary, rather than Stylo-esque tight integration with shared objects and a highly criscrossed callgraph. These days cxx is probably the most complete tool for such integrations. bindgen and cbindgen are still quite good, but cxx is C++-first, with a lot more magic, and generally seems to Just Work without too much configuration. autocxx is a cool concept by Adrian Taylor which melds bindgen and cxx to make something even more magical. It’s currently experimental, but I’m going to be watching it with interest. Overall the field of Rust and C++ integration is at a stage where it’s mature enough for integrations to be possible without too much effort, but there are still tons of ways things could be improved and I’m super excited to see that happen as more people work on such integrations! Thanks to Adam Perry, Adrian Taylor, Nika Layzell, and Tyler Mandry for reviewing drafts of this post The cascade in “Cascading Style Sheets” is the process used to take all the potential rules which could apply to an element and find the “most applicable” one that gets actually used. &amp;#8617; The em unit is font-size-relative, so 2em with a font-size of 12px is computed to 2 * 12 = 24px. &amp;#8617; C++ name mangling is not standardized, so any function with the C++ ABI will generate a #[link_name = &quot;_Z1foobarbaz&quot;] attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. &amp;#8617; Drop impls are restricted in a bunch of ways for safety, in particular you cannot write impl&amp;lt;T: RefCounted&amp;gt; Drop for RefPtr&amp;lt;T&amp;gt; unless RefPtr is defined as RefPtr&amp;lt;T: RefCounted&amp;gt;. It’s not possible to have a generic type that has an impl of Drop for only some possible instantiations of its generics. &amp;#8617; Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a #[repr] attribute. This would work, but it would be brittle and prone to breakage. &amp;#8617;</summary></entry><entry><title type="html">On Voting Systems</title><link href="http://manishearth.github.io/blog/2019/10/09/on-voting-systems/" rel="alternate" type="text/html" title="On Voting Systems" /><published>2019-10-09T00:00:00+00:00</published><updated>2019-10-09T00:00:00+00:00</updated><id>http://manishearth.github.io/blog/2019/10/09/on-voting-systems</id><content type="html" xml:base="http://manishearth.github.io/blog/2019/10/09/on-voting-systems/">&lt;p&gt;Election season is starting up again, and as with many other topics I’m seeing a lot of overconfident takes from people in tech wanting to “solve” how voting works with naïve techy solutions. Hell, &lt;a href=&quot;https://cointelegraph.com/news/andrew-yang-wants-to-make-us-elections-fraud-proof-using-blockchain&quot;&gt;even a presidential candidate seems to have proposed an extremely uninformed plan for “fixing” voting using blockchain technology&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;Last year I wrote &lt;a href=&quot;https://twitter.com/ManishEarth/status/1056255900095340545&quot;&gt;a thread on Twitter&lt;/a&gt; covering some of the essential properties good voting systems uphold as well as how they prevent fraud. It was through the lens of Alameda County’s voting system, where I’ve volunteered as a poll worker in the past (and intend to do again). I’ve been meaning to write down the contents of that thread in blog form for a while, and now seemed like a good opportunity to do it.&lt;/p&gt;
 
@@ -1324,322 +1731,4 @@ maintain the momentum we’ll have an even-more-awesome Rust by the end of this 
       &lt;p&gt;Back in &lt;em&gt;my&lt;/em&gt; day Rust didn’t have a book, just this tiny thing called “The Tutorial”. &lt;em&gt;grouches incessantly&lt;/em&gt; &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
   &lt;/ol&gt;
-&lt;/div&gt;</content><author><name>Manish Goregaokar</name></author><category term="rust" /><category term="programming" /><category term="mozilla" /><summary type="html">A week ago we put out a call for blog posts for what folks think Rust should do in 2018. This is mine. Overall focus I think 2017 was a great year for Rust. Near the beginning of the year, after custom derive and a bunch of things stabilized, I had a strong feeling that Rust was “complete”. Not really “finished”, there’s still tons of stuff to improve, but this was the first time stable Rust was the language I wanted it to be, and was something I could recommend for most kinds of work without reservations. I think this is a good signal to wind down the frightening pace of new features Rust has been getting. And that happened! We had the impl period, which took some time to focus on getting things done before proposing new things. And Rust is feeling more polished than ever. Like Nick, I feel like 2018 should be boring. I feel like we should focus on polishing what we have, implementing all the things, and improving our approachability as a language. Basically, I want to see this as an extended impl period. This doesn’t mean I’m looking for a moratorium on RFCs, really. Hell, in the past few days I’ve posted one pre-pre-RFC1, one pre-RFC, and one RFC (from the pre-RFC). I’m mostly looking for prioritizing impl work over designing new things, but still having some focus on design. Language I think Rust still has some “missing bits” which make it hard to justify for some use cases. Rust’s async story is being fleshed out. We don’t yet have stable SIMD or stable inline ASM. The microcontroller story is kinda iffy. RLS/clippy need nightly. I’d like to see these crystallize and stabilize this year. I think this year we need to continue to take a critical look at Rust’s ergonomics. Last year the ergonomics initiative was really good for Rust, and I’d like to see more of that. This is kind of at odds with my “focus on polishing Rust” statement, but fixing ergonomics is not just new features. It’s also about figuring out barriers in Rust, polishing mental models, improving docs/diagnostics, and in general figuring out how to best present Rust’s features. Starting dialogues about confusing bits of the language and figuring out the best mental model to present them with is something we should continue doing. Sometimes this may need new features, indeed, but not always. We must continue to take a critical look at how our language presents itself to newcomers. Community I’d like to see a stronger focus on mentoring. Mentoring on rustc, mentoring on major libraries, mentoring on Rust tooling, mentoring everywhere. This includes not just the mentors, but the associated infrastructure – contribution docs, sites like servo-starters and findwork, and similar tooling. I’m also hoping for more companies to invest back into Rust. This year Buoyant became pretty well known within the community, and many of their employees are paid to work on various important parts of the Rust ecosystem. There are also multiple consulting groups that contribute to the ecosystem. It’s nice to see that “paid to work on Rust” is no longer limited to Mozilla, and this is crucial for the health of the language. I hope this trend continues. Finally, I want to see more companies talk about Rust. Success stories are really nice to hear. I’ve heard many amazing success stories this year, but a lot of them are things which can’t be shared. Governance Last year we started seeing the limits of the RFC process. Large RFCs were stressful for both the RFC authors and participating community members, and rather opaque for newer community members wishing to participate. Alternative models have been discussed; I’d like to see more movement on this front. I’d also like to grow the moderation team; it is currently rather small and doesn’t have the capacity to handle incidents in a timely fashion. Docs / Learning I’d like to see a focus on improving Rust for folks who learn the language by trying things over reading books 2 3. This means better diagnostics, better alternative resources like rustbyexample, etc. Improving mentorship helps here as well. Of course, I’d like to see our normal docs work continue to happen. I’m overall really excited for 2018. I think we’re doing great on most fronts so far, and if we maintain the momentum we’ll have an even-more-awesome Rust by the end of this year! This isn’t a “pre rfc” because I’ve written it as a much looser sketch of the problem and a solution &amp;#8617; There is literally no programming language I’ve personally learned through a book or formal teaching. I’ve often read books after I know a language because it’s fun and instructive, but it’s always started out as “learn extreme basics” followed by “look at existing code, tweak stuff, and write your own code”. &amp;#8617; Back in my day Rust didn’t have a book, just this tiny thing called “The Tutorial”. grouches incessantly &amp;#8617;</summary></entry><entry><title type="html">What are Tokio and Async IO all about?</title><link href="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/" rel="alternate" type="text/html" title="What are Tokio and Async IO all about?" /><published>2018-01-10T00:00:00+00:00</published><updated>2018-01-10T00:00:00+00:00</updated><id>http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about</id><content type="html" xml:base="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/">&lt;p&gt;The Rust community lately has been focusing a lot on “async I/O” through the &lt;a href=&quot;https://github.com/tokio-rs/&quot;&gt;tokio&lt;/a&gt;
-project. This is pretty great!&lt;/p&gt;
-
-&lt;p&gt;But for many in the community who haven’t worked with web servers and related things it’s pretty
-confusing as to what we’re trying to achieve there. When this stuff was being discussed around 1.0,
-I was pretty lost as well, having never worked with this stuff before.&lt;/p&gt;
-
-&lt;p&gt;What’s all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How
-does this all fit together?&lt;/p&gt;
-
-&lt;h2 id=&quot;what-problem-are-we-trying-to-solve&quot;&gt;What problem are we trying to solve?&lt;/h2&gt;
-
-&lt;p&gt;One of Rust’s key features is “fearless concurrency”. But the kind of concurrency required for handling a
-large amount of I/O bound tasks – the kind of concurrency found in Go, Elixir, Erlang – is absent
-from Rust.&lt;/p&gt;
-
-&lt;p&gt;Let’s say you want to build something like a web service. It’s going to be handling thousands of
-requests at any point in time (known as the “&lt;a href=&quot;https://en.wikipedia.org/wiki/C10k_problem&quot;&gt;c10k&lt;/a&gt; problem”). In general, the problem we’re
-considering is having a huge number of I/O bound (usually network I/O) tasks.&lt;/p&gt;
-
-&lt;p&gt;“Handling N things at once” is best done by using threads. But … &lt;em&gt;thousands&lt;/em&gt; of threads? That
-sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack,
-setting up a thread involves a bunch of syscalls, and context switching is expensive.&lt;/p&gt;
-
-&lt;p&gt;Of course, thousands of threads &lt;em&gt;all doing work&lt;/em&gt; at once is not going to work anyway. You only
-have a fixed number of cores, and at any one time only one thread will be running on a core.&lt;/p&gt;
-
-&lt;p&gt;But for cases like web servers, most of these threads won’t be doing work. They’ll be waiting on the
-network. Most of these threads will either be listening for a request, or waiting for their response
-to get sent.&lt;/p&gt;
-
-&lt;p&gt;With regular threads, when you perform a blocking I/O operation, the syscall returns control
-to the kernel, which won’t yield control back, because the I/O operation is probably not finished.
-Instead, it will use this as an opportunity to swap in a different thread, and will swap the original
-thread back when its I/O operation is finished (i.e. it’s “unblocked”). Without Tokio and friends,
-this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
-scheduling based on I/O.&lt;/p&gt;
-
-&lt;p&gt;But, as we already discovered, threads don’t scale well for things like this&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
-
-&lt;p&gt;We need “lighter” threads.&lt;/p&gt;
-
-&lt;h2 id=&quot;lightweight-threading&quot;&gt;Lightweight threading&lt;/h2&gt;
-
-&lt;p&gt;I think the best way to understand lightweight threading is to forget about Rust for a moment
-and look at a language that does this well, Go.&lt;/p&gt;
-
-&lt;p&gt;Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the &lt;code&gt;go&lt;/code&gt;
-keyword. A web server might do something like this:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-go&quot;&gt;listener, err = net.Listen(...)
-// handle err
-for {
-    conn, err := listener.Accept()
-    // handle err
-
-    // spawn goroutine:
-    go handler(conn)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;This is a loop which waits for new TCP connections, and spawns a goroutine with the connection
-and the function &lt;code&gt;handler&lt;/code&gt;. Each connection will be a new goroutine, and the goroutine will shut down
-when &lt;code&gt;handler&lt;/code&gt; finishes. In the meantime, the main loop continues executing, because it’s running in
-a different goroutine.&lt;/p&gt;
-
-&lt;p&gt;So if these aren’t “real” (operating system) threads, what’s going on?&lt;/p&gt;
-
-&lt;p&gt;A goroutine is an example of a “lightweight” thread. The operating system doesn’t know about these,
-it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;, swapping
-goroutines in and out much like the operating system scheduler. It’s able to do this because
-Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
-to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.&lt;/p&gt;
-
-&lt;p&gt;Essentialy, a compiled Go function will have a bunch of points scattered throughout it where it
-tells the scheduler and GC “take over if you want” (and also “I’m waiting on stuff, please take
-over”).&lt;/p&gt;
-
-&lt;p&gt;When a goroutine is swapped on an OS thread, some registers will be saved, and
-the program counter will switch to the new goroutine.&lt;/p&gt;
-
-&lt;p&gt;But what about its stack? OS threads have a large stack with them, and you kinda need a stack for functions
-and stuff to work.&lt;/p&gt;
-
-&lt;p&gt;What Go used to do was segmented stacks. The reason a thread needs a large stack is that most
-programming languages, including C, expect the stack to be contiguous, and stacks can’t just be
-“reallocated” like we do with growable buffers since we expect stack data to stay put so that
-pointers to stack data to continue to work. So we reserve all the stack we think we’ll ever need
-(~8MB), and hope we don’t need more.&lt;/p&gt;
-
-&lt;p&gt;But the expectation of stacks being contiguous isn’t strictly necessary. In Go, stacks are made of tiny
-chunks. When a function is called, it checks if there’s enough space on the stack for it to run, and if not,
-allocates a new chunk of stack and runs on it. So if you have thousands of threads doing a small amount of work,
-they’ll all get thousands of tiny stacks and it will be fine.&lt;/p&gt;
-
-&lt;p&gt;These days, Go actually does something different; it &lt;a href=&quot;https://blog.cloudflare.com/how-stacks-are-handled-in-go/&quot;&gt;copies stacks&lt;/a&gt;. I mentioned that stacks can’t
-just be “reallocated” we expect stack data to stay put. But that’s not necessarily true —
-because Go has a GC it knows what all the pointers are &lt;em&gt;anyway&lt;/em&gt;, and it can rewrite pointers to
-stack data on demand.&lt;/p&gt;
-
-&lt;p&gt;Either way, Go’s rich runtime lets it handle this stuff well. Goroutines are super cheap, and you can spawn
-thousands without your computer having problems.&lt;/p&gt;
-
-&lt;p&gt;Rust &lt;em&gt;used&lt;/em&gt; to support lightweight/”green” threads (I believe it used segmented stacks). However, Rust cares
-a lot about not paying for things you don’t use, and this imposes a penalty on all your code even if you
-aren’t using green threads, and it was removed pre-1.0.&lt;/p&gt;
-
-&lt;h2 id=&quot;async-io&quot;&gt;Async I/O&lt;/h2&gt;
-
-&lt;p&gt;A core building block of this is Async I/O. As mentioned in the previous section,
-with regular blocking I/O, the moment you request I/O your thread will not be allowed to run
-(“blocked”) until the operation is done. This is perfect when working with OS threads (the OS
-scheduler does all the work for you!), but if you have lightweight threads you instead want to
-replace the lightweight thread running on the OS thread with a different one.&lt;/p&gt;
-
-&lt;p&gt;Instead, you use non-blocking I/O, where the thread queues a request for I/O with the OS and continues
-execution. The I/O request is executed at some later point by the kernel. The thread then needs to ask the
-OS “Is this I/O request ready yet?” before looking at the result of the I/O.&lt;/p&gt;
-
-&lt;p&gt;Of course, repeatedly asking the OS if it’s done can be tedious and consume resources. This is why
-there are system calls like &lt;a href=&quot;https://en.wikipedia.org/wiki/Epoll&quot;&gt;&lt;code&gt;epoll&lt;/code&gt;&lt;/a&gt;. Here, you can bundle together a bunch of unfinished I/O requests,
-and then ask the OS to wake up your thread when &lt;em&gt;any&lt;/em&gt; of these completes. So you can have a scheduler
-thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there’s nothing
-else happening it can itself go to sleep with an &lt;code&gt;epoll&lt;/code&gt; call until the OS wakes it up (when one of the I/O
-requests completes).&lt;/p&gt;
-
-&lt;p&gt;(The exact mechanism involved here is probably more complex)&lt;/p&gt;
-
-&lt;p&gt;So, bringing this to Rust, Rust has the &lt;a href=&quot;https://github.com/carllerche/mio&quot;&gt;mio&lt;/a&gt; library, which is a platform-agnostic
-wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It’s a building block; and while
-those used to directly using &lt;code&gt;epoll&lt;/code&gt; in C may find it helpful, it doesn’t provide a nice programming
-model like Go does. But we can get there.&lt;/p&gt;
-
-&lt;h2 id=&quot;futures&quot;&gt;Futures&lt;/h2&gt;
-
-&lt;p&gt;These are another building block. A &lt;a href=&quot;https://docs.rs/futures/0.1.17/futures/future/trait.Future.html&quot;&gt;&lt;code&gt;Future&lt;/code&gt;&lt;/a&gt; is the promise of eventually having a value
-(in fact, in Javascript these are called &lt;code&gt;Promise&lt;/code&gt;s).&lt;/p&gt;
-
-&lt;p&gt;So for example, you can ask to listen on a network socket, and get a &lt;code&gt;Future&lt;/code&gt; back  (actually, a
-&lt;code&gt;Stream&lt;/code&gt;, which is like a future but for a sequence of values). This &lt;code&gt;Future&lt;/code&gt; won’t contain the
-response &lt;em&gt;yet&lt;/em&gt;, but will know when it’s ready. You can &lt;code&gt;wait()&lt;/code&gt; on a &lt;code&gt;Future&lt;/code&gt;, which will block
-until you have a result, and you can also &lt;code&gt;poll()&lt;/code&gt; it, asking it if it’s done yet (it will give you
-the result if it is).&lt;/p&gt;
-
-&lt;p&gt;Futures can also be chained, so you can do stuff like &lt;code&gt;future.then(|result| process(result))&lt;/code&gt;.
-The closure passed to &lt;code&gt;then&lt;/code&gt; itself can produce another future, so you can chain together
-things like I/O operations. With chained futures, &lt;code&gt;poll()&lt;/code&gt; is how you make progress; each time
-you call it it will move on to the next future provided the existing one is ready.&lt;/p&gt;
-
-&lt;p&gt;This is a pretty good abstraction over things like non-blocking I/O.&lt;/p&gt;
-
-&lt;p&gt;Chaining futures works much like chaining iterators. Each &lt;code&gt;and_then&lt;/code&gt; (or whatever combinator)
-call returns a struct wrapping around the inner future, which may contain an additional closure.
-Closures themselves carry their references and data with them, so this really ends up being
-very similar to a tiny stack!&lt;/p&gt;
-
-&lt;h2 id=&quot;-tokio-&quot;&gt;🗼 Tokio 🗼&lt;/h2&gt;
-
-&lt;p&gt;Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
-event loop, and you feed it closures that return futures. What it will do is
-run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;, and make progress on them (by calling &lt;code&gt;poll()&lt;/code&gt;).&lt;/p&gt;
-
-&lt;p&gt;This actually is already pretty similar to what Go was doing, at a conceptual level.
-You have to manually set up the Tokio event loop (the “scheduler”), but once you do
-you can feed it tasks which intermittently do I/O, and the event loop takes
-care of swapping over to a new task when one is blocked on I/O. A crucial difference is
-that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads
-for execution. However, you can offload CPU-critical tasks onto other OS threads and
-use channels to coordinate so this isn’t that big a deal.&lt;/p&gt;
-
-&lt;p&gt;While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn’t look so pretty. For the following Go code:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-go&quot;&gt;// error handling ignored for simplicity
-
-func foo(...) ReturnType {
-    data := doIo()
-    result := compute(data)
-    moreData = doMoreIo(result)
-    moreResult := moreCompute(data)
-    // ...
-    return someFinalResult
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;The Rust code will look something like&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;// error handling ignored for simplicity
-
-fn foo(...) -&amp;gt; Future&amp;lt;ReturnType, ErrorType&amp;gt; {
-    do_io().and_then(|data| do_more_io(compute(data)))
-          .and_then(|more_data| do_even_more_io(more_compute(more_data)))
-    // ......
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Not pretty. &lt;a href=&quot;https://docs.rs/futures/0.1.25/futures/future/fn.loop_fn.html#examples&quot;&gt;The code gets worse if you introduce branches and loops&lt;/a&gt;. The problem is that in Go we
-got the interruption points for free, but in Rust we have to encode this by chaining up combinators
-into a kind of state machine. Ew.&lt;/p&gt;
-
-&lt;h2 id=&quot;generators-and-asyncawait&quot;&gt;Generators and async/await&lt;/h2&gt;
-
-&lt;p&gt;This is where generators (also called coroutines) come in.&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html&quot;&gt;Generators&lt;/a&gt; are an experimental feature in Rust. Here’s an example:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;let mut generator = || {
-    let i = 0;
-    loop {
-        yield i;
-        i += 1;
-    }
-};
-assert_eq!(generator.resume(), GeneratorState::Yielded(0));
-assert_eq!(generator.resume(), GeneratorState::Yielded(1));
-assert_eq!(generator.resume(), GeneratorState::Yielded(2));
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Functions are things which execute a task and return once. On the other hand, generators
-return multiple times; they pause execution to “yield” some data, and can be resumed
-at which point they will run until the next yield. While my example doesn’t show this, generators
-can also finish executing like regular functions.&lt;/p&gt;
-
-&lt;p&gt;Closures in Rust are
-&lt;a href=&quot;http://huonw.github.io/blog/2015/05/finding-closure-in-rust/&quot;&gt;sugar for a struct containing captured data, plus an implementation of one of the &lt;code&gt;Fn&lt;/code&gt; traits to make it callable&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Generators are similar, except they implement the &lt;code&gt;Generator&lt;/code&gt; trait&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, and usually store an enum representing various states.&lt;/p&gt;
-
-&lt;p&gt;The &lt;a href=&quot;https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines&quot;&gt;unstable book&lt;/a&gt; has some examples on what the generator state machine enum will look like.&lt;/p&gt;
-
-&lt;p&gt;This is much closer to what we were looking for! Now our code can look like this:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;fn foo(...) -&amp;gt; Future&amp;lt;ReturnType, ErrorType&amp;gt; {
-    let generator = || {
-        let mut future = do_io();
-        let data;
-        loop {
-            // poll the future, yielding each time it fails,
-            // but if it succeeds then move on
-            match future.poll() {
-                Ok(Async::Ready(d)) =&amp;gt; { data = d; break },
-                Ok(Async::NotReady(d)) =&amp;gt; (),
-                Err(..) =&amp;gt; ...
-            };
-            yield future.polling_info();
-        }
-        let result = compute(data);
-        // do the same thing for `doMoreIo()`, etc
-    }
-
-    futurify(generator)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;where &lt;code&gt;futurify&lt;/code&gt; is a function that takes a generator and returns a future which on
-each &lt;code&gt;poll&lt;/code&gt; call will &lt;code&gt;resume()&lt;/code&gt; the generator, and return &lt;code&gt;NotReady&lt;/code&gt; until the generator
-finishes executing.&lt;/p&gt;
-
-&lt;p&gt;But wait, this is even &lt;em&gt;more&lt;/em&gt; ugly! What was the point of converting our relatively
-clean callback-chaining code into this mess?&lt;/p&gt;
-
-&lt;p&gt;Well, if you look at it, this code now looks &lt;em&gt;linear&lt;/em&gt;. We’ve converted our callback
-code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate
-and the &lt;code&gt;futurify&lt;/code&gt; function and is overall not very neat.&lt;/p&gt;
-
-&lt;p&gt;And that’s where &lt;a href=&quot;https://github.com/alexcrichton/futures-await&quot;&gt;futures-await&lt;/a&gt; comes in. &lt;code&gt;futures-await&lt;/code&gt; is a procedural macro that
-does the last-mile work of packaging away this boilerplate. It essentially lets you write
-the above function as&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-rust&quot;&gt;#[async]
-fn foo(...) -&amp;gt; Result&amp;lt;ReturnType, ErrorType&amp;gt; {
-    let data = await!(do_io());
-    let result = compute(data);
-    let more_data = await!(do_more_io());
-    // ....
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Nice and clean. Almost as clean as the Go code, just that we have explicit &lt;code&gt;await!()&lt;/code&gt; calls. These
-await calls are basically providing the same function as the interruption points that Go code
-gets implicitly.&lt;/p&gt;
-
-&lt;p&gt;And, of course, since it’s using a generator under the hood, you can loop and branch and do whatever
-else you want as normal, and the code will still be clean.&lt;/p&gt;
-
-&lt;h2 id=&quot;tying-it-together&quot;&gt;Tying it together&lt;/h2&gt;
-
-&lt;p&gt;So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
-you can neatly write these future chains, and &lt;code&gt;await&lt;/code&gt; provides explicit interruption points on each I/O operation.
-Tokio provides an event loop “scheduler” abstraction, which you can feed async functions to, and under the hood it
-uses mio to abstract over low level non-blocking I/O primitives.&lt;/p&gt;
-
-&lt;p&gt;These are components which can be used independently — you can use tokio with futures without
-using async/await. You can use async/await without using Tokio. For example, I think this would be
-useful for Servo’s networking stack. It doesn’t need to do &lt;em&gt;much&lt;/em&gt; parallel I/O (not at the order
-of thousands of threads), so it can just use multiplexed OS threads. However, we’d still want
-to pool threads and pipeline data well, and async/await would help here.&lt;/p&gt;
-
-&lt;p&gt;Put together, all these components get something almost as clean as the Go stuff, with a little more
-explicit boilerplate. Because generators (and thus async/await) play nice with the borrow checker
-(they’re just enum state machines under the hood), Rust’s safety guarantees are all still in play,
-and we get to have “fearless concurrency” for programs having a huge quantity of I/O bound tasks!&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Thanks to Arshia Mufti, Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post&lt;/em&gt;&lt;/p&gt;
-&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Note that this isn’t necessarily true for &lt;em&gt;all&lt;/em&gt; network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Lightweight threading is also often called M:N threading (also “green threading”) &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when &lt;code&gt;epoll&lt;/code&gt; tells it that that I/O operation is ready. (&lt;em&gt;Edit Dec 2018: This has changed, futures now have a built in &lt;code&gt;Waker&lt;/code&gt; concept that handles passing things up the stack&lt;/em&gt;) &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;The &lt;code&gt;Generator&lt;/code&gt; trait has a &lt;code&gt;resume()&lt;/code&gt; function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;</content><author><name>Manish Goregaokar</name></author><category term="rust" /><category term="programming" /><category term="mozilla" /><summary type="html">The Rust community lately has been focusing a lot on “async I/O” through the tokio project. This is pretty great! But for many in the community who haven’t worked with web servers and related things it’s pretty confusing as to what we’re trying to achieve there. When this stuff was being discussed around 1.0, I was pretty lost as well, having never worked with this stuff before. What’s all this Async I/O business about? What are coroutines? Lightweight threads? Futures? How does this all fit together? What problem are we trying to solve? One of Rust’s key features is “fearless concurrency”. But the kind of concurrency required for handling a large amount of I/O bound tasks – the kind of concurrency found in Go, Elixir, Erlang – is absent from Rust. Let’s say you want to build something like a web service. It’s going to be handling thousands of requests at any point in time (known as the “c10k problem”). In general, the problem we’re considering is having a huge number of I/O bound (usually network I/O) tasks. “Handling N things at once” is best done by using threads. But … thousands of threads? That sounds a bit much. Threads can be pretty expensive: Each thread needs to allocate a large stack, setting up a thread involves a bunch of syscalls, and context switching is expensive. Of course, thousands of threads all doing work at once is not going to work anyway. You only have a fixed number of cores, and at any one time only one thread will be running on a core. But for cases like web servers, most of these threads won’t be doing work. They’ll be waiting on the network. Most of these threads will either be listening for a request, or waiting for their response to get sent. With regular threads, when you perform a blocking I/O operation, the syscall returns control to the kernel, which won’t yield control back, because the I/O operation is probably not finished. Instead, it will use this as an opportunity to swap in a different thread, and will swap the original thread back when its I/O operation is finished (i.e. it’s “unblocked”). Without Tokio and friends, this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with scheduling based on I/O. But, as we already discovered, threads don’t scale well for things like this1. We need “lighter” threads. Lightweight threading I think the best way to understand lightweight threading is to forget about Rust for a moment and look at a language that does this well, Go. Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the go keyword. A web server might do something like this: listener, err = net.Listen(...) // handle err for { conn, err := listener.Accept() // handle err // spawn goroutine: go handler(conn) } This is a loop which waits for new TCP connections, and spawns a goroutine with the connection and the function handler. Each connection will be a new goroutine, and the goroutine will shut down when handler finishes. In the meantime, the main loop continues executing, because it’s running in a different goroutine. So if these aren’t “real” (operating system) threads, what’s going on? A goroutine is an example of a “lightweight” thread. The operating system doesn’t know about these, it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them2, swapping goroutines in and out much like the operating system scheduler. It’s able to do this because Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler. Essentialy, a compiled Go function will have a bunch of points scattered throughout it where it tells the scheduler and GC “take over if you want” (and also “I’m waiting on stuff, please take over”). When a goroutine is swapped on an OS thread, some registers will be saved, and the program counter will switch to the new goroutine. But what about its stack? OS threads have a large stack with them, and you kinda need a stack for functions and stuff to work. What Go used to do was segmented stacks. The reason a thread needs a large stack is that most programming languages, including C, expect the stack to be contiguous, and stacks can’t just be “reallocated” like we do with growable buffers since we expect stack data to stay put so that pointers to stack data to continue to work. So we reserve all the stack we think we’ll ever need (~8MB), and hope we don’t need more. But the expectation of stacks being contiguous isn’t strictly necessary. In Go, stacks are made of tiny chunks. When a function is called, it checks if there’s enough space on the stack for it to run, and if not, allocates a new chunk of stack and runs on it. So if you have thousands of threads doing a small amount of work, they’ll all get thousands of tiny stacks and it will be fine. These days, Go actually does something different; it copies stacks. I mentioned that stacks can’t just be “reallocated” we expect stack data to stay put. But that’s not necessarily true — because Go has a GC it knows what all the pointers are anyway, and it can rewrite pointers to stack data on demand. Either way, Go’s rich runtime lets it handle this stuff well. Goroutines are super cheap, and you can spawn thousands without your computer having problems. Rust used to support lightweight/”green” threads (I believe it used segmented stacks). However, Rust cares a lot about not paying for things you don’t use, and this imposes a penalty on all your code even if you aren’t using green threads, and it was removed pre-1.0. Async I/O A core building block of this is Async I/O. As mentioned in the previous section, with regular blocking I/O, the moment you request I/O your thread will not be allowed to run (“blocked”) until the operation is done. This is perfect when working with OS threads (the OS scheduler does all the work for you!), but if you have lightweight threads you instead want to replace the lightweight thread running on the OS thread with a different one. Instead, you use non-blocking I/O, where the thread queues a request for I/O with the OS and continues execution. The I/O request is executed at some later point by the kernel. The thread then needs to ask the OS “Is this I/O request ready yet?” before looking at the result of the I/O. Of course, repeatedly asking the OS if it’s done can be tedious and consume resources. This is why there are system calls like epoll. Here, you can bundle together a bunch of unfinished I/O requests, and then ask the OS to wake up your thread when any of these completes. So you can have a scheduler thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there’s nothing else happening it can itself go to sleep with an epoll call until the OS wakes it up (when one of the I/O requests completes). (The exact mechanism involved here is probably more complex) So, bringing this to Rust, Rust has the mio library, which is a platform-agnostic wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It’s a building block; and while those used to directly using epoll in C may find it helpful, it doesn’t provide a nice programming model like Go does. But we can get there. Futures These are another building block. A Future is the promise of eventually having a value (in fact, in Javascript these are called Promises). So for example, you can ask to listen on a network socket, and get a Future back (actually, a Stream, which is like a future but for a sequence of values). This Future won’t contain the response yet, but will know when it’s ready. You can wait() on a Future, which will block until you have a result, and you can also poll() it, asking it if it’s done yet (it will give you the result if it is). Futures can also be chained, so you can do stuff like future.then(|result| process(result)). The closure passed to then itself can produce another future, so you can chain together things like I/O operations. With chained futures, poll() is how you make progress; each time you call it it will move on to the next future provided the existing one is ready. This is a pretty good abstraction over things like non-blocking I/O. Chaining futures works much like chaining iterators. Each and_then (or whatever combinator) call returns a struct wrapping around the inner future, which may contain an additional closure. Closures themselves carry their references and data with them, so this really ends up being very similar to a tiny stack! 🗼 Tokio 🗼 Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core event loop, and you feed it closures that return futures. What it will do is run all the closures you feed it, use mio to efficiently figure out which futures are ready to make a step3, and make progress on them (by calling poll()). This actually is already pretty similar to what Go was doing, at a conceptual level. You have to manually set up the Tokio event loop (the “scheduler”), but once you do you can feed it tasks which intermittently do I/O, and the event loop takes care of swapping over to a new task when one is blocked on I/O. A crucial difference is that Tokio is single threaded, whereas the Go scheduler can use multiple OS threads for execution. However, you can offload CPU-critical tasks onto other OS threads and use channels to coordinate so this isn’t that big a deal. While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn’t look so pretty. For the following Go code: // error handling ignored for simplicity func foo(...) ReturnType { data := doIo() result := compute(data) moreData = doMoreIo(result) moreResult := moreCompute(data) // ... return someFinalResult } The Rust code will look something like // error handling ignored for simplicity fn foo(...) -&amp;gt; Future&amp;lt;ReturnType, ErrorType&amp;gt; { do_io().and_then(|data| do_more_io(compute(data))) .and_then(|more_data| do_even_more_io(more_compute(more_data))) // ...... } Not pretty. The code gets worse if you introduce branches and loops. The problem is that in Go we got the interruption points for free, but in Rust we have to encode this by chaining up combinators into a kind of state machine. Ew. Generators and async/await This is where generators (also called coroutines) come in. Generators are an experimental feature in Rust. Here’s an example: let mut generator = || { let i = 0; loop { yield i; i += 1; } }; assert_eq!(generator.resume(), GeneratorState::Yielded(0)); assert_eq!(generator.resume(), GeneratorState::Yielded(1)); assert_eq!(generator.resume(), GeneratorState::Yielded(2)); Functions are things which execute a task and return once. On the other hand, generators return multiple times; they pause execution to “yield” some data, and can be resumed at which point they will run until the next yield. While my example doesn’t show this, generators can also finish executing like regular functions. Closures in Rust are sugar for a struct containing captured data, plus an implementation of one of the Fn traits to make it callable. Generators are similar, except they implement the Generator trait4, and usually store an enum representing various states. The unstable book has some examples on what the generator state machine enum will look like. This is much closer to what we were looking for! Now our code can look like this: fn foo(...) -&amp;gt; Future&amp;lt;ReturnType, ErrorType&amp;gt; { let generator = || { let mut future = do_io(); let data; loop { // poll the future, yielding each time it fails, // but if it succeeds then move on match future.poll() { Ok(Async::Ready(d)) =&amp;gt; { data = d; break }, Ok(Async::NotReady(d)) =&amp;gt; (), Err(..) =&amp;gt; ... }; yield future.polling_info(); } let result = compute(data); // do the same thing for `doMoreIo()`, etc } futurify(generator) } where futurify is a function that takes a generator and returns a future which on each poll call will resume() the generator, and return NotReady until the generator finishes executing. But wait, this is even more ugly! What was the point of converting our relatively clean callback-chaining code into this mess? Well, if you look at it, this code now looks linear. We’ve converted our callback code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate and the futurify function and is overall not very neat. And that’s where futures-await comes in. futures-await is a procedural macro that does the last-mile work of packaging away this boilerplate. It essentially lets you write the above function as #[async] fn foo(...) -&amp;gt; Result&amp;lt;ReturnType, ErrorType&amp;gt; { let data = await!(do_io()); let result = compute(data); let more_data = await!(do_more_io()); // .... Nice and clean. Almost as clean as the Go code, just that we have explicit await!() calls. These await calls are basically providing the same function as the interruption points that Go code gets implicitly. And, of course, since it’s using a generator under the hood, you can loop and branch and do whatever else you want as normal, and the code will still be clean. Tying it together So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await, you can neatly write these future chains, and await provides explicit interruption points on each I/O operation. Tokio provides an event loop “scheduler” abstraction, which you can feed async functions to, and under the hood it uses mio to abstract over low level non-blocking I/O primitives. These are components which can be used independently — you can use tokio with futures without using async/await. You can use async/await without using Tokio. For example, I think this would be useful for Servo’s networking stack. It doesn’t need to do much parallel I/O (not at the order of thousands of threads), so it can just use multiplexed OS threads. However, we’d still want to pool threads and pipeline data well, and async/await would help here. Put together, all these components get something almost as clean as the Go stuff, with a little more explicit boilerplate. Because generators (and thus async/await) play nice with the borrow checker (they’re just enum state machines under the hood), Rust’s safety guarantees are all still in play, and we get to have “fearless concurrency” for programs having a huge quantity of I/O bound tasks! Thanks to Arshia Mufti, Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post Note that this isn’t necessarily true for all network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job. &amp;#8617; Lightweight threading is also often called M:N threading (also “green threading”) &amp;#8617; In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when epoll tells it that that I/O operation is ready. (Edit Dec 2018: This has changed, futures now have a built in Waker concept that handles passing things up the stack) &amp;#8617; The Generator trait has a resume() function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. &amp;#8617;</summary></entry></feed>
+&lt;/div&gt;</content><author><name>Manish Goregaokar</name></author><category term="rust" /><category term="programming" /><category term="mozilla" /><summary type="html">A week ago we put out a call for blog posts for what folks think Rust should do in 2018. This is mine. Overall focus I think 2017 was a great year for Rust. Near the beginning of the year, after custom derive and a bunch of things stabilized, I had a strong feeling that Rust was “complete”. Not really “finished”, there’s still tons of stuff to improve, but this was the first time stable Rust was the language I wanted it to be, and was something I could recommend for most kinds of work without reservations. I think this is a good signal to wind down the frightening pace of new features Rust has been getting. And that happened! We had the impl period, which took some time to focus on getting things done before proposing new things. And Rust is feeling more polished than ever. Like Nick, I feel like 2018 should be boring. I feel like we should focus on polishing what we have, implementing all the things, and improving our approachability as a language. Basically, I want to see this as an extended impl period. This doesn’t mean I’m looking for a moratorium on RFCs, really. Hell, in the past few days I’ve posted one pre-pre-RFC1, one pre-RFC, and one RFC (from the pre-RFC). I’m mostly looking for prioritizing impl work over designing new things, but still having some focus on design. Language I think Rust still has some “missing bits” which make it hard to justify for some use cases. Rust’s async story is being fleshed out. We don’t yet have stable SIMD or stable inline ASM. The microcontroller story is kinda iffy. RLS/clippy need nightly. I’d like to see these crystallize and stabilize this year. I think this year we need to continue to take a critical look at Rust’s ergonomics. Last year the ergonomics initiative was really good for Rust, and I’d like to see more of that. This is kind of at odds with my “focus on polishing Rust” statement, but fixing ergonomics is not just new features. It’s also about figuring out barriers in Rust, polishing mental models, improving docs/diagnostics, and in general figuring out how to best present Rust’s features. Starting dialogues about confusing bits of the language and figuring out the best mental model to present them with is something we should continue doing. Sometimes this may need new features, indeed, but not always. We must continue to take a critical look at how our language presents itself to newcomers. Community I’d like to see a stronger focus on mentoring. Mentoring on rustc, mentoring on major libraries, mentoring on Rust tooling, mentoring everywhere. This includes not just the mentors, but the associated infrastructure – contribution docs, sites like servo-starters and findwork, and similar tooling. I’m also hoping for more companies to invest back into Rust. This year Buoyant became pretty well known within the community, and many of their employees are paid to work on various important parts of the Rust ecosystem. There are also multiple consulting groups that contribute to the ecosystem. It’s nice to see that “paid to work on Rust” is no longer limited to Mozilla, and this is crucial for the health of the language. I hope this trend continues. Finally, I want to see more companies talk about Rust. Success stories are really nice to hear. I’ve heard many amazing success stories this year, but a lot of them are things which can’t be shared. Governance Last year we started seeing the limits of the RFC process. Large RFCs were stressful for both the RFC authors and participating community members, and rather opaque for newer community members wishing to participate. Alternative models have been discussed; I’d like to see more movement on this front. I’d also like to grow the moderation team; it is currently rather small and doesn’t have the capacity to handle incidents in a timely fashion. Docs / Learning I’d like to see a focus on improving Rust for folks who learn the language by trying things over reading books 2 3. This means better diagnostics, better alternative resources like rustbyexample, etc. Improving mentorship helps here as well. Of course, I’d like to see our normal docs work continue to happen. I’m overall really excited for 2018. I think we’re doing great on most fronts so far, and if we maintain the momentum we’ll have an even-more-awesome Rust by the end of this year! This isn’t a “pre rfc” because I’ve written it as a much looser sketch of the problem and a solution &amp;#8617; There is literally no programming language I’ve personally learned through a book or formal teaching. I’ve often read books after I know a language because it’s fun and instructive, but it’s always started out as “learn extreme basics” followed by “look at existing code, tweak stuff, and write your own code”. &amp;#8617; Back in my day Rust didn’t have a book, just this tiny thing called “The Tutorial”. grouches incessantly &amp;#8617;</summary></entry></feed>
