@@ -428,7 +428,7 @@ Also, try to make sure everything is `#[repr(C)]` across the boundary. Rust's `i
 
 ##  Should C++ APIs be unconditionally `unsafe`?
 
-Before I get into this, I want to reiterate that most of the recommendations in this post are for _complex_ C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it's important to calibrate 
+Before I get into this, I want to reiterate that most of the recommendations in this post are for _complex_ C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it's important to calibrate for that when judging what's right for them.
 
 I recall when [this Chromium post][chromium-interop] and [Steve's `cxx` post][steve-cxx] came out, there was a bunch of discussion about C++ functions not being universally marked `unsafe`. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked `unsafe` (and that tools like `cxx` should follow these rules).
 
