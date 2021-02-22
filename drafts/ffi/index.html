@@ -460,11 +460,13 @@ extern "C" {
 
 <h2 id="should-c-apis-be-unconditionally-unsafe">Should C++ APIs be unconditionally <code>unsafe</code>?</h2>
 
-<p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve’s <code>cxx</code> post</a> came out, there was a bunch of brouhaha about C++ functions not being universally marked <code>unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code>unsafe</code> (and that tools like <code>cxx</code> should follow these rules).</p>
+<p>Before I get into this, I want to reiterate that most of the recommendations in this post are for <em>complex</em> C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate</p>
+
+<p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve’s <code>cxx</code> post</a> came out, there was a bunch of discussion about C++ functions not being universally marked <code>unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code>unsafe</code> (and that tools like <code>cxx</code> should follow these rules).</p>
 
 <p>Back then I wrote <a href="https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3">a Reddit comment</a> about my thoughts on this. It’s a comment that’s the length of a blog post in and of itself so I’m not going to reproduce all of it here, but I’ll try to get the gist. I highly suggest you read it instead of this section.</p>
 
-<p>In short, I would recommend people doing heavy C++ interop to be generally okay with marking functions calling into C++ as “safe” provided that function would be considered “safe to call without thinking too much about it” on the C++ side, whatever that means for your codebase.</p>
+<p>In short, I would recommend people in large, complex codebases doing heavy C++ interop to generally be okay with marking functions calling into C++ as “safe” provided that function would be considered “safe to call without thinking too much about it” on the C++ side, whatever that means for your codebase.</p>
 
 <p>From <a href="https://manishearth.github.io/blog/2017/12/24/undefined-vs-unsafe-in-rust/">my post on “undefined” vs “unsafe”</a>, for Rust I define “safe” as</p>
 
@@ -496,6 +498,7 @@ extern "C" {
 
 <p>Overall the field of Rust and C++ integration is at a stage where it’s mature enough for integrations to be <em>possible</em> without too much effort, but there are still tons of ways things could be improved and I’m super excited to see that happen as more people work on such integrations!</p>
 
+<p><em>Thanks to Adam Perry, Adrian Taylor, and Tyler Mandry for reviewing drafts of this post</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
