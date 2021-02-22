@@ -469,4 +469,4 @@ Overall the field of Rust and C++ integration is at a stage where it's mature en
 
  [autocxx]: https://github.com/google/autocxx
 
- _Thanks to Adam Perry, Adrian Taylor, Nika Layzell, and Tyler Mandry for reviewing drafts of this post_
+ _Thanks to Adam Perry, Adrian Taylor, katie martin, Nika Layzell, and Tyler Mandry for reviewing drafts of this post_
