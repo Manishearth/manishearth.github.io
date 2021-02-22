@@ -104,18 +104,18 @@ To use it for an integration, write a header file containing the functions your 
 checking in the generate file suffices, but if your C++ code is going to change a lot, [run it as a build dependency instead][bindgen-build-dep]. Beware that this can adversely impact build times, since your Rust build now has a partial
 C++ compilation step.
 
-For large C++ codebases, pulling in a single header will likely pull in a _lot_ of stuff. You should [whitelist], [blacklist], and/or mark things as [opaque] to reduce the amount of bindings generated. It's best to go the whitelisting route &mdash; give bindgen a whitelisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it's sometimes worth finding structs you're not using and marking them as opaque so that their bindings aren't necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it's just some bits you don't care about and can't introspect further.
+For large C++ codebases, pulling in a single header will likely pull in a _lot_ of stuff. You should [allowlist], [blocklist], and/or mark things as [opaque] to reduce the amount of bindings generated. It's best to go the allowlisting route &mdash; give bindgen an allowlisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it's sometimes worth finding structs you're not using and marking them as opaque so that their bindings aren't necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it's just some bits you don't care about and can't introspect further.
 
-Bindgen [_does_ support some C++ features][bindgen-cpp] (you may need to pass `-x c++`). This is pretty good for generating bindings to e.g. templated structs. However, it's not possible to support _all_ C++ features here, so you may need to blacklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You'll typically get an error when generating bindings or when compiling the generated bindings, so don't worry about this unless that happens.
+Bindgen [_does_ support some C++ features][bindgen-cpp] (you may need to pass `-x c++`). This is pretty good for generating bindings to e.g. templated structs. However, it's not possible to support _all_ C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You'll typically get an error when generating bindings or when compiling the generated bindings, so don't worry about this unless that happens.
 
 Bindgen is _quite_ configurable. Stylo has a [script][build_gecko] that consumes a [large toml file][servobindings.toml] containing all of the configuration.
 
  [bindgen]: https://github.com/rust-lang-nursery/rust-bindgen/
  [run-bindgen]: https://rust-lang-nursery.github.io/rust-bindgen/command-line-usage.html
  [bindgen-build-dep]: https://rust-lang-nursery.github.io/rust-bindgen/tutorial-1.html
- [whitelist]: https://rust-lang-nursery.github.io/rust-bindgen/whitelisting.html
- [blacklist]: https://rust-lang-nursery.github.io/rust-bindgen/blacklisting.html
- [opaque]: https://rust-lang-nursery.github.io/rust-bindgen/opaque.html
+ [allowlist]: https://rust-lang.github.io/rust-bindgen/allowlisting.html
+ [blocklist]: https://rust-lang.github.io/rust-bindgen/blocklisting.html
+ [opaque]: https://rust-lang.github.io/rust-bindgen/opaque.html
  [bindgen-cpp]: https://rust-lang-nursery.github.io/rust-bindgen/cpp.html
  [build_gecko]: https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs
  [servobindings.toml]: https://searchfox.org/mozilla-central/source/layout/style/ServoBindings.toml
@@ -135,7 +135,7 @@ We don't use [cbindgen] in Stylo, but it's used for Webrender. It does the inver
 
 So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I'm not sure if it's advisable to have _both_ bindgen and cbindgen operating near each other on the same codebase.
 
-In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in [one file][servobindings], and are all named `Gecko_*`. Bindgen supports regexes for things like whitelisting, so this naming scheme makes it easy to deal with.
+In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in [one file][servobindings], and are all named `Gecko_*`. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with.
 
 We also declare the FFI functions defined in Rust that C++ calls in [another file][sbl], named `Servo_*`. They're also all [defined in one place][glue.rs].
 
@@ -153,7 +153,7 @@ This is especially important as we do things like type replacement, and we need 
 
 ## Type replacing for fun and profit
 
-Using [blacklisting][blacklist] in conjunction with the `--raw-line`/`raw_line()` flag, one can effectively ask bindgen to "replace" types. Blacklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings _referring_ to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). `--raw-line` lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blacklisted. Effectively, this lets you replace types.
+Using [blocklisting][blocklist] in conjunction with the `--raw-line`/`raw_line()` flag, one can effectively ask bindgen to "replace" types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings _referring_ to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). `--raw-line` lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types.
 
 Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).
 
@@ -469,4 +469,4 @@ Overall the field of Rust and C++ integration is at a stage where it's mature en
 
  [autocxx]: https://github.com/google/autocxx
 
- _Thanks to Adam Perry, Adrian Taylor, and Tyler Mandry for reviewing drafts of this post_
+ _Thanks to Adam Perry, Adrian Taylor, Nika Layzell, and Tyler Mandry for reviewing drafts of this post_
