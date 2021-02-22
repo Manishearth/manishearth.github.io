@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Integrating Rust and C++ in Firefox"
-date: 2021-02-15 12:08:46 -0700
+date: 2021-02-22 10:52:09 -0800
 comments: true
 categories: [rust, c++, programming]
 ---
