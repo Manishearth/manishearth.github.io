@@ -117,22 +117,22 @@ a sum type is “This contains one of these <em>or</em> one of these”.</p>
 
 <p>So for example, the following sum type in Rust:</p>
 
-<pre><code class="language-rust">enum Foo {
-    Stringy(String),
-    Numerical(u32)
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="nf">Stringy</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span>
+    <span class="nf">Numerical</span><span class="p">(</span><span class="nb">u32</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>or Swift:</p>
 
-<pre><code class="language-swift">enum Foo {
-    case stringy(String),
-    case numerical(Int)
-}
-</code></pre>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">enum</span> <span class="kt">Foo</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nf">stringy</span><span class="p">(</span><span class="kt">String</span><span class="p">),</span>
+    <span class="k">case</span> <span class="nf">numerical</span><span class="p">(</span><span class="kt">Int</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>would be one where it’s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
-<em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
+<p>would be one where it’s either <code class="language-plaintext highlighter-rouge">Foo::Stringy</code> (<code class="language-plaintext highlighter-rouge">Foo::stringy</code> for swift), containing a <code class="language-plaintext highlighter-rouge">String</code>,
+<em>or</em> <code class="language-plaintext highlighter-rouge">Foo::Numerical</code>, containing an integer.</p>
 
 <p>This can be pretty useful. For example, messages between threads are often of a “this or that or that or that”
 form.</p>
@@ -167,64 +167,64 @@ I think this “fits well” with the existing Go language design.</p>
 <p>The essence is pretty straightforward: Extend interfaces to allow for “closed interfaces”. These are
 interfaces that are only implemented for a small list of types.</p>
 
-<p>Writing the <code>Foo</code> sum type above would be:</p>
+<p>Writing the <code class="language-plaintext highlighter-rouge">Foo</code> sum type above would be:</p>
 
-<pre><code class="language-go">type Foo interface {
-    SomeFunction()
-    OtherFunction()
-    for string, int
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">Foo</span> <span class="k">interface</span> <span class="p">{</span>
+    <span class="n">SomeFunction</span><span class="p">()</span>
+    <span class="n">OtherFunction</span><span class="p">()</span>
+    <span class="k">for</span> <span class="kt">string</span><span class="p">,</span> <span class="kt">int</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>It doesn’t even need to have functions defined on it.</p>
 
 <p>The interface functions can only be called if you have an interface object; they are not directly available
-on variant types without explicitly casting (<code>Foo("...").SomeFunction()</code>).</p>
+on variant types without explicitly casting (<code class="language-plaintext highlighter-rouge">Foo("...").SomeFunction()</code>).</p>
 
-<p>(I’m not strongly for the <code>for</code> keyword syntax, it’s just a suggestion. The core idea is that
+<p>(I’m not strongly for the <code class="language-plaintext highlighter-rouge">for</code> keyword syntax, it’s just a suggestion. The core idea is that
 you define an interface and you define the types it closes over. Somehow.)</p>
 
 <p>A better example would be an interface for a message-passing system for Raft:</p>
 
-<pre><code class="language-go">type VoteRequest struct {
-    CandidateId uint
-    Term uint
-    // ...
-}
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">VoteRequest</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">CandidateId</span> <span class="kt">uint</span>
+    <span class="n">Term</span> <span class="kt">uint</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
 
-type VoteResponse struct {
-    Term uint
-    VoteGranted bool
-    VoterId uint
-}
+<span class="k">type</span> <span class="n">VoteResponse</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">Term</span> <span class="kt">uint</span>
+    <span class="n">VoteGranted</span> <span class="kt">bool</span>
+    <span class="n">VoterId</span> <span class="kt">uint</span>
+<span class="p">}</span>
 
-type AppendRequest struct {
-    //...
-}
+<span class="k">type</span> <span class="n">AppendRequest</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="c">//...</span>
+<span class="p">}</span>
 
-type AppendResponse struct {
-    //...
-}
-// ...
-type RaftMessage interface {
-    for VoteRequest, VoteResponse, AppendRequest, AppendResponse
-}
-</code></pre>
+<span class="k">type</span> <span class="n">AppendResponse</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="c">//...</span>
+<span class="p">}</span>
+<span class="c">// ...</span>
+<span class="k">type</span> <span class="n">RaftMessage</span> <span class="k">interface</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="n">VoteRequest</span><span class="p">,</span> <span class="n">VoteResponse</span><span class="p">,</span> <span class="n">AppendRequest</span><span class="p">,</span> <span class="n">AppendResponse</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Now, you use type switches for dealing with these:</p>
 
-<pre><code class="language-go">switch value := msg.(type) {
-    case VoteRequest:
-        if value.Term &lt;= me.Term {
-            me.reject_vote(value.CandidateId)
-        } else {
-            me.accept_vote(value.CandidateId, value.Term)
-        }
-    case VoteResponse: // ...
-    case AppendRequest: // ...
-    case AppendResponse: // ...
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">switch</span> <span class="n">value</span> <span class="o">:=</span> <span class="n">msg</span><span class="o">.</span><span class="p">(</span><span class="k">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="n">VoteRequest</span><span class="o">:</span>
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">Term</span> <span class="o">&lt;=</span> <span class="n">me</span><span class="o">.</span><span class="n">Term</span> <span class="p">{</span>
+            <span class="n">me</span><span class="o">.</span><span class="n">reject_vote</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">CandidateId</span><span class="p">)</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">me</span><span class="o">.</span><span class="n">accept_vote</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">CandidateId</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">Term</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="k">case</span> <span class="n">VoteResponse</span><span class="o">:</span> <span class="c">// ...</span>
+    <span class="k">case</span> <span class="n">AppendRequest</span><span class="o">:</span> <span class="c">// ...</span>
+    <span class="k">case</span> <span class="n">AppendResponse</span><span class="o">:</span> <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
 
@@ -234,27 +234,27 @@ what this entails for the GC design, but I’d love to hear thoughts on this.</p
 <p>We also make it possible to add methods to closed interfaces. This is in the spirit of
 <a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
 
-<pre><code class="language-go">func (message RaftMessage) Process(me Me) error {
-    // message handling logic
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span> <span class="p">(</span><span class="n">message</span> <span class="n">RaftMessage</span><span class="p">)</span> <span class="n">Process</span><span class="p">(</span><span class="n">me</span> <span class="n">Me</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+    <span class="c">// message handling logic</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>for closed interfaces.</p>
 
 <p>This aligns more with how sum types are written and used in other languages; instead of assuming
-that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
+that each method will be a <code class="language-plaintext highlighter-rouge">switch</code> on the variant, you can write arbitrary code that <em>may</em> <code class="language-plaintext highlighter-rouge">switch</code>
 on the type but it can also just call other methods. This is really nice because you can write
 methods in <em>both</em> ways – if it’s a “responsibility of the inner type” kind of method, require it in
 the interface and delegate it to the individual types. If it’s a “responsibility of the interface”
 method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
 you sometimes end up writing things like:</p>
 
-<pre><code class="language-rust">match foo {
-    Foo::Stringy(s) =&gt; s.process(),
-    Foo::Numerical(n) =&gt; n.process(),
-    // ...
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="nn">Foo</span><span class="p">::</span><span class="nf">Stringy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.process</span><span class="p">(),</span>
+    <span class="nn">Foo</span><span class="p">::</span><span class="nf">Numerical</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">n</span><span class="nf">.process</span><span class="p">(),</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
 proposal Go can have it both ways.</p>

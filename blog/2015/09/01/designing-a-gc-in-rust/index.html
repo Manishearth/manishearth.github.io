@@ -124,9 +124,9 @@ that’s one of its main selling points!</p>
 have all sorts of well-written crates out there (none of which use a GC).</p>
 
 <p>But Rust is not just about low-cost memory safety. It’s also <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">about choosing your costs and
-guarantees</a>. <code>Box&lt;T&gt;</code> and stack allocation are not always sufficient, sometimes one needs to
-reach for something like <code>Rc&lt;T&gt;</code> (reference counting). But even <code>Rc</code> is not perfect; it can’t handle
-cycles between pointers. There are solutions to that issue like using <code>Weak&lt;T&gt;</code>, but that only works
+guarantees</a>. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and stack allocation are not always sufficient, sometimes one needs to
+reach for something like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> (reference counting). But even <code class="language-plaintext highlighter-rouge">Rc</code> is not perfect; it can’t handle
+cycles between pointers. There are solutions to that issue like using <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code>, but that only works
 in limited cases (when you know what the points-to graph looks like at compile time), and isn’t very
 ergonomic.</p>
 
@@ -134,8 +134,8 @@ ergonomic.</p>
 Similarly, if one is writing an interpreter for a GCd language, having a GC in Rust would simplify
 things a lot.</p>
 
-<p>Not to say that one should pervasively use a GC in Rust. Similar to <code>Rc&lt;T&gt;</code>, it’s best to use
-regular ownership-based memory management as much as possible, and sprinkle <code>Rc</code>/<code>Gc</code> in places
+<p>Not to say that one should pervasively use a GC in Rust. Similar to <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>, it’s best to use
+regular ownership-based memory management as much as possible, and sprinkle <code class="language-plaintext highlighter-rouge">Rc</code>/<code class="language-plaintext highlighter-rouge">Gc</code> in places
 where your code needs it.</p>
 
 <h1 id="previous-designs">Previous designs</h1>
@@ -150,12 +150,12 @@ by Peter Liniker which sketches out a design for an immutable GC.</p>
 <h2 id="core-rust-gcs">Core Rust GC(s)</h2>
 
 <p>Rust itself had a garbage collector until a bit more than a year ago. These “managed pointers”
-(<code>@T</code>) were part of the language. They were removed later with a plan to make GC a library feature.</p>
+(<code class="language-plaintext highlighter-rouge">@T</code>) were part of the language. They were removed later with a plan to make GC a library feature.</p>
 
 <p>I believe these were basically reference counted (cycle collected?) pointers with some language
 integration, but I’m not sure.</p>
 
-<p>Nowadays, the only form of automatic memory management in Rust are via <a href="http://doc.rust-lang.org/alloc/rc/struct.Rc.html"><code>Rc</code></a> and <a href="http://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>
+<p>Nowadays, the only form of automatic memory management in Rust are via <a href="http://doc.rust-lang.org/alloc/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a> and <a href="http://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc</code></a>
 which are nonatomic and atomic reference counted pointers respectively. In other words, they keep
 track of the number of shared references via a reference count (incremented when it is cloned,
 decremented when destructors run). If the reference count reaches zero, the contents are cleaned up.</p>
@@ -177,25 +177,25 @@ runtime. However, the Rust side of the GC is of a design that could be used in a
 library.</p>
 
 <p>The Rust side of the Spidermonkey GC is done through a bunch of smart pointers, and a trait called
-<code>JSTraceable</code>. <code>JSTraceable</code> is a trait which can “trace” recursively down some data, finding and
+<code class="language-plaintext highlighter-rouge">JSTraceable</code>. <code class="language-plaintext highlighter-rouge">JSTraceable</code> is a trait which can “trace” recursively down some data, finding and
 marking all GC-managed objects inside it. This is autoderived using Rust’s plugin infrastructure, so
-a simple <code>#[jstraceable]</code> annotation will generate trace hooks for the struct it is on.</p>
+a simple <code class="language-plaintext highlighter-rouge">#[jstraceable]</code> annotation will generate trace hooks for the struct it is on.</p>
 
-<p>Now, we have various smart pointers. The first is <code>JS&lt;T&gt;</code>. This is opaque, but can be held by other
-GC-managed structs. To use this on the stack, this must be explicitly <em>rooted</em>, via <code>.root()</code>. This
-produces a <code>Root&lt;T&gt;</code>, which can be dereferenced to get the inner object. When the <code>Root</code> is created,
+<p>Now, we have various smart pointers. The first is <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code>. This is opaque, but can be held by other
+GC-managed structs. To use this on the stack, this must be explicitly <em>rooted</em>, via <code class="language-plaintext highlighter-rouge">.root()</code>. This
+produces a <code class="language-plaintext highlighter-rouge">Root&lt;T&gt;</code>, which can be dereferenced to get the inner object. When the <code class="language-plaintext highlighter-rouge">Root</code> is created,
 the contained object is listed in a collection of “roots” in a global. A root indicates that the
 value is being used on the stack somewhere, and the GC starts tracing usage from these roots. When
-the <code>Root&lt;T&gt;</code> is destroyed, the root is removed.</p>
+the <code class="language-plaintext highlighter-rouge">Root&lt;T&gt;</code> is destroyed, the root is removed.</p>
 
-<p>The problem with this is that <code>JS&lt;T&gt;</code> doesn’t work on the stack. There is no way for the GC to know
-that we are holding on to <code>JS&lt;T&gt;</code> on the stack. So, if I copy a <code>JS&lt;T&gt;</code> to the stack, remove all
-references to it from objects in the GC heap, and trigger a collection, the <code>JS&lt;T&gt;</code> will still be
+<p>The problem with this is that <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> doesn’t work on the stack. There is no way for the GC to know
+that we are holding on to <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> on the stack. So, if I copy a <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> to the stack, remove all
+references to it from objects in the GC heap, and trigger a collection, the <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> will still be
 around on the stack after collection since the GC can’t trace to it. If I attempt to root it, I may
 get a panic or a segfault depending on the implementation.</p>
 
 <p>To protect against this, we have a bunch of lints. The <a href="https://github.com/servo/servo/blob/master/components/plugins/lints/unrooted_must_root.rs">relevant one</a> here protects
-against <code>JS&lt;T&gt;</code> from being carried around on the stack; but like most lints, it’s not perfect.</p>
+against <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> from being carried around on the stack; but like most lints, it’s not perfect.</p>
 
 <p>To summarize: Spidermonkey gives us a good GC. However using it for a generic Rust program is ill
 advised. Additionally, Servo’s wrappers around the GC are cheap, but need lints for safety. While it
@@ -230,7 +230,7 @@ scanning”. In such a system, the GC goes down the stack looking for things whi
 pointers. Generally the GC allocates objects in known regions of the memory, so a GC pointer is any
 value on the stack which belongs to one of these regions.</p>
 
-<p>Of course, this makes garbage collection rather inefficient, and will miss cases like <code>Box&lt;Gc&lt;T&gt;&gt;</code>
+<p>Of course, this makes garbage collection rather inefficient, and will miss cases like <code class="language-plaintext highlighter-rouge">Box&lt;Gc&lt;T&gt;&gt;</code>
 where the GCd pointer is accessible, but through a non-GC pointer.</p>
 
 <p>We decided rather early on that we didn’t want a GC based on lints or stack scanning. Both are
@@ -242,37 +242,37 @@ Rust’s type system and ownership semantics could help us in designing a good, 
 <h2 id="tracing">Tracing</h2>
 
 <p>The latter part was easy. We wrote a compiler plugin (well, we stole <a href="https://github.com/servo/servo/blob/master/components/plugins/jstraceable.rs#L38">Servo’s tracing plugin which
-I’d written earlier</a>) which autoderives an implementation of the <code>Trace</code> trait on any
-given struct or enum, using the same internal infrastructure that <code>#[derive(PartialEq)]</code> and the
+I’d written earlier</a>) which autoderives an implementation of the <code class="language-plaintext highlighter-rouge">Trace</code> trait on any
+given struct or enum, using the same internal infrastructure that <code class="language-plaintext highlighter-rouge">#[derive(PartialEq)]</code> and the
 rest use. So, with just the following code, it’s easy to make a struct or enum gc-friendly:</p>
 
-<pre><code class="language-rust">#[derive(Trace)]
-struct Foo {
-    x: u8,
-    y: Bar,
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Trace)]</span>
+<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">y</span><span class="p">:</span> <span class="n">Bar</span><span class="p">,</span>
+<span class="p">}</span>
 
-#[derive(Trace)]
-enum Bar {
-    Baz(u8), Quux
-}
-</code></pre>
+<span class="nd">#[derive(Trace)]</span>
+<span class="k">enum</span> <span class="n">Bar</span> <span class="p">{</span>
+    <span class="nf">Baz</span><span class="p">(</span><span class="nb">u8</span><span class="p">),</span> <span class="n">Quux</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>For a <code>foo</code> of type <code>Foo</code> <code>foo.trace()</code>, will expand to a call of <code>foo.x.trace()</code> and
-<code>foo.y.trace()</code>. <code>bar.trace()</code> will check which variant it is and call <code>trace()</code> on the <code>u8</code> inside
-if it’s a <code>Baz</code>. For most structs this turns out to be a no-op and is often optimized away by
-inlining, but if a struct contains a <code>Gc&lt;T&gt;</code>, the special implementation of <code>Trace</code> for <code>Gc&lt;T&gt;</code> will
-“mark” the traceability of the <code>Gc&lt;T&gt;</code>. Types without <code>Trace</code> implemented cannot be used in types
-implementing <code>Trace</code> or in a <code>Gc</code>, which is enforced with a <code>T: Trace</code> bound on <code>Gc&lt;T&gt;</code>.</p>
+<p>For a <code class="language-plaintext highlighter-rouge">foo</code> of type <code class="language-plaintext highlighter-rouge">Foo</code> <code class="language-plaintext highlighter-rouge">foo.trace()</code>, will expand to a call of <code class="language-plaintext highlighter-rouge">foo.x.trace()</code> and
+<code class="language-plaintext highlighter-rouge">foo.y.trace()</code>. <code class="language-plaintext highlighter-rouge">bar.trace()</code> will check which variant it is and call <code class="language-plaintext highlighter-rouge">trace()</code> on the <code class="language-plaintext highlighter-rouge">u8</code> inside
+if it’s a <code class="language-plaintext highlighter-rouge">Baz</code>. For most structs this turns out to be a no-op and is often optimized away by
+inlining, but if a struct contains a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, the special implementation of <code class="language-plaintext highlighter-rouge">Trace</code> for <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> will
+“mark” the traceability of the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>. Types without <code class="language-plaintext highlighter-rouge">Trace</code> implemented cannot be used in types
+implementing <code class="language-plaintext highlighter-rouge">Trace</code> or in a <code class="language-plaintext highlighter-rouge">Gc</code>, which is enforced with a <code class="language-plaintext highlighter-rouge">T: Trace</code> bound on <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>.</p>
 
-<p>So, we have a way of walking the fields of a given object and finding inner <code>Gc&lt;T&gt;</code>s. Splendid. This
-lets us write the mark&amp;sweep phase easily: Take the list of known reachable <code>Gc&lt;T&gt;</code>s, walk their
-contents until you find more <code>Gc&lt;T&gt;</code>s (marking all you find), and clean up any which aren’t
+<p>So, we have a way of walking the fields of a given object and finding inner <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s. Splendid. This
+lets us write the mark&amp;sweep phase easily: Take the list of known reachable <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s, walk their
+contents until you find more <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s (marking all you find), and clean up any which aren’t
 reachable.</p>
 
 <h2 id="rooting">Rooting</h2>
 
-<p>Of course, now we have to solve the problem of keeping track of the known reachable <code>Gc&lt;T&gt;</code>s, i.e.
+<p>Of course, now we have to solve the problem of keeping track of the known reachable <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s, i.e.
 the roots. This is a hard problem to solve without language support, and I hope that eventually we
 might be able to get the language hooks necessary to solve it. LLVM <a href="http://llvm.org/docs/GarbageCollection.html#gcroot">has support for tracking
 GCthings on the stack</a>, and some day we may be able to leverage that in Rust.</p>
@@ -280,22 +280,22 @@ GCthings on the stack</a>, and some day we may be able to leverage that in Rust.
 <p>As noted above, Spidermonkey’s solution was to have non-rooted (non-dereferencable) heap pointers,
 which can be explicitly converted to rooted pointers and then read.</p>
 
-<p>We went the other way. All <code>Gc&lt;T&gt;</code> pointers, when created, are considered “rooted”. The instance of
-<code>Gc&lt;T&gt;</code> has a “rooted” bit set to true, and the underlying shared box (<code>GcBox</code>, though this is not a
+<p>We went the other way. All <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> pointers, when created, are considered “rooted”. The instance of
+<code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> has a “rooted” bit set to true, and the underlying shared box (<code class="language-plaintext highlighter-rouge">GcBox</code>, though this is not a
 public interface) has its “root count” set to one.</p>
 
-<p>When this <code>Gc&lt;T&gt;</code> is cloned, an identical <code>Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
-underlying root count is incremented. Cloning a <code>Gc</code> does not perform a deep copy.</p>
+<p>When this <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is cloned, an identical <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
+underlying root count is incremented. Cloning a <code class="language-plaintext highlighter-rouge">Gc</code> does not perform a deep copy.</p>
 
-<pre><code class="language-rust">let a = Gc::new(20); // a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
 
-// ptr points to the underlying box, which contains the data as well as
-// GC metadata like the root count. `Gc::new()` will allocate this box
+<span class="c">// ptr points to the underlying box, which contains the data as well as</span>
+<span class="c">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
 
-let b = a.clone(); // b.root = true, (*a.ptr).roots++, b.ptr = a.ptr
-</code></pre>
+<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
+</code></pre></div></div>
 
-<p>This is rather similar to how <code>Rc</code> works, however there is no <code>root</code> field, and the <code>roots</code> counter
+<p>This is rather similar to how <code class="language-plaintext highlighter-rouge">Rc</code> works, however there is no <code class="language-plaintext highlighter-rouge">root</code> field, and the <code class="language-plaintext highlighter-rouge">roots</code> counter
 is called a “reference counter”.</p>
 
 <p>For regular local sharing, it is recommended to just use a borrowed reference to the inner variable
@@ -304,98 +304,98 @@ is called a “reference counter”.</p>
 <p>When a GC thing is put inside another GC thing, the first thing no longer can remain a root. This is
 handled by “unrooting” the first GC thing:</p>
 
-<pre><code class="language-rust">struct Foo {
-    bar: u32,
-    baz: Gc&lt;u32&gt;,
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">u32</span><span class="p">,</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-let a = Gc::new(20); // why anyone would want to GC an integer I'll never know
-                     // but I'll stick with this example since it's simple
+<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// why anyone would want to GC an integer I'll never know</span>
+                     <span class="c">// but I'll stick with this example since it's simple</span>
 
-let b = Gc::new(Foo {bar: 1, baz: a});
-// a.root = false, (*a.ptr).roots--
-// b initialized similar to previous example
+<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">bar</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">baz</span><span class="p">:</span> <span class="n">a</span><span class="p">});</span>
+<span class="c">// a.root = false, (*a.ptr).roots--</span>
+<span class="c">// b initialized similar to previous example</span>
 
-// `a` was moved into `b`, so now `a` cannot be accessed directly here
-// other than through `b`, and `a` is no longer a root.
-// To avoid moving a, passing `a.clone()` to `b` will work
-</code></pre>
+<span class="c">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
+<span class="c">// other than through `b`, and `a` is no longer a root.</span>
+<span class="c">// To avoid moving a, passing `a.clone()` to `b` will work</span>
+</code></pre></div></div>
 
-<p>Of course, we need a way to traverse the object passed to the <code>Gc&lt;T&gt;</code>, in this case <code>Foo</code>, and look
-for any contained <code>Gc&lt;T&gt;</code>s to unroot. Sound familiar? This needs the same mechanism that <code>trace()</code>
-needed! We add struct-walking <code>root()</code> and <code>unroot()</code> methods to the <code>Trace</code> trait which are auto-
-derived exactly the same way, and continue. (We don’t need <code>root()</code> right now, but we will need it
+<p>Of course, we need a way to traverse the object passed to the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, in this case <code class="language-plaintext highlighter-rouge">Foo</code>, and look
+for any contained <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s to unroot. Sound familiar? This needs the same mechanism that <code class="language-plaintext highlighter-rouge">trace()</code>
+needed! We add struct-walking <code class="language-plaintext highlighter-rouge">root()</code> and <code class="language-plaintext highlighter-rouge">unroot()</code> methods to the <code class="language-plaintext highlighter-rouge">Trace</code> trait which are auto-
+derived exactly the same way, and continue. (We don’t need <code class="language-plaintext highlighter-rouge">root()</code> right now, but we will need it
 later on).</p>
 
-<p>Now, during collection, we can just traverse the list of <code>GcBox</code>s and use the ones with a nonzero
+<p>Now, during collection, we can just traverse the list of <code class="language-plaintext highlighter-rouge">GcBox</code>s and use the ones with a nonzero
 root count as roots for our mark traversal.</p>
 
 <p>So far, so good. We have a pretty sound design for a GC that works … for immutable data.</p>
 
 <h3 id="mutability">Mutability</h3>
 
-<p>Like <code>Rc&lt;T&gt;</code>, <code>Gc&lt;T&gt;</code> is by default immutable. Rust abhors aliasable mutability, <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">even in single
+<p>Like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is by default immutable. Rust abhors aliasable mutability, <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">even in single
 threaded contexts</a>, and both these smart pointers allow aliasing.</p>
 
 <p>Mutation poses a problem for our GC, beyond the regular problems of aliasable mutability: It’s
 possible to move rooted things into heap objects and vice versa:</p>
 
-<pre><code class="language-rust">let x = Gc::new(20);
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
 
-let y = Gc::new(None);
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
 
-*y = Some(x); // uh oh, x is still considered rooted!
+<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c">// uh oh, x is still considered rooted!</span>
 
-// and the reverse!
+<span class="c">// and the reverse!</span>
 
-let y = Gc::new(Some(Gc::new(20)));
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">)));</span>
 
-let x = y.take(); // x was never rooted!
-// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       
-</code></pre>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// x was never rooted!</span>
+<span class="c">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
+</code></pre></div></div>
 
-<p>Since <code>Gc&lt;T&gt;</code> doesn’t implement <code>DerefMut</code>, none of this is possible — one cannot mutate the
+<p>Since <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> doesn’t implement <code class="language-plaintext highlighter-rouge">DerefMut</code>, none of this is possible — one cannot mutate the
 inner data. This is one of the places where Rust’s ownership/mutability system works out awesomely
 in our favor.</p>
 
 <p>Of course, an immutable GC isn’t very useful. We can’t even create cycles in an immutable GC, so why
 would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>?</p>
 
-<p>So of course, we needed to make it somehow mutable. People using <code>Rc&lt;T&gt;</code> solve this problem by using
-<code>RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
-mutable. <code>RefCell&lt;T&gt;</code> itself can’t be used by us since it doesn’t guard against the problem
-illustrated above (and hence won’t implement <code>Trace</code>, but a similar cell type would work).</p>
+<p>So of course, we needed to make it somehow mutable. People using <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> solve this problem by using
+<code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
+mutable. <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> itself can’t be used by us since it doesn’t guard against the problem
+illustrated above (and hence won’t implement <code class="language-plaintext highlighter-rouge">Trace</code>, but a similar cell type would work).</p>
 
-<p>So we created <code>GcCell&lt;T&gt;</code>. This behaves just like <code>RefCell&lt;T&gt;</code>, except that it will <code>root()</code> before
-beginning a mutable borrow, and <code>unroot()</code> before ending it (well, only if it itself is not rooted,
-which is tracked by an internal field similar to <code>Gc&lt;T&gt;</code>). Now, everything is safe:</p>
+<p>So we created <code class="language-plaintext highlighter-rouge">GcCell&lt;T&gt;</code>. This behaves just like <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, except that it will <code class="language-plaintext highlighter-rouge">root()</code> before
+beginning a mutable borrow, and <code class="language-plaintext highlighter-rouge">unroot()</code> before ending it (well, only if it itself is not rooted,
+which is tracked by an internal field similar to <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>). Now, everything is safe:</p>
 
-<pre><code class="language-rust">#[derive(Trace)]
-struct Foo {
-    a: u8,
-    b: GcCell&lt;Gc&lt;u8&gt;&gt;,
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Trace)]</span>
+<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">a</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">b</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-let x = Gc::new(20);
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
 
-let y = Gc::new(Foo {a: 10, b: Gc::new(30)});
-{
-    *y.b.borrow_mut() = x; // the `Gc(30)` from `y.b` was rooted by this call
-                           // but since we don't actually use it here,
-                           // the destructor gets rid of it.
-                           // We could use swap() to retain access to it.
-    // ...
-    // x unrooted
-}
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">30</span><span class="p">)});</span>
+<span class="p">{</span>
+    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c">// the `Gc(30)` from `y.b` was rooted by this call</span>
+                           <span class="c">// but since we don't actually use it here,</span>
+                           <span class="c">// the destructor gets rid of it.</span>
+                           <span class="c">// We could use swap() to retain access to it.</span>
+    <span class="c">// ...</span>
+    <span class="c">// x unrooted</span>
+<span class="p">}</span>
 
 
-// and the reverse case works too:
+<span class="c">// and the reverse case works too:</span>
 
-let y = Gc::new(GcCell::new(Some(Gc::new(20))));
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">GcCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">))));</span>
 
-let x = y.borrow_mut().take(); // the inner `Some(Gc(20))` gets rooted by `borrow_mut()`
-                               // before `x` can access it
-</code></pre>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
+                               <span class="c">// before `x` can access it</span>
+</code></pre></div></div>
 
 <p>So now, mutation works too! We have a working garbage collector!</p>
 
@@ -406,8 +406,8 @@ let x = y.borrow_mut().take(); // the inner `Some(Gc(20))` gets rooted by `borro
 <p>I believe this can be solved without lints, but it <em>may</em> require some upcoming features of Rust to
 be implemented first (like specialization).</p>
 
-<p>In essence, destructors implemented on a value inside <code>Gc&lt;T&gt;</code> can be unsafe. This will only happen
-if they try to access values within a <code>Gc&lt;T&gt;</code> — if they do, they may come across a box that
+<p>In essence, destructors implemented on a value inside <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> can be unsafe. This will only happen
+if they try to access values within a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> — if they do, they may come across a box that
 has already been collected, or they may lengthen the lifetime of a box scheduled to be collected.</p>
 
 <p>The basic solution to this is to use “finalizers” instead of destructors. Finalizers, like in Java,
@@ -418,7 +418,7 @@ an airtight interface for this. I don’t have a concrete design for this yet, t
 
 <p>Our model mostly just works in a concurrent situation (with thread safety tweaks, of course); in
 fact it’s possible to make it so that the concurrent GC will not “stop the world” unless someone
-tries to do a write to a <code>GcCell</code>. We have an experimental concurrent GC in <a href="https://github.com/Manishearth/rust-gc/pull/6">this pull
+tries to do a write to a <code class="language-plaintext highlighter-rouge">GcCell</code>. We have an experimental concurrent GC in <a href="https://github.com/Manishearth/rust-gc/pull/6">this pull
 request</a>. We still need to figure out how to make interop between both GCs safe, though we may
 just end up making them such that an object using one GC cannot be fed to an object using the other.</p>
 
@@ -433,15 +433,15 @@ want to help, contributions welcome!)</p>
 
 <h2 id="cross-crate-deriving">Cross-crate deriving</h2>
 
-<p>Currently, an object deriving <code>Trace</code> should have <code>Trace</code>able children. This isn’t always possible
+<p>Currently, an object deriving <code class="language-plaintext highlighter-rouge">Trace</code> should have <code class="language-plaintext highlighter-rouge">Trace</code>able children. This isn’t always possible
 when members from another crate (which does not depend on rust-gc) are involved. At the moment, we
-allow an <code>#[unsafe_ignore_trace]</code> annotation on fields which are of this type (which excludes it
+allow an <code class="language-plaintext highlighter-rouge">#[unsafe_ignore_trace]</code> annotation on fields which are of this type (which excludes it
 from being traced – if that crate doesn’t transitively depend on rust-gc, its members cannot
 contain GCthings anyway unless generics are involved). It should be possible to detect whether or
-not this is safe, and/or autoderive <code>Trace</code> using the opt-in builtin traits framework (needs
+not this is safe, and/or autoderive <code class="language-plaintext highlighter-rouge">Trace</code> using the opt-in builtin traits framework (needs
 specialization to work), but at the moment we don’t do anything other than expose that annotation.</p>
 
-<p>Stdlib support for a global <code>Trace</code> trait that everyone derives would be awesome.</p>
+<p>Stdlib support for a global <code class="language-plaintext highlighter-rouge">Trace</code> trait that everyone derives would be awesome.</p>
 
 <h1 id="conclusion">Conclusion</h1>
 

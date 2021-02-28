@@ -124,13 +124,13 @@ and helps avoid confusion.</p>
 
 <p><br /></p>
 
-<p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
-“look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents”.
-It’s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
+<p>First off, just to get this out of the way, <code class="language-plaintext highlighter-rouge">mod foo;</code> is basically a way of saying
+“look for <code class="language-plaintext highlighter-rouge">foo.rs</code> or <code class="language-plaintext highlighter-rouge">foo/mod.rs</code> and make a module named <code class="language-plaintext highlighter-rouge">foo</code> with its contents”.
+It’s the same as <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> except the contents are in a different file. This
 itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
 in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
 
-<p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
+<p>In the examples here I will just be using <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> since multi-file examples are annoying,
 but keep in mind that the stuff here applies equally to multi-file crates.</p>
 
 <h3 id="motivating-examples">Motivating examples</h3>
@@ -138,87 +138,87 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 <p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
 counterintuitive, based on your existing model.</p>
 
-<pre><code class="language-rust">pub mod foo {
-    extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
     
-    mod bar {
-        use foo::regex::Regex;
-    }
-}
-</code></pre>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    // not std::mem::transmute!
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="c">// not std::mem::transmute!</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar;
-    use bar::bar_inner;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="n">bar</span><span class="p">;</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
-    fn foo() {
-        // this works!
-        bar_inner();
-        bar::bar_inner();
-        // this doesn't
-        // baz::baz_inner();
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// this works!</span>
+        <span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="c">// this doesn't</span>
+        <span class="c">// baz::baz_inner();</span>
         
-        // but these do!
-        ::baz::baz_inner();
-        super::baz::baz_inner();
+        <span class="c">// but these do!</span>
+        <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        // these do too!
-        ::bar::bar_inner();
-        super::bar::bar_inner();
-        self::bar::bar_inner();
+        <span class="c">// these do too!</span>
+        <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
-    }
-}
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub fn bar_inner() {}
-}
-pub mod baz {
-    pub fn baz_inner() {}
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bar_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">baz_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar::baz;
-    // this won't work
-    // use baz::inner();
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
+    <span class="c">// this won't work</span>
+    <span class="c">// use baz::inner();</span>
     
-    // this will
-    use self::baz::inner;
-    // or
-    // use bar::baz::inner
+    <span class="c">// this will</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
+    <span class="c">// or</span>
+    <span class="c">// use bar::baz::inner</span>
     
-    pub fn foo() {
-        // but this will work!
-        baz::inner();
-    }
-}
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// but this will work!</span>
+        <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub mod baz {
-        pub fn inner() {}
-    }
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">inner</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
@@ -233,14 +233,14 @@ still makes more sense when you include them.</p>
 <p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
 
 <ul>
-  <li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the root module (<code class="language-plaintext highlighter-rouge">lib.rs</code> or <code class="language-plaintext highlighter-rouge">main.rs</code>)
     <ul>
-      <li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
+      <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code>foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
-      <li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
+      <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
   </li>
 </ul>
@@ -248,90 +248,90 @@ still makes more sense when you include them.</p>
 <p>That’s actually … it. There are no further caveats. The rest of this is modelling what
 constitutes as “being within a module”.</p>
 
-<p>Let’s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
+<p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<pre><code class="language-rust">extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
 
-mod foo {
-    use regex::Regex;
+<span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
-    fn foo() {
-        // won't work
-        // let ex = regex::Regex::new("");
-        let ex = Regex::new("");
-    }
-}
-</code></pre>
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// won't work</span>
+        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
-pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
-the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
-<code>use regex::Regex</code> works fine inside the module.</p>
+<p>When we say <code class="language-plaintext highlighter-rouge">extern crate regex</code>, we pull in the <code class="language-plaintext highlighter-rouge">regex</code> crate into the crate root. This behaves
+pretty similar to <code class="language-plaintext highlighter-rouge">mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
+the crate into the crate root, and since all <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the crate root,
+<code class="language-plaintext highlighter-rouge">use regex::Regex</code> works fine inside the module.</p>
 
-<p>Inline in code, <code>regex::Regex</code> won’t work because as mentioned before inline paths are relative
-to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
+<p>Inline in code, <code class="language-plaintext highlighter-rouge">regex::Regex</code> won’t work because as mentioned before inline paths are relative
+to the current module. However, you can try <code class="language-plaintext highlighter-rouge">::regex::Regex::new("")</code>.</p>
 
-<p>Since we’ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
-the module directly, so the code can just say <code>Regex::new()</code>.</p>
+<p>Since we’ve imported <code class="language-plaintext highlighter-rouge">regex::Regex</code> in <code class="language-plaintext highlighter-rouge">mod foo</code>, that name is now accessible to everything inside
+the module directly, so the code can just say <code class="language-plaintext highlighter-rouge">Regex::new()</code>.</p>
 
-<p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
-<code>blah</code> “within the module”, which is basically something like a symbolic link, saying
-“yes this item named <code>blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
+<p>The way you can view this is that <code class="language-plaintext highlighter-rouge">use blah</code> and <code class="language-plaintext highlighter-rouge">extern crate blah</code> create an item named
+<code class="language-plaintext highlighter-rouge">blah</code> “within the module”, which is basically something like a symbolic link, saying
+“yes this item named <code class="language-plaintext highlighter-rouge">blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
 
 <p>The error message from this code may further drive this home:</p>
 
-<pre><code class="language-rust">use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
 
 <p>The error I get is</p>
 
-<pre><code>error: function `replace` is private
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: function `replace` is private
  --&gt; src/main.rs:3:5
   |
 3 | use foo::replace;
   |     ^^^^^^^^^^^^
-</code></pre>
+</code></pre></div></div>
 
-<p>There’s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
+<p>There’s no function named <code class="language-plaintext highlighter-rouge">replace</code> in the module <code class="language-plaintext highlighter-rouge">foo</code>! But the compiler seems to think there is?</p>
 
-<p>That’s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
+<p>That’s because <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> basically is equivalent to there being something like:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    fn replace(...) -&gt; ... {
-        ...
-    }
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">replace</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">...</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
 
-    // here we can refer to `replace` freely (in inline paths)
-    fn whatever() {
-        // ...
-        let something = replace(blah);
-        // ...
-    }
-}
-</code></pre>
+    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// ...</span>
+        <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
+        <span class="c">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>except it’s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
-are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
-a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
+<p>except it’s actually like a symlink to the function defined in <code class="language-plaintext highlighter-rouge">std::mem</code>. Because inline paths
+are relative to the current module, saying <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> works as if you had defined
+a function <code class="language-plaintext highlighter-rouge">replace</code> in the same module, and you can refer to <code class="language-plaintext highlighter-rouge">replace()</code> without needing
 any extra qualification in inline paths.</p>
 
-<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says “make this symlink, but let
+<p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<pre><code class="language-rust">// works now!
-use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    pub use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <hr />
 
@@ -339,35 +339,35 @@ pub mod foo {
 
 <p>Folks often get annoyed when this doesn’t work:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // nope
-    // use mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// nope</span>
+    <span class="c">// use mem::replace;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
-in the root module, so this won’t work. We can make it work via <code>self</code>, which I mentioned
+<p>As mentioned before, <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the root module. There is no <code class="language-plaintext highlighter-rouge">mem</code>
+in the root module, so this won’t work. We can make it work via <code class="language-plaintext highlighter-rouge">self</code>, which I mentioned
 before:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // yep!
-    use self::mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// yep!</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Note that this brings overloading of the <code>self</code> keyword up to a grand total of <em>four</em>! Two cases
+<p>Note that this brings overloading of the <code class="language-plaintext highlighter-rouge">self</code> keyword up to a grand total of <em>four</em>! Two cases
 which occur in the import/path system:</p>
 
 <ul>
-  <li><code>use self::foo</code> means “find me <code>foo</code> within the current module”</li>
-  <li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
-  <li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-  <li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
+  <li><code class="language-plaintext highlighter-rouge">use self::foo</code> means “find me <code class="language-plaintext highlighter-rouge">foo</code> within the current module”</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::{self, baz}</code> is equivalent to <code class="language-plaintext highlighter-rouge">use foo::bar; use foo::bar::baz;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+  <li><code class="language-plaintext highlighter-rouge">Self</code> within implementations lets you refer to the type being implemented on</li>
 </ul>
 
-<p>Oh well, at least it’s not <code>static</code>.</p>
+<p>Oh well, at least it’s not <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
 <hr />
 
@@ -375,38 +375,38 @@ which occur in the import/path system:</p>
 
 <p>Going back to one of the examples I gave at the beginning:</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone’s point
-of view, there’s an item called <code>mem</code> in the root.</p>
+<p>It should be clearer now why this works. The root module imports <code class="language-plaintext highlighter-rouge">mem</code>. Now, from everyone’s point
+of view, there’s an item called <code class="language-plaintext highlighter-rouge">mem</code> in the root.</p>
 
-<p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
-already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
+<p>Within <code class="language-plaintext highlighter-rouge">mod foo</code>, <code class="language-plaintext highlighter-rouge">use mem::transmute</code> works because <code class="language-plaintext highlighter-rouge">use</code> is relative to the root, and <code class="language-plaintext highlighter-rouge">mem</code>
+already exists in the root! When you <code class="language-plaintext highlighter-rouge">use</code> something, all child modules will see it as if it were
 actually belonging to the module. (Non-child modules won’t see it because of privacy, we
 saw an example of this already)</p>
 
-<p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
-of <code>foo</code> via <code>use foo::whatever</code>, since <code>foo</code> is a child of the root module, and <code>use</code> is relative
-to the root. <code>foo</code> already has an item named <code>transmute</code> inside it because it imported one.
-Nothing in the parent module is private from the child, so we can <code>use foo::transmute</code> from
-<code>bar</code>.</p>
+<p>This is why <code class="language-plaintext highlighter-rouge">use foo::transmute</code> works from <code class="language-plaintext highlighter-rouge">mod bar</code>, too. <code class="language-plaintext highlighter-rouge">bar</code> can refer to the contents
+of <code class="language-plaintext highlighter-rouge">foo</code> via <code class="language-plaintext highlighter-rouge">use foo::whatever</code>, since <code class="language-plaintext highlighter-rouge">foo</code> is a child of the root module, and <code class="language-plaintext highlighter-rouge">use</code> is relative
+to the root. <code class="language-plaintext highlighter-rouge">foo</code> already has an item named <code class="language-plaintext highlighter-rouge">transmute</code> inside it because it imported one.
+Nothing in the parent module is private from the child, so we can <code class="language-plaintext highlighter-rouge">use foo::transmute</code> from
+<code class="language-plaintext highlighter-rouge">bar</code>.</p>
 
 <p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
-or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
+or, if you do use modules, put nothing other than <code class="language-plaintext highlighter-rouge">extern crate</code>s and <code class="language-plaintext highlighter-rouge">mod</code>s in the root.
 This is why we rarely see shenanigans like the above; there’s nothing in the root crate
-to import, aside from other crates specified by <code>extern crate</code>. The trick of
+to import, aside from other crates specified by <code class="language-plaintext highlighter-rouge">extern crate</code>. The trick of
 “reimport something from the parent module” is also pretty rare because there’s basically no
 point to using that (just import it directly!). So this is not the kind of code
 you’ll see in the wild.</p>
@@ -418,12 +418,12 @@ you’ll see in the wild.</p>
 <p>Basically, the way the import system works can be summed up as:</p>
 
 <ul>
-  <li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-  <li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
-  <li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
-  <li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-  <li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-  <li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+  <li><code class="language-plaintext highlighter-rouge">extern crate</code> and <code class="language-plaintext highlighter-rouge">use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves the path relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> in an inline path (i.e. not in a <code class="language-plaintext highlighter-rouge">use</code>) will resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
 </ul>
 
 <p>Alright, on to the other half of this. Privacy.</p>
@@ -435,62 +435,62 @@ you’ll see in the wild.</p>
 <p>Privacy, too, follows some basic rules:</p>
 
 <ul>
-  <li>If you can access a module, you can access all of its <code>pub</code> contents</li>
+  <li>If you can access a module, you can access all of its <code class="language-plaintext highlighter-rouge">pub</code> contents</li>
   <li>A module can always access its child modules, but not recursively
     <ul>
       <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
     </ul>
   </li>
   <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-  <li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
+  <li><code class="language-plaintext highlighter-rouge">pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
 </ul>
 
 <p>Giving some examples,</p>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // can access `foo::foofunc`, even though `foofunc` is private
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
-        pub fn barfunc() {}
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
-    }
-    // can access `foo::bar::barfunc()`, even though `bar` is private
-    fn foofunc() {}
-}
-</code></pre>
+    <span class="p">}</span>
+    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // We can access our parent and _all_ its contents,
-        // so we have access to `foo::baz`. We can access
-        // all pub contents of modules we have access to, so we
-        // can access `foo::baz::bazfunc`
-        use foo::baz::bazfunc;
-    }
-    mod baz {
-        pub fn bazfunc() {}
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// We can access our parent and _all_ its contents,</span>
+        <span class="c">// so we have access to `foo::baz`. We can access</span>
+        <span class="c">// all pub contents of modules we have access to, so we</span>
+        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
 path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    /* not pub */ mod bar {
-        pub mod baz {
-            pub fn bazfunc() {}
-        }
-        pub mod quux {
-            use foo::bar::baz::bazfunc;
-        }
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+        <span class="p">}</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">quux</span> <span class="p">{</span>
+            <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We are able to write the path <code>foo::bar::baz::bazfunc</code> even though <code>bar</code> is private!</p>
+<p>We are able to write the path <code class="language-plaintext highlighter-rouge">foo::bar::baz::bazfunc</code> even though <code class="language-plaintext highlighter-rouge">bar</code> is private!</p>
 
-<p>This is because we still have <em>access</em> to the module <code>bar</code>, by being a descendent module.</p>
+<p>This is because we still have <em>access</em> to the module <code class="language-plaintext highlighter-rouge">bar</code>, by being a descendent module.</p>
 
 <hr />
 
@@ -505,10 +505,10 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-no
       <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>When I say “within your code”, I mean “anywhere but a <code>use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
       <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

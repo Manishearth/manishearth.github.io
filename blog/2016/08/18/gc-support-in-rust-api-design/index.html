@@ -133,24 +133,24 @@ options.</p>
 in Rust will be rarely used except for some very specific use cases like the ones listed above.</p>
 
 <p>Compiler support isn’t strictly necessary for a GC in Rust to be safe. <a href="https://github.com/Manishearth/rust-gc">rust-gc</a> manages to work
-without compiler support (except for a <code>#[derive()]</code> plugin). However, there’s a lot of manual
+without compiler support (except for a <code class="language-plaintext highlighter-rouge">#[derive()]</code> plugin). However, there’s a lot of manual
 tracking of roots involved, which has a much higher cost than compiler-backed GCs. This is
 suboptimal — we want GC support to be as efficient as possible.</p>
 
 <h2 id="design-goals">Design goals</h2>
 
-<p>We’re considering GCs designed as a <code>Gc&lt;T&gt;</code> object, which, like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>, can be explicitly
+<p>We’re considering GCs designed as a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> object, which, like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a>, can be explicitly
 wrapped around a value to move it to the GC heap. A pervasive GC (where every Rust object is GCd) is
 an explicit non-goal; if you need a GC <em>everywhere</em> a different language may make more sense. We’re
-expecting <code>Gc&lt;T&gt;</code> to be used only where needed, much like how <code>Rc&lt;T&gt;</code> is today.</p>
+expecting <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> to be used only where needed, much like how <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is today.</p>
 
-<p>We want this to work well with other Rust abstractions. Things like <code>Vec&lt;Gc&lt;T&gt;&gt;</code> should be
+<p>We want this to work well with other Rust abstractions. Things like <code class="language-plaintext highlighter-rouge">Vec&lt;Gc&lt;T&gt;&gt;</code> should be
 completely legal, for example.</p>
 
-<p>We want implementors to have total freedom in how <code>Gc&lt;T&gt;</code> is represented – <em>they</em> define the type,
+<p>We want implementors to have total freedom in how <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is represented – <em>they</em> define the type,
 not the compiler. The compiler provides traits and intrinsics which can be used to find the GC
-roots. It should be possible for implementors to provide safe APIs for <code>Gc&lt;T&gt;</code>. There will be no
-canonical <code>Gc&lt;T&gt;</code> in the stdlib.</p>
+roots. It should be possible for implementors to provide safe APIs for <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>. There will be no
+canonical <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> in the stdlib.</p>
 
 <p>We are trying to support multiple GCs in a single binary. This should be a pretty niche thing to
 need, but it strengthens the behavior of GCs as libraries (and not magical one-time things like
@@ -169,39 +169,39 @@ I’ll address in depth later in this post.</p>
 <p>The core idea is to use <a href="http://llvm.org/docs/StackMaps.html">LLVM stack maps</a> to keep track of roots.</p>
 
 <p>In a tracing GC, the concept of a “root” is basically something which can be directly reached
-without going through other GC objects. In our case they will be cases of <code>Gc&lt;T&gt;</code> ending up on the
+without going through other GC objects. In our case they will be cases of <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> ending up on the
 stack or in non-gc heap boxes which themselves are reachable from the stack. Some examples:</p>
 
-<pre><code class="language-rust">struct Foo {
-    bar: Gc&lt;Bar&gt;,
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-struct Bar {
-    inner: Gc&lt;bool&gt;,
-}
+<span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
+    <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-// `bar` is a root
-let bar = Gc::new(Bar::new());
-// `bar.inner` is not a root, since it can't be
-// accessed without going through `bar`
+<span class="c">// `bar` is a root</span>
+<span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="c">// `bar.inner` is not a root, since it can't be</span>
+<span class="c">// accessed without going through `bar`</span>
 
-// `foo.bar` is a root:
-let foo = Foo::new(); // This is a root
+<span class="c">// `foo.bar` is a root:</span>
+<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// This is a root</span>
 
 
-// `inner` is not a root, because it is a borrowed reference
-let inner = &amp;bar.inner;
+<span class="c">// `inner` is not a root, because it is a borrowed reference</span>
+<span class="k">let</span> <span class="n">inner</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bar</span><span class="py">.inner</span><span class="p">;</span>
 
-// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack
-// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a
-// new reference to the same value)
-let rooted_bool = bar.inner.clone();
+<span class="c">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
+<span class="c">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
+<span class="c">// new reference to the same value)</span>
+<span class="k">let</span> <span class="n">rooted_bool</span> <span class="o">=</span> <span class="n">bar</span><span class="py">.inner</span><span class="nf">.clone</span><span class="p">();</span>
 
-// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,
-// it can be reached without dereferencing another `Gc&lt;T&gt;`
-// or passing through a borrowed reference
-let boxed_bar = Box::new(Gc::new(Bar::new()));
-</code></pre>
+<span class="c">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
+<span class="c">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
+<span class="c">// or passing through a borrowed reference</span>
+<span class="k">let</span> <span class="n">boxed_bar</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">()));</span>
+</code></pre></div></div>
 
 <p>When figuring out which objects are live (“tracing”), we need to have this initial set of “roots”
 which contain the list of things directly reachable from the stack. From here, the GC can rifle
@@ -221,7 +221,7 @@ has native support for this. The stack map is stored in a separate section so th
 performance hit during regular execution, however some optimizations may be inhibited by turning on
 GC.</p>
 
-<p>So basically a GC will have access to a <code>walk_roots&lt;F&gt;(f: F) where F: FnMut(..)</code> intrinsic that will
+<p>So basically a GC will have access to a <code class="language-plaintext highlighter-rouge">walk_roots&lt;F&gt;(f: F) where F: FnMut(..)</code> intrinsic that will
 yield all the roots to the provided function (which can then mark them as such and start tracing).</p>
 
 <p>I’m not going to focus on the implementation of this intrinsic for this blog post — this might
@@ -235,33 +235,33 @@ be the subject of a later blog post by <a href="http://github.com/pnkfelix/">Fel
 know how to distinguish between a root and a non-root. We can’t mark <em>every</em> variable as a root;
 that would bloat the stack maps and make walking the roots a very expensive operation.</p>
 
-<p>A very simple way of doing this is via a trait, <code>Root</code>.</p>
+<p>A very simple way of doing this is via a trait, <code class="language-plaintext highlighter-rouge">Root</code>.</p>
 
-<pre><code class="language-rust">// in libcore
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
 
-unsafe trait Root {}
+<span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Root</span> <span class="p">{}</span>
 
-// auto-trait, anything containing
-// a Root will itself be Root
-unsafe impl !Root for .. {}
+<span class="c">// auto-trait, anything containing</span>
+<span class="c">// a Root will itself be Root</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">..</span> <span class="p">{}</span>
 
-// references are never roots
-unsafe impl&lt;'a, T&gt; !Root for &amp;'a T {}
+<span class="c">// references are never roots</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">T</span> <span class="p">{}</span>
 
 
-// in a gc impl
+<span class="c">// in a gc impl</span>
 
-struct Gc&lt;T&gt; {
-    // ..
-}
+<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="c">// ..</span>
+<span class="p">}</span>
 
-unsafe impl&lt;T&gt; Root for Gc&lt;T&gt; {}
-</code></pre>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+</code></pre></div></div>
 
-<p>if we detect <code>Root</code> objects that are directly reachable, we consider them to be roots.</p>
+<p>if we detect <code class="language-plaintext highlighter-rouge">Root</code> objects that are directly reachable, we consider them to be roots.</p>
 
 <p>This has a flaw, it doesn’t actually tell us how to find roots inside container types. What would we
-do if there was a <code>Box&lt;Gc&lt;T&gt;&gt;</code> or a <code>Vec&lt;Gc&lt;T&gt;&gt;</code> on the stack? We can stick their entry in the stack
+do if there was a <code class="language-plaintext highlighter-rouge">Box&lt;Gc&lt;T&gt;&gt;</code> or a <code class="language-plaintext highlighter-rouge">Vec&lt;Gc&lt;T&gt;&gt;</code> on the stack? We can stick their entry in the stack
 map, but the GC needs to know what to do with them!</p>
 
 <p>We could store some type information in the map and let the GC hardcode how to root each container
@@ -270,106 +270,106 @@ crates too. Additionally, we have to solve this problem anyway for tracing — w
 need to be able to find all values “contained” within a particular value, which is the same
 operation we need to do to find roots.</p>
 
-<p>For this purpose, we introduce the <code>Trace</code> trait:</p>
+<p>For this purpose, we introduce the <code class="language-plaintext highlighter-rouge">Trace</code> trait:</p>
 
-<pre><code class="language-rust">// in libcore
-unsafe trait Trace {
-    fn trace(&amp;self);
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
+<span class="p">}</span>
 
-// in libcollections
-// (or any third-party collections library)
-unsafe impl&lt;T: Trace&gt; Trace for Vec&lt;T&gt; {
-    fn trace(&amp;self) {
-        for i in self {
-            i.trace()
-        }
-    }
-}
+<span class="c">// in libcollections</span>
+<span class="c">// (or any third-party collections library)</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+            <span class="n">i</span><span class="nf">.trace</span><span class="p">()</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-// in gc library
+<span class="c">// in gc library</span>
 
-// only allow trace objects
-struct Gc&lt;T: Trace&gt; {
-    // ..
-}
+<span class="c">// only allow trace objects</span>
+<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="c">// ..</span>
+<span class="p">}</span>
 
-unsafe impl&lt;T&gt; Trace for Gc&lt;T&gt; {
-    fn trace(&amp;self) {
-        // mark `self`
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c">// mark `self`</span>
 
-        // Don't actually trace contained fields,
-        // because there may be cycles and we'd recurse infinitely
-    }
-}
+        <span class="c">// Don't actually trace contained fields,</span>
+        <span class="c">// because there may be cycles and we'd recurse infinitely</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-// in consumer of gc library
+<span class="c">// in consumer of gc library</span>
 
-// autoderived impl will call `bar.trace()` and `baz.trace()`
-#[derive(Trace)]
-struct Foo {
-    bar: Gc&lt;Bar&gt;,
-    baz: SomeType,
-}
-</code></pre>
+<span class="c">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
+<span class="nd">#[derive(Trace)]</span>
+<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="n">SomeType</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(These traits are unsafe to implement because an incorrect implementation can lead to a
 reachable value getting cleaned up by the GC, which is unsafe)</p>
 
 <p>Basically, an implementation of Trace will yield all values owned by the object, unless that object
-is a GC struct like <code>Gc&lt;T&gt;</code>, in which case the GC implementor will have it mark the object. This
-way, calling <code>.trace()</code> will walk all fields and subfields of an object recursively, until it finds
-all of the contained <code>Gc&lt;T&gt;</code>s.</p>
+is a GC struct like <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, in which case the GC implementor will have it mark the object. This
+way, calling <code class="language-plaintext highlighter-rouge">.trace()</code> will walk all fields and subfields of an object recursively, until it finds
+all of the contained <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s.</p>
 
 <p>This has an issue with multiple GCs, though — we don’t want the GCs to interact unless they
-want to, and with the <code>Trace</code> trait being shared one GC object may accidentally contain a different
+want to, and with the <code class="language-plaintext highlighter-rouge">Trace</code> trait being shared one GC object may accidentally contain a different
 GC object.</p>
 
 <p>We need to introduce the concept of a tracer here.</p>
 
-<pre><code class="language-rust">// in libcore
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
 
-trait Tracer : Any {}
+<span class="k">trait</span> <span class="n">Tracer</span> <span class="p">:</span> <span class="n">Any</span> <span class="p">{}</span>
 
-unsafe trait Trace {
-    fn trace(&amp;self, tracer: &amp;mut Tracer);
-}
-
-
-// in libcollections
-
-// impl doesn't care about the tracer
-unsafe impl&lt;T: Trace&gt; Trace for Vec&lt;T&gt; {
-    fn trace(&amp;self, tracer: &amp;mut Tracer) {
-        for i in self {
-            i.trace(tracer)
-        }
-    }
-}
-
-// in gc library
-
-struct MyTracer {} // more complicated tracers may have state
-impl Tracer for MyTracer {}
+<span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">);</span>
+<span class="p">}</span>
 
 
-struct Gc&lt;T: Trace&gt; {
-    // ..
-}
+<span class="c">// in libcollections</span>
 
-unsafe impl&lt;T&gt; Trace for Gc&lt;T&gt; {
-    fn trace(&amp;self, tracer: &amp;mut Tracer) {
-        if let Some(tracer) = tracer.downcast_mut::&lt;MyTracer&gt;() {
-            // mark self
-        } else {
-            panic("Don't mix GCs!");
-            // If you want to support multiple GCs interacting with each other,
-            // you can let this else block trace the contents.
-            // Beware, interacting GCs have subtle safety issues.
-        }
-    }
-}
-</code></pre>
+<span class="c">// impl doesn't care about the tracer</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+            <span class="n">i</span><span class="nf">.trace</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// in gc library</span>
+
+<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c">// more complicated tracers may have state</span>
+<span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
+
+
+<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="c">// ..</span>
+<span class="p">}</span>
+
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="py">.downcast_mut</span><span class="p">::</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
+            <span class="c">// mark self</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="nf">panic</span><span class="p">(</span><span class="s">"Don't mix GCs!"</span><span class="p">);</span>
+            <span class="c">// If you want to support multiple GCs interacting with each other,</span>
+            <span class="c">// you can let this else block trace the contents.</span>
+            <span class="c">// Beware, interacting GCs have subtle safety issues.</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This also makes it easier to distinguish between rooting and tracing operations. While the
 operations are similar (“to root/trace a value, walk its fields recursively till you find all of the
@@ -379,20 +379,20 @@ is currently walking roots or tracing, but with the `Tracer` trait object we can
 different tracer values.</T></T></p>
 
 <p>We’re not yet sure if we should be lumping root walking and tracing in a single trait; so we might
-end up with a second <code>Scan</code> trait that works similarly.</p>
+end up with a second <code class="language-plaintext highlighter-rouge">Scan</code> trait that works similarly.</p>
 
-<p>Note that we’re not getting rid of the Root trait here. This is because <code>Root</code> and <code>Trace</code> have
-slightly incompatible purposes – <code>Root</code> signals to the compiler if something definitely contains
-roots, whereas <code>Trace</code> marks things which are safe to put inside a GC. <code>bool</code> is <code>Trace</code>, but not
-<code>Root</code>. <code>Vec&lt;Gc&lt;T&gt;&gt;</code> is <code>Trace</code> and <code>Root</code>, <code>Vec&lt;bool&gt;</code> is <code>Trace</code> but not <code>Root</code>. <code>&amp;T</code> and <code>&amp;mut T</code>
-are neither. <code>Trace</code> will actually show up in trait bounds for GC code. <code>Root</code> will only be analysed
-by the compiler itself, bounds like <code>R: Root</code> probably won’t show up.</p>
+<p>Note that we’re not getting rid of the Root trait here. This is because <code class="language-plaintext highlighter-rouge">Root</code> and <code class="language-plaintext highlighter-rouge">Trace</code> have
+slightly incompatible purposes – <code class="language-plaintext highlighter-rouge">Root</code> signals to the compiler if something definitely contains
+roots, whereas <code class="language-plaintext highlighter-rouge">Trace</code> marks things which are safe to put inside a GC. <code class="language-plaintext highlighter-rouge">bool</code> is <code class="language-plaintext highlighter-rouge">Trace</code>, but not
+<code class="language-plaintext highlighter-rouge">Root</code>. <code class="language-plaintext highlighter-rouge">Vec&lt;Gc&lt;T&gt;&gt;</code> is <code class="language-plaintext highlighter-rouge">Trace</code> and <code class="language-plaintext highlighter-rouge">Root</code>, <code class="language-plaintext highlighter-rouge">Vec&lt;bool&gt;</code> is <code class="language-plaintext highlighter-rouge">Trace</code> but not <code class="language-plaintext highlighter-rouge">Root</code>. <code class="language-plaintext highlighter-rouge">&amp;T</code> and <code class="language-plaintext highlighter-rouge">&amp;mut T</code>
+are neither. <code class="language-plaintext highlighter-rouge">Trace</code> will actually show up in trait bounds for GC code. <code class="language-plaintext highlighter-rouge">Root</code> will only be analysed
+by the compiler itself, bounds like <code class="language-plaintext highlighter-rouge">R: Root</code> probably won’t show up.</p>
 
-<p>There should not be any types which are <code>Root</code> but not <code>Trace</code>, because this means the compiler
+<p>There should not be any types which are <code class="language-plaintext highlighter-rouge">Root</code> but not <code class="language-plaintext highlighter-rouge">Trace</code>, because this means the compiler
 won’t know what to do with them!</p>
 
-<p>Now, when generating the stack map, we include the stack offset of all <code>Root</code> objects in scope, as
-well as appropriate dynamic dispatch vtable pointers for the <code>Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Walking the
+<p>Now, when generating the stack map, we include the stack offset of all <code class="language-plaintext highlighter-rouge">Root</code> objects in scope, as
+well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Walking the
 stack involves calling the trace method on each entry in the stack map for each call site.</p>
 
 <h2 id="unresolved-problems">Unresolved problems</h2>
@@ -404,8 +404,8 @@ stack involves calling the trace method on each entry in the stack map for each 
 <p>Trait objects provide an interesting challenge. They may or may not contain roots, but what’s more
 important is that trait objects in libraries that know nothing about GC may also contain roots.</p>
 
-<p>For example, if a library is dealing with a <code>Box&lt;SomeTrait&gt;</code>, and your code feeds it a
-<code>Box&lt;SomeRoot as SomeTrait&gt;</code>, the trait object is now a root. If a gc is triggered while in
+<p>For example, if a library is dealing with a <code class="language-plaintext highlighter-rouge">Box&lt;SomeTrait&gt;</code>, and your code feeds it a
+<code class="language-plaintext highlighter-rouge">Box&lt;SomeRoot as SomeTrait&gt;</code>, the trait object is now a root. If a gc is triggered while in
 this call (perhaps by a callback), then this trait object should be counted as a root.</p>
 
 <p>But this library didn’t depend on the GC, and when it was compiled, it wasn’t compiled with stack
@@ -414,66 +414,66 @@ map entries for this GC object.</p>
 <p>There are two solutions here. The first is to recompile everything (including libstd) from scratch
 with GC support on, and put all owned trait objects in the stack maps. They will have an extra
 generated trace entry in the vtable that will ignore the object if it isn’t a root. To put trait
-objects inside <code>Gc&lt;T&gt;</code>, you will have to explicitly use <code>Box&lt;Trait+Trace&gt;</code>, however – this magical
+objects inside <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, you will have to explicitly use <code class="language-plaintext highlighter-rouge">Box&lt;Trait+Trace&gt;</code>, however – this magical
 trace entry is just for collecting roots.</p>
 
-<p>The second solution is to simply not allow casting <code>Root</code> objects to owned trait objects. I feel
+<p>The second solution is to simply not allow casting <code class="language-plaintext highlighter-rouge">Root</code> objects to owned trait objects. I feel
 that there are use cases for both – the former has extra bloat and requires a custom libstd (which
 could be distributed via rustup if necessary), but the latter restricts how you use trait objects.
 Servo, for example, would probably prefer the latter since we don’t put our DOM objects in owned
 trait objects. But other GC users may want maximum flexibility. Letting people choose this via a
 codegen flag (which can be controlled via cargo) might be a good idea.</p>
 
-<h3 id="should-it-be-tracet">Should it be <code>Trace&lt;T&gt;</code>?</h3>
+<h3 id="should-it-be-tracet">Should it be <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code>?</h3>
 
-<p>There is a dynamic dispatch cost on rooting/tracing any <code>Gc&lt;T&gt;</code> leaf with the tracer model.</p>
+<p>There is a dynamic dispatch cost on rooting/tracing any <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> leaf with the tracer model.</p>
 
 <p>This can be obviated by having it be:</p>
 
-<pre><code class="language-rust">trait Trace&lt;T: Tracer&gt; {
-    fn trace(&amp;self, tracer: &amp;mut T)
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Tracer</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Most types would implement <code>Trace&lt;T&gt;</code>, and GCs can implement <code>Trace&lt;SpecificTracer&gt;</code>,
-and only require their contents to be <code>Trace&lt;SpecificTracer&gt;</code>. This lets the type system
+<p>Most types would implement <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code>, and GCs can implement <code class="language-plaintext highlighter-rouge">Trace&lt;SpecificTracer&gt;</code>,
+and only require their contents to be <code class="language-plaintext highlighter-rouge">Trace&lt;SpecificTracer&gt;</code>. This lets the type system
 forbid interacting GCs instead of having it done at runtime.</p>
 
 <p>This has multiple downsides, however:</p>
 
 <ul>
-  <li><code>#[derive(Trace)]</code> becomes <code>#[derive(Trace&lt;MyTracer&gt;)]</code> for things containing <code>Gc&lt;T&gt;</code> (because <code>Gc&lt;T&gt;</code> is not <code>Trace&lt;T&gt;</code> for all <code>T</code>, and macro expansion runs before this information can be computed).</li>
-  <li>If there are multiple GCs, there are multiple <code>Trace&lt;T&gt;</code> vtable pointers in the stack map. Not all libs know about the other GC when being compiled, so you need to defer generation of these stack map entries somehow.</li>
-  <li>The heuristics for forbidding types which are <code>Root</code> but not <code>Trace&lt;T&gt;</code> become subtler. You have to effectively forbid types which are <code>Root</code> but do not have an impl of <code>Trace&lt;T&gt;</code> for at least one tracer <code>T</code> that is active in the compilation.</li>
+  <li><code class="language-plaintext highlighter-rouge">#[derive(Trace)]</code> becomes <code class="language-plaintext highlighter-rouge">#[derive(Trace&lt;MyTracer&gt;)]</code> for things containing <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> (because <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is not <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code> for all <code class="language-plaintext highlighter-rouge">T</code>, and macro expansion runs before this information can be computed).</li>
+  <li>If there are multiple GCs, there are multiple <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code> vtable pointers in the stack map. Not all libs know about the other GC when being compiled, so you need to defer generation of these stack map entries somehow.</li>
+  <li>The heuristics for forbidding types which are <code class="language-plaintext highlighter-rouge">Root</code> but not <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code> become subtler. You have to effectively forbid types which are <code class="language-plaintext highlighter-rouge">Root</code> but do not have an impl of <code class="language-plaintext highlighter-rouge">Trace&lt;T&gt;</code> for at least one tracer <code class="language-plaintext highlighter-rouge">T</code> that is active in the compilation.</li>
 </ul>
 
-<h3 id="non-trace-collections-on-the-stack">Non-<code>Trace</code> collections on the stack</h3>
+<h3 id="non-trace-collections-on-the-stack">Non-<code class="language-plaintext highlighter-rouge">Trace</code> collections on the stack</h3>
 
 <p>If something like the following, defined by a third-party library:</p>
 
-<pre><code class="language-rust">struct Foo&lt;T&gt; {
-    x: T,
-    // ...
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>doesn’t implement <code>Trace</code>, it’s still okay to use <code>Foo&lt;RootedThing&gt;</code> on the stack, because we can
-figure out that the inner <code>T</code> is what we need to root.</p>
+<p>doesn’t implement <code class="language-plaintext highlighter-rouge">Trace</code>, it’s still okay to use <code class="language-plaintext highlighter-rouge">Foo&lt;RootedThing&gt;</code> on the stack, because we can
+figure out that the inner <code class="language-plaintext highlighter-rouge">T</code> is what we need to root.</p>
 
-<p>However, if a third-party <code>MyVec&lt;T&gt;</code> (which behaves like a vector) contains <code>RootedThing</code>s, and is
-on the stack, the compiler doesn’t know what do do with it. Lack of a <code>Trace</code> bound makes it
+<p>However, if a third-party <code class="language-plaintext highlighter-rouge">MyVec&lt;T&gt;</code> (which behaves like a vector) contains <code class="language-plaintext highlighter-rouge">RootedThing</code>s, and is
+on the stack, the compiler doesn’t know what do do with it. Lack of a <code class="language-plaintext highlighter-rouge">Trace</code> bound makes it
 impossible to put such types on the GC heap, but there’s no restriction on putting these types on
-the stack. As I mentioned before, we can simply forbid the existence of types which are <code>Root</code> but
-not <code>Trace</code> (<code>MyVec&lt;RootedThing&gt;</code> is <code>Root</code>). This is already done with <code>Copy</code> and <code>Drop</code>.</p>
+the stack. As I mentioned before, we can simply forbid the existence of types which are <code class="language-plaintext highlighter-rouge">Root</code> but
+not <code class="language-plaintext highlighter-rouge">Trace</code> (<code class="language-plaintext highlighter-rouge">MyVec&lt;RootedThing&gt;</code> is <code class="language-plaintext highlighter-rouge">Root</code>). This is already done with <code class="language-plaintext highlighter-rouge">Copy</code> and <code class="language-plaintext highlighter-rouge">Drop</code>.</p>
 
-<p>There’s a subtle difference between this and the <code>Copy</code>/<code>Drop</code> forbidding. <code>Copy</code> and <code>Drop</code> are
-always explicitly implemented. On the other hand, <code>Root</code> is an auto trait and automatically
+<p>There’s a subtle difference between this and the <code class="language-plaintext highlighter-rouge">Copy</code>/<code class="language-plaintext highlighter-rouge">Drop</code> forbidding. <code class="language-plaintext highlighter-rouge">Copy</code> and <code class="language-plaintext highlighter-rouge">Drop</code> are
+always explicitly implemented. On the other hand, <code class="language-plaintext highlighter-rouge">Root</code> is an auto trait and automatically
 implements itself on types containing roots. This means that we can’t necessarily forbid such types
 being created at impl time — third party collections like above for example won’t contain
-<code>Root</code> types until they are monomorphised. We can error during monomorphization, but this error
+<code class="language-plaintext highlighter-rouge">Root</code> types until they are monomorphised. We can error during monomorphization, but this error
 might not be very user-friendly, like template errors in C++.</p>
 
-<p>Another solution is to make <code>Root</code> into <code>?Root</code>, much like <code>?Sized</code>. This means that the writers of
+<p>Another solution is to make <code class="language-plaintext highlighter-rouge">Root</code> into <code class="language-plaintext highlighter-rouge">?Root</code>, much like <code class="language-plaintext highlighter-rouge">?Sized</code>. This means that the writers of
 collections will explicitly opt in to allowing GCd things inside them. This probably would lead to a
 lot more churn, however. But the diagnostics would be clearer.</p>
 
@@ -487,69 +487,69 @@ this behavior can be changed.
 <p>It becomes more complicated with Trace<T> though.
 Having `Root<T>` might fix this, but then you have to deal with the auto trait generics.</T></T></p>
 
-<p>One solution for the auto trait generics is to simple not include <code>Root</code> in the stdlib. Instead,
+<p>One solution for the auto trait generics is to simple not include <code class="language-plaintext highlighter-rouge">Root</code> in the stdlib. Instead,
 require code like the following:</p>
 
-<pre><code class="language-rust">// in gc library
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in gc library</span>
 
-struct MyTracer {/* .. */}
+<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
 
-struct Gc&lt;T: Trace&lt;MyTracer&gt;&gt; {
-    // ...
-}
+<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
 
-#[gc_root_trait]
-unsafe trait MyRoot: Trace&lt;MyTracer&gt; {}
+<span class="nd">#[gc_root_trait]</span>
+<span class="k">unsafe</span> <span class="k">trait</span> <span class="n">MyRoot</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span> <span class="p">{}</span>
 
-unsafe impl !MyRoot for .. {}
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">MyRoot</span> <span class="k">for</span> <span class="o">..</span> <span class="p">{}</span>
 
-unsafe impl&lt;T: Trace&lt;MyTracer&gt;&gt; MyRoot for Gc&lt;T&gt; {}
-</code></pre>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="n">MyRoot</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+</code></pre></div></div>
 
 <p>This can be further simplified by completely removing the rooting trait requirement and instead
-require <code>#[gc(tracer=MyTracer)]</code> on all GC structs. This, however, is a bit more special and we lose
+require <code class="language-plaintext highlighter-rouge">#[gc(tracer=MyTracer)]</code> on all GC structs. This, however, is a bit more special and we lose
 the free diagnostics that you get from utilizing the type system.</p>
 
-<h3 id="are-root-containing-raw-pointers-root">Are <code>Root</code>-containing raw pointers <code>Root</code>?</h3>
+<h3 id="are-root-containing-raw-pointers-root">Are <code class="language-plaintext highlighter-rouge">Root</code>-containing raw pointers <code class="language-plaintext highlighter-rouge">Root</code>?</h3>
 
-<p>For the auto-trait to work, types like <code>Vec&lt;ContainsRoot&gt;</code> should also be marked as <code>Root</code>.</p>
+<p>For the auto-trait to work, types like <code class="language-plaintext highlighter-rouge">Vec&lt;ContainsRoot&gt;</code> should also be marked as <code class="language-plaintext highlighter-rouge">Root</code>.</p>
 
-<p>This can be done by just marking <code>*const T</code> and <code>*mut T</code> as <code>Root</code> if <code>T</code> is <code>Root</code> using an impl in
-libcore. However, borrowed types like <code>Iter</code> will also be dragged into this. We only want types
-which <em>own</em> <code>Root</code> things to be considered roots.</p>
+<p>This can be done by just marking <code class="language-plaintext highlighter-rouge">*const T</code> and <code class="language-plaintext highlighter-rouge">*mut T</code> as <code class="language-plaintext highlighter-rouge">Root</code> if <code class="language-plaintext highlighter-rouge">T</code> is <code class="language-plaintext highlighter-rouge">Root</code> using an impl in
+libcore. However, borrowed types like <code class="language-plaintext highlighter-rouge">Iter</code> will also be dragged into this. We only want types
+which <em>own</em> <code class="language-plaintext highlighter-rouge">Root</code> things to be considered roots.</p>
 
-<p>The alternative is to not require this, and solely rely on <a href="https://doc.rust-lang.org/stable/nomicon/phantom-data.html"><code>PhantomData</code></a>. <code>Vec&lt;T&gt;</code> also
-contains a <code>PhantomData&lt;T&gt;</code>, which gives the compiler a hint that it owns a <code>T</code>. On the other hand,
-<code>Iter&lt;'a, T&gt;</code> contains a <code>PhantomData&lt;&amp;'a T&gt;</code>, which hints that it borrows a <code>T</code>. This is already
+<p>The alternative is to not require this, and solely rely on <a href="https://doc.rust-lang.org/stable/nomicon/phantom-data.html"><code class="language-plaintext highlighter-rouge">PhantomData</code></a>. <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> also
+contains a <code class="language-plaintext highlighter-rouge">PhantomData&lt;T&gt;</code>, which gives the compiler a hint that it owns a <code class="language-plaintext highlighter-rouge">T</code>. On the other hand,
+<code class="language-plaintext highlighter-rouge">Iter&lt;'a, T&gt;</code> contains a <code class="language-plaintext highlighter-rouge">PhantomData&lt;&amp;'a T&gt;</code>, which hints that it borrows a <code class="language-plaintext highlighter-rouge">T</code>. This is already
 used by the compiler to determine drop soundness, so we can just use the same thing to determine
-<code>Root</code> types. This is already supported by the autotrait infrastructure.</p>
+<code class="language-plaintext highlighter-rouge">Root</code> types. This is already supported by the autotrait infrastructure.</p>
 
 <p>A downside here is that we’re relying more on producers of unsafe code remembering to use
-<code>PhantomData</code>. I’m not 100% certain about this, but triggering dropck unsoundness by neglecting
-<code>PhantomData</code> is still pretty hard (and often requires types like arenas), whereas forgetting a root
+<code class="language-plaintext highlighter-rouge">PhantomData</code>. I’m not 100% certain about this, but triggering dropck unsoundness by neglecting
+<code class="language-plaintext highlighter-rouge">PhantomData</code> is still pretty hard (and often requires types like arenas), whereas forgetting a root
 can very easily cause a GC segfault. I do not consider this to be a major downside.</p>
 
 <h3 id="finalizers-and-drop">Finalizers and Drop</h3>
 
 <p>The following code is unsafe:</p>
 
-<pre><code class="language-rust">struct Foo {
-    bar: Gc&lt;Bar&gt;,
-    baz: Gc&lt;Baz&gt; // baz can contain a Bar
-}
-impl Drop for Foo {
-    fn drop(&amp;mut self) {
-        println!("{:?}", *bar);
-        // or
-        *self.baz.bar.borrow_mut() = bar.clone();
-    }
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c">// baz can contain a Bar</span>
+<span class="p">}</span>
+<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="n">bar</span><span class="p">);</span>
+        <span class="c">// or</span>
+        <span class="o">*</span><span class="k">self</span><span class="py">.baz.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">bar</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-// Foo itself is used as a `Gc&lt;Foo&gt;`
-</code></pre>
+<span class="c">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
+</code></pre></div></div>
 
-<p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code>bar</code>
-may have already been collected when <code>Foo</code>’s destructor runs. While in many cases this can be solved
+<p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code class="language-plaintext highlighter-rouge">bar</code>
+may have already been collected when <code class="language-plaintext highlighter-rouge">Foo</code>’s destructor runs. While in many cases this can be solved
 with a smart collection alrogithm, in the case where there’s a cycle being collected there’s nowhere
 safe to start.</p>
 
@@ -560,41 +560,41 @@ collected variable.</p>
 dereferences too, and this will incur a cost on all GCd types – they stop being simple pointer
 accesses. This solution places the burden on the GC implementor, instead of the compiler.</p>
 
-<p>We have enough information in the type system to solve this – we can forbid <code>Drop</code> impls on types
-which are explicitly <code>Root</code>. But it turns out that this isn’t enough. Consider:</p>
+<p>We have enough information in the type system to solve this – we can forbid <code class="language-plaintext highlighter-rouge">Drop</code> impls on types
+which are explicitly <code class="language-plaintext highlighter-rouge">Root</code>. But it turns out that this isn’t enough. Consider:</p>
 
-<pre><code class="language-rust">trait MyTrait {
-    fn do_the_thing(&amp;self);
-}
-struct HijackableType&lt;T: MyTrait&gt; {
-    x: T,
-} 
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">MyTrait</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">struct</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">MyTrait</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+<span class="p">}</span> 
 
-impl&lt;T&gt; Drop for HijackableType&lt;T&gt; {
-    fn drop(&amp;mut self) {
-        self.x.do_the_thing();
-    }
-}
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.x</span><span class="nf">.do_the_thing</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-// in other library
+<span class="c">// in other library</span>
 
-struct Bar {
-    inner: Gc&lt;Baz&gt;
-}
+<span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
+    <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
+<span class="p">}</span>
 
-impl MyTrait for Bar {
-    fn do_the_thing(&amp;self) {
-        println!("{:?}", *self.inner)
-    }
-}
-</code></pre>
+<span class="k">impl</span> <span class="n">MyTrait</span> <span class="k">for</span> <span class="n">Bar</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">do_the_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="k">self</span><span class="py">.inner</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p><code>Foo&lt;Bar&gt;</code> now has an unsafe destructor. Stopping this behavior requres forbidding Drop impls on
+<p><code class="language-plaintext highlighter-rouge">Foo&lt;Bar&gt;</code> now has an unsafe destructor. Stopping this behavior requres forbidding Drop impls on
 structs with trait bounds, but that is too restrictive.</p>
 
-<p>This may end up having a similar solution to the “all roots must be <code>Trace</code>” issue. Warning on
-monomorphizations isn’t enough, we need to be able to allow <code>Vec&lt;ContainsRoot&gt;</code>, but not
-<code>HijackableType&lt;ContainsRoot&gt;</code>. Making this distinction without poisoning half the generics out
+<p>This may end up having a similar solution to the “all roots must be <code class="language-plaintext highlighter-rouge">Trace</code>” issue. Warning on
+monomorphizations isn’t enough, we need to be able to allow <code class="language-plaintext highlighter-rouge">Vec&lt;ContainsRoot&gt;</code>, but not
+<code class="language-plaintext highlighter-rouge">HijackableType&lt;ContainsRoot&gt;</code>. Making this distinction without poisoning half the generics out
 there is tricky.</p>
 
 <p>The notion of a hijackable type is actually already important for sound generic drop impls, see

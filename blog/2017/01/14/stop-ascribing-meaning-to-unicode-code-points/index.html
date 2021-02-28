@@ -139,9 +139,9 @@ in ISCII (or a hypothetical unicode-based encoding that swapped the Devanagri Un
 the ASCII block). It also uses more space over the very non-hypothetical UTF-16 encoding if you
 tend to use code points in the U+0800 - U+FFFF range. It always uses less space than UTF-32 however.</p>
 
-<p>A commonly touted disadvantage of UTF-8 is that string indexing is <code>O(n)</code>. Because code points take
+<p>A commonly touted disadvantage of UTF-8 is that string indexing is <code class="language-plaintext highlighter-rouge">O(n)</code>. Because code points take
 up a variable number of bytes, you won’t know where the 5th codepoint is until you scan the string
-and look for it. UTF-32 doesn’t have this problem; it’s always <code>4 * index</code> bytes away.</p>
+and look for it. UTF-32 doesn’t have this problem; it’s always <code class="language-plaintext highlighter-rouge">4 * index</code> bytes away.</p>
 
 <p>The problem here is that indexing by code point shouldn’t be an operation you ever need!</p>
 
@@ -157,11 +157,11 @@ do arbitrary code point indexing.</p>
 code points have no intrinsic meaning. They are not “characters”. I’m using scare quotes here
 because a “character” isn’t a well-defined concept either, but we’ll get to that later.</p>
 
-<p>For example, “é” is two code points (<code>e</code> +<code> ́</code>), where one of them is a combining accent. My name,
-“मनीष”, visually looks like three “characters”, but is four code points. The “नी” is made up of <code>न</code></p>
+<p>For example, “é” is two code points (<code class="language-plaintext highlighter-rouge">e</code> +<code class="language-plaintext highlighter-rouge"> ́</code>), where one of them is a combining accent. My name,
+“मनीष”, visually looks like three “characters”, but is four code points. The “नी” is made up of <code class="language-plaintext highlighter-rouge">न</code></p>
 <ul>
-  <li><code>ी</code>. My last name contains a “character” made up of three code points (and multiple two-code-point
-“characters”). The flag emoji “🇺🇸” is also made of two code points, <code>🇺</code> + <code>🇸</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">ी</code>. My last name contains a “character” made up of three code points (and multiple two-code-point
+“characters”). The flag emoji “🇺🇸” is also made of two code points, <code class="language-plaintext highlighter-rouge">🇺</code> + <code class="language-plaintext highlighter-rouge">🇸</code>.</li>
 </ul>
 
 <p>One false assumption that’s often made is that code points are a single column wide. They’re not.
@@ -183,7 +183,7 @@ constructs multi-codepoint characters, backspace decomposes it piece by piece. I
 multi-codepoint “character” <em>can</em> be logically decomposed (e.g. “letter + accent”), backspace will
 decompose it, by removing the accent or whatever. But some multi-codepoint characters are not
 “constructions” of general concepts that should be exposed to the user. For example, a user should
-never need to know that the “🇺🇸” flag emoji is made of <code>🇺</code> + <code>🇸</code>, and hitting backspace on it should
+never need to know that the “🇺🇸” flag emoji is made of <code class="language-plaintext highlighter-rouge">🇺</code> + <code class="language-plaintext highlighter-rouge">🇸</code>, and hitting backspace on it should
 delete both codepoints. Similarly, variation selectors and other such code points shouldn’t
 be treated as their own unit when backspacing.</p>
 
@@ -275,13 +275,13 @@ of the misconception that characters are one byte long.</p>
 <p>There are only two languages I know of which handle this well: Swift and Perl 6. I don’t know much
 about Perl 6’s thing so I can’t really comment on it, but I am really happy with what Swift does:</p>
 
-<p>In Swift, the <code>Character</code> type is an extended grapheme cluster. This does mean that a
+<p>In Swift, the <code class="language-plaintext highlighter-rouge">Character</code> type is an extended grapheme cluster. This does mean that a
 character itself is basically a string, since EGCs can be arbitrarily many code points long.</p>
 
 <p>All the APIs by default deal with EGCs. The length of a string is the number of EGCs in it. They
 are indexed by EGC. Iteration yields EGCs. The default comparison algorithm uses unicode
 canonical equivalence, which I think is kind of neat. Of course, APIs that work with code
-points are exposed too, you can iterate over the code points using <code>.unicodeScalars</code>.</p>
+points are exposed too, you can iterate over the code points using <code class="language-plaintext highlighter-rouge">.unicodeScalars</code>.</p>
 
 <p>The internal encoding itself is … weird (and as far as I can tell not publicly exposed), but as a
 higher level language I think it’s fine to do things like that.</p>
@@ -292,18 +292,18 @@ grapheme clusters.</p>
 <p>Rust, for example, gets a lot of things right – it has UTF-8 strings. It internally uses byte
 indices in slices. Explicit slicing usually uses byte indices too, and will panic if out of bounds.
 The non-O(1) methods are all explicit, since you will use an iterator to perform the operation (E.g.
-<code>.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
-to coalesce the cost with nearby iterations – if you are going to do multiple <code>O(n)</code> things, do
-them in a single iteration! Rust <code>char</code>s represent code points. <code>.char_indices()</code> is
+<code class="language-plaintext highlighter-rouge">.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
+to coalesce the cost with nearby iterations – if you are going to do multiple <code class="language-plaintext highlighter-rouge">O(n)</code> things, do
+them in a single iteration! Rust <code class="language-plaintext highlighter-rouge">char</code>s represent code points. <code class="language-plaintext highlighter-rouge">.char_indices()</code> is
 a useful string iteration method that bridges the gap between byte indexing and code points.</p>
 
 <p>However, while the documentation does mention grapheme clusters, the stdlib is not aware of the
 concept of grapheme clusters at all. The default “fundamental” unit of the string in Rust is
 a code point, and the operations revolve around that. If you want grapheme clusters, you
-may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code>unicode-segmentation</code></a></p>
+may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code class="language-plaintext highlighter-rouge">unicode-segmentation</code></a></p>
 
 <p>Now, Rust is a systems programming language and it just wouldn’t do to have expensive grapheme
-segmentation operations all over your string defaults. I’m very happy that the expensive <code>O(n)</code>
+segmentation operations all over your string defaults. I’m very happy that the expensive <code class="language-plaintext highlighter-rouge">O(n)</code>
 operations are all only possible with explicit acknowledgement of the cost. So I do think that going
 the Swift route would be counterproductive for Rust. Not that it <em>can</em> anyway, due to backwards
 compatibility :)</p>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Tidbits | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/tidbits/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-02-22T19:16:38+00:00</updated>
+  <updated>2021-02-28T03:06:58+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -30,13 +30,13 @@ and helps avoid confusion.</p>
 
 <p><br /></p>
 
-<p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
-“look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents”.
-It’s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
+<p>First off, just to get this out of the way, <code class="language-plaintext highlighter-rouge">mod foo;</code> is basically a way of saying
+“look for <code class="language-plaintext highlighter-rouge">foo.rs</code> or <code class="language-plaintext highlighter-rouge">foo/mod.rs</code> and make a module named <code class="language-plaintext highlighter-rouge">foo</code> with its contents”.
+It’s the same as <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> except the contents are in a different file. This
 itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
 in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
 
-<p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
+<p>In the examples here I will just be using <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> since multi-file examples are annoying,
 but keep in mind that the stuff here applies equally to multi-file crates.</p>
 
 <h3 id="motivating-examples">Motivating examples</h3>
@@ -44,87 +44,87 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 <p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
 counterintuitive, based on your existing model.</p>
 
-<pre><code class="language-rust">pub mod foo {
-    extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
     
-    mod bar {
-        use foo::regex::Regex;
-    }
-}
-</code></pre>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    // not std::mem::transmute!
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="c">// not std::mem::transmute!</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar;
-    use bar::bar_inner;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="n">bar</span><span class="p">;</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
-    fn foo() {
-        // this works!
-        bar_inner();
-        bar::bar_inner();
-        // this doesn't
-        // baz::baz_inner();
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// this works!</span>
+        <span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="c">// this doesn't</span>
+        <span class="c">// baz::baz_inner();</span>
         
-        // but these do!
-        ::baz::baz_inner();
-        super::baz::baz_inner();
+        <span class="c">// but these do!</span>
+        <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        // these do too!
-        ::bar::bar_inner();
-        super::bar::bar_inner();
-        self::bar::bar_inner();
+        <span class="c">// these do too!</span>
+        <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
-    }
-}
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub fn bar_inner() {}
-}
-pub mod baz {
-    pub fn baz_inner() {}
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bar_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">baz_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar::baz;
-    // this won't work
-    // use baz::inner();
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
+    <span class="c">// this won't work</span>
+    <span class="c">// use baz::inner();</span>
     
-    // this will
-    use self::baz::inner;
-    // or
-    // use bar::baz::inner
+    <span class="c">// this will</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
+    <span class="c">// or</span>
+    <span class="c">// use bar::baz::inner</span>
     
-    pub fn foo() {
-        // but this will work!
-        baz::inner();
-    }
-}
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// but this will work!</span>
+        <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub mod baz {
-        pub fn inner() {}
-    }
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">inner</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
@@ -139,14 +139,14 @@ still makes more sense when you include them.</p>
 <p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
 
 <ul>
-  <li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the root module (<code class="language-plaintext highlighter-rouge">lib.rs</code> or <code class="language-plaintext highlighter-rouge">main.rs</code>)
     <ul>
-      <li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
+      <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code>foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
-      <li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
+      <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
   </li>
 </ul>
@@ -154,90 +154,90 @@ still makes more sense when you include them.</p>
 <p>That’s actually … it. There are no further caveats. The rest of this is modelling what
 constitutes as “being within a module”.</p>
 
-<p>Let’s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
+<p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<pre><code class="language-rust">extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
 
-mod foo {
-    use regex::Regex;
+<span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
-    fn foo() {
-        // won't work
-        // let ex = regex::Regex::new("");
-        let ex = Regex::new("");
-    }
-}
-</code></pre>
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// won't work</span>
+        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
-pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
-the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
-<code>use regex::Regex</code> works fine inside the module.</p>
+<p>When we say <code class="language-plaintext highlighter-rouge">extern crate regex</code>, we pull in the <code class="language-plaintext highlighter-rouge">regex</code> crate into the crate root. This behaves
+pretty similar to <code class="language-plaintext highlighter-rouge">mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
+the crate into the crate root, and since all <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the crate root,
+<code class="language-plaintext highlighter-rouge">use regex::Regex</code> works fine inside the module.</p>
 
-<p>Inline in code, <code>regex::Regex</code> won’t work because as mentioned before inline paths are relative
-to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
+<p>Inline in code, <code class="language-plaintext highlighter-rouge">regex::Regex</code> won’t work because as mentioned before inline paths are relative
+to the current module. However, you can try <code class="language-plaintext highlighter-rouge">::regex::Regex::new("")</code>.</p>
 
-<p>Since we’ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
-the module directly, so the code can just say <code>Regex::new()</code>.</p>
+<p>Since we’ve imported <code class="language-plaintext highlighter-rouge">regex::Regex</code> in <code class="language-plaintext highlighter-rouge">mod foo</code>, that name is now accessible to everything inside
+the module directly, so the code can just say <code class="language-plaintext highlighter-rouge">Regex::new()</code>.</p>
 
-<p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
-<code>blah</code> “within the module”, which is basically something like a symbolic link, saying
-“yes this item named <code>blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
+<p>The way you can view this is that <code class="language-plaintext highlighter-rouge">use blah</code> and <code class="language-plaintext highlighter-rouge">extern crate blah</code> create an item named
+<code class="language-plaintext highlighter-rouge">blah</code> “within the module”, which is basically something like a symbolic link, saying
+“yes this item named <code class="language-plaintext highlighter-rouge">blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
 
 <p>The error message from this code may further drive this home:</p>
 
-<pre><code class="language-rust">use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
 
 <p>The error I get is</p>
 
-<pre><code>error: function `replace` is private
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: function `replace` is private
  --&gt; src/main.rs:3:5
   |
 3 | use foo::replace;
   |     ^^^^^^^^^^^^
-</code></pre>
+</code></pre></div></div>
 
-<p>There’s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
+<p>There’s no function named <code class="language-plaintext highlighter-rouge">replace</code> in the module <code class="language-plaintext highlighter-rouge">foo</code>! But the compiler seems to think there is?</p>
 
-<p>That’s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
+<p>That’s because <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> basically is equivalent to there being something like:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    fn replace(...) -&gt; ... {
-        ...
-    }
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">replace</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">...</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
 
-    // here we can refer to `replace` freely (in inline paths)
-    fn whatever() {
-        // ...
-        let something = replace(blah);
-        // ...
-    }
-}
-</code></pre>
+    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// ...</span>
+        <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
+        <span class="c">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>except it’s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
-are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
-a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
+<p>except it’s actually like a symlink to the function defined in <code class="language-plaintext highlighter-rouge">std::mem</code>. Because inline paths
+are relative to the current module, saying <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> works as if you had defined
+a function <code class="language-plaintext highlighter-rouge">replace</code> in the same module, and you can refer to <code class="language-plaintext highlighter-rouge">replace()</code> without needing
 any extra qualification in inline paths.</p>
 
-<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says “make this symlink, but let
+<p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<pre><code class="language-rust">// works now!
-use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    pub use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <hr />
 
@@ -245,35 +245,35 @@ pub mod foo {
 
 <p>Folks often get annoyed when this doesn’t work:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // nope
-    // use mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// nope</span>
+    <span class="c">// use mem::replace;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
-in the root module, so this won’t work. We can make it work via <code>self</code>, which I mentioned
+<p>As mentioned before, <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the root module. There is no <code class="language-plaintext highlighter-rouge">mem</code>
+in the root module, so this won’t work. We can make it work via <code class="language-plaintext highlighter-rouge">self</code>, which I mentioned
 before:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // yep!
-    use self::mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// yep!</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Note that this brings overloading of the <code>self</code> keyword up to a grand total of <em>four</em>! Two cases
+<p>Note that this brings overloading of the <code class="language-plaintext highlighter-rouge">self</code> keyword up to a grand total of <em>four</em>! Two cases
 which occur in the import/path system:</p>
 
 <ul>
-  <li><code>use self::foo</code> means “find me <code>foo</code> within the current module”</li>
-  <li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
-  <li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-  <li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
+  <li><code class="language-plaintext highlighter-rouge">use self::foo</code> means “find me <code class="language-plaintext highlighter-rouge">foo</code> within the current module”</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::{self, baz}</code> is equivalent to <code class="language-plaintext highlighter-rouge">use foo::bar; use foo::bar::baz;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+  <li><code class="language-plaintext highlighter-rouge">Self</code> within implementations lets you refer to the type being implemented on</li>
 </ul>
 
-<p>Oh well, at least it’s not <code>static</code>.</p>
+<p>Oh well, at least it’s not <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
 <hr />
 
@@ -281,38 +281,38 @@ which occur in the import/path system:</p>
 
 <p>Going back to one of the examples I gave at the beginning:</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone’s point
-of view, there’s an item called <code>mem</code> in the root.</p>
+<p>It should be clearer now why this works. The root module imports <code class="language-plaintext highlighter-rouge">mem</code>. Now, from everyone’s point
+of view, there’s an item called <code class="language-plaintext highlighter-rouge">mem</code> in the root.</p>
 
-<p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
-already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
+<p>Within <code class="language-plaintext highlighter-rouge">mod foo</code>, <code class="language-plaintext highlighter-rouge">use mem::transmute</code> works because <code class="language-plaintext highlighter-rouge">use</code> is relative to the root, and <code class="language-plaintext highlighter-rouge">mem</code>
+already exists in the root! When you <code class="language-plaintext highlighter-rouge">use</code> something, all child modules will see it as if it were
 actually belonging to the module. (Non-child modules won’t see it because of privacy, we
 saw an example of this already)</p>
 
-<p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
-of <code>foo</code> via <code>use foo::whatever</code>, since <code>foo</code> is a child of the root module, and <code>use</code> is relative
-to the root. <code>foo</code> already has an item named <code>transmute</code> inside it because it imported one.
-Nothing in the parent module is private from the child, so we can <code>use foo::transmute</code> from
-<code>bar</code>.</p>
+<p>This is why <code class="language-plaintext highlighter-rouge">use foo::transmute</code> works from <code class="language-plaintext highlighter-rouge">mod bar</code>, too. <code class="language-plaintext highlighter-rouge">bar</code> can refer to the contents
+of <code class="language-plaintext highlighter-rouge">foo</code> via <code class="language-plaintext highlighter-rouge">use foo::whatever</code>, since <code class="language-plaintext highlighter-rouge">foo</code> is a child of the root module, and <code class="language-plaintext highlighter-rouge">use</code> is relative
+to the root. <code class="language-plaintext highlighter-rouge">foo</code> already has an item named <code class="language-plaintext highlighter-rouge">transmute</code> inside it because it imported one.
+Nothing in the parent module is private from the child, so we can <code class="language-plaintext highlighter-rouge">use foo::transmute</code> from
+<code class="language-plaintext highlighter-rouge">bar</code>.</p>
 
 <p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
-or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
+or, if you do use modules, put nothing other than <code class="language-plaintext highlighter-rouge">extern crate</code>s and <code class="language-plaintext highlighter-rouge">mod</code>s in the root.
 This is why we rarely see shenanigans like the above; there’s nothing in the root crate
-to import, aside from other crates specified by <code>extern crate</code>. The trick of
+to import, aside from other crates specified by <code class="language-plaintext highlighter-rouge">extern crate</code>. The trick of
 “reimport something from the parent module” is also pretty rare because there’s basically no
 point to using that (just import it directly!). So this is not the kind of code
 you’ll see in the wild.</p>
@@ -324,12 +324,12 @@ you’ll see in the wild.</p>
 <p>Basically, the way the import system works can be summed up as:</p>
 
 <ul>
-  <li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-  <li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
-  <li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
-  <li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-  <li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-  <li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+  <li><code class="language-plaintext highlighter-rouge">extern crate</code> and <code class="language-plaintext highlighter-rouge">use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves the path relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> in an inline path (i.e. not in a <code class="language-plaintext highlighter-rouge">use</code>) will resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
 </ul>
 
 <p>Alright, on to the other half of this. Privacy.</p>
@@ -341,62 +341,62 @@ you’ll see in the wild.</p>
 <p>Privacy, too, follows some basic rules:</p>
 
 <ul>
-  <li>If you can access a module, you can access all of its <code>pub</code> contents</li>
+  <li>If you can access a module, you can access all of its <code class="language-plaintext highlighter-rouge">pub</code> contents</li>
   <li>A module can always access its child modules, but not recursively
     <ul>
       <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
     </ul>
   </li>
   <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-  <li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
+  <li><code class="language-plaintext highlighter-rouge">pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
 </ul>
 
 <p>Giving some examples,</p>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // can access `foo::foofunc`, even though `foofunc` is private
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
-        pub fn barfunc() {}
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
-    }
-    // can access `foo::bar::barfunc()`, even though `bar` is private
-    fn foofunc() {}
-}
-</code></pre>
+    <span class="p">}</span>
+    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // We can access our parent and _all_ its contents,
-        // so we have access to `foo::baz`. We can access
-        // all pub contents of modules we have access to, so we
-        // can access `foo::baz::bazfunc`
-        use foo::baz::bazfunc;
-    }
-    mod baz {
-        pub fn bazfunc() {}
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// We can access our parent and _all_ its contents,</span>
+        <span class="c">// so we have access to `foo::baz`. We can access</span>
+        <span class="c">// all pub contents of modules we have access to, so we</span>
+        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
 path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    /* not pub */ mod bar {
-        pub mod baz {
-            pub fn bazfunc() {}
-        }
-        pub mod quux {
-            use foo::bar::baz::bazfunc;
-        }
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+        <span class="p">}</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">quux</span> <span class="p">{</span>
+            <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We are able to write the path <code>foo::bar::baz::bazfunc</code> even though <code>bar</code> is private!</p>
+<p>We are able to write the path <code class="language-plaintext highlighter-rouge">foo::bar::baz::bazfunc</code> even though <code class="language-plaintext highlighter-rouge">bar</code> is private!</p>
 
-<p>This is because we still have <em>access</em> to the module <code>bar</code>, by being a descendent module.</p>
+<p>This is because we still have <em>access</em> to the module <code class="language-plaintext highlighter-rouge">bar</code>, by being a descendent module.</p>
 
 <hr />
 
@@ -411,10 +411,10 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-no
       <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>When I say “within your code”, I mean “anywhere but a <code>use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
       <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -436,10 +436,10 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-no
 
 <p>Oh, that’s already the case? Bummer.</p>
 
-<p>Often, when talking about Rust, folks refer to the core aliasing rule as “that <code>&amp;mut</code> thing”,
-“compile-time <code>RWLock</code>” (or “compile-time <code>RefCell</code>”), or something similar. Basically, referring to
-the fact that you can’t mutate the data that is currently held via an <code>&amp;</code> reference, and that you
-can’t mutate or read the data currently held via an <code>&amp;mut</code> reference except through that reference
+<p>Often, when talking about Rust, folks refer to the core aliasing rule as “that <code class="language-plaintext highlighter-rouge">&amp;mut</code> thing”,
+“compile-time <code class="language-plaintext highlighter-rouge">RWLock</code>” (or “compile-time <code class="language-plaintext highlighter-rouge">RefCell</code>”), or something similar. Basically, referring to
+the fact that you can’t mutate the data that is currently held via an <code class="language-plaintext highlighter-rouge">&amp;</code> reference, and that you
+can’t mutate or read the data currently held via an <code class="language-plaintext highlighter-rouge">&amp;mut</code> reference except through that reference
 itself.</p>
 
 <p>It’s always bugged me that we really don’t have a name for this thing. It’s one of the core
@@ -455,7 +455,7 @@ and purity, but I assure you, that language is Baby Rust. Or maybe Teenage Rust.
 
 <p>The point of this post isn’t really to encourage reviving the use of “INHTWAMA”; it’s
 a rather weird acronym that will probably confuse folks. I would like to have a better
-way of refering to “that <code>&amp;mut</code> thing”, but I’d prefer if it wasn’t a confusing acronym
+way of refering to “that <code class="language-plaintext highlighter-rouge">&amp;mut</code> thing”, but I’d prefer if it wasn’t a confusing acronym
 that carries no meaning of its own if you don’t know the history of it. That’s a recipe for
 making new community members feel like outsiders.</p>
 
@@ -478,31 +478,31 @@ depend on knowledge of compiler internals or history. As a fan of programming tr
 decided to try writing about these things whenever I come across them. “Tribal Knowledge” shouldn’t
 be a thing in a programming community; and trivia is fun!</em></p>
 
-<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code>Box</code> is Special</a></p>
+<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code class="language-plaintext highlighter-rouge">Box</code> is Special</a></p>
 
-<p>Last time I talked about <code>Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
+<p>Last time I talked about <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
 I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
 
 <p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
 functions, and other items which the compiler needs to know about.</p>
 
-<p>For example, when you write <code>x + y</code>, the compiler will effectively desugar that into
-<code>Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
-<code>::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
+<p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
-<code>__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
+<code class="language-plaintext highlighter-rouge">__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
 I’ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You’ll find that the spec is
-full of similar <code>__cxa</code> functions. While the spec just expects certain types,
-e.g. <code>std::type_traits</code> (“Type properties” § 20.10.4.3), to be magic and exist in certain locations,
-the compilers seem to implement them using intrinsics like <code>__is_trivial&lt;T&gt;</code> which aren’t defined
+full of similar <code class="language-plaintext highlighter-rouge">__cxa</code> functions. While the spec just expects certain types,
+e.g. <code class="language-plaintext highlighter-rouge">std::type_traits</code> (“Type properties” § 20.10.4.3), to be magic and exist in certain locations,
+the compilers seem to implement them using intrinsics like <code class="language-plaintext highlighter-rouge">__is_trivial&lt;T&gt;</code> which aren’t defined
 in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
 to known ABI functions, and they partly implement “special” types via intrinsics which
 are detected and magicked when the compiler comes across them.</p>
 
-<p>However, this is not Rust’s solution. It does not care what the <code>Add</code> trait is named or where it is
+<p>However, this is not Rust’s solution. It does not care what the <code class="language-plaintext highlighter-rouge">Add</code> trait is named or where it is
 placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
-When you put <code>#[lang = "add"]</code> on a trait, the compiler knows to call <code>YourTrait::add(x, y)</code> when it
+When you put <code class="language-plaintext highlighter-rouge">#[lang = "add"]</code> on a trait, the compiler knows to call <code class="language-plaintext highlighter-rouge">YourTrait::add(x, y)</code> when it
 encounters the addition operator. Of course, usually the compiler will already have been told about
 such a trait since libcore is usually the first library in the pipeline. If you want to actually use
 this, you need to <em>replace libcore</em>.</p>
@@ -510,115 +510,115 @@ this, you need to <em>replace libcore</em>.</p>
 <p>Huh? You can’t do that, can you?</p>
 
 <p>It’s not a big secret that you can compile rust without the stdlib using
-<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code>#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can’t
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code class="language-plaintext highlighter-rouge">#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can’t
 rely on an allocator existing. It’s also useful for writing your own alternate stdlib, though
-that’s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code>#![no_std]</code></a>,
-because without it the compiler will happily inject an <code>extern crate std</code> while trying to compile
+that’s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code class="language-plaintext highlighter-rouge">#![no_std]</code></a>,
+because without it the compiler will happily inject an <code class="language-plaintext highlighter-rouge">extern crate std</code> while trying to compile
 libstd and the universe will implode.</p>
 
-<p>What’s less known is that you can do the same thing with libcore, via <code>#![no_core]</code>. And, of course,
-libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code>#![no_std]</code>, <code>no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code>#![no_core]</code> is something that’s basically
+<p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
+libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
-<p>Still, it’s possible to write a working Rust binary in <code>no_core</code> mode:</p>
+<p>Still, it’s possible to write a working Rust binary in <code class="language-plaintext highlighter-rouge">no_core</code> mode:</p>
 
-<pre><code class="language-rust">#![feature(no_core)]
-#![feature(lang_items)]
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![feature(no_core)]</span>
+<span class="nd">#![feature(lang_items)]</span>
 
-// Look at me.
-// Look at me.
-// I'm the libcore now.
-#![no_core]
+<span class="c">// Look at me.</span>
+<span class="c">// Look at me.</span>
+<span class="c">// I'm the libcore now.</span>
+<span class="nd">#![no_core]</span>
 
-// Tell the compiler to link to appropriate runtime libs
-// (This way I don't have to specify `-l` flags explicitly)
-#[cfg(target_os = "linux")]
-#[link(name = "c")]
-extern {}
-#[cfg(target_os = "macos")]
-#[link(name = "System")]
-extern {}
+<span class="c">// Tell the compiler to link to appropriate runtime libs</span>
+<span class="c">// (This way I don't have to specify `-l` flags explicitly)</span>
+<span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"linux"</span><span class="nd">)]</span>
+<span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"c"</span><span class="nd">)]</span>
+<span class="k">extern</span> <span class="p">{}</span>
+<span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"macos"</span><span class="nd">)]</span>
+<span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"System"</span><span class="nd">)]</span>
+<span class="k">extern</span> <span class="p">{}</span>
 
-// Compiler needs these to proceed
-#[lang = "sized"]
-pub trait Sized {}
-#[lang = "copy"]
-pub trait Copy {}
+<span class="c">// Compiler needs these to proceed</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sized"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">Sized</span> <span class="p">{}</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"copy"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="nb">Copy</span> <span class="p">{}</span>
 
-// `main` isn't the actual entry point, `start` is.
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    // we can't really do much in this benighted hellhole of
-    // an environment without bringing in more libraries.
-    // We can make syscalls, segfault, and set the exit code.
-    // To be sure that this actually ran, let's set the exit code.
-    42
-}
+<span class="c">// `main` isn't the actual entry point, `start` is.</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="c">// we can't really do much in this benighted hellhole of</span>
+    <span class="c">// an environment without bringing in more libraries.</span>
+    <span class="c">// We can make syscalls, segfault, and set the exit code.</span>
+    <span class="c">// To be sure that this actually ran, let's set the exit code.</span>
+    <span class="mi">42</span>
+<span class="p">}</span>
 
-// still need a main unless we want to use `#![no_main]`
-// won't actually get called; `start()` is supposed to call it
-fn main() {}
-</code></pre>
+<span class="c">// still need a main unless we want to use `#![no_main]`</span>
+<span class="c">// won't actually get called; `start()` is supposed to call it</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{}</span>
+</code></pre></div></div>
 
 <p>If you run this, the program will exit with exit code 42.</p>
 
-<p>Note that this already adds two lang items. <code>Sized</code> and <code>Copy</code>. It’s usually worth
+<p>Note that this already adds two lang items. <code class="language-plaintext highlighter-rouge">Sized</code> and <code class="language-plaintext highlighter-rouge">Copy</code>. It’s usually worth
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
 tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
 to exist, it expects it to make sense. There are properties of the lang item that it assumes
 are true, and failure to provide an appropriate lang item may cause the compiler to assert
 without a useful error message. In this case I do have a tweak, since
-the original definition of <code>Copy</code> is <code>pub trait Copy: Clone {}</code>, but I know that this tweak
+the original definition of <code class="language-plaintext highlighter-rouge">Copy</code> is <code class="language-plaintext highlighter-rouge">pub trait Copy: Clone {}</code>, but I know that this tweak
 will work.</p>
 
 <p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
 deprecated lang items and we only had to define three of them here. “start” is necessary to, well,
-start executables, and <code>Copy</code>/<code>Sized</code> are very crucial to how the compiler reasons about types and
+start executables, and <code class="language-plaintext highlighter-rouge">Copy</code>/<code class="language-plaintext highlighter-rouge">Sized</code> are very crucial to how the compiler reasons about types and
 must exist.</p>
 
 <p>But let’s try doing something that will trigger a lang item to be required:</p>
 
-<pre><code class="language-rust">pub static X: u8 = 1;
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</code></pre></div></div>
 
 <p>Rust will immediately complain:</p>
 
-<pre><code>$ rustc test.rs
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ rustc test.rs
 error: requires `sync` lang_item
-</code></pre>
+</code></pre></div></div>
 
 <p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
-are safe when accessed concurrently, i.e., they implement <code>Sync</code>. We haven’t defined <code>Sync</code> yet,
-so Rust doesn’t know how to enforce this restruction. The <code>Sync</code> trait is defined with the “sync”
+are safe when accessed concurrently, i.e., they implement <code class="language-plaintext highlighter-rouge">Sync</code>. We haven’t defined <code class="language-plaintext highlighter-rouge">Sync</code> yet,
+so Rust doesn’t know how to enforce this restruction. The <code class="language-plaintext highlighter-rouge">Sync</code> trait is defined with the “sync”
 lang item, so we need to do:</p>
 
-<pre><code class="language-rust">pub static X: u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-#[lang = "sync"]
-pub unsafe trait Sync {}
-unsafe impl Sync for u8 {}
-</code></pre>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sync"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
+</code></pre></div></div>
 
-<p>Note that the trait doesn’t have to be called <code>Sync</code> here, any trait name would work. This
+<p>Note that the trait doesn’t have to be called <code class="language-plaintext highlighter-rouge">Sync</code> here, any trait name would work. This
 definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
-should include the auto trait impl (instead of specifically using <code>unsafe impl Sync for u8 {}</code>)
+should include the auto trait impl (instead of specifically using <code class="language-plaintext highlighter-rouge">unsafe impl Sync for u8 {}</code>)
 since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
 
 <p>Alright, let’s try defining our own addition trait as before. First, let’s see
 what happens if we try to add a struct when addition isn’t defined:</p>
 
-<pre><code class="language-rust">struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>We get an error:</p>
 
-<pre><code>$ rustc test.rs
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ rustc test.rs
 error[E0369]: binary operation `+` cannot be applied to type `Foo`
   --&gt; test.rs:33:5
    |
@@ -632,63 +632,63 @@ note: an implementation of `std::ops::Add` might be missing for `Foo`
    |     ^^^
 
 error: aborting due to previous error
-</code></pre>
+</code></pre></div></div>
 
-<p>It is interesting to note that here the compiler <em>did</em> refer to <code>Add</code> by its path.
+<p>It is interesting to note that here the compiler <em>did</em> refer to <code class="language-plaintext highlighter-rouge">Add</code> by its path.
 This is because the diagnostics in the compiler are free to assume that libcore
 exists. However, the actual error just noted that it doesn’t know how to add two
-<code>Foo</code>s. But we can tell it how!</p>
+<code class="language-plaintext highlighter-rouge">Foo</code>s. But we can tell it how!</p>
 
-<pre><code class="language-rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
+<span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+<span class="p">}</span>
 
-impl MyAdd&lt;Foo&gt; for Foo {
-    type Output = isize;
-    fn add(self, other: Foo) -&gt; isize {
-        return 42;
-    }
-}
+<span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="nb">isize</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Foo</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="mi">42</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    Foo + Foo
-}
-</code></pre>
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This will compile fine and the exit code of the program will be 42.</p>
 
 <p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
 same kind of error, even though the addition of concrete primitives doesn’t
-go through <code>Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code>Add::add</code> is implemented, even though it won’t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+go through <code class="language-plaintext highlighter-rouge">Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code class="language-plaintext highlighter-rouge">Add::add</code> is implemented, even though it won’t get <em>used</em> in the case of a primitive. We can even verify this!</p>
 
-<pre><code class="language-rust">#[lang = "add"]
-trait MyAdd&lt;RHS&gt; {
-    type Output;
-    fn add(self, other: RHS) -&gt; Self::Output;
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
+<span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+<span class="p">}</span>
 
-impl MyAdd&lt;isize&gt; for isize {
-    type Output = isize;
-    fn add(self, other: isize) -&gt; isize {
-        self + other + 50
-    }
-}
+<span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="nb">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="nb">isize</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">isize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+        <span class="k">self</span> <span class="o">+</span> <span class="n">other</span> <span class="o">+</span> <span class="mi">50</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-struct Foo;
-#[lang = "start"]
-fn start(_main: *const u8, _argc: isize, _argv: *const *const u8) -&gt; isize {
-    40 + 2
-}
-</code></pre>
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This will need to be compiled with <code>-C opt-level=2</code>, since numeric addition in debug mode panics on
-wrap and we haven’t defined the <code>"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+<p>This will need to be compiled with <code class="language-plaintext highlighter-rouge">-C opt-level=2</code>, since numeric addition in debug mode panics on
+wrap and we haven’t defined the <code class="language-plaintext highlighter-rouge">"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
 
-<p>It will exit with 42, not 92, since while the <code>Add</code> implementation is required for this to type
+<p>It will exit with 42, not 92, since while the <code class="language-plaintext highlighter-rouge">Add</code> implementation is required for this to type
 check, it doesn’t actually get used.</p>
 
 <hr />
@@ -696,65 +696,65 @@ check, it doesn’t actually get used.</p>
 <p>So what lang items <em>are</em> there, and why are they lang items? There’s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
 compiler. Let’s go through them:</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code>ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
-primitive types. <code>char</code> has some methods, and <em>someone</em> has to say <code>impl char</code> to define them. But
-coherence only allows us to impl methods on types defined in our own crate, and <code>char</code> isn’t defined
-… in any crate, so how do we add methods to it? <code>#[lang = "char"]</code> provides an escape hatch;
-applying that to <code>impl char</code> will allow you to break the coherence rules and add methods,
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code class="language-plaintext highlighter-rouge">ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
+primitive types. <code class="language-plaintext highlighter-rouge">char</code> has some methods, and <em>someone</em> has to say <code class="language-plaintext highlighter-rouge">impl char</code> to define them. But
+coherence only allows us to impl methods on types defined in our own crate, and <code class="language-plaintext highlighter-rouge">char</code> isn’t defined
+… in any crate, so how do we add methods to it? <code class="language-plaintext highlighter-rouge">#[lang = "char"]</code> provides an escape hatch;
+applying that to <code class="language-plaintext highlighter-rouge">impl char</code> will allow you to break the coherence rules and add methods,
 <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
-a single crate gets the honor of adding methods to <code>char</code>, so we don’t have any of the issues that
+a single crate gets the honor of adding methods to <code class="language-plaintext highlighter-rouge">char</code>, so we don’t have any of the issues that
 arise from sidestepping coherence.</p>
 
 <p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
 
 <ul>
-  <li><code>Send</code> is a lang item because you are allowed to use it in a <code>+</code> bound in a trait object (<code>Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
-  <li><code>Sync</code> is a lang item for the same reasons as <code>Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
-  <li><code>Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
-  <li><code>Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code>?Sized</code></li>
-  <li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code>Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code>Send</code> and <code>Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code>Unsize</code> and can’t be reused on user-defined marker traits.</li>
+  <li><code class="language-plaintext highlighter-rouge">Send</code> is a lang item because you are allowed to use it in a <code class="language-plaintext highlighter-rouge">+</code> bound in a trait object (<code class="language-plaintext highlighter-rouge">Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+  <li><code class="language-plaintext highlighter-rouge">Sync</code> is a lang item for the same reasons as <code class="language-plaintext highlighter-rouge">Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+  <li><code class="language-plaintext highlighter-rouge">Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+  <li><code class="language-plaintext highlighter-rouge">Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code class="language-plaintext highlighter-rouge">?Sized</code></li>
+  <li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code class="language-plaintext highlighter-rouge">Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code class="language-plaintext highlighter-rouge">Send</code> and <code class="language-plaintext highlighter-rouge">Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code class="language-plaintext highlighter-rouge">Unsize</code> and can’t be reused on user-defined marker traits.</li>
 </ul>
 
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code>Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code class="language-plaintext highlighter-rouge">Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
 these destructors.</p>
 
-<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
+<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code class="language-plaintext highlighter-rouge">CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
 (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
 <a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
 
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code>Deref</code></a>
-and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code>PartialEq</code>/<code>PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code class="language-plaintext highlighter-rouge">Deref</code></a>
+and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code class="language-plaintext highlighter-rouge">PartialEq</code>/<code class="language-plaintext highlighter-rouge">PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
 are lang items because the compiler needs to know what trait to require (and call)
 when it comes across such an operation.</p>
 
-<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code>UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
+<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code class="language-plaintext highlighter-rouge">UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
 (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
-certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code>&amp;mut foo</code> with the
+certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code class="language-plaintext highlighter-rouge">&amp;mut foo</code> with the
 assumption that the local variable holding the reference is the only alias allowed to read from
-or write to the data, and it is allowed to reorder reads from <code>&amp;foo</code> assuming that no other alias
-writes to it. We tell LLVM that these types are <code>noalias</code>. <code>UnsafeCell&lt;T&gt;</code> turns this optimization
-off, allowing writes to <code>&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
-mutability types like <code>Cell&lt;T&gt;</code>, <code>RefCell&lt;T&gt;</code>, and <code>Mutex&lt;T&gt;</code>.</p>
+or write to the data, and it is allowed to reorder reads from <code class="language-plaintext highlighter-rouge">&amp;foo</code> assuming that no other alias
+writes to it. We tell LLVM that these types are <code class="language-plaintext highlighter-rouge">noalias</code>. <code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code> turns this optimization
+off, allowing writes to <code class="language-plaintext highlighter-rouge">&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
+mutability types like <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, and <code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code>.</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code>Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code class="language-plaintext highlighter-rouge">Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
 and can be specified with special syntax sugar, so they need to be lang items. They also
 get autoimplemented on closures.</p>
 
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The <code>"str_eq"</code> lang item</a> is outdated. It <em>used</em> to specify how to check the equality
-of a string value against a literal string pattern in a <code>match</code> (<code>match</code> uses structural equality,
-not <code>PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The <code class="language-plaintext highlighter-rouge">"str_eq"</code> lang item</a> is outdated. It <em>used</em> to specify how to check the equality
+of a string value against a literal string pattern in a <code class="language-plaintext highlighter-rouge">match</code> (<code class="language-plaintext highlighter-rouge">match</code> uses structural equality,
+not <code class="language-plaintext highlighter-rouge">PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
 
 <p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
-inserts panics in a few places. The first one, <code>"panic"</code>, is used for integer overflow panics in debug mode, and
-<code>"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
-<code>"panic_fmt"</code> hooks into a function defined later in libstd.</p>
+inserts panics in a few places. The first one, <code class="language-plaintext highlighter-rouge">"panic"</code>, is used for integer overflow panics in debug mode, and
+<code class="language-plaintext highlighter-rouge">"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
+<code class="language-plaintext highlighter-rouge">"panic_fmt"</code> hooks into a function defined later in libstd.</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code>"exchange_malloc"</code> and <code>"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
-telling the compiler which functions to call in case it needs to do a <code>malloc()</code> or <code>free()</code>. These
-are used when constructing <code>Box&lt;T&gt;</code> via placement <code>box</code> syntax and when moving out of a deref of a
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code class="language-plaintext highlighter-rouge">"exchange_malloc"</code> and <code class="language-plaintext highlighter-rouge">"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
+telling the compiler which functions to call in case it needs to do a <code class="language-plaintext highlighter-rouge">malloc()</code> or <code class="language-plaintext highlighter-rouge">free()</code>. These
+are used when constructing <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> via placement <code class="language-plaintext highlighter-rouge">box</code> syntax and when moving out of a deref of a
 box.</p>
 
-<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code>"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code class="language-plaintext highlighter-rouge">"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
 but is no longer used.</p>
 
 <p>We’ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
@@ -766,47 +766,47 @@ But you theoretically could stick a very heavy runtime initialization routine he
 
 <p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
 platform-specific modules) specify various bits of the exception handling behavior. These hooks are
-called during various steps of unwinding: <code>eh_personality</code> is called when determining whether
-or not to stop at a stack frame or unwind up to the next one. <code>eh_unwind_resume</code> is the routine
+called during various steps of unwinding: <code class="language-plaintext highlighter-rouge">eh_personality</code> is called when determining whether
+or not to stop at a stack frame or unwind up to the next one. <code class="language-plaintext highlighter-rouge">eh_unwind_resume</code> is the routine
 called when the unwinding code wishes to resume unwinding after calling destructors in a landing
-pad. <code>msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don’t
+pad. <code class="language-plaintext highlighter-rouge">msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don’t
 understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code>"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
-the <code>Box</code> type. In my previous post I covered how <code>Box</code> is special; this lang item is how the
-compiler finds impls on <code>Box</code> and knows what the type is. Unlike the other primitives, <code>Box</code> doesn’t
-actually have a type name (like <code>bool</code>) that can be used if you’re writing libcore or libstd. This
-lang item gives <code>Box</code> a type name that can be used to refer to it. (It also defines some,
-but not all, of the semantics of <code>Box&lt;T&gt;</code>)</p>
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code class="language-plaintext highlighter-rouge">"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
+the <code class="language-plaintext highlighter-rouge">Box</code> type. In my previous post I covered how <code class="language-plaintext highlighter-rouge">Box</code> is special; this lang item is how the
+compiler finds impls on <code class="language-plaintext highlighter-rouge">Box</code> and knows what the type is. Unlike the other primitives, <code class="language-plaintext highlighter-rouge">Box</code> doesn’t
+actually have a type name (like <code class="language-plaintext highlighter-rouge">bool</code>) that can be used if you’re writing libcore or libstd. This
+lang item gives <code class="language-plaintext highlighter-rouge">Box</code> a type name that can be used to refer to it. (It also defines some,
+but not all, of the semantics of <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>)</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code>"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code class="language-plaintext highlighter-rouge">"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
 an unused type parameter, and it can be used to help fix the variance and drop behavior
 of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
 
-<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code>"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code>NonZero&lt;T&gt;</code> type,
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code class="language-plaintext highlighter-rouge">"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code class="language-plaintext highlighter-rouge">NonZero&lt;T&gt;</code> type,
 a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
-like <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code> – we know that the pointers in these can/should never be null, so they
-contain a <code>NonZero&lt;*const T&gt;</code>. When used inside an enum like <code>Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
-(the “tag” value that distinguishes between <code>Some</code> and <code>None</code>) is no longer necessary, since
-we can mark the <code>None</code> case as the case where the bits occupied by <code>NonZero</code> in the <code>Some</code> case
+like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> – we know that the pointers in these can/should never be null, so they
+contain a <code class="language-plaintext highlighter-rouge">NonZero&lt;*const T&gt;</code>. When used inside an enum like <code class="language-plaintext highlighter-rouge">Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
+(the “tag” value that distinguishes between <code class="language-plaintext highlighter-rouge">Some</code> and <code class="language-plaintext highlighter-rouge">None</code>) is no longer necessary, since
+we can mark the <code class="language-plaintext highlighter-rouge">None</code> case as the case where the bits occupied by <code class="language-plaintext highlighter-rouge">NonZero</code> in the <code class="language-plaintext highlighter-rouge">Some</code> case
 are zero. Beware, this optimization also applies to C-like enums that don’t have a variant
-corresponding to a discriminant value of zero (unless they are <code>#[repr(C)]</code>)</p>
+corresponding to a discriminant value of zero (unless they are <code class="language-plaintext highlighter-rouge">#[repr(C)]</code>)</p>
 
-<p>There are also a bunch of deprecated lang items there. For example, <code>NoCopy</code> used to be a struct
-that could be dropped within a type to make it not implement <code>Copy</code>; in the past <code>Copy</code>
-implementations were automatic like <code>Send</code> and <code>Sync</code> are today. <code>NoCopy</code> was the way to opt out.
-There also used to be <code>NoSend</code> and <code>NoSync</code>. <code>CovariantType</code>/<code>CovariantLifetime</code>/etc were the
-predecessors of <code>PhantomData</code>; they could be used to specify variance relations of a type with its
-type or lifetime parameters, but you can now do this with providing the right <code>PhantomData</code>, e.g.
-<code>InvariantType&lt;T&gt;</code> is now <code>PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
+<p>There are also a bunch of deprecated lang items there. For example, <code class="language-plaintext highlighter-rouge">NoCopy</code> used to be a struct
+that could be dropped within a type to make it not implement <code class="language-plaintext highlighter-rouge">Copy</code>; in the past <code class="language-plaintext highlighter-rouge">Copy</code>
+implementations were automatic like <code class="language-plaintext highlighter-rouge">Send</code> and <code class="language-plaintext highlighter-rouge">Sync</code> are today. <code class="language-plaintext highlighter-rouge">NoCopy</code> was the way to opt out.
+There also used to be <code class="language-plaintext highlighter-rouge">NoSend</code> and <code class="language-plaintext highlighter-rouge">NoSync</code>. <code class="language-plaintext highlighter-rouge">CovariantType</code>/<code class="language-plaintext highlighter-rouge">CovariantLifetime</code>/etc were the
+predecessors of <code class="language-plaintext highlighter-rouge">PhantomData</code>; they could be used to specify variance relations of a type with its
+type or lifetime parameters, but you can now do this with providing the right <code class="language-plaintext highlighter-rouge">PhantomData</code>, e.g.
+<code class="language-plaintext highlighter-rouge">InvariantType&lt;T&gt;</code> is now <code class="language-plaintext highlighter-rouge">PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
 The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don’t know why these lang items haven’t been
 removed (they don’t work anymore anyway); the only consumer of them is libcore so “deprecating” them
 seems unnecessary. It’s probably an oversight.</p>
 
-<p>Interestingly, <code>Iterator</code> and <code>IntoIterator</code> are <em>not</em> lang items, even though they are used in <code>for</code>
-loops. Instead, the compiler inserts hardcoded calls to <code>::std::iter::IntoIterator::into_iter</code> and
-<code>::std::iter::Iterator::next</code>, and a hardcoded reference to <code>::std::option::Option</code> (The paths use
-<code>core</code> in <code>no_std</code> mode). This is probably because the compiler desugars <code>for</code> loops before type
+<p>Interestingly, <code class="language-plaintext highlighter-rouge">Iterator</code> and <code class="language-plaintext highlighter-rouge">IntoIterator</code> are <em>not</em> lang items, even though they are used in <code class="language-plaintext highlighter-rouge">for</code>
+loops. Instead, the compiler inserts hardcoded calls to <code class="language-plaintext highlighter-rouge">::std::iter::IntoIterator::into_iter</code> and
+<code class="language-plaintext highlighter-rouge">::std::iter::Iterator::next</code>, and a hardcoded reference to <code class="language-plaintext highlighter-rouge">::std::option::Option</code> (The paths use
+<code class="language-plaintext highlighter-rouge">core</code> in <code class="language-plaintext highlighter-rouge">no_std</code> mode). This is probably because the compiler desugars <code class="language-plaintext highlighter-rouge">for</code> loops before type
 resolution is done, so withut this, libcore would not be able to use for loops since the compiler
 wouldn’t know what calls to insert in place of the loops while compiling.</p>
 
@@ -821,12 +821,12 @@ library (libstd, libcore, or one of the crates behind the libstd façade), and m
 you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
 useful outside of the realm of compiler hacking.</p>
 
-<p>But, like with the <code>Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn’t generally
+<p>But, like with the <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn’t generally
 useful!</p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
-      <p>Though as we learned in the previous post, when <code>x</code> and <code>y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Though as we learned in the previous post, when <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>To be clear, I’m not aware of any plans to eventually stabilize this. It’s something that could happen. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -851,64 +851,64 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
-<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
+<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
 
 <p>Let’s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
 
-<pre><code class="language-rust">#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; Deref for Box&lt;T&gt; {
-    type Target = T;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
 
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
+    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; DerefMut for Box&lt;T&gt; {
-    fn deref_mut(&amp;mut self) -&gt; &amp;mut T {
-        &amp;mut **self
-    }
-}
-</code></pre>
+<span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Wait, what? <em>Squints</em></p>
 
-<pre><code class="language-rust">    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+</code></pre></div></div>
 
 <p><em>The call is coming from inside the house!</em></p>
 
-<p>In case you didn’t realize it, this deref impl returns <code>&amp;**self</code> – since <code>self</code>
-is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
-will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
+<p>In case you didn’t realize it, this deref impl returns <code class="language-plaintext highlighter-rouge">&amp;**self</code> – since <code class="language-plaintext highlighter-rouge">self</code>
+is an <code class="language-plaintext highlighter-rouge">&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, and the second dereference
+will dereference the box to provide a <code class="language-plaintext highlighter-rouge">T</code>. We then wrap it in a reference and return it.</p>
 
-<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that’s what <code>Deref::deref</code> is
-for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That’s infinite recursion.</p>
+<p>But wait, we are <em>defining</em> how a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is to be dereferenced (that’s what <code class="language-plaintext highlighter-rouge">Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>! That’s infinite recursion.</p>
 
-<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
+<p>And indeed. For any other type such a <code class="language-plaintext highlighter-rouge">deref</code> impl would recurse infinitely. If you run
 <a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
 
-<pre><code class="language-rust">use std::ops::Deref;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ops</span><span class="p">::</span><span class="n">Deref</span><span class="p">;</span>
 
-struct LolBox&lt;T&gt;(T);
+<span class="k">struct</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
 
-impl&lt;T&gt; Deref for LolBox&lt;T&gt; {
-    type Target = T;
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
-</code></pre>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>the compiler will warn you:</p>
 
-<pre><code class="language-text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
  --&gt; &lt;anon&gt;:7:5
   |
 7 |     fn deref(&amp;self) -&gt; &amp;T {
@@ -920,20 +920,20 @@ note: recursive call site
 8 |         &amp;**self
   |          ^^^^^^
   = help: a `loop` may express intention better if this is on purpose
-</code></pre>
+</code></pre></div></div>
 
 <p>Actually trying to dereference the type will lead to a stack overflow.</p>
 
-<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
-or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
+<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code class="language-plaintext highlighter-rouge">&amp;T</code></a>,
+or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code class="language-plaintext highlighter-rouge">Add</code> impl for number types</a>, or any other of the implementations of operators on
 primitive types. For example we literally
-<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
-is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
-integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
+<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code class="language-plaintext highlighter-rouge">Add</code> on two integers to be their addition</a>. The reason these impls need to exist
+is so that people can still call <code class="language-plaintext highlighter-rouge">Add::add</code> if they need to in generic code and be able to pass
+integers to things with an <code class="language-plaintext highlighter-rouge">Add</code> bound. But the compiler knows how to use builtin operators on
 numbers and dereference borrowed references without these impls. But those are primitive types
-which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
+which are defined in the compiler, while <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
 
-<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
+<p>Turns out, <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
 
 <p>This is partly due to historical accident.</p>
 
@@ -944,76 +944,76 @@ you that your code was broken! Sigils roamed the lands freely, and cargo was but
 which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
 that their closures were safely boxed and their threads sufficiently green.</p>
 
-<p>Back in these days, we didn’t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
-The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
-they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant “owned”, though
+<p>Back in these days, we didn’t have <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code>, or <code class="language-plaintext highlighter-rouge">String</code>. We had <code class="language-plaintext highlighter-rouge">~T</code>, <code class="language-plaintext highlighter-rouge">~[T]</code>, and <code class="language-plaintext highlighter-rouge">~str</code>.
+The second two are <em>not</em> equivalent to <code class="language-plaintext highlighter-rouge">Box&lt;[T]&gt;</code> and <code class="language-plaintext highlighter-rouge">Box&lt;str&gt;</code>, even though they may look like it,
+they are both growable containers like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">String</code>. <code class="language-plaintext highlighter-rouge">~</code> conceptually meant “owned”, though
 IMO that caused more confusion than it was worth.</p>
 
-<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
+<p>You created a box using the <code class="language-plaintext highlighter-rouge">~</code> operator, e.g. <code class="language-plaintext highlighter-rouge">let x = ~1;</code>. It could be dereferenced with the <code class="language-plaintext highlighter-rouge">*</code>
 operator, and autoderef worked much like it does today.</p>
 
-<p>As a “primitive” type; like all primitive types, <code>~T</code> was special. The compiler knew things about
-it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
-traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
+<p>As a “primitive” type; like all primitive types, <code class="language-plaintext highlighter-rouge">~T</code> was special. The compiler knew things about
+it. The compiler knew how to dereference it without an explicit <code class="language-plaintext highlighter-rouge">Deref</code> impl. In fact, the <code class="language-plaintext highlighter-rouge">Deref</code>
+traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code class="language-plaintext highlighter-rouge">~T</code> did. <code class="language-plaintext highlighter-rouge">~T</code> never got an explicit <code class="language-plaintext highlighter-rouge">Deref</code> impl,
 though it probably should have.</p>
 
-<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
-<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
-a very confusing detour with <code>StrBuf</code> first).</p>
+<p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
+<a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
+a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
-<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
-constructed, but it was still internally a special type. It didn’t even have a <code>Deref</code> impl yet,
-that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
+<p>However, <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
+constructed, but it was still internally a special type. It didn’t even have a <code class="language-plaintext highlighter-rouge">Deref</code> impl yet,
+that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code class="language-plaintext highlighter-rouge">&amp;**self</code>, exactly the same
 as it is today.</p>
 
 <p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
-ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
+ownership, overloadable deref) to implement <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> in pure rust in the stdlib as if it
 were a regular type.</p>
 
-<p>Turns out that Rust didn’t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+<p>Turns out that Rust didn’t. You see, because <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and before it <code class="language-plaintext highlighter-rouge">~T</code> were special, their
 dereference semantics were implemented in a different part of the code. And, these semantics were
-not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
-pointers. I don’t know if the possibility of being used for <code>~T</code> was considered when
-<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
+not the same as the ones for <code class="language-plaintext highlighter-rouge">DerefImm</code> and <code class="language-plaintext highlighter-rouge">DerefMut</code>, which were created for use with other smart
+pointers. I don’t know if the possibility of being used for <code class="language-plaintext highlighter-rouge">~T</code> was considered when
+<code class="language-plaintext highlighter-rouge">DerefImm</code>/<code class="language-plaintext highlighter-rouge">DerefMut</code> were being implemented, or if it was a simple oversight, but <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has
 three pieces of behavior that could not be replicated in pure Rust at the time:</p>
 
 <ul>
-  <li><code>box foo</code> in a pattern would destructure a box into its contents. It’s somewhat the opposite of <code>ref</code></li>
-  <li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
-  <li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">box foo</code> in a pattern would destructure a box into its contents. It’s somewhat the opposite of <code class="language-plaintext highlighter-rouge">ref</code></li>
+  <li><code class="language-plaintext highlighter-rouge">box foo()</code> performed placement box, so the result of <code class="language-plaintext highlighter-rouge">foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+  <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
 <p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.
-For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
-You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
-<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
+For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
+You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
+<code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
 this:</p>
 
-<pre><code class="language-rust">let x = Box::new(vec![1,2,3,4]);
-let y = *x; // moves the vec out into `y`, then deallocates the box
-            // but does not call a destructor on the vec
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c">// moves the vec out into `y`, then deallocates the box</span>
+            <span class="c">// but does not call a destructor on the vec</span>
+</code></pre></div></div>
 
 <p>For any other type, such an operation will produce a “cannot move out of a borrow” error.</p>
 
-<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
-past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
-removed from <code>Box&lt;T&gt;</code> before 1.0 (I don’t find it <em>necessary</em>), but people had better things to do,
+<p>This operation is colloquially called <code class="language-plaintext highlighter-rouge">DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
+past for making it into a trait. I suspect that the <code class="language-plaintext highlighter-rouge">DerefMove</code> semantics could even have been
+removed from <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> before 1.0 (I don’t find it <em>necessary</em>), but people had better things to do,
 like fixing the million other rough edges of the language that can’t be touched after backwards
 compatibility is a thing.</p>
 
-<p>So now we’re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+<p>So now we’re stuck with it. The current status is that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is <em>still</em> a special type in the
 compiler. By “special type” I don’t just mean that the compiler treats it a bit differently (this is
 true for any lang item), I mean that it literally is treated as
 <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
 There’s a TON of cruft in the compiler related to this type, much of which can be removed, but some
-of which can’t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
-writing this post I’m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+of which can’t. If we ever do get <code class="language-plaintext highlighter-rouge">DerefMove</code>, we should probably try removing it all again. After
+writing this post I’m half-convinced to try and implement an internal-use-only <code class="language-plaintext highlighter-rouge">DerefMove</code> and try
 cleaning up the code myself.</p>
 
 <p>Most of this isn’t really useful to know unless you actually come across a case where you can make
-use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
+use of <code class="language-plaintext highlighter-rouge">DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
 
 <p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
 
@@ -1023,10 +1023,10 @@ use of <code>DerefMove</code> semantics, or if you work on the compiler. But it 
       <p>Seriously though, does anyone use it much? I’ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It will probably eventually be replaced or made equivalent to the <code class="language-plaintext highlighter-rouge">&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
-      <p>It’s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It’s easier to special case the first two, much like how <code class="language-plaintext highlighter-rouge">for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

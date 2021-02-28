@@ -159,23 +159,23 @@ scheduling based on I/O.</p>
 <p>I think the best way to understand lightweight threading is to forget about Rust for a moment
 and look at a language that does this well, Go.</p>
 
-<p>Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the <code>go</code>
+<p>Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the <code class="language-plaintext highlighter-rouge">go</code>
 keyword. A web server might do something like this:</p>
 
-<pre><code class="language-go">listener, err = net.Listen(...)
-// handle err
-for {
-    conn, err := listener.Accept()
-    // handle err
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">listener</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">Listen</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="c">// handle err</span>
+<span class="k">for</span> <span class="p">{</span>
+    <span class="n">conn</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">listener</span><span class="o">.</span><span class="n">Accept</span><span class="p">()</span>
+    <span class="c">// handle err</span>
 
-    // spawn goroutine:
-    go handler(conn)
-}
-</code></pre>
+    <span class="c">// spawn goroutine:</span>
+    <span class="k">go</span> <span class="n">handler</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This is a loop which waits for new TCP connections, and spawns a goroutine with the connection
-and the function <code>handler</code>. Each connection will be a new goroutine, and the goroutine will shut down
-when <code>handler</code> finishes. In the meantime, the main loop continues executing, because it’s running in
+and the function <code class="language-plaintext highlighter-rouge">handler</code>. Each connection will be a new goroutine, and the goroutine will shut down
+when <code class="language-plaintext highlighter-rouge">handler</code> finishes. In the meantime, the main loop continues executing, because it’s running in
 a different goroutine.</p>
 
 <p>So if these aren’t “real” (operating system) threads, what’s going on?</p>
@@ -232,38 +232,38 @@ execution. The I/O request is executed at some later point by the kernel. The th
 OS “Is this I/O request ready yet?” before looking at the result of the I/O.</p>
 
 <p>Of course, repeatedly asking the OS if it’s done can be tedious and consume resources. This is why
-there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code>epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
+there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code class="language-plaintext highlighter-rouge">epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
 and then ask the OS to wake up your thread when <em>any</em> of these completes. So you can have a scheduler
 thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there’s nothing
-else happening it can itself go to sleep with an <code>epoll</code> call until the OS wakes it up (when one of the I/O
+else happening it can itself go to sleep with an <code class="language-plaintext highlighter-rouge">epoll</code> call until the OS wakes it up (when one of the I/O
 requests completes).</p>
 
 <p>(The exact mechanism involved here is probably more complex)</p>
 
 <p>So, bringing this to Rust, Rust has the <a href="https://github.com/carllerche/mio">mio</a> library, which is a platform-agnostic
 wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It’s a building block; and while
-those used to directly using <code>epoll</code> in C may find it helpful, it doesn’t provide a nice programming
+those used to directly using <code class="language-plaintext highlighter-rouge">epoll</code> in C may find it helpful, it doesn’t provide a nice programming
 model like Go does. But we can get there.</p>
 
 <h2 id="futures">Futures</h2>
 
-<p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code>Future</code></a> is the promise of eventually having a value
-(in fact, in Javascript these are called <code>Promise</code>s).</p>
+<p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code class="language-plaintext highlighter-rouge">Future</code></a> is the promise of eventually having a value
+(in fact, in Javascript these are called <code class="language-plaintext highlighter-rouge">Promise</code>s).</p>
 
-<p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back  (actually, a
-<code>Stream</code>, which is like a future but for a sequence of values). This <code>Future</code> won’t contain the
-response <em>yet</em>, but will know when it’s ready. You can <code>wait()</code> on a <code>Future</code>, which will block
-until you have a result, and you can also <code>poll()</code> it, asking it if it’s done yet (it will give you
+<p>So for example, you can ask to listen on a network socket, and get a <code class="language-plaintext highlighter-rouge">Future</code> back  (actually, a
+<code class="language-plaintext highlighter-rouge">Stream</code>, which is like a future but for a sequence of values). This <code class="language-plaintext highlighter-rouge">Future</code> won’t contain the
+response <em>yet</em>, but will know when it’s ready. You can <code class="language-plaintext highlighter-rouge">wait()</code> on a <code class="language-plaintext highlighter-rouge">Future</code>, which will block
+until you have a result, and you can also <code class="language-plaintext highlighter-rouge">poll()</code> it, asking it if it’s done yet (it will give you
 the result if it is).</p>
 
-<p>Futures can also be chained, so you can do stuff like <code>future.then(|result| process(result))</code>.
-The closure passed to <code>then</code> itself can produce another future, so you can chain together
-things like I/O operations. With chained futures, <code>poll()</code> is how you make progress; each time
+<p>Futures can also be chained, so you can do stuff like <code class="language-plaintext highlighter-rouge">future.then(|result| process(result))</code>.
+The closure passed to <code class="language-plaintext highlighter-rouge">then</code> itself can produce another future, so you can chain together
+things like I/O operations. With chained futures, <code class="language-plaintext highlighter-rouge">poll()</code> is how you make progress; each time
 you call it it will move on to the next future provided the existing one is ready.</p>
 
 <p>This is a pretty good abstraction over things like non-blocking I/O.</p>
 
-<p>Chaining futures works much like chaining iterators. Each <code>and_then</code> (or whatever combinator)
+<p>Chaining futures works much like chaining iterators. Each <code class="language-plaintext highlighter-rouge">and_then</code> (or whatever combinator)
 call returns a struct wrapping around the inner future, which may contain an additional closure.
 Closures themselves carry their references and data with them, so this really ends up being
 very similar to a tiny stack!</p>
@@ -273,7 +273,7 @@ very similar to a tiny stack!</p>
 <p>Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
+are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
 You have to manually set up the Tokio event loop (the “scheduler”), but once you do
@@ -285,28 +285,28 @@ use channels to coordinate so this isn’t that big a deal.</p>
 
 <p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn’t look so pretty. For the following Go code:</p>
 
-<pre><code class="language-go">// error handling ignored for simplicity
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// error handling ignored for simplicity</span>
 
-func foo(...) ReturnType {
-    data := doIo()
-    result := compute(data)
-    moreData = doMoreIo(result)
-    moreResult := moreCompute(data)
-    // ...
-    return someFinalResult
-}
-</code></pre>
+<span class="k">func</span> <span class="n">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="n">ReturnType</span> <span class="p">{</span>
+    <span class="n">data</span> <span class="o">:=</span> <span class="n">doIo</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">:=</span> <span class="n">compute</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">moreData</span> <span class="o">=</span> <span class="n">doMoreIo</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="n">moreResult</span> <span class="o">:=</span> <span class="n">moreCompute</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="c">// ...</span>
+    <span class="k">return</span> <span class="n">someFinalResult</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The Rust code will look something like</p>
 
-<pre><code class="language-rust">// error handling ignored for simplicity
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// error handling ignored for simplicity</span>
 
-fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
-    do_io().and_then(|data| do_more_io(compute(data)))
-          .and_then(|more_data| do_even_more_io(more_compute(more_data)))
-    // ......
-}
-</code></pre>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Future</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nf">do_io</span><span class="p">()</span><span class="nf">.and_then</span><span class="p">(|</span><span class="n">data</span><span class="p">|</span> <span class="nf">do_more_io</span><span class="p">(</span><span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+          <span class="nf">.and_then</span><span class="p">(|</span><span class="n">more_data</span><span class="p">|</span> <span class="nf">do_even_more_io</span><span class="p">(</span><span class="nf">more_compute</span><span class="p">(</span><span class="n">more_data</span><span class="p">)))</span>
+    <span class="c">// ......</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Not pretty. <a href="https://docs.rs/futures/0.1.25/futures/future/fn.loop_fn.html#examples">The code gets worse if you introduce branches and loops</a>. The problem is that in Go we
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
@@ -318,17 +318,17 @@ into a kind of state machine. Ew.</p>
 
 <p><a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html">Generators</a> are an experimental feature in Rust. Here’s an example:</p>
 
-<pre><code class="language-rust">let mut generator = || {
-    let i = 0;
-    loop {
-        yield i;
-        i += 1;
-    }
-};
-assert_eq!(generator.resume(), GeneratorState::Yielded(0));
-assert_eq!(generator.resume(), GeneratorState::Yielded(1));
-assert_eq!(generator.resume(), GeneratorState::Yielded(2));
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">generator</span> <span class="o">=</span> <span class="p">||</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="n">yield</span> <span class="n">i</span><span class="p">;</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+</code></pre></div></div>
 
 <p>Functions are things which execute a task and return once. On the other hand, generators
 return multiple times; they pause execution to “yield” some data, and can be resumed
@@ -336,38 +336,38 @@ at which point they will run until the next yield. While my example doesn’t sh
 can also finish executing like regular functions.</p>
 
 <p>Closures in Rust are
-<a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code>Fn</code> traits to make it callable</a>.</p>
+<a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code class="language-plaintext highlighter-rouge">Fn</code> traits to make it callable</a>.</p>
 
-<p>Generators are similar, except they implement the <code>Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
+<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
 
 <p>The <a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines">unstable book</a> has some examples on what the generator state machine enum will look like.</p>
 
 <p>This is much closer to what we were looking for! Now our code can look like this:</p>
 
-<pre><code class="language-rust">fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
-    let generator = || {
-        let mut future = do_io();
-        let data;
-        loop {
-            // poll the future, yielding each time it fails,
-            // but if it succeeds then move on
-            match future.poll() {
-                Ok(Async::Ready(d)) =&gt; { data = d; break },
-                Ok(Async::NotReady(d)) =&gt; (),
-                Err(..) =&gt; ...
-            };
-            yield future.polling_info();
-        }
-        let result = compute(data);
-        // do the same thing for `doMoreIo()`, etc
-    }
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Future</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">generator</span> <span class="o">=</span> <span class="p">||</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">future</span> <span class="o">=</span> <span class="nf">do_io</span><span class="p">();</span>
+        <span class="k">let</span> <span class="n">data</span><span class="p">;</span>
+        <span class="k">loop</span> <span class="p">{</span>
+            <span class="c">// poll the future, yielding each time it fails,</span>
+            <span class="c">// but if it succeeds then move on</span>
+            <span class="k">match</span> <span class="n">future</span><span class="nf">.poll</span><span class="p">()</span> <span class="p">{</span>
+                <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">Ready</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span> <span class="n">data</span> <span class="o">=</span> <span class="n">d</span><span class="p">;</span> <span class="k">break</span> <span class="p">},</span>
+                <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">NotReady</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">(),</span>
+                <span class="nf">Err</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="o">...</span>
+            <span class="p">};</span>
+            <span class="n">yield</span> <span class="n">future</span><span class="nf">.polling_info</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+        <span class="c">// do the same thing for `doMoreIo()`, etc</span>
+    <span class="p">}</span>
 
-    futurify(generator)
-}
-</code></pre>
+    <span class="nf">futurify</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>where <code>futurify</code> is a function that takes a generator and returns a future which on
-each <code>poll</code> call will <code>resume()</code> the generator, and return <code>NotReady</code> until the generator
+<p>where <code class="language-plaintext highlighter-rouge">futurify</code> is a function that takes a generator and returns a future which on
+each <code class="language-plaintext highlighter-rouge">poll</code> call will <code class="language-plaintext highlighter-rouge">resume()</code> the generator, and return <code class="language-plaintext highlighter-rouge">NotReady</code> until the generator
 finishes executing.</p>
 
 <p>But wait, this is even <em>more</em> ugly! What was the point of converting our relatively
@@ -375,21 +375,21 @@ clean callback-chaining code into this mess?</p>
 
 <p>Well, if you look at it, this code now looks <em>linear</em>. We’ve converted our callback
 code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate
-and the <code>futurify</code> function and is overall not very neat.</p>
+and the <code class="language-plaintext highlighter-rouge">futurify</code> function and is overall not very neat.</p>
 
-<p>And that’s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code>futures-await</code> is a procedural macro that
+<p>And that’s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code class="language-plaintext highlighter-rouge">futures-await</code> is a procedural macro that
 does the last-mile work of packaging away this boilerplate. It essentially lets you write
 the above function as</p>
 
-<pre><code class="language-rust">#[async]
-fn foo(...) -&gt; Result&lt;ReturnType, ErrorType&gt; {
-    let data = await!(do_io());
-    let result = compute(data);
-    let more_data = await!(do_more_io());
-    // ....
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async]</span>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_io</span><span class="p">());</span>
+    <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+    <span class="k">let</span> <span class="n">more_data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_more_io</span><span class="p">());</span>
+    <span class="c">// ....</span>
+</code></pre></div></div>
 
-<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code>await!()</code> calls. These
+<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code class="language-plaintext highlighter-rouge">await!()</code> calls. These
 await calls are basically providing the same function as the interruption points that Go code
 gets implicitly.</p>
 
@@ -399,7 +399,7 @@ else you want as normal, and the code will still be clean.</p>
 <h2 id="tying-it-together">Tying it together</h2>
 
 <p>So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
-you can neatly write these future chains, and <code>await</code> provides explicit interruption points on each I/O operation.
+you can neatly write these future chains, and <code class="language-plaintext highlighter-rouge">await</code> provides explicit interruption points on each I/O operation.
 Tokio provides an event loop “scheduler” abstraction, which you can feed async functions to, and under the hood it
 uses mio to abstract over low level non-blocking I/O primitives.</p>
 
@@ -424,10 +424,10 @@ and we get to have “fearless concurrency” for programs having a huge quantit
       <p>Lightweight threading is also often called M:N threading (also “green threading”) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code>Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code class="language-plaintext highlighter-rouge">epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code class="language-plaintext highlighter-rouge">Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
-      <p>The <code>Generator</code> trait has a <code>resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>The <code class="language-plaintext highlighter-rouge">Generator</code> trait has a <code class="language-plaintext highlighter-rouge">resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

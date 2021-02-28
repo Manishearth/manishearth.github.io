@@ -130,18 +130,18 @@ the topic in depth.</p>
 
 <h1 id="basic-pointer-types">Basic pointer types</h1>
 
-<h2 id="boxt"><code>Box&lt;T&gt;</code></h2>
+<h2 id="boxt"><code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> is an “owned pointer” or a “box”. While it can hand out borrowed references to the data, it is the only
+<p><a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a> is an “owned pointer” or a “box”. While it can hand out borrowed references to the data, it is the only
 owner of the data. In particular, when something like the following occurs:</p>
 
-<pre><code class="language-rust">let x = Box::new(1);
-let y = x;
-// x no longer accessible here
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span>
+<span class="c">// x no longer accessible here</span>
+</code></pre></div></div>
 
-<p>Here, the box was <em>moved</em> into <code>y</code>. As <code>x</code> no longer owns it,
-the compiler will no longer allow the programmer to use <code>x</code> after this. A box
+<p>Here, the box was <em>moved</em> into <code class="language-plaintext highlighter-rouge">y</code>. As <code class="language-plaintext highlighter-rouge">x</code> no longer owns it,
+the compiler will no longer allow the programmer to use <code class="language-plaintext highlighter-rouge">x</code> after this. A box
 can similarly be moved <em>out</em> of a function by returning, and when a
 box (one which hasn’t been moved) goes out of scope, destructors are run, deallocating
 the inner data.</p>
@@ -151,31 +151,31 @@ to allocate some memory on the heap and safely pass a pointer to that memory aro
 is ideal. Note that you will only be allowed to share borrowed references to this by
 the regular borrowing rules, checked at compile time.</p>
 
-<h4 id="interlude-copy">Interlude: <code>Copy</code></h4>
+<h4 id="interlude-copy">Interlude: <code class="language-plaintext highlighter-rouge">Copy</code></h4>
 
-<p>Move/ownership semantics are not special to <code>Box&lt;T&gt;</code>; it is a feature of all types which are not <code>Copy</code>.</p>
+<p>Move/ownership semantics are not special to <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>; it is a feature of all types which are not <code class="language-plaintext highlighter-rouge">Copy</code>.</p>
 
-<p>A <code>Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
+<p>A <code class="language-plaintext highlighter-rouge">Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
 representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.
-Most types containing pointers to other data are not <code>Copy</code>, since there is additional data
+Most types containing pointers to other data are not <code class="language-plaintext highlighter-rouge">Copy</code>, since there is additional data
 elsewhere, and simply copying the stack representation may accidentally share ownership of that data
 in an unsafe manner.</p>
 
-<p>Types like <code>Vec&lt;T&gt;</code> and <code>String</code> which also have data on the heap are also not <code>Copy</code>. Types
-like the integer/boolean types are <code>Copy</code></p>
+<p>Types like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">String</code> which also have data on the heap are also not <code class="language-plaintext highlighter-rouge">Copy</code>. Types
+like the integer/boolean types are <code class="language-plaintext highlighter-rouge">Copy</code></p>
 
-<p><code>&amp;T</code> and raw pointers <em>are</em> <code>Copy</code>. Even though they do point
-to further data, they do not “own” that data. Whereas <code>Box&lt;T&gt;</code> can be thought of as
-“some data which happens to be dynamically allocated”, <code>&amp;T</code> is thought of as “a borrowing reference
+<p><code class="language-plaintext highlighter-rouge">&amp;T</code> and raw pointers <em>are</em> <code class="language-plaintext highlighter-rouge">Copy</code>. Even though they do point
+to further data, they do not “own” that data. Whereas <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> can be thought of as
+“some data which happens to be dynamically allocated”, <code class="language-plaintext highlighter-rouge">&amp;T</code> is thought of as “a borrowing reference
 to some data”. Even though both are pointers, only the first is considered to be “data”. Hence,
 a copy of the first should involve a copy of the data (which is not part of its stack representation),
-but a copy of the second only needs a copy of the reference. <code>&amp;mut T</code> is not <code>Copy</code> because mutable aliases
-cannot be shared, and <code>&amp;mut T</code> “owns” the data it points to somewhat since it can mutate.</p>
+but a copy of the second only needs a copy of the reference. <code class="language-plaintext highlighter-rouge">&amp;mut T</code> is not <code class="language-plaintext highlighter-rouge">Copy</code> because mutable aliases
+cannot be shared, and <code class="language-plaintext highlighter-rouge">&amp;mut T</code> “owns” the data it points to somewhat since it can mutate.</p>
 
-<p>Practically speaking, a type can be <code>Copy</code> if a copy of its stack representation doesn’t violate
+<p>Practically speaking, a type can be <code class="language-plaintext highlighter-rouge">Copy</code> if a copy of its stack representation doesn’t violate
 memory safety.</p>
 
-<h2 id="t-and-mut-t"><code>&amp;T</code> and <code>&amp;mut T</code></h2>
+<h2 id="t-and-mut-t"><code class="language-plaintext highlighter-rouge">&amp;T</code> and <code class="language-plaintext highlighter-rouge">&amp;mut T</code></h2>
 
 <p>These are immutable and mutable references respectively. They follow the “read-write lock” pattern
 described in my <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">previous post</a>, such that one may either have only one mutable reference
@@ -185,23 +185,23 @@ sections of code.</p>
 
 <p>These pointers cannot be copied in such a way that they outlive the lifetime associated with them.</p>
 
-<h2 id="const-t-and-mut-t"><code>*const T</code> and <code>*mut T</code></h2>
+<h2 id="const-t-and-mut-t"><code class="language-plaintext highlighter-rouge">*const T</code> and <code class="language-plaintext highlighter-rouge">*mut T</code></h2>
 
 <p>These are C-like raw pointers with no lifetime or ownership attached to them. They just point to some location
 in memory with no other restrictions. The only guarantee that these provide is that they cannot be dereferenced
-except in code marked <code>unsafe</code>.</p>
+except in code marked <code class="language-plaintext highlighter-rouge">unsafe</code>.</p>
 
-<p>These are useful when building safe, low cost abstractions like <code>Vec&lt;T&gt;</code>, but should be avoided in safe code.</p>
+<p>These are useful when building safe, low cost abstractions like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code>, but should be avoided in safe code.</p>
 
-<h2 id="rct"><code>Rc&lt;T&gt;</code></h2>
+<h2 id="rct"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></h2>
 
 <p>This is the first wrapper we will cover that has a runtime cost.</p>
 
-<p><a href="http://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> is a reference counted pointer. In other words, this lets us have multiple “owning” pointers
+<p><a href="http://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a> is a reference counted pointer. In other words, this lets us have multiple “owning” pointers
 to the same data, and the data will be freed (destructors will be run) when all pointers are out of scope.</p>
 
-<p>Internally, it contains a shared “reference count”, which is incremented each time the <code>Rc</code> is cloned, and decremented
-each time one of the <code>Rc</code>s goes out of scope. The main responsibility of <code>Rc&lt;T&gt;</code> is to ensure that destructors are called
+<p>Internally, it contains a shared “reference count”, which is incremented each time the <code class="language-plaintext highlighter-rouge">Rc</code> is cloned, and decremented
+each time one of the <code class="language-plaintext highlighter-rouge">Rc</code>s goes out of scope. The main responsibility of <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is to ensure that destructors are called
 for shared data.</p>
 
 <p>The internal data here is immutable, and if a cycle of references is created, the data will be leaked. If we want
@@ -215,66 +215,66 @@ Fitzgerald.</p>
 
 <p>This should be used when you wish to dynamically allocate and share some data (read-only) between various portions
 of your program, where it is not certain which portion will finish using the pointer last. It’s a viable alternative
-to <code>&amp;T</code> when <code>&amp;T</code> is either impossible to statically check for correctness, or creates extremely unergonomic code where
+to <code class="language-plaintext highlighter-rouge">&amp;T</code> when <code class="language-plaintext highlighter-rouge">&amp;T</code> is either impossible to statically check for correctness, or creates extremely unergonomic code where
 the programmer does not wish to spend the development cost of working with.</p>
 
 <p>This pointer is <em>not</em> thread safe, and Rust will not let it be sent or shared with other threads. This lets
 one avoid the cost of atomics in situations where they are unnecessary.</p>
 
-<p>There is a sister smart pointer to this one, <code>Weak&lt;T&gt;</code>. This is a non-owning, but also non-borrowed, smart pointer.
-It is also similar to <code>&amp;T</code>, but it is not restricted in lifetime — a <code>Weak&lt;T&gt;</code> can be held on to forever. However,
-it is possible that an attempt to access the inner data may fail and return <code>None</code>, since this can outlive the owned
-<code>Rc</code>s. This is useful for when one wants cyclic data structures and other things.</p>
+<p>There is a sister smart pointer to this one, <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code>. This is a non-owning, but also non-borrowed, smart pointer.
+It is also similar to <code class="language-plaintext highlighter-rouge">&amp;T</code>, but it is not restricted in lifetime — a <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code> can be held on to forever. However,
+it is possible that an attempt to access the inner data may fail and return <code class="language-plaintext highlighter-rouge">None</code>, since this can outlive the owned
+<code class="language-plaintext highlighter-rouge">Rc</code>s. This is useful for when one wants cyclic data structures and other things.</p>
 
 <h4 id="cost">Cost</h4>
 
-<p>As far as memory goes, <code>Rc&lt;T&gt;</code> is a single allocation, though it will allocate two extra words as compared to
-a regular <code>Box&lt;T&gt;</code> (for “strong” and “weak” refcounts).</p>
+<p>As far as memory goes, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is a single allocation, though it will allocate two extra words as compared to
+a regular <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> (for “strong” and “weak” refcounts).</p>
 
-<p><code>Rc&lt;T&gt;</code> has the computational cost of incrementing/decrementing the refcount whenever it is cloned or goes out of
+<p><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> has the computational cost of incrementing/decrementing the refcount whenever it is cloned or goes out of
 scope respectively. Note that a clone will not do a deep copy, rather it will simply increment the inner reference count
-and return a copy of the <code>Rc&lt;T&gt;</code></p>
+and return a copy of the <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></p>
 
 <h1 id="cell-types">Cell types</h1>
 
 <p>“Cells” provide interior mutability. In other words, they contain data which can be manipulated even
-if the type cannot be obtained in a mutable form (for example, when it is behind an <code>&amp;</code>-ptr or <code>Rc&lt;T&gt;</code>).</p>
+if the type cannot be obtained in a mutable form (for example, when it is behind an <code class="language-plaintext highlighter-rouge">&amp;</code>-ptr or <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>).</p>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/">The documentation for the <code>cell</code> module has a pretty good explanation for these</a>.</p>
+<p><a href="http://doc.rust-lang.org/doc/std/cell/">The documentation for the <code class="language-plaintext highlighter-rouge">cell</code> module has a pretty good explanation for these</a>.</p>
 
 <p>These types are <em>generally</em> found in struct fields, but they may be found elsewhere too.</p>
 
-<h2 id="cellt"><code>Cell&lt;T&gt;</code></h2>
+<h2 id="cellt"><code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> is a type that provides zero-cost interior mutability, but only for <code>Copy</code> types.
+<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.Cell.html"><code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code></a> is a type that provides zero-cost interior mutability, but only for <code class="language-plaintext highlighter-rouge">Copy</code> types.
 Since the compiler knows that all the data owned by the contained value is on the stack, there’s
 no worry of leaking any data behind references (or worse!) by simply replacing the data.</p>
 
 <p>It is still possible to violate your own invariants using this wrapper, so be careful when
-using it. If a field is wrapped in <code>Cell</code>, it’s a nice indicator that the chunk of data is mutable
+using it. If a field is wrapped in <code class="language-plaintext highlighter-rouge">Cell</code>, it’s a nice indicator that the chunk of data is mutable
 and may not stay the same between the time you first read it and when you intend to use it.</p>
 
-<pre><code class="language-rust">let x = Cell::new(1);
-let y = &amp;x;
-let z = &amp;x;
-x.set(2);
-y.set(3);
-z.set(4);
-println!("{}", x.get());
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
+<span class="n">x</span><span class="nf">.set</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">y</span><span class="nf">.set</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+<span class="n">z</span><span class="nf">.set</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="nf">.get</span><span class="p">());</span>
+</code></pre></div></div>
 
 <p>Note that here we were able to mutate the same value from various immutable references.</p>
 
 <p>This has the same runtime cost as the following:</p>
 
-<pre><code class="language-rust">let mut x = 1;
-let y = &amp;mut x;
-let z = &amp;mut x;
-x = 2;
-*y = 3;
-*z = 4;
-println!("{}", x;
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
+<span class="n">x</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+<span class="o">*</span><span class="n">z</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="p">;</span>
+</code></pre></div></div>
 
 <p>but it has the added benefit of actually compiling successfully.</p>
 
@@ -282,20 +282,20 @@ println!("{}", x;
 
 <p>This relaxes the “no aliasing with mutability” restriction in places where it’s
 unnecessary. However, this also relaxes the guarantees that the restriction provides;
-so if one’s invariants depend on data stored within <code>Cell</code>, one should be careful.</p>
+so if one’s invariants depend on data stored within <code class="language-plaintext highlighter-rouge">Cell</code>, one should be careful.</p>
 
-<p>This is useful for mutating primitives and other <code>Copy</code> types when there is no easy way of
-doing it in line with the static rules of <code>&amp;</code> and <code>&amp;mut</code>.</p>
+<p>This is useful for mutating primitives and other <code class="language-plaintext highlighter-rouge">Copy</code> types when there is no easy way of
+doing it in line with the static rules of <code class="language-plaintext highlighter-rouge">&amp;</code> and <code class="language-plaintext highlighter-rouge">&amp;mut</code>.</p>
 
-<p><a href="http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crlfl74">Gábor Lehel</a> summed up the guarantees provided by <code>Cell</code> in a rather succinct manner:</p>
+<p><a href="http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crlfl74">Gábor Lehel</a> summed up the guarantees provided by <code class="language-plaintext highlighter-rouge">Cell</code> in a rather succinct manner:</p>
 
 <blockquote>
   <p>The basic guarantee we need to ensure is that interior references can’t be invalidated (left dangling)
-by mutation of the outer structure. (Think about references to the interiors of types like <code>Option</code>,
-<code>Box</code>, <code>Vec</code>, etc.) <code>&amp;</code>, <code>&amp;mut</code>, and Cell each make a different tradeoff here.
-<code>&amp;</code> allows shared interior references but forbids mutation;
-<code>&amp;mut</code> allows mutation xor interior references but not sharing;
-<code>Cell</code> allows shared mutability but not interior references.</p>
+by mutation of the outer structure. (Think about references to the interiors of types like <code class="language-plaintext highlighter-rouge">Option</code>,
+<code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, etc.) <code class="language-plaintext highlighter-rouge">&amp;</code>, <code class="language-plaintext highlighter-rouge">&amp;mut</code>, and Cell each make a different tradeoff here.
+<code class="language-plaintext highlighter-rouge">&amp;</code> allows shared interior references but forbids mutation;
+<code class="language-plaintext highlighter-rouge">&amp;mut</code> allows mutation xor interior references but not sharing;
+<code class="language-plaintext highlighter-rouge">Cell</code> allows shared mutability but not interior references.</p>
 </blockquote>
 
 <p>Ultimately, while shared mutability can cause many logical errors (as outlined in <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">my previous post
@@ -306,79 +306,79 @@ to the inner type whilst the variant is changed, pointers within that alias may 
 Similarly, if you change the length of a vector while you have an alias to one of its elements, that
 alias may be invalidated.</p>
 
-<p>Since <code>Cell</code> doesn’t allow references to the insides of a type (you can only copy out and copy back
+<p>Since <code class="language-plaintext highlighter-rouge">Cell</code> doesn’t allow references to the insides of a type (you can only copy out and copy back
 in), enums and structs alike are safe to be aliased mutably within this.</p>
 
-<p><a href="https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h">This comment by Eddy also touches on the guarantees of <code>Cell</code> and the alternatives</a></p>
+<p><a href="https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h">This comment by Eddy also touches on the guarantees of <code class="language-plaintext highlighter-rouge">Cell</code> and the alternatives</a></p>
 
 <h4 id="cost-1">Cost</h4>
 
-<p>There is no runtime cost to using <code>Cell&lt;T&gt;</code>, however if one is using it
-to wrap larger (<code>Copy</code>) structs, it might be worthwhile to instead wrap individual
-fields in <code>Cell&lt;T&gt;</code> since each write is a full copy of the struct.</p>
+<p>There is no runtime cost to using <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code>, however if one is using it
+to wrap larger (<code class="language-plaintext highlighter-rouge">Copy</code>) structs, it might be worthwhile to instead wrap individual
+fields in <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code> since each write is a full copy of the struct.</p>
 
-<h2 id="refcellt"><code>RefCell&lt;T&gt;</code></h2>
+<h2 id="refcellt"><code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html"><code>RefCell&lt;T&gt;</code></a> also provides interior mutability, but isn’t restricted to <code>Copy</code> types.</p>
+<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code></a> also provides interior mutability, but isn’t restricted to <code class="language-plaintext highlighter-rouge">Copy</code> types.</p>
 
-<p>Instead, it has a runtime cost. <code>RefCell&lt;T&gt;</code> enforces the RWLock pattern at runtime (it’s like a single-threaded mutex),
-unlike <code>&amp;T</code>/<code>&amp;mut T</code> which do so at compile time. This is done by the <code>borrow()</code> and
-<code>borrow_mut()</code> functions, which modify an internal reference count and return smart pointers
+<p>Instead, it has a runtime cost. <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> enforces the RWLock pattern at runtime (it’s like a single-threaded mutex),
+unlike <code class="language-plaintext highlighter-rouge">&amp;T</code>/<code class="language-plaintext highlighter-rouge">&amp;mut T</code> which do so at compile time. This is done by the <code class="language-plaintext highlighter-rouge">borrow()</code> and
+<code class="language-plaintext highlighter-rouge">borrow_mut()</code> functions, which modify an internal reference count and return smart pointers
 which can be dereferenced immutably and mutably respectively. The refcount is restored
 when the smart pointers go out of scope. With this system, we can dynamically ensure that
 there are never any other borrows active when a mutable borrow is active. If the programmer
 attempts to make such a borrow, the thread will panic.</p>
 
-<pre><code class="language-rust">let x = RefCell::new(vec![1,2,3,4]);
-{
-    println!("{:?}", *x.borrow())
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">RefCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+<span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="n">x</span><span class="nf">.borrow</span><span class="p">())</span>
+<span class="p">}</span>
 
-{
-    let my_ref = x.borrow_mut();
-    my_ref.push(1);
-}
+<span class="p">{</span>
+    <span class="k">let</span> <span class="n">my_ref</span> <span class="o">=</span> <span class="n">x</span><span class="nf">.borrow_mut</span><span class="p">();</span>
+    <span class="n">my_ref</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
 
-</code></pre>
+</code></pre></div></div>
 
-<p>Similar to <code>Cell</code>, this is mainly useful for situations where it’s hard or impossible to satisfy the
+<p>Similar to <code class="language-plaintext highlighter-rouge">Cell</code>, this is mainly useful for situations where it’s hard or impossible to satisfy the
 borrow checker. Generally one knows that such mutations won’t happen in a nested form, but it’s good
 to check.</p>
 
-<p>For large, complicated programs, it becomes useful to put some things in <code>RefCell</code>s to
-make things simpler. For example, a lot of the maps in <a href="https://github.com/rust-lang/rust/blob/620d1ee5346bee10ba7ce129b2e20d6e59f0377d/src/librustc/middle/ty.rs#L803-L987">the <code>ctxt</code> struct</a> in the rust compiler
+<p>For large, complicated programs, it becomes useful to put some things in <code class="language-plaintext highlighter-rouge">RefCell</code>s to
+make things simpler. For example, a lot of the maps in <a href="https://github.com/rust-lang/rust/blob/620d1ee5346bee10ba7ce129b2e20d6e59f0377d/src/librustc/middle/ty.rs#L803-L987">the <code class="language-plaintext highlighter-rouge">ctxt</code> struct</a> in the rust compiler
 internals are inside this wrapper. These are only modified once (during creation, which is not
 right after initialization) or a couple of times in well-separated places. However, since this struct is
 pervasively used everywhere, juggling mutable and immutable pointers would be hard (perhaps impossible)
-and probably form a soup of <code>&amp;</code>-ptrs which would be hard to extend. On the other hand, the <code>RefCell</code>
+and probably form a soup of <code class="language-plaintext highlighter-rouge">&amp;</code>-ptrs which would be hard to extend. On the other hand, the <code class="language-plaintext highlighter-rouge">RefCell</code>
 provides a cheap (not zero-cost) way of safely accessing these. In the future, if someone adds some code
 that attempts to modify the cell when it’s already borrowed, it will cause a (usually deterministic) panic
 which can be traced back to the offending borrow.</p>
 
 <p>Similarly, in Servo’s DOM we have a lot of mutation, most of which is local to a DOM type, but
-some of which crisscrosses the DOM and modifies various things. Using <code>RefCell</code> and <code>Cell</code> to guard
+some of which crisscrosses the DOM and modifies various things. Using <code class="language-plaintext highlighter-rouge">RefCell</code> and <code class="language-plaintext highlighter-rouge">Cell</code> to guard
 all mutation lets us avoid worrying about mutability everywhere, and it simultaneously
 highlights the places where mutation is <em>actually</em> happening.</p>
 
-<p>Note that <code>RefCell</code> should be avoided if a mostly simple solution is possible with <code>&amp;</code> pointers.</p>
+<p>Note that <code class="language-plaintext highlighter-rouge">RefCell</code> should be avoided if a mostly simple solution is possible with <code class="language-plaintext highlighter-rouge">&amp;</code> pointers.</p>
 
 <h4 id="guarantees-2">Guarantees</h4>
 
-<p><code>RefCell</code> relaxes the <em>static</em> restrictions preventing aliased mutation, and
+<p><code class="language-plaintext highlighter-rouge">RefCell</code> relaxes the <em>static</em> restrictions preventing aliased mutation, and
 replaces them with <em>dynamic</em> ones. As such the guarantees have not changed.</p>
 
 <h4 id="cost-2">Cost</h4>
 
-<p><code>RefCell</code> does not allocate, but it contains an additional “borrow state”
+<p><code class="language-plaintext highlighter-rouge">RefCell</code> does not allocate, but it contains an additional “borrow state”
 indicator (one word in size) along with the data.</p>
 
 <p>At runtime each borrow causes a modification/check of the refcount.</p>
 
 <h1 id="synchronous-types">Synchronous types</h1>
 
-<p>Many of the types above cannot be used in a threadsafe manner. Particularly, <code>Rc&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code>,
+<p>Many of the types above cannot be used in a threadsafe manner. Particularly, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>,
 which both use non-atomic ref counts, cannot be used this way. This makes them cheaper to use, but one
-needs thread safe versions of these too. They exist, in the form of <code>Arc&lt;T&gt;</code> and <code>Mutex&lt;T&gt;</code>/<code>RWLock&lt;T&gt;</code></p>
+needs thread safe versions of these too. They exist, in the form of <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code>/<code class="language-plaintext highlighter-rouge">RWLock&lt;T&gt;</code></p>
 
 <p>Note that the non-threadsafe types <em>cannot</em> be sent between threads, and this is checked at compile time.
 I’ll touch on how this is done in a later blog post.</p>
@@ -386,45 +386,45 @@ I’ll touch on how this is done in a later blog post.</p>
 <p>There are many useful wrappers for concurrent programming in the <a href="https://doc.rust-lang.org/nightly/std/sync/index.html">sync</a> module, but I’m only going to cover
 the major ones.</p>
 
-<h2 id="arct"><code>Arc&lt;T&gt;</code></h2>
+<h2 id="arct"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></h2>
 
-<p><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> is just a version of <code>Rc&lt;T&gt;</code> that uses an atomic reference count (hence, “Arc”). This can be sent
+<p><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></a> is just a version of <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> that uses an atomic reference count (hence, “Arc”). This can be sent
 freely between threads.</p>
 
-<p>C++’s <code>shared_ptr</code> is similar to <code>Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code>Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code>UnsafeCell&lt;T&gt;</code>
-is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code>unsafe</code> blocks).
+<p>C++’s <code class="language-plaintext highlighter-rouge">shared_ptr</code> is similar to <code class="language-plaintext highlighter-rouge">Arc</code>, however in C++s case the inner data is always mutable. For semantics
+similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
+is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code class="language-plaintext highlighter-rouge">unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won’t cause any memory unsafety. Remember that
-writing to a struct is not an atomic operation, and many functions like <code>vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code>UnsafeCell</code>)</p>
+writing to a struct is not an atomic operation, and many functions like <code class="language-plaintext highlighter-rouge">vec.push()</code> can reallocate internally
+and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
 
 <h4 id="guarantees-3">Guarantees</h4>
 
-<p>Like <code>Rc</code>, this provides the (thread safe) guarantee that the destructor for the internal data
-will be run when the last <code>Arc</code> goes out of scope (barring any cycles).</p>
+<p>Like <code class="language-plaintext highlighter-rouge">Rc</code>, this provides the (thread safe) guarantee that the destructor for the internal data
+will be run when the last <code class="language-plaintext highlighter-rouge">Arc</code> goes out of scope (barring any cycles).</p>
 
 <h4 id="cost-3">Cost</h4>
 <p>This has the added cost of using atomics for changing the refcount (which will happen whenever it is cloned
-or goes out of scope). When sharing data from an <code>Arc</code> in
-a single thread, it is preferable to share <code>&amp;</code> pointers whenever possible.</p>
+or goes out of scope). When sharing data from an <code class="language-plaintext highlighter-rouge">Arc</code> in
+a single thread, it is preferable to share <code class="language-plaintext highlighter-rouge">&amp;</code> pointers whenever possible.</p>
 
-<h2 id="mutext-and-rwlockt"><code>Mutex&lt;T&gt;</code> and <code>RwLock&lt;T&gt;</code></h2>
+<h2 id="mutext-and-rwlockt"><code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">RwLock&lt;T&gt;</code></h2>
 
-<p><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex&lt;T&gt;</code></a> and <a href="https://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock&lt;T&gt;</code></a> provide mutual-exclusion via RAII guards. For both of these, the
-mutex is opaque until one calls <code>lock()</code> on it, at which point the thread will
+<p><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html"><code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code></a> and <a href="https://doc.rust-lang.org/std/sync/struct.RwLock.html"><code class="language-plaintext highlighter-rouge">RwLock&lt;T&gt;</code></a> provide mutual-exclusion via RAII guards. For both of these, the
+mutex is opaque until one calls <code class="language-plaintext highlighter-rouge">lock()</code> on it, at which point the thread will
 block until a lock can be acquired, and then a guard will be returned. This guard
 can be used to access the inner data (mutably), and the lock will be released when the
 guard goes out of scope.</p>
 
-<pre><code class="language-rust">{
-    let guard = mutex.lock();
-    // guard dereferences mutably to the inner type
-    *guard += 1;
-} // lock released when destructor runs
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
+    <span class="k">let</span> <span class="n">guard</span> <span class="o">=</span> <span class="n">mutex</span><span class="nf">.lock</span><span class="p">();</span>
+    <span class="c">// guard dereferences mutably to the inner type</span>
+    <span class="o">*</span><span class="n">guard</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span> <span class="c">// lock released when destructor runs</span>
+</code></pre></div></div>
 
-<p><code>RwLock</code> has the added benefit of being efficient for multiple reads. It is always
-safe to have multiple readers to shared data as long as there are no writers; and <code>RwLock</code>
+<p><code class="language-plaintext highlighter-rouge">RwLock</code> has the added benefit of being efficient for multiple reads. It is always
+safe to have multiple readers to shared data as long as there are no writers; and <code class="language-plaintext highlighter-rouge">RwLock</code>
 lets readers acquire a “read lock”. Such locks can be acquired concurrently and are kept track of
 via a reference count. Writers must obtain a “write lock” which can only be obtained when all readers
 have gone out of scope.</p>
@@ -443,37 +443,37 @@ can also be slow when there’s a lot of concurrent access happening.</p>
 
 <h1 id="composition">Composition</h1>
 
-<p>A common gripe when reading Rust code is with stuff like <code>Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> and more complicated
+<p>A common gripe when reading Rust code is with stuff like <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> and more complicated
 compositions of such types.</p>
 
 <p>Usually, it’s a case of composing together the guarantees that one needs, without paying for stuff that is
 unnecessary.</p>
 
-<p>For example, <code>Rc&lt;RefCell&lt;T&gt;&gt;</code> is one such composition. <code>Rc</code> itself can’t be dereferenced mutably;
-because <code>Rc</code> provides sharing and shared mutability isn’t good, so we put <code>RefCell</code> inside to get
+<p>For example, <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;T&gt;&gt;</code> is one such composition. <code class="language-plaintext highlighter-rouge">Rc</code> itself can’t be dereferenced mutably;
+because <code class="language-plaintext highlighter-rouge">Rc</code> provides sharing and shared mutability isn’t good, so we put <code class="language-plaintext highlighter-rouge">RefCell</code> inside to get
 dynamically verified shared mutability. Now we have shared mutable data, but it’s shared in a way
 that there can only be one mutator (and no readers) or multiple readers.</p>
 
-<p>Now, we can take this a step further, and have <code>Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code>Rc&lt;Vec&lt;RefCell&lt;T&gt;&gt;&gt;</code>.
+<p>Now, we can take this a step further, and have <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code class="language-plaintext highlighter-rouge">Rc&lt;Vec&lt;RefCell&lt;T&gt;&gt;&gt;</code>.
 These are both shareable, mutable vectors, but they’re not the same.</p>
 
-<p>With the former, the <code>RefCell</code> is wrapping the <code>Vec</code>, so the <code>Vec</code> in its entirety is mutable.
-At the same time, there can only be one mutable borrow of the whole <code>Vec</code> at a given time. This
+<p>With the former, the <code class="language-plaintext highlighter-rouge">RefCell</code> is wrapping the <code class="language-plaintext highlighter-rouge">Vec</code>, so the <code class="language-plaintext highlighter-rouge">Vec</code> in its entirety is mutable.
+At the same time, there can only be one mutable borrow of the whole <code class="language-plaintext highlighter-rouge">Vec</code> at a given time. This
 means that your code cannot simultaneously work on different elements of the vector from different
-<code>Rc</code> handles. However, we are able to push and pop from the <code>Vec</code> at will. This is similar to an <code>&amp;mut Vec&lt;T&gt;</code>
+<code class="language-plaintext highlighter-rouge">Rc</code> handles. However, we are able to push and pop from the <code class="language-plaintext highlighter-rouge">Vec</code> at will. This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut Vec&lt;T&gt;</code>
 with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code>&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
-<p>In concurrent programs, we have a similar situation with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
+<p>In concurrent programs, we have a similar situation with <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
 
 <p>When reading code that uses these, go in step by step and look at the guarantees/costs provided.</p>
 
 <p>When choosing a composed type, we must do the reverse; figure out which guarantees we want, and at which
-point of the composition we need them. For example, if there is a choice between <code>Vec&lt;RefCell&lt;T&gt;&gt;</code> and <code>RefCell&lt;Vec&lt;T&gt;&gt;</code>,
+point of the composition we need them. For example, if there is a choice between <code class="language-plaintext highlighter-rouge">Vec&lt;RefCell&lt;T&gt;&gt;</code> and <code class="language-plaintext highlighter-rouge">RefCell&lt;Vec&lt;T&gt;&gt;</code>,
 we should figure out the tradeoffs as done above and pick one.</p>
 
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9613016">HN</a>, <a href="http://www.reddit.com/r/rust/comments/37hg1y/wrapper_types_in_rust_choosing_your_guarantees/">Reddit</a></small></p>
@@ -484,16 +484,16 @@ we should figure out the tradeoffs as done above and pick one.</p>
       <p>I’m not sure if this is the technical term for them, but I’ll be calling them that throughout this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>By “stack representation” I mean the data on the stack when a value of this type is held on the stack. For example, a <code>Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code>Vec</code>. Looking at this a different way, a type is <code>Copy</code> if a <code>memcopy</code> of the data copies all the data owned by it. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>By “stack representation” I mean the data on the stack when a value of this type is held on the stack. For example, a <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code class="language-plaintext highlighter-rouge">Vec</code>. Looking at this a different way, a type is <code class="language-plaintext highlighter-rouge">Copy</code> if a <code class="language-plaintext highlighter-rouge">memcopy</code> of the data copies all the data owned by it. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
-      <p><code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won’t compile since <code>UnsafeCell&lt;T&gt;</code> isn’t <code>Send</code> or <code>Sync</code>, but we can wrap it in a type and implement <code>Send</code>/<code>Sync</code> for it manually to get <code>Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code>Wrapper</code> is <code>struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won’t compile since <code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code> isn’t <code class="language-plaintext highlighter-rouge">Send</code> or <code class="language-plaintext highlighter-rouge">Sync</code>, but we can wrap it in a type and implement <code class="language-plaintext highlighter-rouge">Send</code>/<code class="language-plaintext highlighter-rouge">Sync</code> for it manually to get <code class="language-plaintext highlighter-rouge">Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code class="language-plaintext highlighter-rouge">Wrapper</code> is <code class="language-plaintext highlighter-rouge">struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
       <p>By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><code class="language-plaintext highlighter-rouge">&amp;[T]</code> and <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

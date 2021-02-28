@@ -163,42 +163,42 @@ of giving it a binary, you write a function in a special way and give it a libra
 that function, which it turns into a fuzzer binary. This is faster, since the fuzzer lives
 inside the binary itself and it doesn’t need to execute a new program each time.</p>
 
-<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code>cargo-fuzz</code></a>:</p>
+<p>Using libFuzzer in Rust is easy. Install <a href="https://github.com/rust-fuzz/cargo-fuzz"><code class="language-plaintext highlighter-rouge">cargo-fuzz</code></a>:</p>
 
-<pre><code class="language-sh">$ cargo install cargo-fuzz
-</code></pre>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>cargo <span class="nb">install </span>cargo-fuzz
+</code></pre></div></div>
 
 <p>Now, within your crate, initialize the fuzz setup:</p>
 
-<pre><code class="language-sh">$ cargo fuzz init
-</code></pre>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>cargo fuzz init
+</code></pre></div></div>
 
-<p>This will create a fuzzing crate in <code>fuzz/</code>, with a single “fuzz target”, <code>fuzzer_script_1</code>.
-You can add more such targets with <code>cargo fuzz add name_of_target</code>. Fuzz targets are small libraries
+<p>This will create a fuzzing crate in <code class="language-plaintext highlighter-rouge">fuzz/</code>, with a single “fuzz target”, <code class="language-plaintext highlighter-rouge">fuzzer_script_1</code>.
+You can add more such targets with <code class="language-plaintext highlighter-rouge">cargo fuzz add name_of_target</code>. Fuzz targets are small libraries
 with a single function in them; the function that will be called over and over again by the fuzzer.
 It is up to you to fill in the body of this function, such that the program will crash or panic
 if and only if something goes wrong.</p>
 
-<p>For example, for the <code>unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
+<p>For example, for the <code class="language-plaintext highlighter-rouge">unicode-segmentation</code> crate, <a href="https://github.com/Manishearth/unicode-segmentation/blob/99b3636ef6b4d96c05644403c1c2eccba2c5f5db/fuzz/fuzzers/equality.rs">one of the fuzz targets I wrote</a> just
 takes the string, splits it by grapheme and word boundaries, recombines it, and then asserts that
 the new string is the same.</p>
 
-<pre><code class="language-rust">pub extern fn go(data: &amp;[u8]) {
-    // we only deal with unicode input
-    // bail early, *without panicking* if the input isn't utf8
-    if let Ok(s) = str::from_utf8(data) {
-        // split into graphemes, recollect
-        let result = UnicodeSegmentation::graphemes(s, true).flat_map(|s| s.chars()).collect::&lt;String&gt;();
-        // recollected string should be the same as the input, panic if not
-        assert_eq!(s, result);
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">extern</span> <span class="k">fn</span> <span class="nf">go</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="p">{</span>
+    <span class="c">// we only deal with unicode input</span>
+    <span class="c">// bail early, *without panicking* if the input isn't utf8</span>
+    <span class="k">if</span> <span class="k">let</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="nn">str</span><span class="p">::</span><span class="nf">from_utf8</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c">// split into graphemes, recollect</span>
+        <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nn">UnicodeSegmentation</span><span class="p">::</span><span class="nf">graphemes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="k">true</span><span class="p">)</span><span class="nf">.flat_map</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">s</span><span class="nf">.chars</span><span class="p">())</span><span class="py">.collect</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">();</span>
+        <span class="c">// recollected string should be the same as the input, panic if not</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
 
-        // split into words, recollect
-        let result = s.split_word_bounds().flat_map(|s| s.chars()).collect::&lt;String&gt;();
-        // recollected string should be the same as the input, panic if not
-        assert_eq!(s, result);
-    }
-}
-</code></pre>
+        <span class="c">// split into words, recollect</span>
+        <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">s</span><span class="nf">.split_word_bounds</span><span class="p">()</span><span class="nf">.flat_map</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">s</span><span class="nf">.chars</span><span class="p">())</span><span class="py">.collect</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">();</span>
+        <span class="c">// recollected string should be the same as the input, panic if not</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The other targets ensure that the forward and reverse word/grapheme
 iterators produce the same results. They all take the byte slice input, attempt to convert to UTF8
@@ -213,8 +213,8 @@ string. The fuzzer will try to get the URL parser to panic.</p>
 
 <p>To run a fuzz script:</p>
 
-<pre><code class="language-sh">$ cargo fuzz run fuzzer_script_1
-</code></pre>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>cargo fuzz run fuzzer_script_1
+</code></pre></div></div>
 
 <p>This will start the fuzzer, running until it finds a crash or panic. It may also
 find other things like inputs which make the code abnormally slow.</p>

@@ -147,25 +147,25 @@ make a jagged edge of an integration surface.</p>
 with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like
 the following:</p>
 
-<pre><code class="language-html">&lt;style type="text/css"&gt;
-    body {
-        font-size: 12px;
-    }
-    div {
-        height: 2em;
-    }
-&lt;/style&gt;
-&lt;body&gt;
-    &lt;div id="foo"&gt;&lt;/div&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;style </span><span class="na">type=</span><span class="s">"text/css"</span><span class="nt">&gt;</span>
+    <span class="nt">body</span> <span class="p">{</span>
+        <span class="nl">font-size</span><span class="p">:</span> <span class="m">12px</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="nt">div</span> <span class="p">{</span>
+        <span class="nl">height</span><span class="p">:</span> <span class="m">2em</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="nt">&lt;/style&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+    <span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"foo"</span><span class="nt">&gt;&lt;/div&gt;</span>
 
-&lt;/body&gt;
-</code></pre>
+<span class="nt">&lt;/body&gt;</span>
+</code></pre></div></div>
 
 <p>and turn it into something like:</p>
 
 <ul>
-  <li><code>&lt;body&gt;</code> has a <code>font-size</code> of <code>12px</code>, everything else is the default</li>
-  <li>the <code>div</code> <code>#foo</code> has a computed <code>height</code> of <code>24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>, everything else is the default. It “inherits” the <code>font-size</code> from <code>&lt;body&gt;</code> as <code>12px</code></li>
+  <li><code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> has a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code>, everything else is the default</li>
+  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
 </ul>
 
 <p>From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS,
@@ -205,25 +205,25 @@ C++ compilation step.</p>
 
 <p>For large C++ codebases, pulling in a single header will likely pull in a <em>lot</em> of stuff. You should <a href="https://rust-lang.github.io/rust-bindgen/allowlisting.html">allowlist</a>, <a href="https://rust-lang.github.io/rust-bindgen/blocklisting.html">blocklist</a>, and/or mark things as <a href="https://rust-lang.github.io/rust-bindgen/opaque.html">opaque</a> to reduce the amount of bindings generated. It’s best to go the allowlisting route — give bindgen an allowlisted list of functions / structs to generate bindings for, and it will transitively generate bindings for any dependencies they may have. Sometimes even this will end up generating a lot, it’s sometimes worth finding structs you’re not using and marking them as opaque so that their bindings aren’t necessary. Marking something as opaque replaces it with an array of the appropriate size and alignment, so from the Rust side it’s just some bits you don’t care about and can’t introspect further.</p>
 
-<p>Bindgen <a href="https://rust-lang-nursery.github.io/rust-bindgen/cpp.html"><em>does</em> support some C++ features</a> (you may need to pass <code>-x c++</code>). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support <em>all</em> C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens.</p>
+<p>Bindgen <a href="https://rust-lang-nursery.github.io/rust-bindgen/cpp.html"><em>does</em> support some C++ features</a> (you may need to pass <code class="language-plaintext highlighter-rouge">-x c++</code>). This is pretty good for generating bindings to e.g. templated structs. However, it’s not possible to support <em>all</em> C++ features here, so you may need to blocklist, opaqueify, or use intermediate types if you have some complicated C++ abstractions in the deps. You’ll typically get an error when generating bindings or when compiling the generated bindings, so don’t worry about this unless that happens.</p>
 
 <p>Bindgen is <em>quite</em> configurable. Stylo has a <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs">script</a> that consumes a <a href="https://searchfox.org/mozilla-central/source/layout/style/ServoBindings.toml">large toml file</a> containing all of the configuration.</p>
 
 <h2 id="cbindgen">cbindgen</h2>
 
-<p>We don’t use <a href="https://github.com/eqrion/cbindgen">cbindgen</a> in Stylo, but it’s used for Webrender. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public <code>extern "C"</code> API. It’s also quite configurable.</p>
+<p>We don’t use <a href="https://github.com/eqrion/cbindgen">cbindgen</a> in Stylo, but it’s used for Webrender. It does the inverse of what bindgen does: given a Rust crate, it generates C headers for its public <code class="language-plaintext highlighter-rouge">extern "C"</code> API. It’s also quite configurable.</p>
 
 <h2 id="cxx">cxx</h2>
 
-<p><a href="https://github.com/dtolnay/cxx">cxx</a> is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It’s definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in cxx. For example, it automatically figures out what types need to be opaque, it automatically converts between <code>&amp;T</code> and <code>T*</code> across FFI, and it is overall more targeted for the use case of an FFI layer where Rust and C++ both call each other.</p>
+<p><a href="https://github.com/dtolnay/cxx">cxx</a> is the cool new hotness in 2021, which kind of approaches the problem from both sides, enabling you to write Rust bindings for C++ and C++ bindings for Rust. It’s definitely worth checking out, a lot of the things that are hard to make work with bindgen are trivial in cxx. For example, it automatically figures out what types need to be opaque, it automatically converts between <code class="language-plaintext highlighter-rouge">&amp;T</code> and <code class="language-plaintext highlighter-rouge">T*</code> across FFI, and it is overall more targeted for the use case of an FFI layer where Rust and C++ both call each other.</p>
 
 <h2 id="bindgen-aided-c-calling-rust">Bindgen-aided C++ calling Rust</h2>
 
 <p>So bindgen helps with creating things for Rust to call and manipulate, but not in the opposite direction. cbindgen can help here, but I’m not sure if it’s advisable to have <em>both</em> bindgen and cbindgen operating near each other on the same codebase.</p>
 
-<p>In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">one file</a>, and are all named <code>Gecko_*</code>. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with.</p>
+<p>In Stylo we use a bit of a hack for this. Firstly, all FFI functions defined in C++ that Rust calls are declared in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">one file</a>, and are all named <code class="language-plaintext highlighter-rouge">Gecko_*</code>. Bindgen supports regexes for things like allowlisting, so this naming scheme makes it easy to deal with.</p>
 
-<p>We also declare the FFI functions defined in Rust that C++ calls in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">another file</a>, named <code>Servo_*</code>. They’re also all <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/glue.rs">defined in one place</a>.</p>
+<p>We also declare the FFI functions defined in Rust that C++ calls in <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindingList.h">another file</a>, named <code class="language-plaintext highlighter-rouge">Servo_*</code>. They’re also all <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/glue.rs">defined in one place</a>.</p>
 
 <p>However, there’s nothing ensuring that the signatures match! If we’re not careful, there may be mismatches, causing bad things to happen at link time or runtime. We use a small <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/build.rs">autogenerated</a> <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/ports/geckolib/tests/servo_function_signatures.rs">unit test</a> to ensure the validity of the signatures.</p>
 
@@ -231,7 +231,7 @@ C++ compilation step.</p>
 
 <h2 id="type-replacing-for-fun-and-profit">Type replacing for fun and profit</h2>
 
-<p>Using <a href="https://rust-lang.github.io/rust-bindgen/blocklisting.html">blocklisting</a> in conjunction with the <code>--raw-line</code>/<code>raw_line()</code> flag, one can effectively ask bindgen to “replace” types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings <em>referring</em> to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). <code>--raw-line</code> lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types.</p>
+<p>Using <a href="https://rust-lang.github.io/rust-bindgen/blocklisting.html">blocklisting</a> in conjunction with the <code class="language-plaintext highlighter-rouge">--raw-line</code>/<code class="language-plaintext highlighter-rouge">raw_line()</code> flag, one can effectively ask bindgen to “replace” types. Blocklisting asks bindgen not to generate bindings for a type, however bindgen will continue to generate bindings <em>referring</em> to that type if necessary. (Unlike opaque types where bindgen generates an opaque binding for the type and uses it everywhere). <code class="language-plaintext highlighter-rouge">--raw-line</code> lets you request bindgen to add a line of raw rust code to the file, and such a line can potentially define or import a new version of the type you blocklisted. Effectively, this lets you replace types.</p>
 
 <p>Bindgen generates unit tests ensuring that the layout of your structs is correct (run them!), so if you accidentally replace a type with something incompatible, you will get warnings at the struct level (functions may not warn).</p>
 
@@ -245,35 +245,35 @@ C++ compilation step.</p>
 
 <p>In Stylo, we have lots of functions like the following:</p>
 
-<pre><code class="language-cpp">RawGeckoNodeBorrowedOrNull Gecko_GetLastChild(RawGeckoNodeBorrowed node);
-</code></pre>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">RawGeckoNodeBorrowedOrNull</span> <span class="nf">Gecko_GetLastChild</span><span class="p">(</span><span class="n">RawGeckoNodeBorrowed</span> <span class="n">node</span><span class="p">);</span>
+</code></pre></div></div>
 
 <p>which bindgen translates to:</p>
 
-<pre><code class="language-rust">extern "C" {
-    fn Gecko_GetLastChild(x: &amp;RawGeckoNode) -&gt; Option&lt;&amp;RawGeckoNode&gt;;   
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="s">"C"</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">Gecko_GetLastChild</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">RawGeckoNode</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">RawGeckoNode</span><span class="o">&gt;</span><span class="p">;</span>   
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Using the <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/servo/components/style/build_gecko.rs">bindgen build script</a> on a provided <a href="https://searchfox.org/mozilla-central/rev/819cd31a93fd50b7167979607371878c4d6f18e8/layout/style/ServoBindings.toml#648-671">list of borrow-able types</a>, we’ve told bindgen that:</p>
 
 <ul>
-  <li><code>FooBorrowedOrNull</code> is actually <code>Option&lt;&amp;Foo&gt;</code></li>
-  <li><code>FooBorrowed</code> is actually <code>&amp;Foo</code></li>
+  <li><code class="language-plaintext highlighter-rouge">FooBorrowedOrNull</code> is actually <code class="language-plaintext highlighter-rouge">Option&lt;&amp;Foo&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">FooBorrowed</code> is actually <code class="language-plaintext highlighter-rouge">&amp;Foo</code></li>
 </ul>
 
-<p><code>Option&lt;&amp;Foo&gt;</code> <a href="https://doc.rust-lang.org/nomicon/repr-rust.html">is represented as a single nullable pointer in Rust</a>, so this is a clean translation. 
-We’re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is <code>fn Gecko_GetLastChild&lt;'a&gt;(x: &amp;'a RawGeckoNode) -&gt; Option&lt;&amp;'a RawGeckoNode&gt;</code>, which ensures we won’t let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions “safely” with the appropriate lifetime requirements, even though C++ has no such concept!</p>
+<p><code class="language-plaintext highlighter-rouge">Option&lt;&amp;Foo&gt;</code> <a href="https://doc.rust-lang.org/nomicon/repr-rust.html">is represented as a single nullable pointer in Rust</a>, so this is a clean translation. 
+We’re forced to null-check it, but once we do we can safely assume that the reference is valid. Furthermore, due to lifetime elision the actual signature of the FFI function is <code class="language-plaintext highlighter-rouge">fn Gecko_GetLastChild&lt;'a&gt;(x: &amp;'a RawGeckoNode) -&gt; Option&lt;&amp;'a RawGeckoNode&gt;</code>, which ensures we won’t let the returned reference outlive the passed reference. Lifetime elision means that we can call C++ functions “safely” with the appropriate lifetime requirements, even though C++ has no such concept!</p>
 
 <p>Note that this is shifting some of the safety invariants to the C++ side: We rely on the C++ to give us valid references, and we rely on it to not have nulls when the type is not marked as nullable. Most C++ codebases internally rely on such invariants for safety anyway, so this isn’t much of a stretch.</p>
 
-<p>We do this on both sides, actually: Many of our Rust-defined <code>extern "C"</code> functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtained from C++.</p>
+<p>We do this on both sides, actually: Many of our Rust-defined <code class="language-plaintext highlighter-rouge">extern "C"</code> functions that C++ calls get to be internally-safe because the types let us assume the validity of the pointers obtained from C++.</p>
 
 <h3 id="making-c-abstractions-rust-accessible">Making C++ abstractions Rust-accessible</h3>
 
-<p>A very useful thing to do here is to replace various C++ abstractions with Rust versions of them that share semantics. In Gecko, most strings are stored in <code>nsString</code>/<code>nsAString</code>/etc.</p>
+<p>A very useful thing to do here is to replace various C++ abstractions with Rust versions of them that share semantics. In Gecko, most strings are stored in <code class="language-plaintext highlighter-rouge">nsString</code>/<code class="language-plaintext highlighter-rouge">nsAString</code>/etc.</p>
 
-<p>We’ve written an <a href="https://searchfox.org/mozilla-central/rev/6ddb5fb144993fb5de044e2e8d900d7643b98a4d/servo/support/gecko/nsstring/src/lib.rs">nsstring</a> crate that represents layout-compatible <code>nsString</code>s in a more Rusty way, with Rusty APIs. We then ask bindgen to replace Gecko <code>nsString</code>s with these.</p>
+<p>We’ve written an <a href="https://searchfox.org/mozilla-central/rev/6ddb5fb144993fb5de044e2e8d900d7643b98a4d/servo/support/gecko/nsstring/src/lib.rs">nsstring</a> crate that represents layout-compatible <code class="language-plaintext highlighter-rouge">nsString</code>s in a more Rusty way, with Rusty APIs. We then ask bindgen to replace Gecko <code class="language-plaintext highlighter-rouge">nsString</code>s with these.</p>
 
 <p>Usually it’s easier to just write an impl for the bindgen-generated abstraction, however sometimes you must replace it:</p>
 
@@ -286,10 +286,10 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 
 <p>It’s quite tempting to do stuff like</p>
 
-<pre><code class="language-cpp">RefPtr&lt;Foo&gt; Servo_Gimme(...);
-</code></pre>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">RefPtr</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="n">Servo_Gimme</span><span class="p">(...);</span>
+</code></pre></div></div>
 
-<p>where you pass complicated classes by-value over FFI (<code>RefPtr</code> is Gecko’s variant of <code>Rc&lt;T&gt;</code>/<code>Arc&lt;T&gt;</code>).</p>
+<p>where you pass complicated classes by-value over FFI (<code class="language-plaintext highlighter-rouge">RefPtr</code> is Gecko’s variant of <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>/<code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code>).</p>
 
 <p>This works on some systems, but is broken on MSVC:
 <a href="https://github.com/rust-lang/rust/issues/38258">The ABI for passing non-POD types through functions is different</a>. The linker usually notices this and complains, but it’s worth avoiding this entirely.</p>
@@ -300,89 +300,89 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 
 <p>If you’re passing ownership of collections or other templated types across FFI, you probably want Rust code to be able to destroy C++ objects, and vice versa.</p>
 
-<p>One way of doing this is to implement <code>Drop</code> on the generated struct. If you have <code>class MyString</code>, you can do:</p>
+<p>One way of doing this is to implement <code class="language-plaintext highlighter-rouge">Drop</code> on the generated struct. If you have <code class="language-plaintext highlighter-rouge">class MyString</code>, you can do:</p>
 
-<pre><code class="language-cpp">class MyString {
-    // ...
-    ~MyString();
-}
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyString</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="o">~</span><span class="n">MyString</span><span class="p">();</span>
+<span class="p">}</span>
 
-void MyString_Destroy(*MyString x) {
-    x-&gt;~MyString()
-}
-</code></pre>
+<span class="kt">void</span> <span class="nf">MyString_Destroy</span><span class="p">(</span><span class="o">*</span><span class="n">MyString</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">x</span><span class="o">-&gt;~</span><span class="n">MyString</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">impl Drop for bindings::MyString {
-    fn drop(&amp;mut self) {
-        // (bindgen only)
-        bindings::MyString::destruct(self)
-        // OR
-        bindings::MyString_Destroy(self)
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyString</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c">// (bindgen only)</span>
+        <span class="nn">bindings</span><span class="p">::</span><span class="nn">MyString</span><span class="p">::</span><span class="nf">destruct</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+        <span class="c">// OR</span>
+        <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyString_Destroy</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>The <code>MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code>MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.</p>
 
-<p>In Stylo we went down the route of manually defining <code>_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code>destruct()</code> if we want to now.</p>
+<p>In Stylo we went down the route of manually defining <code class="language-plaintext highlighter-rouge">_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code class="language-plaintext highlighter-rouge">destruct()</code> if we want to now.</p>
 
-<p>When it comes to generic types, it’s a bit trickier, since <code>Drop</code> can’t be implemented piecewise on a generic type (you cannot <code>impl Drop for MyVector&lt;Foo&gt;</code>). You have to do something like:</p>
+<p>When it comes to generic types, it’s a bit trickier, since <code class="language-plaintext highlighter-rouge">Drop</code> can’t be implemented piecewise on a generic type (you cannot <code class="language-plaintext highlighter-rouge">impl Drop for MyVector&lt;Foo&gt;</code>). You have to do something like:</p>
 
-<pre><code class="language-cpp">template&lt;typename T&gt;
-class MyVector {
-    // ...
-}
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">T</span><span class="p">&gt;</span>
+<span class="k">class</span> <span class="nc">MyVector</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="p">}</span>
 
-// Deallocate buffer, but do not call destructors on elements
-void MyVector_Deallocate_Buffer(MyVector&lt;void&gt;* x);
-</code></pre>
+<span class="c1">// Deallocate buffer, but do not call destructors on elements</span>
+<span class="kt">void</span> <span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;*</span> <span class="n">x</span><span class="p">);</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere</span>
 
-impl&lt;T&gt; Drop for bindings::MyVector&lt;T&gt; {
-    fn drop(&amp;mut self) {
-        for v in self.iter_mut() {
-            // calls the destructor for `v`, if any
-            std::ptr::drop_in_place(v)
-        }
-        bindings::MyVector_Deallocate_Buffer(self as *mut MyVector&lt;T&gt; as *mut MyVector&lt;c_void&gt;)
-    }
-}
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="n">in</span> <span class="k">self</span><span class="nf">.iter_mut</span><span class="p">()</span> <span class="p">{</span>
+            <span class="c">// calls the destructor for `v`, if any</span>
+            <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">drop_in_place</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="k">self</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="nb">c_void</span><span class="o">&gt;</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-</code></pre>
+</code></pre></div></div>
 
-<p>Note that if you forget to add a <code>Drop</code> implementation for <code>T</code>, this will silently forget to clean up the contents of the vector. See <a href="#mirror-types">the next section</a> for some ways to handle this by creating a “safe” mirror type.</p>
+<p>Note that if you forget to add a <code class="language-plaintext highlighter-rouge">Drop</code> implementation for <code class="language-plaintext highlighter-rouge">T</code>, this will silently forget to clean up the contents of the vector. See <a href="#mirror-types">the next section</a> for some ways to handle this by creating a “safe” mirror type.</p>
 
 <h2 id="mirror-types">Mirror types</h2>
 
 <p>C++ libraries often have useful templated abstractions, and it’s nice to be able to manipulate them from Rust. Sometimes, it’s possible to just tack on semantics on the Rust side (either by adding an implementation or by doing type replacement), but in some cases this is tricky.</p>
 
-<p>For example, Gecko has <code>RefPtr&lt;T&gt;</code>, which is similar to <code>Rc&lt;T&gt;</code>, except the actual refcounting logic is up to <code>T</code> to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing <code>AddRef()</code> and <code>Release()</code> methods.</p>
+<p>For example, Gecko has <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code>, which is similar to <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>, except the actual refcounting logic is up to <code class="language-plaintext highlighter-rouge">T</code> to implement (it can choose between threadsafe, non-threadsafe, etc), which it does by writing <code class="language-plaintext highlighter-rouge">AddRef()</code> and <code class="language-plaintext highlighter-rouge">Release()</code> methods.</p>
 
 <p>We mirror this in Rust by having a trait:</p>
 
-<pre><code class="language-rust">/// Trait for all objects that have Addref() and Release
-/// methods and can be placed inside RefPtr&lt;T&gt;
-pub unsafe trait RefCounted {
-    /// Bump the reference count.
-    fn addref(&amp;self);
-    /// Decrease the reference count.
-    unsafe fn release(&amp;self);
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Trait for all objects that have Addref() and Release</span>
+<span class="c">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">RefCounted</span> <span class="p">{</span>
+    <span class="c">/// Bump the reference count.</span>
+    <span class="k">fn</span> <span class="nf">addref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
+    <span class="c">/// Decrease the reference count.</span>
+    <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
+<span class="p">}</span>
 
-/// A custom RefPtr implementation to take into account Drop semantics and
-/// a bit less-painful memory management.
-pub struct RefPtr&lt;T: RefCounted&gt; {
-    ptr: *mut T,
-    _marker: PhantomData&lt;T&gt;,
-}
-</code></pre>
+<span class="c">/// A custom RefPtr implementation to take into account Drop semantics and</span>
+<span class="c">/// a bit less-painful memory management.</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">RefPtr</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">RefCounted</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">ptr</span><span class="p">:</span> <span class="o">*</span><span class="k">mut</span> <span class="n">T</span><span class="p">,</span>
+    <span class="mi">_</span><span class="n">marker</span><span class="p">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We implement the <code>RefCounted</code> trait for C++ types that are wrapped in <code>RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
+<p>We implement the <code class="language-plaintext highlighter-rouge">RefCounted</code> trait for C++ types that are wrapped in <code class="language-plaintext highlighter-rouge">RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
 
-<p>However, <code>RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code>RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
+<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
 
-<p>Instead, we let bindgen generate its own <code>RefPtr&lt;T&gt;</code>, called <code>structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code>structs::</code> module). <code>structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code>RefPtr&lt;T&gt;</code> (but only if <code>T: RefCounted</code>). So if you need to manipulate a <code>RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code>RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
+<p>Instead, we let bindgen generate its own <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code>, called <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code class="language-plaintext highlighter-rouge">structs::</code> module). <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> (but only if <code class="language-plaintext highlighter-rouge">T: RefCounted</code>). So if you need to manipulate a <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
 <p>In general, whenever attaching extra semantics to generic bindgen types doesn’t work create a mirror type that’s completely safe to use from Rust, with a trait that gates conversion to the mirror type.</p>
 
@@ -391,31 +391,31 @@ pub struct RefPtr&lt;T: RefCounted&gt; {
 <p>If you’re passing heap-managed abstractions across FFI, be careful about which code frees which objects. If your Rust
 and C++ code don’t share allocators, deallocating memory allocated on the other side can have disastrous consequences.</p>
 
-<p>If you’re building a cdylib or staticlib with Rust (this is likely if you’re linking it with a C++ application), the compiler will by default pick the system allocator (<code>malloc</code>), so if your C++ application also uses the same you’re all set.</p>
+<p>If you’re building a cdylib or staticlib with Rust (this is likely if you’re linking it with a C++ application), the compiler will by default pick the system allocator (<code class="language-plaintext highlighter-rouge">malloc</code>), so if your C++ application also uses the same you’re all set.</p>
 
-<p>On some platforms when building rlibs and binaries, Rust may choose jemalloc instead. It’s also possible that your C++ code uses a different allocator (lots of applications use allocators like jemalloc or tcmalloc, some have their own custom allocators like <code>tor_malloc</code> in Tor).</p>
+<p>On some platforms when building rlibs and binaries, Rust may choose jemalloc instead. It’s also possible that your C++ code uses a different allocator (lots of applications use allocators like jemalloc or tcmalloc, some have their own custom allocators like <code class="language-plaintext highlighter-rouge">tor_malloc</code> in Tor).</p>
 
 <p>In such cases you have one of three options:</p>
 
 <ul>
   <li>Avoid transferring ownership of heap-allocated items, only share things as borrowed references</li>
   <li>Call destructors over FFI, as detailed in <a href="#sharing-abstractions-with-destructors">the section on destructors above</a></li>
-  <li>Set Rust’s allocator to be the same as documented <a href="https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute">in the <code>std::alloc</code> module</a>. Basically, can use the <code>#[global_allocator]</code> attribute to select which allocator you wish to use, and if necessary you can implement the <code>GlobalAlloc</code> trait on a custom allocator type that calls into whatever custom allocator C++ is using.</li>
+  <li>Set Rust’s allocator to be the same as documented <a href="https://doc.rust-lang.org/nightly/std/alloc/#the-global_allocator-attribute">in the <code class="language-plaintext highlighter-rouge">std::alloc</code> module</a>. Basically, can use the <code class="language-plaintext highlighter-rouge">#[global_allocator]</code> attribute to select which allocator you wish to use, and if necessary you can implement the <code class="language-plaintext highlighter-rouge">GlobalAlloc</code> trait on a custom allocator type that calls into whatever custom allocator C++ is using.</li>
 </ul>
 
-<p><em>Note from 2021: Most stdlib collections (<a href="https://doc.rust-lang.org/nightly/std/vec/struct.Vec.html"><code>Vec</code></a>, for example) now have an optional “custom allocator” parameter that can be used to swap in a different allocator for a specific use site.</em></p>
+<p><em>Note from 2021: Most stdlib collections (<a href="https://doc.rust-lang.org/nightly/std/vec/struct.Vec.html"><code class="language-plaintext highlighter-rouge">Vec</code></a>, for example) now have an optional “custom allocator” parameter that can be used to swap in a different allocator for a specific use site.</em></p>
 
 <h2 id="arcs-over-ffi-triomphe">Arcs over FFI: Triomphe</h2>
 
 <p>This isn’t really a generalizable technique, but it’s pretty cool and generally instructive, so I’m including it here.</p>
 
-<p>Stylo uses a lot of <code>Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code>Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
+<p>Stylo uses a lot of <code class="language-plaintext highlighter-rouge">Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code class="language-plaintext highlighter-rouge">Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>Many of these <code>Arc</code>s need to be readable from C++. Rust’s <code>Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code>Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>.</p>
+<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>.</p>
 
-<p>We picked a different route: We created a crate duplicating <code>Arc&lt;T&gt;</code> which behaves almost exactly the same as <code>Arc&lt;T&gt;</code>, but it can be converted to <code>OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code>T</code> begins. To C++, this just looks like a <code>*const T</code>! We were then able to make it work with <code>RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code>OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
+<p>We picked a different route: We created a crate duplicating <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> which behaves almost exactly the same as <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code>, but it can be converted to <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code class="language-plaintext highlighter-rouge">T</code> begins. To C++, this just looks like a <code class="language-plaintext highlighter-rouge">*const T</code>! We were then able to make it work with <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
 
-<p>The external version of this crate can be found in <a href="https://docs.rs/triomphe">triomphe</a>. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like <code>ArcBorrow</code> which is essentially “<code>&amp;Arc&lt;T&gt;</code> without double indirection”, <code>UniqueArc&lt;T&gt;</code>, a mutable <code>Arc&lt;T&gt;</code> known to be uniquely owned, and <code>ArcUnion&lt;T, U&gt;</code>, which is a space-efficient union of <code>Arc&lt;T&gt;</code> and <code>Arc&lt;U&gt;</code>.</p>
+<p>The external version of this crate can be found in <a href="https://docs.rs/triomphe">triomphe</a>. It contains a bunch of other goodies that are additionally useful outside of the FFI world, like <code class="language-plaintext highlighter-rouge">ArcBorrow</code> which is essentially “<code class="language-plaintext highlighter-rouge">&amp;Arc&lt;T&gt;</code> without double indirection”, <code class="language-plaintext highlighter-rouge">UniqueArc&lt;T&gt;</code>, a mutable <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> known to be uniquely owned, and <code class="language-plaintext highlighter-rouge">ArcUnion&lt;T, U&gt;</code>, which is a space-efficient union of <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">Arc&lt;U&gt;</code>.</p>
 
 <h2 id="other-pitfalls">Other pitfalls</h2>
 
@@ -423,35 +423,35 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>It’s <em>very</em> tempting to wrap C++ types in tuple structs and pass them over FFI. For example, one might imagine that the following is okay:</p>
 
-<pre><code class="language-rust">struct Wrapper(bindings::SomeCppType);
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="nf">Wrapper</span><span class="p">(</span><span class="nn">bindings</span><span class="p">::</span><span class="n">SomeCppType</span><span class="p">);</span>
 
-extern "C" {
-    // C++ signature: `SomeCppType get_cpp_type();`
-    fn get_cpp_type() -&gt; Wrapper;
-}
-</code></pre>
+<span class="k">extern</span> <span class="s">"C"</span> <span class="p">{</span>
+    <span class="c">// C++ signature: `SomeCppType get_cpp_type();`</span>
+    <span class="k">fn</span> <span class="nf">get_cpp_type</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Wrapper</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This kind of thing is quite useful to get around coherence, or for adding additional semantics to a type.</p>
 
-<p>While there’s basically one obvious way <code>Wrapper</code> can be represented, ABI stuff can be tricky, and Rust’s layout isn’t defined. It is safer to use <code>#[repr(transparent)]</code>, which guarantees that <code>Wrapper</code> will have the same representation as the type it contains.</p>
+<p>While there’s basically one obvious way <code class="language-plaintext highlighter-rouge">Wrapper</code> can be represented, ABI stuff can be tricky, and Rust’s layout isn’t defined. It is safer to use <code class="language-plaintext highlighter-rouge">#[repr(transparent)]</code>, which guarantees that <code class="language-plaintext highlighter-rouge">Wrapper</code> will have the same representation as the type it contains.</p>
 
 <h3 id="c-enums">C enums</h3>
 
 <p>Rust supports C-like enums, but there’s a crucial difference between them. In C, it is not undefined behavior for an enum to have an unlisted value. In fact, the following pattern is not uncommon:</p>
 
-<pre><code class="language-c">enum Flags {
-    Flag1 = 0b0001,
-    Flag2 = 0b0010,
-    Flag3 = 0b0100,
-    Flag4 = 0b1000;
-};
-</code></pre>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Flags</span> <span class="p">{</span>
+    <span class="n">Flag1</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0001</span><span class="p">,</span>
+    <span class="n">Flag2</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0010</span><span class="p">,</span>
+    <span class="n">Flag3</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b0100</span><span class="p">,</span>
+    <span class="n">Flag4</span> <span class="o">=</span> <span class="mi">0</span><span class="n">b1000</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
-<p>where the enum is actually used for bitflags, and <code>Flag1 | Flag2</code> and <code>0</code> are both valid values for <code>Flags</code>.</p>
+<p>where the enum is actually used for bitflags, and <code class="language-plaintext highlighter-rouge">Flag1 | Flag2</code> and <code class="language-plaintext highlighter-rouge">0</code> are both valid values for <code class="language-plaintext highlighter-rouge">Flags</code>.</p>
 
-<p>This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are <code>#[repr(C)]</code>. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent <code>Option&lt;Option&lt;... 255 times .. Option&lt;bool&gt;&gt;</code> as a single byte.</p>
+<p>This is not the case in Rust. If you are type-replacing C enums with Rust ones, make sure they are <code class="language-plaintext highlighter-rouge">#[repr(C)]</code>. The Rust compiler uses invalid enum values as space for packing other information while optimizing types, for example Rust is able to represent <code class="language-plaintext highlighter-rouge">Option&lt;Option&lt;... 255 times .. Option&lt;bool&gt;&gt;</code> as a single byte.</p>
 
-<p>If you are working with a C enum that is used for bitflags like above, please use an integer type instead. <code>#[repr(C)]</code> on enums in Rust guarantees layout, but it is <a href="https://doc.rust-lang.org/stable/nomicon/other-reprs.html">still undefined behavior for any enum to take on invalid values</a>.</p>
+<p>If you are working with a C enum that is used for bitflags like above, please use an integer type instead. <code class="language-plaintext highlighter-rouge">#[repr(C)]</code> on enums in Rust guarantees layout, but it is <a href="https://doc.rust-lang.org/stable/nomicon/other-reprs.html">still undefined behavior for any enum to take on invalid values</a>.</p>
 
 <h3 id="abi-concerns">ABI concerns</h3>
 
@@ -459,13 +459,13 @@ extern "C" {
 
 <p>Firstly, make sure you’re not passing owned C++ classes with destructors/etc across FFI boundaries. See <a href="#potential-pitfall-passing-c-classes-by-value-over-ffi">above</a> for why. There’s a bunch of subtle stuff here, but you can avoid most of it it if you just don’t pass these things across FFI in an owned way.</p>
 
-<p>Also, try to make sure everything is <code>#[repr(C)]</code> across the boundary. Rust’s <code>improper-ctypes</code> lints will help here.</p>
+<p>Also, try to make sure everything is <code class="language-plaintext highlighter-rouge">#[repr(C)]</code> across the boundary. Rust’s <code class="language-plaintext highlighter-rouge">improper-ctypes</code> lints will help here.</p>
 
-<h2 id="should-c-apis-be-unconditionally-unsafe">Should C++ APIs be unconditionally <code>unsafe</code>?</h2>
+<h2 id="should-c-apis-be-unconditionally-unsafe">Should C++ APIs be unconditionally <code class="language-plaintext highlighter-rouge">unsafe</code>?</h2>
 
 <p>Before I get into this, I want to reiterate that most of the recommendations in this post are for <em>complex</em> C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it’s important to calibrate for that when judging what’s right for them.</p>
 
-<p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve’s <code>cxx</code> post</a> came out, there was a bunch of discussion about C++ functions not being universally marked <code>unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code>unsafe</code> (and that tools like <code>cxx</code> should follow these rules).</p>
+<p>I recall when <a href="https://www.chromium.org/Home/chromium-security/memory-safety/rust-and-c-interoperability">this Chromium post</a> and <a href="https://steveklabnik.com/writing/the-cxx-debate">Steve’s <code class="language-plaintext highlighter-rouge">cxx</code> post</a> came out, there was a bunch of discussion about C++ functions not being universally marked <code class="language-plaintext highlighter-rouge">unsafe</code>. Essentially, a lot of people are of the opinion that all FFI into C++ (or C) should be unconditionally marked <code class="language-plaintext highlighter-rouge">unsafe</code> (and that tools like <code class="language-plaintext highlighter-rouge">cxx</code> should follow these rules).</p>
 
 <p>Back then I wrote <a href="https://www.reddit.com/r/rust/comments/ielvxu/the_cxx_debate/g2jurb3/?context=3">a Reddit comment</a> about my thoughts on this. It’s a comment that’s the length of a blog post in and of itself so I’m not going to reproduce all of it here, but I’ll try to get the gist. I highly suggest you read it instead of this section.</p>
 
@@ -485,11 +485,11 @@ extern "C" {
 
 <p>This is, perhaps, not as good or useful a heuristic as the one we have for Rust, but it’s still a heuristic that gets used in deciding how careful one needs to be when using various APIs. After all, there are <em>plenty</em> of giant C++ codebases out there, they have got to be able to reason about safety <em>somehow</em>.</p>
 
-<p>When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust’s safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save <code>unsafe</code> on the FFI boundary for truly unsafe functions which you actually do need to be careful to call.</p>
+<p>When you decide to meld together a C++ and Rust codebase, or start rewriting parts of a C++ codebase in Rust, you have already in essence decided for a large part of the codebase to not exactly follow Rust’s safety rules (but hopefully still be safe). There is little to be gained by making that an explicit part of your FFI boundary. Rather, it is more useful to save <code class="language-plaintext highlighter-rouge">unsafe</code> on the FFI boundary for truly unsafe functions which you actually do need to be careful to call.</p>
 
-<p><code>unsafe</code> is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it’s already well known that the C++-side is introducing badness, marking every simple C++ getter as <code>unsafe</code> will lead to alarm fatigue and make it <em>harder</em> to find the real problems.</p>
+<p><code class="language-plaintext highlighter-rouge">unsafe</code> is useful for finding potential sources of badness in your codebase. For a tightly-integrated Rust/C++ codebase it’s already well known that the C++-side is introducing badness, marking every simple C++ getter as <code class="language-plaintext highlighter-rouge">unsafe</code> will lead to alarm fatigue and make it <em>harder</em> to find the real problems.</p>
 
-<p>It’s worth figuring out where this boundary lies for you. Tools like <code>cxx</code> make it straightforward to call C++ functions through a safe interface, and it’s valuable to make use of that support.</p>
+<p>It’s worth figuring out where this boundary lies for you. Tools like <code class="language-plaintext highlighter-rouge">cxx</code> make it straightforward to call C++ functions through a safe interface, and it’s valuable to make use of that support.</p>
 
 <h2 id="closing-comments">Closing comments</h2>
 
@@ -508,16 +508,16 @@ extern "C" {
       <p>The <em>cascade</em> in “Cascading Style Sheets” is the process used to take all the potential rules which could apply to an element and find the “most applicable” one that gets actually used. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>The <code>em</code> unit is font-size-relative, so <code>2em</code> with a <code>font-size</code> of <code>12px</code> is computed to <code>2 * 12 = 24px</code>. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>The <code class="language-plaintext highlighter-rouge">em</code> unit is font-size-relative, so <code class="language-plaintext highlighter-rouge">2em</code> with a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code> is computed to <code class="language-plaintext highlighter-rouge">2 * 12 = 24px</code>. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
-      <p>C++ name mangling <a href="https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions">is not standardized</a>, so any function with the C++ ABI will generate a <code>#[link_name = "_Z1foobarbaz"]</code> attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>C++ name mangling <a href="https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions">is not standardized</a>, so any function with the C++ ABI will generate a <code class="language-plaintext highlighter-rouge">#[link_name = "_Z1foobarbaz"]</code> attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p><code>Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code>impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code>RefPtr</code> is defined as <code>RefPtr&lt;T: RefCounted&gt;</code>. It’s not possible to have a generic type that has an impl of <code>Drop</code> for only <em>some</em> possible instantiations of its generics. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><code class="language-plaintext highlighter-rouge">Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code class="language-plaintext highlighter-rouge">RefPtr</code> is defined as <code class="language-plaintext highlighter-rouge">RefPtr&lt;T: RefCounted&gt;</code>. It’s not possible to have a generic type that has an impl of <code class="language-plaintext highlighter-rouge">Drop</code> for only <em>some</em> possible instantiations of its generics. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
-      <p>Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a <code>#[repr]</code> attribute. This would <em>work</em>, but it would be brittle and prone to breakage. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a <code class="language-plaintext highlighter-rouge">#[repr]</code> attribute. This would <em>work</em>, but it would be brittle and prone to breakage. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -1049,7 +1049,7 @@ extern "C" {
 
   <div class="entry-content"><p><em>See also: <a href="https://myrrlyn.net/blog/misc/to-all-the-posts-ive-blogged-before">Alex’s version of this blog post</a></em></p>
 
-<p>I started this blog three years ago, moving from my <a href="http://inpursuitoflaziness.blogspot.com/">older blog</a>, hoping to written about programming, math, physics, books, and miscellenia. I’ve not quite written about everything I wanted to, but I’ve been very very happy with the experience of blogging. <code>wc</code> says I’ve written almost 75k words, which is mind-boggling to me!</p>
+<p>I started this blog three years ago, moving from my <a href="http://inpursuitoflaziness.blogspot.com/">older blog</a>, hoping to written about programming, math, physics, books, and miscellenia. I’ve not quite written about everything I wanted to, but I’ve been very very happy with the experience of blogging. <code class="language-plaintext highlighter-rouge">wc</code> says I’ve written almost 75k words, which is mind-boggling to me!</p>
 
 <p>I often get asked by others — usually trying to decide if they should start blogging — what it’s like. I also often try to convince friends to blog by enumerating why I think it’s awesome. Might as well write it down so that it’s generally useful for everyone! 😃</p>
 
@@ -1059,7 +1059,7 @@ extern "C" {
 
 <p>The act of writing stuff down helps cement my own understanding — words are usually not as nebulous as thoughts so I’m forced to figure out little details.</p>
 
-<p>I recall when I wrote my post on <a href="https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/">how Rust’s thread safety guarantees work</a>, I <em>thought</em> I understood <code>Send</code> and <code>Sync</code> in Rust. I understood what they did, but I didn’t have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.</p>
+<p>I recall when I wrote my post on <a href="https://manishearth.github.io/blog/2015/05/30/how-rust-achieves-thread-safety/">how Rust’s thread safety guarantees work</a>, I <em>thought</em> I understood <code class="language-plaintext highlighter-rouge">Send</code> and <code class="language-plaintext highlighter-rouge">Sync</code> in Rust. I understood what they did, but I didn’t have a clear mental model for them. I obtained this mental model through the process of writing the post; to be able to explain it to others I had to first explain it to myself.</p>
 
 <p>I point out this post in particular because this was both one of the first posts for me where I’d noticed this, and, more importantly, my more concrete mental model led to me <a href="https://github.com/rust-lang/rust/issues/25894">finding a soundness bug in Rust’s standard library</a>. When I was thinking about my mental model I realized “an impl that looks like this should never exist”,
 so I grepped the source code and found one<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote">1</a></sup>.</p>
@@ -1123,7 +1123,7 @@ as well as what they’re actually asking for help with. Plus, it’s interactiv
 
 <p>I have the privilege of having time to do things like blogging and mentoring. Given that, I feel that it really is my duty to share what I know as much as possible; to help others attempting to tread the path I’m treading; and to battle against tribal knowledge.</p>
 
-<p>When it comes to programming I’m mostly “self-taught”. But when I say that, I really mean that I wasn’t taught in a traditional way by other humans — I learned things by trying stuff out and <em>reading what others had written</em>. I didn’t learn Rust by taking <code>rustc</code> and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and <em>then</em> started exploring by trying random stuff). I didn’t figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts. I’m “self-taught” because I’ve been in charge of my learning process, but I’ve definitely relied on the work of other people throughout this process.</p>
+<p>When it comes to programming I’m mostly “self-taught”. But when I say that, I really mean that I wasn’t taught in a traditional way by other humans — I learned things by trying stuff out and <em>reading what others had written</em>. I didn’t learn Rust by taking <code class="language-plaintext highlighter-rouge">rustc</code> and pretending to be a fuzzer and just trying random nonsense till stuff made sense, I went through the tutorial (and <em>then</em> started exploring by trying random stuff). I didn’t figure out cool algorithms by discovering them from first principles, I picked them up from books and blog posts. I’m “self-taught” because I’ve been in charge of my learning process, but I’ve definitely relied on the work of other people throughout this process.</p>
 
 <p>This means that for me, personally, knowledge-sharing is especially important. If I had to spend time figuring something out, I should make it easier for the next people to try<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">7</a></sup>.</p>
 
@@ -1142,7 +1142,7 @@ as well as what they’re actually asking for help with. Plus, it’s interactiv
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:11" role="doc-endnote">
-      <p>Who needs to <a href="https://www.ralfj.de/blog/2017/06/09/mutexguard-sync.html">look for unsoundness with rigorous formal verification</a> when you have <code>grep</code>? <a href="#fnref:11" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Who needs to <a href="https://www.ralfj.de/blog/2017/06/09/mutexguard-sync.html">look for unsoundness with rigorous formal verification</a> when you have <code class="language-plaintext highlighter-rouge">grep</code>? <a href="#fnref:11" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
       <p>Incidentally, I find there’s a similar dynamic when it comes to forum discussions vs hashing things out one-on-one, it’s way harder to get anywhere with forum discussions because they’re one-many and you have to put in that much more work to empathize with everyone else and also phrase things in a way that is resilient to accidental misinterpretation. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -1207,7 +1207,7 @@ these are internal APIs and as such will never stabilize, so Clippy needs to be
 used with nightly Rust.</p>
 
 <p>We’re hoping this will change soon! The plan is that Clippy will eventually
-be distributed by Rustup, so something like <code>rustup component add clippy</code> will
+be distributed by Rustup, so something like <code class="language-plaintext highlighter-rouge">rustup component add clippy</code> will
 get you the clippy binary.</p>
 
 <p>The first steps are <a href="https://github.com/rust-lang/rust/pull/51122">happening</a>, we’re planning on setting it up so that when it compiles
@@ -1238,10 +1238,10 @@ its help enforcing the general “Rust Style”.</p>
 <p>So we came up with a better division of lints:</p>
 
 <ul>
-  <li>Correctness (Deny): Probable bugs, e.g. calling <code>.clone()</code> on <code>&amp;&amp;T</code>, which clones the (<code>Copy</code>) reference and not the actual type</li>
-  <li>Style (Warn): Style issues; where the fix usually doesn’t semantically change the code. For example, having a method named <code>into_foo()</code> that doesn’t take <code>self</code> by-move</li>
-  <li>Complexity (Warn): For detecting unnecessary code complexities and helping simplify them. For example, replacing <code>.filter(..).next()</code> with <code>.find(..)</code></li>
-  <li>Perf (Warn): Detecting potential performance footguns, like using <code>Box&lt;Vec&lt;T&gt;&gt;</code> or calling <code>.or(foo())</code> instead of <code>or_else(foo)</code>.</li>
+  <li>Correctness (Deny): Probable bugs, e.g. calling <code class="language-plaintext highlighter-rouge">.clone()</code> on <code class="language-plaintext highlighter-rouge">&amp;&amp;T</code>, which clones the (<code class="language-plaintext highlighter-rouge">Copy</code>) reference and not the actual type</li>
+  <li>Style (Warn): Style issues; where the fix usually doesn’t semantically change the code. For example, having a method named <code class="language-plaintext highlighter-rouge">into_foo()</code> that doesn’t take <code class="language-plaintext highlighter-rouge">self</code> by-move</li>
+  <li>Complexity (Warn): For detecting unnecessary code complexities and helping simplify them. For example, replacing <code class="language-plaintext highlighter-rouge">.filter(..).next()</code> with <code class="language-plaintext highlighter-rouge">.find(..)</code></li>
+  <li>Perf (Warn): Detecting potential performance footguns, like using <code class="language-plaintext highlighter-rouge">Box&lt;Vec&lt;T&gt;&gt;</code> or calling <code class="language-plaintext highlighter-rouge">.or(foo())</code> instead of <code class="language-plaintext highlighter-rouge">or_else(foo)</code>.</li>
   <li>Pedantic (Allow): Controversial or exceedingly pedantic lints</li>
   <li>Nursery (Allow): For lints which are buggy or need more work</li>
   <li>Cargo (Allow): Lints about your Cargo setup</li>
@@ -1258,12 +1258,12 @@ its help enforcing the general “Rust Style”.</p>
 and pinning down an idea of stability.</p>
 
 <p>The general plan we have right now is to have the same idea of lint stability as rustc; essentially
-we do not guarantee stability under <code>#[deny(lintname)]</code>. This is mostly fine since <code>deny</code> only affects
-the current crate (dependencies have their lints capped) so at most you’ll be forced to slap on an <code>allow</code>
+we do not guarantee stability under <code class="language-plaintext highlighter-rouge">#[deny(lintname)]</code>. This is mostly fine since <code class="language-plaintext highlighter-rouge">deny</code> only affects
+the current crate (dependencies have their lints capped) so at most you’ll be forced to slap on an <code class="language-plaintext highlighter-rouge">allow</code>
 somewhere after a rustup.</p>
 
 <p>With specifics, this means that we’ll never remove lints. We may recategorize them, or “deprecate” them
-(which makes the lint do nothing, but keeps the name around so that <code>#[allow(lintname)]</code> doesn’t break the build
+(which makes the lint do nothing, but keeps the name around so that <code class="language-plaintext highlighter-rouge">#[allow(lintname)]</code> doesn’t break the build
 aside from emitting a warning).</p>
 
 <p>We’ll also not change what individual lints do fundamentally. The kinds of changes you can expect are:</p>
@@ -1329,7 +1329,7 @@ lint categorization for folks to discuss.</p>
 me discovering a series of quirks of the Rust compiler/language, each one leading to the
 next when I asked “why?”.</p>
 
-<p>It started when someone asked why autogenerated <code>Debug</code> impls use argument names like <code>__arg_0</code>
+<p>It started when someone asked why autogenerated <code class="language-plaintext highlighter-rouge">Debug</code> impls use argument names like <code class="language-plaintext highlighter-rouge">__arg_0</code>
 which start with a double underscore.</p>
 
 <p>This happened to be <a href="https://github.com/rust-lang/rust/pull/32294">my fault</a>. The reason <a href="https://github.com/rust-lang/rust/pull/32251#issuecomment-197481726">we used a double underscore</a> was that
@@ -1344,22 +1344,22 @@ anyway so a double underscore didn’t seem worse.</p>
 <p>Ideally the rustc derive infrastructure would have a way of specifying the argument name to use so
 that we can at least have descriptive things here, but that’s a bit more work (I’m willing to mentor
 this work though!). So I thought I’d fix this by at least removing the double underscore, and making
-the unused lint ignore <code>#[derive()]</code> output.</p>
+the unused lint ignore <code class="language-plaintext highlighter-rouge">#[derive()]</code> output.</p>
 
 <p>While going through the code to look for underscores I also discovered a hygiene issue. The following code
 throws a bunch of very weird type errors:</p>
 
-<pre><code class="language-rust">pub const __cmp: u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="mi">__</span><span class="n">cmp</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-#[derive(PartialOrd, PartialEq)]
-pub enum Foo {
-    A(u8), B(u8)
-}
-</code></pre>
+<span class="nd">#[derive(PartialOrd,</span> <span class="nd">PartialEq)]</span>
+<span class="k">pub</span> <span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="nf">A</span><span class="p">(</span><span class="nb">u8</span><span class="p">),</span> <span class="nf">B</span><span class="p">(</span><span class="nb">u8</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="https://play.rust-lang.org/?gist=2352b6a2192f38caba70bc2b1fa889e7&amp;version=stable">playpen</a>)</p>
 
-<pre><code>error[E0308]: mismatched types
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0308]: mismatched types
  --&gt; src/main.rs:6:7
   |
 6 |     A(u8), B(u8)
@@ -1368,43 +1368,43 @@ pub enum Foo {
   = note: expected type `std::option::Option&lt;std::cmp::Ordering&gt;`
              found type `u8`
 .....
-</code></pre>
+</code></pre></div></div>
 
 <p>This is because the generated code for PartialOrd contains the following:</p>
 
-<pre><code class="language-rust">match foo.cmp(bar) {
-    Some(Ordering::Equal) =&gt; .....,
-    __cmp =&gt; __cmp,
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">match</span> <span class="n">foo</span><span class="nf">.cmp</span><span class="p">(</span><span class="n">bar</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nf">Some</span><span class="p">(</span><span class="nn">Ordering</span><span class="p">::</span><span class="n">Equal</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="o">.....</span><span class="p">,</span>
+    <span class="mi">__</span><span class="n">cmp</span> <span class="k">=&gt;</span> <span class="mi">__</span><span class="n">cmp</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p><code>__cmp</code> can both be a binding to a wildcard pattern match as well as a match against a constant
-named <code>__cmp</code>, and in the presence of such a constant it resolves to the constant, causing
+<p><code class="language-plaintext highlighter-rouge">__cmp</code> can both be a binding to a wildcard pattern match as well as a match against a constant
+named <code class="language-plaintext highlighter-rouge">__cmp</code>, and in the presence of such a constant it resolves to the constant, causing
 type errors.</p>
 
-<p>One way to fix this is to bind <code>foo.cmp(bar)</code> to some temporary variable <code>x</code> and use that directly in
-a <code>_ =&gt; x</code> branch.</p>
+<p>One way to fix this is to bind <code class="language-plaintext highlighter-rouge">foo.cmp(bar)</code> to some temporary variable <code class="language-plaintext highlighter-rouge">x</code> and use that directly in
+a <code class="language-plaintext highlighter-rouge">_ =&gt; x</code> branch.</p>
 
-<p>I thought I could be clever and try <code>cmp @ _ =&gt; cmp</code> instead. <code>match</code> supports syntax where you can
-do <code>foo @ &lt;pattern&gt;</code>, where <code>foo</code> is bound to the entire matched variable. The <code>cmp</code> here is unambiguously
-a binding; it cannot be a pattern. So no conflicting with the <code>const</code>, problem solved!</p>
+<p>I thought I could be clever and try <code class="language-plaintext highlighter-rouge">cmp @ _ =&gt; cmp</code> instead. <code class="language-plaintext highlighter-rouge">match</code> supports syntax where you can
+do <code class="language-plaintext highlighter-rouge">foo @ &lt;pattern&gt;</code>, where <code class="language-plaintext highlighter-rouge">foo</code> is bound to the entire matched variable. The <code class="language-plaintext highlighter-rouge">cmp</code> here is unambiguously
+a binding; it cannot be a pattern. So no conflicting with the <code class="language-plaintext highlighter-rouge">const</code>, problem solved!</p>
 
-<p>So I made <a href="https://github.com/rust-lang/rust/pull/49676">a PR for both removing the underscores and also fixing this</a>. The change for <code>__cmp</code>
+<p>So I made <a href="https://github.com/rust-lang/rust/pull/49676">a PR for both removing the underscores and also fixing this</a>. The change for <code class="language-plaintext highlighter-rouge">__cmp</code>
 is no longer in that PR, but you can find it <a href="https://github.com/Manishearth/rust/commit/partial-cmp-hygiene">here</a>.</p>
 
 <p>Except I hit a problem. With that PR, the following still breaks:</p>
 
-<pre><code class="language-rust">pub const cmp: u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="n">cmp</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-#[derive(PartialOrd, PartialEq)]
-pub enum Foo {
-    A(u8), B(u8)
-}
-</code></pre>
+<span class="nd">#[derive(PartialOrd,</span> <span class="nd">PartialEq)]</span>
+<span class="k">pub</span> <span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="nf">A</span><span class="p">(</span><span class="nb">u8</span><span class="p">),</span> <span class="nf">B</span><span class="p">(</span><span class="nb">u8</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>throwing a slightly cryptic error:</p>
 
-<pre><code>error[E0530]: match bindings cannot shadow constants
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0530]: match bindings cannot shadow constants
  --&gt; test.rs:9:7
   |
 4 | pub const cmp: u8 = 1;
@@ -1412,36 +1412,36 @@ pub enum Foo {
 ...
 9 |     B(u8)
   |       ^^^ cannot be named the same as a constant
-</code></pre>
+</code></pre></div></div>
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="language-rust">pub const cmp : u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="n">cmp</span> <span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-fn main() {
-    match 1 {
-        cmp @ _ =&gt; ()
-    }
-}
-</code></pre>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="mi">1</span> <span class="p">{</span>
+        <span class="n">cmp</span> <span class="o">@</span> <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="https://play.rust-lang.org/?gist=feebbc048b47c286d5720b9926c6925e&amp;version=stable">playpen</a>)</p>
 
-<p>Huh. Wat. Why? <code>cmp @ _</code> seems to be pretty unambiguous, what’s wrong with it shadowing a constant?</p>
+<p>Huh. Wat. Why? <code class="language-plaintext highlighter-rouge">cmp @ _</code> seems to be pretty unambiguous, what’s wrong with it shadowing a constant?</p>
 
 <p>Turns out bindings cannot shadow constants at all, for a <a href="https://github.com/rust-lang/rust/issues/33118#issuecomment-233962221">rather subtle reason</a>:</p>
 
-<pre><code class="language-rust">const A: u8 = ...; // A_const
-let A @ _ = ...; // A_let
-match .. {
-    A =&gt; ...; // A_match
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="n">A</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span> <span class="c">// A_const</span>
+<span class="k">let</span> <span class="n">A</span> <span class="o">@</span> <span class="mi">_</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span> <span class="c">// A_let</span>
+<span class="k">match</span> <span class="o">..</span> <span class="p">{</span>
+    <span class="n">A</span> <span class="k">=&gt;</span> <span class="o">...</span><span class="p">;</span> <span class="c">// A_match</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>What happens here is that constants and variables occupy the same namespace. So <code>A_let</code> shadows
-<code>A_const</code> here, and when we attempt to <code>match</code>, <code>A_match</code> is resolved to <code>A_let</code> and rejected (since
-you can’t match against a variable), and <code>A_match</code> falls back to resolving as a fresh binding
-pattern, instead of resolving to a pattern that matches against <code>A_const</code>.</p>
+<p>What happens here is that constants and variables occupy the same namespace. So <code class="language-plaintext highlighter-rouge">A_let</code> shadows
+<code class="language-plaintext highlighter-rouge">A_const</code> here, and when we attempt to <code class="language-plaintext highlighter-rouge">match</code>, <code class="language-plaintext highlighter-rouge">A_match</code> is resolved to <code class="language-plaintext highlighter-rouge">A_let</code> and rejected (since
+you can’t match against a variable), and <code class="language-plaintext highlighter-rouge">A_match</code> falls back to resolving as a fresh binding
+pattern, instead of resolving to a pattern that matches against <code class="language-plaintext highlighter-rouge">A_const</code>.</p>
 
 <p>This is kinda weird, so we disallow shadowing constants with variables. This is rarely a problem
 because variables are lowercase and constants are uppercase. We could <em>technically</em> allow this
@@ -1453,19 +1453,19 @@ language-wise, but it’s hard on the implementation (and irrelevant in practice
 you can also name a constant the same as the local variable and have a clash (so again, you
 need the underscores to avoid surprises).</p>
 
-<p>But then I realized that we had an issue with removing the underscores from <code>__arg_0</code> as well.</p>
+<p>But then I realized that we had an issue with removing the underscores from <code class="language-plaintext highlighter-rouge">__arg_0</code> as well.</p>
 
 <p>The following code is also broken:</p>
 
-<pre><code class="language-rust">pub const __arg_0: u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="mi">__</span><span class="n">arg_0</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-#[derive(Debug)]
-struct Foo(u8);
-</code></pre>
+<span class="nd">#[derive(Debug)]</span>
+<span class="k">struct</span> <span class="nf">Foo</span><span class="p">(</span><span class="nb">u8</span><span class="p">);</span>
+</code></pre></div></div>
 
 <p>(<a href="https://play.rust-lang.org/?gist=6e10fd8de1123c6f6f695c891e879f70&amp;version=stable">playpen</a>)</p>
 
-<pre><code>error[E0308]: mismatched types
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0308]: mismatched types
  --&gt; src/main.rs:3:10
   |
 3 | #[derive(Debug)]
@@ -1473,21 +1473,21 @@ struct Foo(u8);
   |
   = note: expected type `&amp;mut std::fmt::Formatter&lt;'_&gt;`
              found type `u8`
-</code></pre>
+</code></pre></div></div>
 
 <p>You can see a reduced version of this error in the following code:</p>
 
-<pre><code class="language-rust">pub const __arg_0: u8 = 1;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="mi">__</span><span class="n">arg_0</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
-fn foo(__arg_0: bool) {}
-</code></pre>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="mi">__</span><span class="n">arg_0</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="p">{}</span>
+</code></pre></div></div>
 
-<pre><code>error[E0308]: mismatched types
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0308]: mismatched types
  --&gt; src/main.rs:3:8
   |
 3 | fn foo(__arg_0: bool) {}
   |        ^^^^^^^ expected bool, found u8
-</code></pre>
+</code></pre></div></div>
 
 <p>(<a href="https://play.rust-lang.org/?gist=2cf2c8b3520d5b343de1b76f80ea3fe7&amp;version=stable">playpen</a>)</p>
 
@@ -1496,9 +1496,9 @@ very low chance someone will create a constant that is both lowercase and starts
 underscore. But it’s a problem when I remove the underscores since that chance shoots up.</p>
 
 <p>Anyway, this failure is even weirder. Why are we attempting to match against the constant in the
-first place? <code>fn</code> argument patterns<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
-the argument. For example, <code>fn foo(Some(foo): Option&lt;u8&gt;) {}</code> will fail to compile with
-“refutable pattern in function argument: <code>None</code> not covered”.</p>
+first place? <code class="language-plaintext highlighter-rouge">fn</code> argument patterns<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> are irrefutable, i.e. all possible values of the type should match
+the argument. For example, <code class="language-plaintext highlighter-rouge">fn foo(Some(foo): Option&lt;u8&gt;) {}</code> will fail to compile with
+“refutable pattern in function argument: <code class="language-plaintext highlighter-rouge">None</code> not covered”.</p>
 
 <p>There’s no point trying to match against constants here; because even if we find a constant it will be rejected
 later. Instead, we can unambiguously resolve identifiers as new bindings, yes?</p>
@@ -1510,16 +1510,16 @@ later. Instead, we can unambiguously resolve identifiers as new bindings, yes?</
 <p>I was wrong, it’s <a href="https://github.com/rust-lang/rust/issues/49680#issuecomment-379029404">not going to always be rejected later</a>. With zero-sized types this
 can totally still work:</p>
 
-<pre><code class="language-rust">struct S;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">S</span><span class="p">;</span>
 
-const C: S = S;
+<span class="k">const</span> <span class="n">C</span><span class="p">:</span> <span class="n">S</span> <span class="o">=</span> <span class="n">S</span><span class="p">;</span>
 
-fn main() {
-    let C = S;
-}
-</code></pre>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">C</span> <span class="o">=</span> <span class="n">S</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Here because <code>S</code> has only one state, matching against a constant of the type is still irrefutable.</p>
+<p>Here because <code class="language-plaintext highlighter-rouge">S</code> has only one state, matching against a constant of the type is still irrefutable.</p>
 
 <p>I argued that this doesn’t matter – since the type has a single value, it doesn’t matter whether we resolved to
 a new binding or the constant; the value and semantics are the same.</p>
@@ -1551,7 +1551,7 @@ infrastructure supports. I plan to make a PR for this eventually.</p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
-      <p>Yes, function arguments in Rust are patterns. You can totally do things like <code>(a, b): (u8, u8)</code> in function arguments (like you can do in <code>let</code>) <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Yes, function arguments in Rust are patterns. You can totally do things like <code class="language-plaintext highlighter-rouge">(a, b): (u8, u8)</code> in function arguments (like you can do in <code class="language-plaintext highlighter-rouge">let</code>) <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -1689,7 +1689,7 @@ the crash doesn’t occur for द्ब or ड्ड. It seems to be specific to
 
 <p>Digging deeper, the reason is that for many fonts (presumably the ones in use), these consonants
 form “suffix joining consonants”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> (a term I made up) when preceded by a virama. This seems to
-correspond to the <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_pt#tag-pstf"><code>pstf</code> OpenType feature</a>, as well as <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_uz#vatu"><code>vatu</code></a>.</p>
+correspond to the <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_pt#tag-pstf"><code class="language-plaintext highlighter-rouge">pstf</code> OpenType feature</a>, as well as <a href="https://docs.microsoft.com/en-us/typography/opentype/spec/features_uz#vatu"><code class="language-plaintext highlighter-rouge">vatu</code></a>.</p>
 
 <p>For example, the sequence virama + क gives   ्क, i.e. it renders a virama with a placeholder followed by a क.</p>
 
@@ -1741,12 +1741,12 @@ a virama, like in most Indic consonnant clusters, because the a glyph buffer is 
 
 <p>So, ultimately, the full set of cases that cause the crash are:</p>
 
-<p>Any sequence <code>&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
+<p>Any sequence <code class="language-plaintext highlighter-rouge">&lt;consonant1, virama, consonant2, ZWNJ, vowel&gt;</code> in Devanagari, Bengali, and Telugu, where:</p>
 
 <ul>
-  <li><code>consonant2</code> is suffix-joining (<code>pstf</code>/<code>vatu</code>) – i.e. र, র, য, ৰ, and all Telugu consonants</li>
-  <li><code>consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
-  <li><code>vowel</code> does not have two glyph components, i.e. it is not   ై,   ো, or   ৌ</li>
+  <li><code class="language-plaintext highlighter-rouge">consonant2</code> is suffix-joining (<code class="language-plaintext highlighter-rouge">pstf</code>/<code class="language-plaintext highlighter-rouge">vatu</code>) – i.e. र, র, য, ৰ, and all Telugu consonants</li>
+  <li><code class="language-plaintext highlighter-rouge">consonant1</code> is not a reph-forming letter like र/র (or a variant, like ৰ)</li>
+  <li><code class="language-plaintext highlighter-rouge">vowel</code> does not have two glyph components, i.e. it is not   ై,   ো, or   ৌ</li>
 </ul>
 
 <p>This leaves one question open:</p>
@@ -1844,22 +1844,22 @@ a sum type is “This contains one of these <em>or</em> one of these”.</p>
 
 <p>So for example, the following sum type in Rust:</p>
 
-<pre><code class="language-rust">enum Foo {
-    Stringy(String),
-    Numerical(u32)
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="nf">Stringy</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span>
+    <span class="nf">Numerical</span><span class="p">(</span><span class="nb">u32</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>or Swift:</p>
 
-<pre><code class="language-swift">enum Foo {
-    case stringy(String),
-    case numerical(Int)
-}
-</code></pre>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">enum</span> <span class="kt">Foo</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nf">stringy</span><span class="p">(</span><span class="kt">String</span><span class="p">),</span>
+    <span class="k">case</span> <span class="nf">numerical</span><span class="p">(</span><span class="kt">Int</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>would be one where it’s either <code>Foo::Stringy</code> (<code>Foo::stringy</code> for swift), containing a <code>String</code>,
-<em>or</em> <code>Foo::Numerical</code>, containing an integer.</p>
+<p>would be one where it’s either <code class="language-plaintext highlighter-rouge">Foo::Stringy</code> (<code class="language-plaintext highlighter-rouge">Foo::stringy</code> for swift), containing a <code class="language-plaintext highlighter-rouge">String</code>,
+<em>or</em> <code class="language-plaintext highlighter-rouge">Foo::Numerical</code>, containing an integer.</p>
 
 <p>This can be pretty useful. For example, messages between threads are often of a “this or that or that or that”
 form.</p>
@@ -1894,64 +1894,64 @@ I think this “fits well” with the existing Go language design.</p>
 <p>The essence is pretty straightforward: Extend interfaces to allow for “closed interfaces”. These are
 interfaces that are only implemented for a small list of types.</p>
 
-<p>Writing the <code>Foo</code> sum type above would be:</p>
+<p>Writing the <code class="language-plaintext highlighter-rouge">Foo</code> sum type above would be:</p>
 
-<pre><code class="language-go">type Foo interface {
-    SomeFunction()
-    OtherFunction()
-    for string, int
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">Foo</span> <span class="k">interface</span> <span class="p">{</span>
+    <span class="n">SomeFunction</span><span class="p">()</span>
+    <span class="n">OtherFunction</span><span class="p">()</span>
+    <span class="k">for</span> <span class="kt">string</span><span class="p">,</span> <span class="kt">int</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>It doesn’t even need to have functions defined on it.</p>
 
 <p>The interface functions can only be called if you have an interface object; they are not directly available
-on variant types without explicitly casting (<code>Foo("...").SomeFunction()</code>).</p>
+on variant types without explicitly casting (<code class="language-plaintext highlighter-rouge">Foo("...").SomeFunction()</code>).</p>
 
-<p>(I’m not strongly for the <code>for</code> keyword syntax, it’s just a suggestion. The core idea is that
+<p>(I’m not strongly for the <code class="language-plaintext highlighter-rouge">for</code> keyword syntax, it’s just a suggestion. The core idea is that
 you define an interface and you define the types it closes over. Somehow.)</p>
 
 <p>A better example would be an interface for a message-passing system for Raft:</p>
 
-<pre><code class="language-go">type VoteRequest struct {
-    CandidateId uint
-    Term uint
-    // ...
-}
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">VoteRequest</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">CandidateId</span> <span class="kt">uint</span>
+    <span class="n">Term</span> <span class="kt">uint</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
 
-type VoteResponse struct {
-    Term uint
-    VoteGranted bool
-    VoterId uint
-}
+<span class="k">type</span> <span class="n">VoteResponse</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">Term</span> <span class="kt">uint</span>
+    <span class="n">VoteGranted</span> <span class="kt">bool</span>
+    <span class="n">VoterId</span> <span class="kt">uint</span>
+<span class="p">}</span>
 
-type AppendRequest struct {
-    //...
-}
+<span class="k">type</span> <span class="n">AppendRequest</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="c">//...</span>
+<span class="p">}</span>
 
-type AppendResponse struct {
-    //...
-}
-// ...
-type RaftMessage interface {
-    for VoteRequest, VoteResponse, AppendRequest, AppendResponse
-}
-</code></pre>
+<span class="k">type</span> <span class="n">AppendResponse</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="c">//...</span>
+<span class="p">}</span>
+<span class="c">// ...</span>
+<span class="k">type</span> <span class="n">RaftMessage</span> <span class="k">interface</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="n">VoteRequest</span><span class="p">,</span> <span class="n">VoteResponse</span><span class="p">,</span> <span class="n">AppendRequest</span><span class="p">,</span> <span class="n">AppendResponse</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Now, you use type switches for dealing with these:</p>
 
-<pre><code class="language-go">switch value := msg.(type) {
-    case VoteRequest:
-        if value.Term &lt;= me.Term {
-            me.reject_vote(value.CandidateId)
-        } else {
-            me.accept_vote(value.CandidateId, value.Term)
-        }
-    case VoteResponse: // ...
-    case AppendRequest: // ...
-    case AppendResponse: // ...
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">switch</span> <span class="n">value</span> <span class="o">:=</span> <span class="n">msg</span><span class="o">.</span><span class="p">(</span><span class="k">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="n">VoteRequest</span><span class="o">:</span>
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">Term</span> <span class="o">&lt;=</span> <span class="n">me</span><span class="o">.</span><span class="n">Term</span> <span class="p">{</span>
+            <span class="n">me</span><span class="o">.</span><span class="n">reject_vote</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">CandidateId</span><span class="p">)</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">me</span><span class="o">.</span><span class="n">accept_vote</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">CandidateId</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">Term</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="k">case</span> <span class="n">VoteResponse</span><span class="o">:</span> <span class="c">// ...</span>
+    <span class="k">case</span> <span class="n">AppendRequest</span><span class="o">:</span> <span class="c">// ...</span>
+    <span class="k">case</span> <span class="n">AppendResponse</span><span class="o">:</span> <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>There is no need for the default case, unless you wish to leave one or more of the cases out.</p>
 
@@ -1961,27 +1961,27 @@ what this entails for the GC design, but I’d love to hear thoughts on this.</p
 <p>We also make it possible to add methods to closed interfaces. This is in the spirit of
 <a href="https://github.com/golang/go/issues/16254">this proposal</a>, where you allow</p>
 
-<pre><code class="language-go">func (message RaftMessage) Process(me Me) error {
-    // message handling logic
-}
-</code></pre>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span> <span class="p">(</span><span class="n">message</span> <span class="n">RaftMessage</span><span class="p">)</span> <span class="n">Process</span><span class="p">(</span><span class="n">me</span> <span class="n">Me</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+    <span class="c">// message handling logic</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>for closed interfaces.</p>
 
 <p>This aligns more with how sum types are written and used in other languages; instead of assuming
-that each method will be a <code>switch</code> on the variant, you can write arbitrary code that <em>may</em> <code>switch</code>
+that each method will be a <code class="language-plaintext highlighter-rouge">switch</code> on the variant, you can write arbitrary code that <em>may</em> <code class="language-plaintext highlighter-rouge">switch</code>
 on the type but it can also just call other methods. This is really nice because you can write
 methods in <em>both</em> ways – if it’s a “responsibility of the inner type” kind of method, require it in
 the interface and delegate it to the individual types. If it’s a “responsibility of the interface”
 method, write it as a method on the interface as a whole. I kind of wish Rust had this, because in Rust
 you sometimes end up writing things like:</p>
 
-<pre><code class="language-rust">match foo {
-    Foo::Stringy(s) =&gt; s.process(),
-    Foo::Numerical(n) =&gt; n.process(),
-    // ...
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="nn">Foo</span><span class="p">::</span><span class="nf">Stringy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.process</span><span class="p">(),</span>
+    <span class="nn">Foo</span><span class="p">::</span><span class="nf">Numerical</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">n</span><span class="nf">.process</span><span class="p">(),</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Yes, this would work better as a trait, but then you lose some niceties of Rust enums. With this
 proposal Go can have it both ways.</p>
@@ -2067,23 +2067,23 @@ scheduling based on I/O.</p>
 <p>I think the best way to understand lightweight threading is to forget about Rust for a moment
 and look at a language that does this well, Go.</p>
 
-<p>Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the <code>go</code>
+<p>Instead of using OS threads, Go has lightweight threads, called “goroutines”. You spawn these with the <code class="language-plaintext highlighter-rouge">go</code>
 keyword. A web server might do something like this:</p>
 
-<pre><code class="language-go">listener, err = net.Listen(...)
-// handle err
-for {
-    conn, err := listener.Accept()
-    // handle err
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">listener</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">Listen</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="c">// handle err</span>
+<span class="k">for</span> <span class="p">{</span>
+    <span class="n">conn</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">listener</span><span class="o">.</span><span class="n">Accept</span><span class="p">()</span>
+    <span class="c">// handle err</span>
 
-    // spawn goroutine:
-    go handler(conn)
-}
-</code></pre>
+    <span class="c">// spawn goroutine:</span>
+    <span class="k">go</span> <span class="n">handler</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This is a loop which waits for new TCP connections, and spawns a goroutine with the connection
-and the function <code>handler</code>. Each connection will be a new goroutine, and the goroutine will shut down
-when <code>handler</code> finishes. In the meantime, the main loop continues executing, because it’s running in
+and the function <code class="language-plaintext highlighter-rouge">handler</code>. Each connection will be a new goroutine, and the goroutine will shut down
+when <code class="language-plaintext highlighter-rouge">handler</code> finishes. In the meantime, the main loop continues executing, because it’s running in
 a different goroutine.</p>
 
 <p>So if these aren’t “real” (operating system) threads, what’s going on?</p>
@@ -2140,38 +2140,38 @@ execution. The I/O request is executed at some later point by the kernel. The th
 OS “Is this I/O request ready yet?” before looking at the result of the I/O.</p>
 
 <p>Of course, repeatedly asking the OS if it’s done can be tedious and consume resources. This is why
-there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code>epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
+there are system calls like <a href="https://en.wikipedia.org/wiki/Epoll"><code class="language-plaintext highlighter-rouge">epoll</code></a>. Here, you can bundle together a bunch of unfinished I/O requests,
 and then ask the OS to wake up your thread when <em>any</em> of these completes. So you can have a scheduler
 thread (a real thread) that swaps out lightweight threads that are waiting on I/O, and when there’s nothing
-else happening it can itself go to sleep with an <code>epoll</code> call until the OS wakes it up (when one of the I/O
+else happening it can itself go to sleep with an <code class="language-plaintext highlighter-rouge">epoll</code> call until the OS wakes it up (when one of the I/O
 requests completes).</p>
 
 <p>(The exact mechanism involved here is probably more complex)</p>
 
 <p>So, bringing this to Rust, Rust has the <a href="https://github.com/carllerche/mio">mio</a> library, which is a platform-agnostic
 wrapper around non-blocking I/O and tools like epoll/kqueue/etc. It’s a building block; and while
-those used to directly using <code>epoll</code> in C may find it helpful, it doesn’t provide a nice programming
+those used to directly using <code class="language-plaintext highlighter-rouge">epoll</code> in C may find it helpful, it doesn’t provide a nice programming
 model like Go does. But we can get there.</p>
 
 <h2 id="futures">Futures</h2>
 
-<p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code>Future</code></a> is the promise of eventually having a value
-(in fact, in Javascript these are called <code>Promise</code>s).</p>
+<p>These are another building block. A <a href="https://docs.rs/futures/0.1.17/futures/future/trait.Future.html"><code class="language-plaintext highlighter-rouge">Future</code></a> is the promise of eventually having a value
+(in fact, in Javascript these are called <code class="language-plaintext highlighter-rouge">Promise</code>s).</p>
 
-<p>So for example, you can ask to listen on a network socket, and get a <code>Future</code> back  (actually, a
-<code>Stream</code>, which is like a future but for a sequence of values). This <code>Future</code> won’t contain the
-response <em>yet</em>, but will know when it’s ready. You can <code>wait()</code> on a <code>Future</code>, which will block
-until you have a result, and you can also <code>poll()</code> it, asking it if it’s done yet (it will give you
+<p>So for example, you can ask to listen on a network socket, and get a <code class="language-plaintext highlighter-rouge">Future</code> back  (actually, a
+<code class="language-plaintext highlighter-rouge">Stream</code>, which is like a future but for a sequence of values). This <code class="language-plaintext highlighter-rouge">Future</code> won’t contain the
+response <em>yet</em>, but will know when it’s ready. You can <code class="language-plaintext highlighter-rouge">wait()</code> on a <code class="language-plaintext highlighter-rouge">Future</code>, which will block
+until you have a result, and you can also <code class="language-plaintext highlighter-rouge">poll()</code> it, asking it if it’s done yet (it will give you
 the result if it is).</p>
 
-<p>Futures can also be chained, so you can do stuff like <code>future.then(|result| process(result))</code>.
-The closure passed to <code>then</code> itself can produce another future, so you can chain together
-things like I/O operations. With chained futures, <code>poll()</code> is how you make progress; each time
+<p>Futures can also be chained, so you can do stuff like <code class="language-plaintext highlighter-rouge">future.then(|result| process(result))</code>.
+The closure passed to <code class="language-plaintext highlighter-rouge">then</code> itself can produce another future, so you can chain together
+things like I/O operations. With chained futures, <code class="language-plaintext highlighter-rouge">poll()</code> is how you make progress; each time
 you call it it will move on to the next future provided the existing one is ready.</p>
 
 <p>This is a pretty good abstraction over things like non-blocking I/O.</p>
 
-<p>Chaining futures works much like chaining iterators. Each <code>and_then</code> (or whatever combinator)
+<p>Chaining futures works much like chaining iterators. Each <code class="language-plaintext highlighter-rouge">and_then</code> (or whatever combinator)
 call returns a struct wrapping around the inner future, which may contain an additional closure.
 Closures themselves carry their references and data with them, so this really ends up being
 very similar to a tiny stack!</p>
@@ -2181,7 +2181,7 @@ very similar to a tiny stack!</p>
 <p>Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code>poll()</code>).</p>
+are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
 You have to manually set up the Tokio event loop (the “scheduler”), but once you do
@@ -2193,28 +2193,28 @@ use channels to coordinate so this isn’t that big a deal.</p>
 
 <p>While at a conceptual level this is beginning to shape up to be similar to what we had for Go, code-wise this doesn’t look so pretty. For the following Go code:</p>
 
-<pre><code class="language-go">// error handling ignored for simplicity
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// error handling ignored for simplicity</span>
 
-func foo(...) ReturnType {
-    data := doIo()
-    result := compute(data)
-    moreData = doMoreIo(result)
-    moreResult := moreCompute(data)
-    // ...
-    return someFinalResult
-}
-</code></pre>
+<span class="k">func</span> <span class="n">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="n">ReturnType</span> <span class="p">{</span>
+    <span class="n">data</span> <span class="o">:=</span> <span class="n">doIo</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">:=</span> <span class="n">compute</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">moreData</span> <span class="o">=</span> <span class="n">doMoreIo</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="n">moreResult</span> <span class="o">:=</span> <span class="n">moreCompute</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="c">// ...</span>
+    <span class="k">return</span> <span class="n">someFinalResult</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The Rust code will look something like</p>
 
-<pre><code class="language-rust">// error handling ignored for simplicity
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// error handling ignored for simplicity</span>
 
-fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
-    do_io().and_then(|data| do_more_io(compute(data)))
-          .and_then(|more_data| do_even_more_io(more_compute(more_data)))
-    // ......
-}
-</code></pre>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Future</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nf">do_io</span><span class="p">()</span><span class="nf">.and_then</span><span class="p">(|</span><span class="n">data</span><span class="p">|</span> <span class="nf">do_more_io</span><span class="p">(</span><span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+          <span class="nf">.and_then</span><span class="p">(|</span><span class="n">more_data</span><span class="p">|</span> <span class="nf">do_even_more_io</span><span class="p">(</span><span class="nf">more_compute</span><span class="p">(</span><span class="n">more_data</span><span class="p">)))</span>
+    <span class="c">// ......</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Not pretty. <a href="https://docs.rs/futures/0.1.25/futures/future/fn.loop_fn.html#examples">The code gets worse if you introduce branches and loops</a>. The problem is that in Go we
 got the interruption points for free, but in Rust we have to encode this by chaining up combinators
@@ -2226,17 +2226,17 @@ into a kind of state machine. Ew.</p>
 
 <p><a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html">Generators</a> are an experimental feature in Rust. Here’s an example:</p>
 
-<pre><code class="language-rust">let mut generator = || {
-    let i = 0;
-    loop {
-        yield i;
-        i += 1;
-    }
-};
-assert_eq!(generator.resume(), GeneratorState::Yielded(0));
-assert_eq!(generator.resume(), GeneratorState::Yielded(1));
-assert_eq!(generator.resume(), GeneratorState::Yielded(2));
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">generator</span> <span class="o">=</span> <span class="p">||</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="n">yield</span> <span class="n">i</span><span class="p">;</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">generator</span><span class="nf">.resume</span><span class="p">(),</span> <span class="nn">GeneratorState</span><span class="p">::</span><span class="nf">Yielded</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+</code></pre></div></div>
 
 <p>Functions are things which execute a task and return once. On the other hand, generators
 return multiple times; they pause execution to “yield” some data, and can be resumed
@@ -2244,38 +2244,38 @@ at which point they will run until the next yield. While my example doesn’t sh
 can also finish executing like regular functions.</p>
 
 <p>Closures in Rust are
-<a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code>Fn</code> traits to make it callable</a>.</p>
+<a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code class="language-plaintext highlighter-rouge">Fn</code> traits to make it callable</a>.</p>
 
-<p>Generators are similar, except they implement the <code>Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
+<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
 
 <p>The <a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines">unstable book</a> has some examples on what the generator state machine enum will look like.</p>
 
 <p>This is much closer to what we were looking for! Now our code can look like this:</p>
 
-<pre><code class="language-rust">fn foo(...) -&gt; Future&lt;ReturnType, ErrorType&gt; {
-    let generator = || {
-        let mut future = do_io();
-        let data;
-        loop {
-            // poll the future, yielding each time it fails,
-            // but if it succeeds then move on
-            match future.poll() {
-                Ok(Async::Ready(d)) =&gt; { data = d; break },
-                Ok(Async::NotReady(d)) =&gt; (),
-                Err(..) =&gt; ...
-            };
-            yield future.polling_info();
-        }
-        let result = compute(data);
-        // do the same thing for `doMoreIo()`, etc
-    }
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Future</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">generator</span> <span class="o">=</span> <span class="p">||</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">future</span> <span class="o">=</span> <span class="nf">do_io</span><span class="p">();</span>
+        <span class="k">let</span> <span class="n">data</span><span class="p">;</span>
+        <span class="k">loop</span> <span class="p">{</span>
+            <span class="c">// poll the future, yielding each time it fails,</span>
+            <span class="c">// but if it succeeds then move on</span>
+            <span class="k">match</span> <span class="n">future</span><span class="nf">.poll</span><span class="p">()</span> <span class="p">{</span>
+                <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">Ready</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span> <span class="n">data</span> <span class="o">=</span> <span class="n">d</span><span class="p">;</span> <span class="k">break</span> <span class="p">},</span>
+                <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">NotReady</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">(),</span>
+                <span class="nf">Err</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="o">...</span>
+            <span class="p">};</span>
+            <span class="n">yield</span> <span class="n">future</span><span class="nf">.polling_info</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+        <span class="c">// do the same thing for `doMoreIo()`, etc</span>
+    <span class="p">}</span>
 
-    futurify(generator)
-}
-</code></pre>
+    <span class="nf">futurify</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>where <code>futurify</code> is a function that takes a generator and returns a future which on
-each <code>poll</code> call will <code>resume()</code> the generator, and return <code>NotReady</code> until the generator
+<p>where <code class="language-plaintext highlighter-rouge">futurify</code> is a function that takes a generator and returns a future which on
+each <code class="language-plaintext highlighter-rouge">poll</code> call will <code class="language-plaintext highlighter-rouge">resume()</code> the generator, and return <code class="language-plaintext highlighter-rouge">NotReady</code> until the generator
 finishes executing.</p>
 
 <p>But wait, this is even <em>more</em> ugly! What was the point of converting our relatively
@@ -2283,21 +2283,21 @@ clean callback-chaining code into this mess?</p>
 
 <p>Well, if you look at it, this code now looks <em>linear</em>. We’ve converted our callback
 code to the same linear flow as the Go code, however it has this weird loop-yield boilerplate
-and the <code>futurify</code> function and is overall not very neat.</p>
+and the <code class="language-plaintext highlighter-rouge">futurify</code> function and is overall not very neat.</p>
 
-<p>And that’s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code>futures-await</code> is a procedural macro that
+<p>And that’s where <a href="https://github.com/alexcrichton/futures-await">futures-await</a> comes in. <code class="language-plaintext highlighter-rouge">futures-await</code> is a procedural macro that
 does the last-mile work of packaging away this boilerplate. It essentially lets you write
 the above function as</p>
 
-<pre><code class="language-rust">#[async]
-fn foo(...) -&gt; Result&lt;ReturnType, ErrorType&gt; {
-    let data = await!(do_io());
-    let result = compute(data);
-    let more_data = await!(do_more_io());
-    // ....
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async]</span>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_io</span><span class="p">());</span>
+    <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+    <span class="k">let</span> <span class="n">more_data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_more_io</span><span class="p">());</span>
+    <span class="c">// ....</span>
+</code></pre></div></div>
 
-<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code>await!()</code> calls. These
+<p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code class="language-plaintext highlighter-rouge">await!()</code> calls. These
 await calls are basically providing the same function as the interruption points that Go code
 gets implicitly.</p>
 
@@ -2307,7 +2307,7 @@ else you want as normal, and the code will still be clean.</p>
 <h2 id="tying-it-together">Tying it together</h2>
 
 <p>So, in Rust, futures can be chained together to provide a lightweight stack-like system. With async/await,
-you can neatly write these future chains, and <code>await</code> provides explicit interruption points on each I/O operation.
+you can neatly write these future chains, and <code class="language-plaintext highlighter-rouge">await</code> provides explicit interruption points on each I/O operation.
 Tokio provides an event loop “scheduler” abstraction, which you can feed async functions to, and under the hood it
 uses mio to abstract over low level non-blocking I/O primitives.</p>
 
@@ -2332,10 +2332,10 @@ and we get to have “fearless concurrency” for programs having a huge quantit
       <p>Lightweight threading is also often called M:N threading (also “green threading”) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code>epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code>Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code class="language-plaintext highlighter-rouge">epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code class="language-plaintext highlighter-rouge">Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
-      <p>The <code>Generator</code> trait has a <code>resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>The <code class="language-plaintext highlighter-rouge">Generator</code> trait has a <code class="language-plaintext highlighter-rouge">resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

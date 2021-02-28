@@ -179,7 +179,7 @@ correct potential misunderstandings.</p>
 <p><img class="center" src="/images/post/rust-error.png" width="700" /></p>
 
 <p>One thing I particularly like about Rust is that from that error you can
-try <code>rustc --explain E0373</code> and get a terminal-friendly version
+try <code class="language-plaintext highlighter-rouge">rustc --explain E0373</code> and get a terminal-friendly version
 of <a href="https://doc.rust-lang.org/nightly/error-index.html#E0373">this help text</a>.</p>
 
 <p>Anyway, diagnostics basically provide a reactive component to learning programming. I’ve cared about
@@ -204,36 +204,36 @@ teach. But it also does many other things, and not all are teaching moments are 
 
 <p>For example, in C, this isn’t necessarily an antipattern:</p>
 
-<pre><code class="language-c">struct thingy *result;
-if (result = do_the_thing()) {
-    frob(*result)
-}
-</code></pre>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">thingy</span> <span class="o">*</span><span class="n">result</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">=</span> <span class="n">do_the_thing</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">frob</span><span class="p">(</span><span class="o">*</span><span class="n">result</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Many C codebases use <code>if (foo = bar())</code>. It is a potential footgun if you confuse it with <code>==</code>,
+<p>Many C codebases use <code class="language-plaintext highlighter-rouge">if (foo = bar())</code>. It is a potential footgun if you confuse it with <code class="language-plaintext highlighter-rouge">==</code>,
 but there’s no way to be sure. Many compilers now have a warning for this that you can silence by
 doubling the parentheses, though.</p>
 
 <p>In Rust, this isn’t an antipattern either:</p>
 
-<pre><code class="language-rust">fn add_one(mut x: u8) {
-    x += 1;
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">add_one</span><span class="p">(</span><span class="k">mut</span> <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">x</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
 
-let num = 0;
-add_one(num);
-// num is still 0
-</code></pre>
+<span class="k">let</span> <span class="n">num</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="nf">add_one</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
+<span class="c">// num is still 0</span>
+</code></pre></div></div>
 
-<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code>num</code>) passed to it
-is to use something like <code>mut x: u8</code>. What this actually does is copies <code>num</code> (because <code>u8</code> is a <code>Copy</code> type),
+<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code class="language-plaintext highlighter-rouge">num</code>) passed to it
+is to use something like <code class="language-plaintext highlighter-rouge">mut x: u8</code>. What this actually does is copies <code class="language-plaintext highlighter-rouge">num</code> (because <code class="language-plaintext highlighter-rouge">u8</code> is a <code class="language-plaintext highlighter-rouge">Copy</code> type),
 and allows you to mutate the copy within the scope of the function. The right way to make a function that
-mutates arguments passed to it by-reference would be to do something like <code>fn add_one(x: &amp;mut u8)</code>.
-If you try the <code>mut x</code> thing for non-Copy values, you’d get a “reading out of moved value” error
-when you try to access <code>num</code> after calling <code>add_one</code>. This would help you figure out what you did wrong,
+mutates arguments passed to it by-reference would be to do something like <code class="language-plaintext highlighter-rouge">fn add_one(x: &amp;mut u8)</code>.
+If you try the <code class="language-plaintext highlighter-rouge">mut x</code> thing for non-Copy values, you’d get a “reading out of moved value” error
+when you try to access <code class="language-plaintext highlighter-rouge">num</code> after calling <code class="language-plaintext highlighter-rouge">add_one</code>. This would help you figure out what you did wrong,
 and potentially that error could detect this situation and provide more specific help.</p>
 
-<p>But for <code>Copy</code> types, this will just compile. And it’s not an antipattern – the way this works
+<p>But for <code class="language-plaintext highlighter-rouge">Copy</code> types, this will just compile. And it’s not an antipattern – the way this works
 makes complete sense in the context of how Rust variables work, and is something that you do need
 to use at times.</p>
 
@@ -246,8 +246,8 @@ means, are you sure you want to do this?”. With explanations and the ability t
 
 <p>In fact, you don’t even need to restrict this to potential footguns!</p>
 
-<p>You can detect various things the learner is trying to do. Are they probably mixing up <code>String</code>
-and <code>&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
+<p>You can detect various things the learner is trying to do. Are they probably mixing up <code class="language-plaintext highlighter-rouge">String</code>
+and <code class="language-plaintext highlighter-rouge">&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
 
 <p>This is beginning to remind me of the original “office assistant” <a href="https://en.wikipedia.org/wiki/Office_Assistant">Clippy</a>, which was super annoying.
 But an opt-in tool or IDE feature which gives helpful suggestions could still be nice, especially

@@ -169,27 +169,27 @@ function whose output is known as a “hash”, with the following three propert
 
 <p>Note that multiple values <em>may</em> result in the same hash.</p>
 
-<p>The result of this is basically that hashes are hard to forge. If Bob shares a hash <code>Y = H(X)</code> with
-Alice, where <code>X</code> is some secret data and <code>H</code> is a hash function, if Bob reveals <code>X</code> at some later
-point, by checking that <code>Y = H(X)</code>, Alice can be reasonably certain that the value shared by Bob was
+<p>The result of this is basically that hashes are hard to forge. If Bob shares a hash <code class="language-plaintext highlighter-rouge">Y = H(X)</code> with
+Alice, where <code class="language-plaintext highlighter-rouge">X</code> is some secret data and <code class="language-plaintext highlighter-rouge">H</code> is a hash function, if Bob reveals <code class="language-plaintext highlighter-rouge">X</code> at some later
+point, by checking that <code class="language-plaintext highlighter-rouge">Y = H(X)</code>, Alice can be reasonably certain that the value shared by Bob was
 indeed the original input to the hash function and not tampered with in a way that the same hash was
-produced. Similarly, Bob can be certain that knowing only <code>Y</code>, Alice cannot reverse-engineer <code>X</code>
+produced. Similarly, Bob can be certain that knowing only <code class="language-plaintext highlighter-rouge">Y</code>, Alice cannot reverse-engineer <code class="language-plaintext highlighter-rouge">X</code>
 since the hash function is “irreversible”.</p>
 
 <p>This brings us to the concept of a commitment. Hashes can be used as described above to “commit” to
-a value. If Bob decides on a number <code>X</code>, and makes its hash <code>Y</code> public, he has committed to this
-value without revealing it. When he does decide to reveal it, he is forced to reveal <code>X</code> and not
+a value. If Bob decides on a number <code class="language-plaintext highlighter-rouge">X</code>, and makes its hash <code class="language-plaintext highlighter-rouge">Y</code> public, he has committed to this
+value without revealing it. When he does decide to reveal it, he is forced to reveal <code class="language-plaintext highlighter-rouge">X</code> and not
 some modified bogus value, thus making the “commitment” binding.</p>
 
 <p>Some of you may have noticed a flaw here: It’s hard to commit to small numbers, or things that come
-from a restricted set. If Bob wishes to commit to the number <code>5</code> (without revealing it), or the
-color <code>red</code> (out of a set of three colors), Alice can just try <code>H(0)</code> to <code>H(9)</code> or <code>H(red),
+from a restricted set. If Bob wishes to commit to the number <code class="language-plaintext highlighter-rouge">5</code> (without revealing it), or the
+color <code class="language-plaintext highlighter-rouge">red</code> (out of a set of three colors), Alice can just try <code class="language-plaintext highlighter-rouge">H(0)</code> to <code class="language-plaintext highlighter-rouge">H(9)</code> or <code class="language-plaintext highlighter-rouge">H(red),
 H(green), H(blue)</code> and find out which one matches. After all, hashes aren’t supposed to be resilient
 to brute force attacks, and brute force attacks become very easy when the set of inputs is tiny.</p>
 
-<p>A solution to this is to use a <em>nonce</em> (also known as a “trapdoor”). Bob commits to <code>5</code> by hashing
-the string <code>5-vektvzkjyfdqtnwry</code>, where <code>vektvzkjyfdqtnwry</code> is a random value he selected, known as
-a “nonce”. When Bob wishes to reveal the value, he just reveals <code>5-vektvzkjyfdqtnwry</code> and Alice is
+<p>A solution to this is to use a <em>nonce</em> (also known as a “trapdoor”). Bob commits to <code class="language-plaintext highlighter-rouge">5</code> by hashing
+the string <code class="language-plaintext highlighter-rouge">5-vektvzkjyfdqtnwry</code>, where <code class="language-plaintext highlighter-rouge">vektvzkjyfdqtnwry</code> is a random value he selected, known as
+a “nonce”. When Bob wishes to reveal the value, he just reveals <code class="language-plaintext highlighter-rouge">5-vektvzkjyfdqtnwry</code> and Alice is
 convinced that the original value committed to was indeed 5. Of course, this requires some agreement
 on the format of the nonce; in this case the nonce is just “everything after the dash”. Note that
 the nonce is private, and only revealed when Bob wishes to reveal the committed number.</p>
@@ -197,7 +197,7 @@ the nonce is private, and only revealed when Bob wishes to reveal the committed 
 <p>Note that each new commitment should use a new nonce. Otherwise, information can be leaked; for
 example if Bob needs to commit to three numbers (say, 2, 5, 2) in a way that they can be
 individually revealed, he shouldn’t compute the hashes for
-<code>2-vektvzkjyfdqtnwry, 5-vektvzkjyfdqtnwry, 2-vektvzkjyfdqtnwry</code>, since the first
+<code class="language-plaintext highlighter-rouge">2-vektvzkjyfdqtnwry, 5-vektvzkjyfdqtnwry, 2-vektvzkjyfdqtnwry</code>, since the first
 and last hashes will be equal and Alice will know that the committed values behind them are probably
 the same too (something which you may not wish to reveal).</p>
 
@@ -206,11 +206,11 @@ precomputed table of hashes of all strings up till a certain number of character
 this is to increase the nonce size, however since Bob decides the nonces it’s possible for him to
 smartly select them if he’s the one with a table. The solution here is to use a “salt”, which is a
 large random string combined with the committed value and hash. Bob and Alice could, for example,
-mutually decide on a salt of <code>asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb</code>, and when Bob wishes to
-commit to the number <code>5</code>, he hashes
-<code>asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb-5-vektvzkjyfdqtnwry</code>. Note that salts work similar
+mutually decide on a salt of <code class="language-plaintext highlighter-rouge">asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb</code>, and when Bob wishes to
+commit to the number <code class="language-plaintext highlighter-rouge">5</code>, he hashes
+<code class="language-plaintext highlighter-rouge">asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb-5-vektvzkjyfdqtnwry</code>. Note that salts work similar
 to nonces here, however the salt is known publically (you can model it as a last-minute modification
-of the agreed-upon hash function <code>H</code>, since <code>H'(X) = H(add_salt(X))</code>). In some cases, you may also
+of the agreed-upon hash function <code class="language-plaintext highlighter-rouge">H</code>, since <code class="language-plaintext highlighter-rouge">H'(X) = H(add_salt(X))</code>). In some cases, you may also
 want a per-instance salt, which is mutually decided every time Bob wants to compute a hash.</p>
 
 <p>Hashes are a useful building block for many things; they’re a key component in password security, as
@@ -316,7 +316,7 @@ secure anymore, but the secure ones all output huge hashes which spill over the 
 2, and Bob reveals the entire table entry for those two nodes (including the nonce).</p>
 
 <p>Note that since Alice now knows the color and nonce for nodes 1 and 2, she can verify that the
-colors shown are indeed the ones Bob committed to. <code>echo red-wmdqatobck | sha1sum</code> if you want to
+colors shown are indeed the ones Bob committed to. <code class="language-plaintext highlighter-rouge">echo red-wmdqatobck | sha1sum</code> if you want to
 check on a local Unixy shell.</p>
 
 <p>As in the previous case, Alice can repeat this algorithm until she reaches an acceptable level of
@@ -734,7 +734,7 @@ I believe the proof of concept executed in Greg’s post did this, but I’m not
       <p>There are seven edges. This is a conservative estimate, assuming that Bob’s graph has one bad edge. More mistakes increase this probability, but it becomes more cumbersome to calculate. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
-      <p>We basically want to be able to write this as a series of sequentially-arranged logic gates. If a loop is bounded by a constant, it can just be unrolled. <code>break</code> and <code>continue</code> can be handled here, though <code>goto</code> cannot. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>We basically want to be able to write this as a series of sequentially-arranged logic gates. If a loop is bounded by a constant, it can just be unrolled. <code class="language-plaintext highlighter-rouge">break</code> and <code class="language-plaintext highlighter-rouge">continue</code> can be handled here, though <code class="language-plaintext highlighter-rouge">goto</code> cannot. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:6" role="doc-endnote">
       <p>Remember that the number of nodes and edges is already known, so we can just write a program “Check edge 1”, “Check edge 2”, … without needing to explicitly loop over everything <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>

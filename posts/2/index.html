@@ -245,18 +245,18 @@ able to talk about safety more expressively if this was well known.</p>
 
 <h2 id="unsafe-means-two-things-in-rust-yay">Unsafe means two things in Rust, yay</h2>
 
-<p>So, first off, the waters are a bit muddied by the fact that Rust uses <code>unsafe</code> to both mean “within
-an <code>unsafe {}</code> block” and “something Bad is happening here”. It’s possible to have safe code
-within an <code>unsafe</code> block; indeed this is the <em>primary function</em> of an <code>unsafe</code> block. Somewhat
-counterintutively, the <code>unsafe</code> block’s purpose is to actually tell the compiler “I know you don’t
+<p>So, first off, the waters are a bit muddied by the fact that Rust uses <code class="language-plaintext highlighter-rouge">unsafe</code> to both mean “within
+an <code class="language-plaintext highlighter-rouge">unsafe {}</code> block” and “something Bad is happening here”. It’s possible to have safe code
+within an <code class="language-plaintext highlighter-rouge">unsafe</code> block; indeed this is the <em>primary function</em> of an <code class="language-plaintext highlighter-rouge">unsafe</code> block. Somewhat
+counterintutively, the <code class="language-plaintext highlighter-rouge">unsafe</code> block’s purpose is to actually tell the compiler “I know you don’t
 like this code but trust me, it’s safe!” (where “safe” is the negation of the <em>second</em> meaning of “unsafe”,
 i.e. “something Bad is not happening here”).</p>
 
-<p>Similarly, we use “safe code” to mean “code not using <code>unsafe{}</code> blocks” but also “code that is not unsafe”,
+<p>Similarly, we use “safe code” to mean “code not using <code class="language-plaintext highlighter-rouge">unsafe{}</code> blocks” but also “code that is not unsafe”,
 i.e. “code where nothing bad happens”.</p>
 
 <p>This blog post is primarily about the “something bad is happening here” meaning of “unsafe”. When referring
-to the other kind I’ll specifically say “code within <code>unsafe</code> blocks” or something like that.</p>
+to the other kind I’ll specifically say “code within <code class="language-plaintext highlighter-rouge">unsafe</code> blocks” or something like that.</p>
 
 <h2 id="undefined-behavior">Undefined behavior</h2>
 
@@ -276,21 +276,21 @@ such that you have major problems.</p>
 <p>Undefined behavior is a global property, based on how your code is <em>used</em>. The following function
 in C++ or Rust may or may not exhibit undefined behavior, based on how it gets used:</p>
 
-<pre><code class="language-cpp">int deref(int* x) {
-    return *x;
-}
-</code></pre>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">deref</span><span class="p">(</span><span class="kt">int</span><span class="o">*</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">// do not try this at home
-fn deref(x: *mut u32) -&gt; u32 {
-    unsafe { *x }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// do not try this at home</span>
+<span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">*</span><span class="k">mut</span> <span class="nb">u32</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">u32</span> <span class="p">{</span>
+    <span class="k">unsafe</span> <span class="p">{</span> <span class="o">*</span><span class="n">x</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>As long as you always call it with a valid pointer to an integer, there is no undefined behavior
 involved.</p>
 
-<p>But in either language, if you use it with some pointer conjured out of thin air (like <code>0x01</code>), that’s
+<p>But in either language, if you use it with some pointer conjured out of thin air (like <code class="language-plaintext highlighter-rouge">0x01</code>), that’s
 probably undefined behavior.</p>
 
 <p>As it stands, UB is a property of the entire program and its execution. Sometimes you may have snippets of code
@@ -300,7 +300,7 @@ is a global property.</p>
 <h2 id="unsafe-behavior">Unsafe behavior</h2>
 
 <p>Rust’s concept of “unsafe behavior” (I’m coining this term because “unsafety” and “unsafe code” can
-be a bit confusing) is far more scoped. Here, <code>fn deref</code> <em>is</em> “unsafe”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, even if you <em>always</em>
+be a bit confusing) is far more scoped. Here, <code class="language-plaintext highlighter-rouge">fn deref</code> <em>is</em> “unsafe”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, even if you <em>always</em>
 call it with a valid pointer. The reason it is still unsafe is because it’s possible to trigger UB by only
 changing the “safe” caller code. I.e. “changes to code outside unsafe blocks can trigger UB if they include
 calls to this function”.</p>
@@ -308,45 +308,45 @@ calls to this function”.</p>
 <p>Basically, in Rust a bit of code is “safe” if it cannot exhibit undefined behavior under all circumstances of
 that code being used. The following code exhibits “safe behavior”:</p>
 
-<pre><code class="language-rust">unsafe {
-    let x = 1;
-    let raw = &amp;x as *const u32;
-    println!("{}", *raw);
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">raw</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u32</span><span class="p">;</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="o">*</span><span class="n">raw</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We dereferenced a raw pointer, but we knew it was valid. Of course, actual <code>unsafe</code> blocks will
+<p>We dereferenced a raw pointer, but we knew it was valid. Of course, actual <code class="language-plaintext highlighter-rouge">unsafe</code> blocks will
 usually be “actually totally safe” for less obvious reasons, and part of this is because
-<a href="https://doc.rust-lang.org/nomicon/working-with-unsafe.html#working-with-unsafe"><code>unsafe</code> blocks sometimes can pollute the entire module</a>.</p>
+<a href="https://doc.rust-lang.org/nomicon/working-with-unsafe.html#working-with-unsafe"><code class="language-plaintext highlighter-rouge">unsafe</code> blocks sometimes can pollute the entire module</a>.</p>
 
 <p>Basically, “safe” in Rust is a more local property. Code isn’t safe just because you only use it in
 a way that doesn’t trigger UB, it is safe because there is literally <em>no way to use it such that it
-will do so</em>. No way to do so without using <code>unsafe</code> blocks, that is<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.</p>
+will do so</em>. No way to do so without using <code class="language-plaintext highlighter-rouge">unsafe</code> blocks, that is<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.</p>
 
 <p>This is a distinction that’s <em>possible</em> to draw in Rust because it gives us the ability
 to compartmentalize safety. Trying to apply this definition to C++ is problematic; you can
-ask “is <code>std::unique_ptr&lt;T&gt;</code> safe?”, but you can <em>always</em> use it within code in a way that you trigger
+ask “is <code class="language-plaintext highlighter-rouge">std::unique_ptr&lt;T&gt;</code> safe?”, but you can <em>always</em> use it within code in a way that you trigger
 undefined behavior, because C++ does not have the tools for compartmentalizing safety. The distinction
 between “code which doesn’t need to worry about safety” and “code which does need to worry about safety”
-exists in Rust in the form of “code outside of <code>unsafe {}</code>” and “code within <code>unsafe {}</code>”, whereas in
+exists in Rust in the form of “code outside of <code class="language-plaintext highlighter-rouge">unsafe {}</code>” and “code within <code class="language-plaintext highlighter-rouge">unsafe {}</code>”, whereas in
 C++ it’s a lot fuzzier and based on expectations (and documentation/the spec).</p>
 
-<p>So C++’s <code>std::unique_ptr&lt;T&gt;</code> is “safe” in the sense that it does what you expect but
+<p>So C++’s <code class="language-plaintext highlighter-rouge">std::unique_ptr&lt;T&gt;</code> is “safe” in the sense that it does what you expect but
 if you use it in a way counter to how it’s <em>supposed</em> to be used (constructing one from an invalid pointer, for example)
 it can blow up. This is still a useful sense of safety, and is how one regularly reasons about safety in C++. However it’s not
 the same sense of the term as used in Rust, which can be a bit more formal about what the expectations
 actually are.</p>
 
-<p>So <code>unsafe</code> in Rust is a strictly more general concept – all code exhibiting undefined behavior in Rust is also “unsafe”,
+<p>So <code class="language-plaintext highlighter-rouge">unsafe</code> in Rust is a strictly more general concept – all code exhibiting undefined behavior in Rust is also “unsafe”,
 however not all “unsafe” code in Rust exhibits undefined behavior as written in the current program.</p>
 
-<p>Rust furthermore attempts to guarantee that you will not trigger undefined behavior if you do not use <code>unsafe {}</code> blocks.
+<p>Rust furthermore attempts to guarantee that you will not trigger undefined behavior if you do not use <code class="language-plaintext highlighter-rouge">unsafe {}</code> blocks.
 This of course depends on the correctness of the compiler (it has bugs) and of the libraries you use (they may also have bugs)
 but this compartmentalization gets you most of the way there in having UB-free programs.</p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
-      <p>Once again in we have a slight difference between an “<code>unsafe fn</code>”, i.e. a function that needs an <code>unsafe</code> block to call and probably is unsafe, and an “unsafe function”, a function that exhibits unsafe behavior. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Once again in we have a slight difference between an “<code class="language-plaintext highlighter-rouge">unsafe fn</code>”, i.e. a function that needs an <code class="language-plaintext highlighter-rouge">unsafe</code> block to call and probably is unsafe, and an “unsafe function”, a function that exhibits unsafe behavior. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>This caveat and the confusing dual-usage of the term “safe” lead to the rather tautological-sounding sentence “Safe Rust code is Rust code that cannot cause undefined behavior when used in safe Rust code” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -381,7 +381,7 @@ but this compartmentalization gets you most of the way there in having UB-free p
   </header>
 
 
-  <div class="entry-content"><p><a href="https://developer.mozilla.org/en/docs/Web/CSS/font-size"><code>font-size</code></a> is the worst.</p>
+  <div class="entry-content"><p><a href="https://developer.mozilla.org/en/docs/Web/CSS/font-size"><code class="language-plaintext highlighter-rouge">font-size</code></a> is the worst.</p>
 
 <p>It’s a CSS property probably everyone who writes CSS has used at some point. It’s pretty ubiquitous.</p>
 
@@ -415,17 +415,17 @@ for some of these complexities. I’ll also try to give an idea of how the styli
 <p>The syntax of the property is pretty straightforward. You can specify it as:</p>
 
 <ul>
-  <li>A length (<code>12px</code>, <code>15pt</code>, <code>13em</code>, <code>4in</code>, <code>8rem</code>)</li>
-  <li>A percentage (<code>50%</code>)</li>
-  <li>A compound of the above, via a calc (<code>calc(12px + 4em + 20%)</code>)</li>
-  <li>An absolute keyword (<code>medium</code>, <code>small</code>, <code>large</code>, <code>x-large</code>, etc)</li>
-  <li>A relative keyword (<code>larger</code>, <code>smaller</code>)</li>
+  <li>A length (<code class="language-plaintext highlighter-rouge">12px</code>, <code class="language-plaintext highlighter-rouge">15pt</code>, <code class="language-plaintext highlighter-rouge">13em</code>, <code class="language-plaintext highlighter-rouge">4in</code>, <code class="language-plaintext highlighter-rouge">8rem</code>)</li>
+  <li>A percentage (<code class="language-plaintext highlighter-rouge">50%</code>)</li>
+  <li>A compound of the above, via a calc (<code class="language-plaintext highlighter-rouge">calc(12px + 4em + 20%)</code>)</li>
+  <li>An absolute keyword (<code class="language-plaintext highlighter-rouge">medium</code>, <code class="language-plaintext highlighter-rouge">small</code>, <code class="language-plaintext highlighter-rouge">large</code>, <code class="language-plaintext highlighter-rouge">x-large</code>, etc)</li>
+  <li>A relative keyword (<code class="language-plaintext highlighter-rouge">larger</code>, <code class="language-plaintext highlighter-rouge">smaller</code>)</li>
 </ul>
 
 <p>The first three are common amongst quite a few length-related properties. Nothing abnormal in the syntax.</p>
 
 <p>The next two are interesting. Essentially, the absolute keywords map to various pixel values, and match
-the result of <code>&lt;font size=foo&gt;</code> (e.g. <code>size=3</code> is the same as <code>font-size: medium</code>). The <em>actual</em> value they map to
+the result of <code class="language-plaintext highlighter-rouge">&lt;font size=foo&gt;</code> (e.g. <code class="language-plaintext highlighter-rouge">size=3</code> is the same as <code class="language-plaintext highlighter-rouge">font-size: medium</code>). The <em>actual</em> value they map to
 is not straightforward, and I’ll get to that later in this post.</p>
 
 <p>The relative keywords basically scale the size up or down. The mechanism of the scaling was also complex, however
@@ -433,15 +433,15 @@ this has changed. I’ll get to that too.</p>
 
 <h2 id="em-and-rem-units">em and rem units</h2>
 
-<p>First up: <code>em</code> units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code>em</code> or <code>rem</code>
+<p>First up: <code class="language-plaintext highlighter-rouge">em</code> units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code class="language-plaintext highlighter-rouge">em</code> or <code class="language-plaintext highlighter-rouge">rem</code>
 unit.</p>
 
-<p><code>5em</code> means “5 times the <code>font-size</code> of the element this is applied to”. <code>5rem</code> means “5 times the font-size of the root element”</p>
+<p><code class="language-plaintext highlighter-rouge">5em</code> means “5 times the <code class="language-plaintext highlighter-rouge">font-size</code> of the element this is applied to”. <code class="language-plaintext highlighter-rouge">5rem</code> means “5 times the font-size of the root element”</p>
 
 <p>The implications of this are that font-size needs to be computed before all the other properties (well, not quite, but we’ll get to that!)
 so that it is available during that time.</p>
 
-<p>You can also use <code>em</code> units within <code>font-size</code> itself. In this case, it computed relative to the font-size of the <em>parent</em> element, since
+<p>You can also use <code class="language-plaintext highlighter-rouge">em</code> units within <code class="language-plaintext highlighter-rouge">font-size</code> itself. In this case, it computed relative to the font-size of the <em>parent</em> element, since
 you can’t use the font-size of the element to compute itself. (This is identical to using a percentage unit)</p>
 
 <h2 id="minimum-font-size">Minimum font size</h2>
@@ -449,13 +449,13 @@ you can’t use the font-size of the element to compute itself. (This is identic
 <p>Browsers let you set a “minimum” font size in their preferences, and text will not be scaled below it. It’s useful for those with
 trouble seeing small text.</p>
 
-<p>However, this doesn’t affect properties which depend on font-size via <code>em</code> units. So if you’re using a minimum font size,
-<code>&lt;div style="font-size: 1px; height: 1em; background-color: red"&gt;</code> will have a very tiny height (which you’ll notice from the color),
+<p>However, this doesn’t affect properties which depend on font-size via <code class="language-plaintext highlighter-rouge">em</code> units. So if you’re using a minimum font size,
+<code class="language-plaintext highlighter-rouge">&lt;div style="font-size: 1px; height: 1em; background-color: red"&gt;</code> will have a very tiny height (which you’ll notice from the color),
 but the text will be clamped to the minimum size.</p>
 
 <p>What this effectively means is that you need to keep track of <em>two</em> separate computed font size values. There’s one value that
 is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
-know the font-size (e.g. to compute an <code>em</code> unit.)</p>
+know the font-size (e.g. to compute an <code class="language-plaintext highlighter-rouge">em</code> unit.)</p>
 
 <p>This gets slightly more complicated when <a href="https://en.wikipedia.org/wiki/Ruby_character">ruby</a> is involved. In ideographic scripts (usually, Han
 and Han-based scripts like Kanji or Hanja) it’s sometimes useful to have the pronunciation
@@ -467,7 +467,7 @@ i.e. “Japan”) in Kanji with ruby にほん in the phonetic Hiragana script a
 
 <p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
 size of the main text<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
-is supposed to be <code>50%</code> of the size of the text, the minimum font size for the ruby is <code>50%</code> of the
+is supposed to be <code class="language-plaintext highlighter-rouge">50%</code> of the size of the text, the minimum font size for the ruby is <code class="language-plaintext highlighter-rouge">50%</code> of the
 original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
 the same size), which is pretty ugly.</p>
 
@@ -477,7 +477,7 @@ the same size), which is pretty ugly.</p>
 be able to just blow up the text on the page without having the whole page get zoomed (which means you need to scroll
 around a lot).</p>
 
-<p>In this case, <code>em</code> units of other properties <em>do</em> get zoomed as well. After all, they’re supposed to be relative to the text’s font
+<p>In this case, <code class="language-plaintext highlighter-rouge">em</code> units of other properties <em>do</em> get zoomed as well. After all, they’re supposed to be relative to the text’s font
 size (and may have some relation to the text), so if that size has changed so should they.</p>
 
 <p>(Of course, that argument could also apply to the min font size stuff. I don’t have an answer for why it doesn’t.)</p>
@@ -485,7 +485,7 @@ size (and may have some relation to the text), so if that size has changed so sh
 <p>This is actually pretty straightforward to implement. When computing absolute font sizes (including
 keywords), zoom them if text zoom is on. For everything else continue as normal.</p>
 
-<p>Text zoom is also disabled within <code>&lt;svg:text&gt;</code> elements, which leads to some trickiness here.</p>
+<p>Text zoom is also disabled within <code class="language-plaintext highlighter-rouge">&lt;svg:text&gt;</code> elements, which leads to some trickiness here.</p>
 
 <h2 id="interlude-how-the-style-system-works">Interlude: How the style system works</h2>
 
@@ -498,10 +498,10 @@ you specify in CSS, whereas computed styles are those that get attached to the e
 layout, and inherited from. A given specified style may compute to different values when applied to
 different elements.</p>
 
-<p>So while you can <em>specify</em> <code>width: 5em</code>, it will compute to something like <code>width: 80px</code>. Computed values are usually a
+<p>So while you can <em>specify</em> <code class="language-plaintext highlighter-rouge">width: 5em</code>, it will compute to something like <code class="language-plaintext highlighter-rouge">width: 80px</code>. Computed values are usually a
 cleaned up form of the specified value.</p>
 
-<p>The style system will first parse the CSS, producing a bunch of rules usually containing declarations (a declaration is like <code>width: 20%;</code>; i.e. a property name and a specified value)</p>
+<p>The style system will first parse the CSS, producing a bunch of rules usually containing declarations (a declaration is like <code class="language-plaintext highlighter-rouge">width: 20%;</code>; i.e. a property name and a specified value)</p>
 
 <p>It then goes through the tree in top-down order (this is parallelized in Stylo), figuring out which declarations <em>apply</em> to each element
 and in which order – some declarations have precedence over others. Then it will compute each relevant declaration against the element’s style (and parent style, among other bits of info),
@@ -519,15 +519,15 @@ from the default style).</p>
 
 <p>Alright, this is where it gets complicated.</p>
 
-<p>Remember when I said <code>font-size: medium</code> was a thing that mapped to a value?</p>
+<p>Remember when I said <code class="language-plaintext highlighter-rouge">font-size: medium</code> was a thing that mapped to a value?</p>
 
 <p>So what does it map to?</p>
 
 <p>Well, it turns out, it depends on the font family. For the following HTML:</p>
 
-<pre><code class="language-html">&lt;span style="font: medium monospace"&gt;text&lt;/span&gt;
-&lt;span style="font: medium sans-serif"&gt;text&lt;/span&gt;
-</code></pre>
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium monospace"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+<span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium sans-serif"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+</code></pre></div></div>
 
 <p>you get (<a href="https://codepen.io/anon/pen/RZgxjw">codepen</a>)</p>
 
@@ -538,7 +538,7 @@ from the default style).</p>
 
 <p>where the first one computes to a font-size of 13px, and the second one computes to a font-size of
 16px. You can check this in the computed style pane of your devtools, or by using
-<code>getComputedStyle()</code>.</p>
+<code class="language-plaintext highlighter-rouge">getComputedStyle()</code>.</p>
 
 <p>I <em>think</em> the reason behind this is that monospace fonts tend to be wider, so the default font size (medium)
 is scaled so that they have similar widths, and all other keyword font sizes get shifted as well. The final result is something like this:</p>
@@ -546,7 +546,7 @@ is scaled so that they have similar widths, and all other keyword font sizes get
 <p><img class="center" src="/images/post/font-size-table.png" width="600" /></p>
 
 <p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute
-font-size keywords based on the “base size” (i.e. the computed of <code>font-size: medium</code>). Actually,
+font-size keywords based on the “base size” (i.e. the computed of <code class="language-plaintext highlighter-rouge">font-size: medium</code>). Actually,
 Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a> to support some legacy use cases like quirks mode (Servo has
 yet to add support for these tables). We query other parts of the browser for what the “base size”
 is based on the language and font family.</p>
@@ -567,28 +567,28 @@ can get pretty complicated and I still struggle to learn (and later recognize) t
 
 <p>Anyway, this doesn’t complicate things too much.  This does mean that the font family needs to be
 computed before font-size, which already needs to be computed before most other properties. The
-language, which can be set using a <code>lang</code> HTML attribute, is internally treated as a CSS property by
+language, which can be set using a <code class="language-plaintext highlighter-rouge">lang</code> HTML attribute, is internally treated as a CSS property by
 Firefox since it inherits, and it must be computed earlier as well.</p>
 
 <p>Not too bad. So far.</p>
 
 <p>Now here’s the kicker. This <em>dependence</em> on the language and family <em>inherits</em>.</p>
 
-<p>Quick, what’s the font-size of the inner <code>div</code>?</p>
+<p>Quick, what’s the font-size of the inner <code class="language-plaintext highlighter-rouge">div</code>?</p>
 
-<pre><code class="language-html">&lt;div style="font-size: medium; font-family: sans-serif;"&gt; &lt;!-- base size 16 --&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
     font size is 16px
-    &lt;div style="font-family: monospace"&gt; &lt;!-- base size 13 --&gt;
+    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
         font size is ??
-    &lt;/div&gt;
-&lt;/div&gt;
-</code></pre>
+    <span class="nt">&lt;/div&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</code></pre></div></div>
 
-<p>For a normal inherited CSS property<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, if the parent has a computed value of <code>16px</code>,
-and the child has no additional values specified, the child will inherit a value of <code>16px</code>.
+<p>For a normal inherited CSS property<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, if the parent has a computed value of <code class="language-plaintext highlighter-rouge">16px</code>,
+and the child has no additional values specified, the child will inherit a value of <code class="language-plaintext highlighter-rouge">16px</code>.
 <em>Where</em> the parent got that computed value from doesn’t matter.</p>
 
-<p>Here, <code>font-size</code> “inherits” a value of <code>13px</code>. You can see this below (<a href="https://codepen.io/anon/pen/MvorQQ">codepen</a>):</p>
+<p>Here, <code class="language-plaintext highlighter-rouge">font-size</code> “inherits” a value of <code class="language-plaintext highlighter-rouge">13px</code>. You can see this below (<a href="https://codepen.io/anon/pen/MvorQQ">codepen</a>):</p>
 
 <div style="border: 1px solid black; display: inline-block; padding: 15px;">
 <div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
@@ -603,21 +603,21 @@ and the child has no additional values specified, the child will inherit a value
 change, font-size is recomputed from the original keyword with the new font family and language.</p>
 
 <p>The reason this exists is because otherwise the differing font sizes wouldn’t work anyway! The default font size
-is <code>medium</code>, so basically the root element gets a <code>font-size: medium</code> and all elements inherit from it. If you change
+is <code class="language-plaintext highlighter-rouge">medium</code>, so basically the root element gets a <code class="language-plaintext highlighter-rouge">font-size: medium</code> and all elements inherit from it. If you change
 to monospace or a different language in the document you need the font-size recomputed.</p>
 
 <p>But it doesn’t stop here. This even inherits <em>through relative units</em> (Not in IE).</p>
 
-<pre><code class="language-html">&lt;div style="font-size: medium; font-family: sans-serif;"&gt; &lt;!-- base size 16 --&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
     font size is 16px
-    &lt;div style="font-size: 0.9em"&gt; &lt;!-- could also be font-size: 50%--&gt;
+    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: 0.9em"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- could also be font-size: 50%--&gt;</span>
         font size is 14.4px (16 * 0.9)
-        &lt;div style="font-family: monospace"&gt; &lt;!-- base size 13 --&gt;
+        <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
             font size is 11.7px! (13 * 0.9)
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/div&gt;
-</code></pre>
+        <span class="nt">&lt;/div&gt;</span>
+    <span class="nt">&lt;/div&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</code></pre></div></div>
 
 <p>(<a href="https://codepen.io/anon/pen/oewpER">codepen</a>)</p>
 
@@ -633,7 +633,7 @@ to monospace or a different language in the document you need the font-size reco
 </div>
 </div>
 
-<p>So we’re actually inheriting a font-size of <code>0.9*medium</code> when we inherit from the second div, not <code>14.4px</code>.</p>
+<p>So we’re actually inheriting a font-size of <code class="language-plaintext highlighter-rouge">0.9*medium</code> when we inherit from the second div, not <code class="language-plaintext highlighter-rouge">14.4px</code>.</p>
 
 <p>Another way of looking at it is whenever the font family or language changes, you should recompute the font-size as if the language and family <em>were always that way</em> up the tree.</p>
 
@@ -643,7 +643,7 @@ different. I suspect this is inefficient, but the rule tree seems to be involved
 more efficient</p>
 
 <p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
-stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code>medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup></p>
+stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code class="language-plaintext highlighter-rouge">medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup></p>
 
 <p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
 
@@ -651,7 +651,7 @@ stores the equivalent of saying “Yes, this font was computed from a keyword. T
 
 <h2 id="largersmaller">Larger/smaller</h2>
 
-<p>So I mentioned that <code>font-size: larger</code> and <code>smaller</code> scale the size, but didn’t mention by what fraction.</p>
+<p>So I mentioned that <code class="language-plaintext highlighter-rouge">font-size: larger</code> and <code class="language-plaintext highlighter-rouge">smaller</code> scale the size, but didn’t mention by what fraction.</p>
 
 <p>According <a href="https://drafts.csswg.org/css-fonts-3/#relative-size-value">to the spec</a>, if the font-size currently matches the value of an absolute keyword size (medium/large/etc),
 you should pick the value of the next/previous keyword sizes respectively.</p>
@@ -659,7 +659,7 @@ you should pick the value of the next/previous keyword sizes respectively.</p>
 <p>If it is <em>between</em> two, find the same point between the next/previous two sizes.</p>
 
 <p>This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In Gecko’s model this isn’t too hard,
-since Gecko recalculates things anyway. In Servo’s model we’d have to store a sequence of applications of <code>larger</code>/<code>smaller</code> and relative
+since Gecko recalculates things anyway. In Servo’s model we’d have to store a sequence of applications of <code class="language-plaintext highlighter-rouge">larger</code>/<code class="language-plaintext highlighter-rouge">smaller</code> and relative
 units, instead of storing just a relative unit.</p>
 
 <p>Additionally, when computing this during text-zoom, you have to unzoom before looking it up in the table, and then rezoom.</p>
@@ -673,34 +673,34 @@ used simple ratios here.</p>
 
 <p>Firefox and Safari support MathML, a markup language for math. It doesn’t get used much on the Web these days, but it exists.</p>
 
-<p>MathML has its own complexities when it comes to font-size. Specifically, <code>scriptminsize</code>, <code>scriptlevel</code>, and <code>scriptsizemultiplier</code>.</p>
+<p>MathML has its own complexities when it comes to font-size. Specifically, <code class="language-plaintext highlighter-rouge">scriptminsize</code>, <code class="language-plaintext highlighter-rouge">scriptlevel</code>, and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>.</p>
 
 <p>For example, in MathML, the text in the numerator or denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
-the default <code>scriptsizemultiplier</code> for MathML elements is 0.71, and these specific elements all get a default scriptlevel of <code>+1</code>.</p>
+the default <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> for MathML elements is 0.71, and these specific elements all get a default scriptlevel of <code class="language-plaintext highlighter-rouge">+1</code>.</p>
 
-<p>Basically, <code>scriptlevel=+1</code> means “multiply the font size by <code>scriptsizemultiplier</code>”, and
-<code>scriptlevel=-1</code> is for dividing. This can be specified via a <code>scriptlevel</code> HTML attribute on an <code>mstyle</code> element. You can
-similarly tweak the (inherited) multiplier via the <code>scriptsizemultiplier</code> HTML attribute, and the minimum size via <code>scriptminsize</code>.</p>
+<p>Basically, <code class="language-plaintext highlighter-rouge">scriptlevel=+1</code> means “multiply the font size by <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>”, and
+<code class="language-plaintext highlighter-rouge">scriptlevel=-1</code> is for dividing. This can be specified via a <code class="language-plaintext highlighter-rouge">scriptlevel</code> HTML attribute on an <code class="language-plaintext highlighter-rouge">mstyle</code> element. You can
+similarly tweak the (inherited) multiplier via the <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> HTML attribute, and the minimum size via <code class="language-plaintext highlighter-rouge">scriptminsize</code>.</p>
 
 <p>So, for example:</p>
 
-<pre><code class="language-html">&lt;math&gt;&lt;msup&gt;
-    &lt;mi&gt;text&lt;/mi&gt;
-    &lt;mn&gt;small superscript&lt;/mn&gt;
-&lt;/msup&gt;&lt;/math&gt;&lt;br&gt;
-&lt;math&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;&lt;msup&gt;</span>
+    <span class="nt">&lt;mi&gt;</span>text<span class="nt">&lt;/mi&gt;</span>
+    <span class="nt">&lt;mn&gt;</span>small superscript<span class="nt">&lt;/mn&gt;</span>
+<span class="nt">&lt;/msup&gt;&lt;/math&gt;&lt;br&gt;</span>
+<span class="nt">&lt;math&gt;</span>
     text
-    &lt;mstyle scriptlevel=+1&gt;
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
         small
-        &lt;mstyle scriptlevel=+1&gt;
+        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
             smaller
-            &lt;mstyle scriptlevel=-1&gt;
+            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">-1</span><span class="nt">&gt;</span>
                 small again
-            &lt;/mstyle&gt;
-        &lt;/mstyle&gt;
-    &lt;/mstyle&gt;
-&lt;/math&gt;
-</code></pre>
+            <span class="nt">&lt;/mstyle&gt;</span>
+        <span class="nt">&lt;/mstyle&gt;</span>
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
 
 <p>will show as (you will need Firefox to see the rendered version, Safari supports MathML too but the support isn’t as good):</p>
 
@@ -711,18 +711,18 @@ similarly tweak the (inherited) multiplier via the <code>scriptsizemultiplier</c
 
 <p>(<a href="https://codepen.io/anon/pen/BdZJgR">codepen</a>)</p>
 
-<p>So this isn’t as bad. It’s as if <code>scriptlevel</code> is a weird <code>em</code> unit. No biggie, we know how to deal with those already.</p>
+<p>So this isn’t as bad. It’s as if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is a weird <code class="language-plaintext highlighter-rouge">em</code> unit. No biggie, we know how to deal with those already.</p>
 
-<p>Except you also have <code>scriptminsize</code>. This lets you set the minimum font size <em>for changes caused by <code>scriptlevel</code></em>.</p>
+<p>Except you also have <code class="language-plaintext highlighter-rouge">scriptminsize</code>. This lets you set the minimum font size <em>for changes caused by <code class="language-plaintext highlighter-rouge">scriptlevel</code></em>.</p>
 
-<p>This means that <code>scriptminsize</code> will make sure <code>scriptlevel</code> never causes changes that make the font smaller than the min size,
-but it will ignore cases where you deliberately specify an <code>em</code> unit or a pixel value.</p>
+<p>This means that <code class="language-plaintext highlighter-rouge">scriptminsize</code> will make sure <code class="language-plaintext highlighter-rouge">scriptlevel</code> never causes changes that make the font smaller than the min size,
+but it will ignore cases where you deliberately specify an <code class="language-plaintext highlighter-rouge">em</code> unit or a pixel value.</p>
 
-<p>There’s already a subtle bit of complexity introduced here, <code>scriptlevel</code> now becomes another thing
-that tweaks how <code>font-size</code> inherits. Fortunately, in Firefox/Servo internally <code>scriptlevel</code> (as are
-<code>scriptminsize</code> and <code>scriptsizemultiplier</code>) is also handled as a CSS property, which means that we
+<p>There’s already a subtle bit of complexity introduced here, <code class="language-plaintext highlighter-rouge">scriptlevel</code> now becomes another thing
+that tweaks how <code class="language-plaintext highlighter-rouge">font-size</code> inherits. Fortunately, in Firefox/Servo internally <code class="language-plaintext highlighter-rouge">scriptlevel</code> (as are
+<code class="language-plaintext highlighter-rouge">scriptminsize</code> and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>) is also handled as a CSS property, which means that we
 can use the same framework we used for font-family and language here – compute the script
-properties before font-size, and if <code>scriptlevel</code> is set, force-recalculate the font size even if
+properties before font-size, and if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is set, force-recalculate the font size even if
 font-size itself was not set.</p>
 
 <h3 id="interlude-early-and-late-computed-properties">Interlude: early and late computed properties</h3>
@@ -744,49 +744,49 @@ was not, but a font family, lang, or scriptlevel was specified, we <a href="http
 
 <h3 id="why-scriptminsize-gets-complicated">Why scriptminsize gets complicated</h3>
 
-<p>Unlike with the other “minimum font size”, using an <code>em</code> unit in any property will calculate the
+<p>Unlike with the other “minimum font size”, using an <code class="language-plaintext highlighter-rouge">em</code> unit in any property will calculate the
 length with the clamped value, not the “if nothing had been clamped” value, when the font size has
 been clamped with scriptminsize. So at first glance handling this seems straightforward; only
 consider the script min size when deciding to scale because of scriptlevel.</p>
 
 <p>As always, it’s not that simple 😀:</p>
 
-<pre><code class="language-html">&lt;math&gt;
-&lt;mstyle scriptminsize="10px" scriptsizemultiplier="0.75" style="font-size:20px"&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
+<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size:20px"</span><span class="nt">&gt;</span>
     20px
-    &lt;mstyle scriptlevel="+1"&gt;
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
         15px
-        &lt;mstyle scriptlevel="+1"&gt;
+        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
             11.25px
-                &lt;mstyle scriptlevel="+1"&gt;
+                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
                     would be 8.4375, but is clamped at 10px
-                        &lt;mstyle scriptlevel="+1"&gt;
+                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
                             would be 6.328125, but is clamped at 10px
-                                &lt;mstyle scriptlevel="-1"&gt;
+                                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
                                     This is not 10px/0.75=13.3, rather it is still clamped at 10px
-                                        &lt;mstyle scriptlevel="-1"&gt;
+                                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
                                             This is not 10px/0.75=13.3, rather it is still clamped at 10px
-                                            &lt;mstyle scriptlevel="-1"&gt;
+                                            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
                                                 This is 11.25px again
-                                                    &lt;mstyle scriptlevel="-1"&gt;
+                                                    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
                                                         This is 15px again
-                                                    &lt;/mstyle&gt;
-                                            &lt;/mstyle&gt;
-                                        &lt;/mstyle&gt;
-                                &lt;/mstyle&gt;
-                        &lt;/mstyle&gt;
-                &lt;/mstyle&gt;
-        &lt;/mstyle&gt;
-    &lt;/mstyle&gt;
-&lt;/mstyle&gt;
-&lt;/math&gt;
-</code></pre>
+                                                    <span class="nt">&lt;/mstyle&gt;</span>
+                                            <span class="nt">&lt;/mstyle&gt;</span>
+                                        <span class="nt">&lt;/mstyle&gt;</span>
+                                <span class="nt">&lt;/mstyle&gt;</span>
+                        <span class="nt">&lt;/mstyle&gt;</span>
+                <span class="nt">&lt;/mstyle&gt;</span>
+        <span class="nt">&lt;/mstyle&gt;</span>
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
 
 <p>(<a href="https://codepen.io/anon/pen/wqepjo">codepen</a>)</p>
 
 <p>Basically, if you increase the level a bunch of times after hitting the min size, decreasing it by one should not immediately
-compute <code>min size / multiplier</code>. That would make things asymmetric; something with a net script level of <code>+5</code> should
-have the same size as something with a net script level of <code>+6 -1</code>, provided the multiplier hasn’t changed.</p>
+compute <code class="language-plaintext highlighter-rouge">min size / multiplier</code>. That would make things asymmetric; something with a net script level of <code class="language-plaintext highlighter-rouge">+5</code> should
+have the same size as something with a net script level of <code class="language-plaintext highlighter-rouge">+6 -1</code>, provided the multiplier hasn’t changed.</p>
 
 <p>So what happens is that the script level is calculated against the font size <em>as if scriptminsize had never applied</em>,
 and we only use that size if it is greater than the min size.</p>
@@ -805,15 +805,15 @@ in the process and you need to keep track of that too. So this ends up in creati
 
 <p>Another complexity here is that the following should still work:</p>
 
-<pre><code class="language-html">&lt;math&gt;
-&lt;mstyle scriptminsize="10px" scriptsizemultiplier="0.75" style="font-size: 5px"&gt;
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
+<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size: 5px"</span><span class="nt">&gt;</span>
     5px
-    &lt;mstyle scriptlevel="-1"&gt;
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
         6.666px
-    &lt;/mstyle&gt;
-&lt;/mstyle&gt;
-&lt;/math&gt;
-</code></pre>
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
 
 <p>(<a href="https://codepen.io/anon/pen/prwpVd">codepen</a>)</p>
 
@@ -826,7 +826,7 @@ some code in the functions near it.</p>
 
 <hr />
 
-<p>So there you have it. <code>font-size</code> is actually pretty complicated. A lot of the web platform has hidden complexities like this, and it’s always fun to encounter more of them.</p>
+<p>So there you have it. <code class="language-plaintext highlighter-rouge">font-size</code> is actually pretty complicated. A lot of the web platform has hidden complexities like this, and it’s always fun to encounter more of them.</p>
 
 <p>(Perhaps less fun when I have to implement them 😂)</p>
 
@@ -840,10 +840,10 @@ some code in the functions near it.</p>
       <p>Other browser engines have other optimizations, I’m just less familiar with them <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>Some properties are inherited, some are “reset”. For example, <code>font-family</code> is inherited — child elements inherit font family from the parent unless otherwise specified. However <code>transform</code> is not, if you transform an element that does not further transform the children. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Some properties are inherited, some are “reset”. For example, <code class="language-plaintext highlighter-rouge">font-family</code> is inherited — child elements inherit font family from the parent unless otherwise specified. However <code class="language-plaintext highlighter-rouge">transform</code> is not, if you transform an element that does not further transform the children. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>This won’t handle <code>calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>This won’t handle <code class="language-plaintext highlighter-rouge">calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -942,7 +942,7 @@ correct potential misunderstandings.</p>
 <p><img class="center" src="/images/post/rust-error.png" width="700" /></p>
 
 <p>One thing I particularly like about Rust is that from that error you can
-try <code>rustc --explain E0373</code> and get a terminal-friendly version
+try <code class="language-plaintext highlighter-rouge">rustc --explain E0373</code> and get a terminal-friendly version
 of <a href="https://doc.rust-lang.org/nightly/error-index.html#E0373">this help text</a>.</p>
 
 <p>Anyway, diagnostics basically provide a reactive component to learning programming. I’ve cared about
@@ -967,36 +967,36 @@ teach. But it also does many other things, and not all are teaching moments are 
 
 <p>For example, in C, this isn’t necessarily an antipattern:</p>
 
-<pre><code class="language-c">struct thingy *result;
-if (result = do_the_thing()) {
-    frob(*result)
-}
-</code></pre>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">thingy</span> <span class="o">*</span><span class="n">result</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">=</span> <span class="n">do_the_thing</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">frob</span><span class="p">(</span><span class="o">*</span><span class="n">result</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Many C codebases use <code>if (foo = bar())</code>. It is a potential footgun if you confuse it with <code>==</code>,
+<p>Many C codebases use <code class="language-plaintext highlighter-rouge">if (foo = bar())</code>. It is a potential footgun if you confuse it with <code class="language-plaintext highlighter-rouge">==</code>,
 but there’s no way to be sure. Many compilers now have a warning for this that you can silence by
 doubling the parentheses, though.</p>
 
 <p>In Rust, this isn’t an antipattern either:</p>
 
-<pre><code class="language-rust">fn add_one(mut x: u8) {
-    x += 1;
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">add_one</span><span class="p">(</span><span class="k">mut</span> <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">x</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
 
-let num = 0;
-add_one(num);
-// num is still 0
-</code></pre>
+<span class="k">let</span> <span class="n">num</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="nf">add_one</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
+<span class="c">// num is still 0</span>
+</code></pre></div></div>
 
-<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code>num</code>) passed to it
-is to use something like <code>mut x: u8</code>. What this actually does is copies <code>num</code> (because <code>u8</code> is a <code>Copy</code> type),
+<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code class="language-plaintext highlighter-rouge">num</code>) passed to it
+is to use something like <code class="language-plaintext highlighter-rouge">mut x: u8</code>. What this actually does is copies <code class="language-plaintext highlighter-rouge">num</code> (because <code class="language-plaintext highlighter-rouge">u8</code> is a <code class="language-plaintext highlighter-rouge">Copy</code> type),
 and allows you to mutate the copy within the scope of the function. The right way to make a function that
-mutates arguments passed to it by-reference would be to do something like <code>fn add_one(x: &amp;mut u8)</code>.
-If you try the <code>mut x</code> thing for non-Copy values, you’d get a “reading out of moved value” error
-when you try to access <code>num</code> after calling <code>add_one</code>. This would help you figure out what you did wrong,
+mutates arguments passed to it by-reference would be to do something like <code class="language-plaintext highlighter-rouge">fn add_one(x: &amp;mut u8)</code>.
+If you try the <code class="language-plaintext highlighter-rouge">mut x</code> thing for non-Copy values, you’d get a “reading out of moved value” error
+when you try to access <code class="language-plaintext highlighter-rouge">num</code> after calling <code class="language-plaintext highlighter-rouge">add_one</code>. This would help you figure out what you did wrong,
 and potentially that error could detect this situation and provide more specific help.</p>
 
-<p>But for <code>Copy</code> types, this will just compile. And it’s not an antipattern – the way this works
+<p>But for <code class="language-plaintext highlighter-rouge">Copy</code> types, this will just compile. And it’s not an antipattern – the way this works
 makes complete sense in the context of how Rust variables work, and is something that you do need
 to use at times.</p>
 
@@ -1009,8 +1009,8 @@ means, are you sure you want to do this?”. With explanations and the ability t
 
 <p>In fact, you don’t even need to restrict this to potential footguns!</p>
 
-<p>You can detect various things the learner is trying to do. Are they probably mixing up <code>String</code>
-and <code>&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
+<p>You can detect various things the learner is trying to do. Are they probably mixing up <code class="language-plaintext highlighter-rouge">String</code>
+and <code class="language-plaintext highlighter-rouge">&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
 
 <p>This is beginning to remind me of the original “office assistant” <a href="https://en.wikipedia.org/wiki/Office_Assistant">Clippy</a>, which was super annoying.
 But an opt-in tool or IDE feature which gives helpful suggestions could still be nice, especially
@@ -1096,13 +1096,13 @@ and helps avoid confusion.</p>
 
 <p><br /></p>
 
-<p>First off, just to get this out of the way, <code>mod foo;</code> is basically a way of saying
-“look for <code>foo.rs</code> or <code>foo/mod.rs</code> and make a module named <code>foo</code> with its contents”.
-It’s the same as <code>mod foo { ... }</code> except the contents are in a different file. This
+<p>First off, just to get this out of the way, <code class="language-plaintext highlighter-rouge">mod foo;</code> is basically a way of saying
+“look for <code class="language-plaintext highlighter-rouge">foo.rs</code> or <code class="language-plaintext highlighter-rouge">foo/mod.rs</code> and make a module named <code class="language-plaintext highlighter-rouge">foo</code> with its contents”.
+It’s the same as <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> except the contents are in a different file. This
 itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
 in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
 
-<p>In the examples here I will just be using <code>mod foo { ... }</code> since multi-file examples are annoying,
+<p>In the examples here I will just be using <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> since multi-file examples are annoying,
 but keep in mind that the stuff here applies equally to multi-file crates.</p>
 
 <h3 id="motivating-examples">Motivating examples</h3>
@@ -1110,87 +1110,87 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 <p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
 counterintuitive, based on your existing model.</p>
 
-<pre><code class="language-rust">pub mod foo {
-    extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
     
-    mod bar {
-        use foo::regex::Regex;
-    }
-}
-</code></pre>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    // not std::mem::transmute!
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="c">// not std::mem::transmute!</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar;
-    use bar::bar_inner;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="n">bar</span><span class="p">;</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
-    fn foo() {
-        // this works!
-        bar_inner();
-        bar::bar_inner();
-        // this doesn't
-        // baz::baz_inner();
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// this works!</span>
+        <span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="c">// this doesn't</span>
+        <span class="c">// baz::baz_inner();</span>
         
-        // but these do!
-        ::baz::baz_inner();
-        super::baz::baz_inner();
+        <span class="c">// but these do!</span>
+        <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        // these do too!
-        ::bar::bar_inner();
-        super::bar::bar_inner();
-        self::bar::bar_inner();
+        <span class="c">// these do too!</span>
+        <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
-    }
-}
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub fn bar_inner() {}
-}
-pub mod baz {
-    pub fn baz_inner() {}
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bar_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">baz_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
 
-<pre><code class="language-rust">pub mod foo {
-    use bar::baz;
-    // this won't work
-    // use baz::inner();
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
+    <span class="c">// this won't work</span>
+    <span class="c">// use baz::inner();</span>
     
-    // this will
-    use self::baz::inner;
-    // or
-    // use bar::baz::inner
+    <span class="c">// this will</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
+    <span class="c">// or</span>
+    <span class="c">// use bar::baz::inner</span>
     
-    pub fn foo() {
-        // but this will work!
-        baz::inner();
-    }
-}
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// but this will work!</span>
+        <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-pub mod bar {
-    pub mod baz {
-        pub fn inner() {}
-    }
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">inner</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
@@ -1205,14 +1205,14 @@ still makes more sense when you include them.</p>
 <p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
 
 <ul>
-  <li><code>use foo::bar::baz</code> resolves <code>foo</code> relative to the root module (<code>lib.rs</code> or <code>main.rs</code>)
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the root module (<code class="language-plaintext highlighter-rouge">lib.rs</code> or <code class="language-plaintext highlighter-rouge">main.rs</code>)
     <ul>
-      <li>You can resolve relative to the current module by explicily trying <code>use self::foo::bar::baz</code></li>
+      <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code>foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code>foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
-      <li>You can resolve relative to the root by explicitly using <code>::foo::bar::baz</code></li>
+      <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
   </li>
 </ul>
@@ -1220,90 +1220,90 @@ still makes more sense when you include them.</p>
 <p>That’s actually … it. There are no further caveats. The rest of this is modelling what
 constitutes as “being within a module”.</p>
 
-<p>Let’s take a pretty standard setup, where <code>extern crate</code> declarations are placed in the the root
+<p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<pre><code class="language-rust">extern crate regex;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
 
-mod foo {
-    use regex::Regex;
+<span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
-    fn foo() {
-        // won't work
-        // let ex = regex::Regex::new("");
-        let ex = Regex::new("");
-    }
-}
-</code></pre>
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// won't work</span>
+        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>When we say <code>extern crate regex</code>, we pull in the <code>regex</code> crate into the crate root. This behaves
-pretty similar to <code>mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
-the crate into the crate root, and since all <code>use</code> paths are relative to the crate root,
-<code>use regex::Regex</code> works fine inside the module.</p>
+<p>When we say <code class="language-plaintext highlighter-rouge">extern crate regex</code>, we pull in the <code class="language-plaintext highlighter-rouge">regex</code> crate into the crate root. This behaves
+pretty similar to <code class="language-plaintext highlighter-rouge">mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
+the crate into the crate root, and since all <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the crate root,
+<code class="language-plaintext highlighter-rouge">use regex::Regex</code> works fine inside the module.</p>
 
-<p>Inline in code, <code>regex::Regex</code> won’t work because as mentioned before inline paths are relative
-to the current module. However, you can try <code>::regex::Regex::new("")</code>.</p>
+<p>Inline in code, <code class="language-plaintext highlighter-rouge">regex::Regex</code> won’t work because as mentioned before inline paths are relative
+to the current module. However, you can try <code class="language-plaintext highlighter-rouge">::regex::Regex::new("")</code>.</p>
 
-<p>Since we’ve imported <code>regex::Regex</code> in <code>mod foo</code>, that name is now accessible to everything inside
-the module directly, so the code can just say <code>Regex::new()</code>.</p>
+<p>Since we’ve imported <code class="language-plaintext highlighter-rouge">regex::Regex</code> in <code class="language-plaintext highlighter-rouge">mod foo</code>, that name is now accessible to everything inside
+the module directly, so the code can just say <code class="language-plaintext highlighter-rouge">Regex::new()</code>.</p>
 
-<p>The way you can view this is that <code>use blah</code> and <code>extern crate blah</code> create an item named
-<code>blah</code> “within the module”, which is basically something like a symbolic link, saying
-“yes this item named <code>blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
+<p>The way you can view this is that <code class="language-plaintext highlighter-rouge">use blah</code> and <code class="language-plaintext highlighter-rouge">extern crate blah</code> create an item named
+<code class="language-plaintext highlighter-rouge">blah</code> “within the module”, which is basically something like a symbolic link, saying
+“yes this item named <code class="language-plaintext highlighter-rouge">blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
 
 <p>The error message from this code may further drive this home:</p>
 
-<pre><code class="language-rust">use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
 
 <p>The error I get is</p>
 
-<pre><code>error: function `replace` is private
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: function `replace` is private
  --&gt; src/main.rs:3:5
   |
 3 | use foo::replace;
   |     ^^^^^^^^^^^^
-</code></pre>
+</code></pre></div></div>
 
-<p>There’s no function named <code>replace</code> in the module <code>foo</code>! But the compiler seems to think there is?</p>
+<p>There’s no function named <code class="language-plaintext highlighter-rouge">replace</code> in the module <code class="language-plaintext highlighter-rouge">foo</code>! But the compiler seems to think there is?</p>
 
-<p>That’s because <code>use std::mem::replace</code> basically is equivalent to there being something like:</p>
+<p>That’s because <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> basically is equivalent to there being something like:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    fn replace(...) -&gt; ... {
-        ...
-    }
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">replace</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">...</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
 
-    // here we can refer to `replace` freely (in inline paths)
-    fn whatever() {
-        // ...
-        let something = replace(blah);
-        // ...
-    }
-}
-</code></pre>
+    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c">// ...</span>
+        <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
+        <span class="c">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>except it’s actually like a symlink to the function defined in <code>std::mem</code>. Because inline paths
-are relative to the current module, saying <code>use std::mem::replace</code> works as if you had defined
-a function <code>replace</code> in the same module, and you can refer to <code>replace()</code> without needing
+<p>except it’s actually like a symlink to the function defined in <code class="language-plaintext highlighter-rouge">std::mem</code>. Because inline paths
+are relative to the current module, saying <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> works as if you had defined
+a function <code class="language-plaintext highlighter-rouge">replace</code> in the same module, and you can refer to <code class="language-plaintext highlighter-rouge">replace()</code> without needing
 any extra qualification in inline paths.</p>
 
-<p>This also makes <code>pub use</code> fit perfectly in our model. <code>pub use</code> says “make this symlink, but let
+<p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<pre><code class="language-rust">// works now!
-use foo::replace;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
-pub mod foo {
-    pub use std::mem::replace;
-}
-</code></pre>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <hr />
 
@@ -1311,35 +1311,35 @@ pub mod foo {
 
 <p>Folks often get annoyed when this doesn’t work:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // nope
-    // use mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// nope</span>
+    <span class="c">// use mem::replace;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>As mentioned before, <code>use</code> paths are relative to the root module. There is no <code>mem</code>
-in the root module, so this won’t work. We can make it work via <code>self</code>, which I mentioned
+<p>As mentioned before, <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the root module. There is no <code class="language-plaintext highlighter-rouge">mem</code>
+in the root module, so this won’t work. We can make it work via <code class="language-plaintext highlighter-rouge">self</code>, which I mentioned
 before:</p>
 
-<pre><code class="language-rust">mod foo {
-    use std::mem;
-    // yep!
-    use self::mem::replace;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c">// yep!</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Note that this brings overloading of the <code>self</code> keyword up to a grand total of <em>four</em>! Two cases
+<p>Note that this brings overloading of the <code class="language-plaintext highlighter-rouge">self</code> keyword up to a grand total of <em>four</em>! Two cases
 which occur in the import/path system:</p>
 
 <ul>
-  <li><code>use self::foo</code> means “find me <code>foo</code> within the current module”</li>
-  <li><code>use foo::bar::{self, baz}</code> is equivalent to <code>use foo::bar; use foo::bar::baz;</code></li>
-  <li><code>fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-  <li><code>Self</code> within implementations lets you refer to the type being implemented on</li>
+  <li><code class="language-plaintext highlighter-rouge">use self::foo</code> means “find me <code class="language-plaintext highlighter-rouge">foo</code> within the current module”</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::{self, baz}</code> is equivalent to <code class="language-plaintext highlighter-rouge">use foo::bar; use foo::bar::baz;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+  <li><code class="language-plaintext highlighter-rouge">Self</code> within implementations lets you refer to the type being implemented on</li>
 </ul>
 
-<p>Oh well, at least it’s not <code>static</code>.</p>
+<p>Oh well, at least it’s not <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
 <hr />
 
@@ -1347,38 +1347,38 @@ which occur in the import/path system:</p>
 
 <p>Going back to one of the examples I gave at the beginning:</p>
 
-<pre><code class="language-rust">use std::mem;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
 
 
-pub mod foo {
-    use mem::transmute;
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
-    pub mod bar {
-        use foo::transmute;
-    }
-}
-</code></pre>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
 
-<p>It should be clearer now why this works. The root module imports <code>mem</code>. Now, from everyone’s point
-of view, there’s an item called <code>mem</code> in the root.</p>
+<p>It should be clearer now why this works. The root module imports <code class="language-plaintext highlighter-rouge">mem</code>. Now, from everyone’s point
+of view, there’s an item called <code class="language-plaintext highlighter-rouge">mem</code> in the root.</p>
 
-<p>Within <code>mod foo</code>, <code>use mem::transmute</code> works because <code>use</code> is relative to the root, and <code>mem</code>
-already exists in the root! When you <code>use</code> something, all child modules will see it as if it were
+<p>Within <code class="language-plaintext highlighter-rouge">mod foo</code>, <code class="language-plaintext highlighter-rouge">use mem::transmute</code> works because <code class="language-plaintext highlighter-rouge">use</code> is relative to the root, and <code class="language-plaintext highlighter-rouge">mem</code>
+already exists in the root! When you <code class="language-plaintext highlighter-rouge">use</code> something, all child modules will see it as if it were
 actually belonging to the module. (Non-child modules won’t see it because of privacy, we
 saw an example of this already)</p>
 
-<p>This is why <code>use foo::transmute</code> works from <code>mod bar</code>, too. <code>bar</code> can refer to the contents
-of <code>foo</code> via <code>use foo::whatever</code>, since <code>foo</code> is a child of the root module, and <code>use</code> is relative
-to the root. <code>foo</code> already has an item named <code>transmute</code> inside it because it imported one.
-Nothing in the parent module is private from the child, so we can <code>use foo::transmute</code> from
-<code>bar</code>.</p>
+<p>This is why <code class="language-plaintext highlighter-rouge">use foo::transmute</code> works from <code class="language-plaintext highlighter-rouge">mod bar</code>, too. <code class="language-plaintext highlighter-rouge">bar</code> can refer to the contents
+of <code class="language-plaintext highlighter-rouge">foo</code> via <code class="language-plaintext highlighter-rouge">use foo::whatever</code>, since <code class="language-plaintext highlighter-rouge">foo</code> is a child of the root module, and <code class="language-plaintext highlighter-rouge">use</code> is relative
+to the root. <code class="language-plaintext highlighter-rouge">foo</code> already has an item named <code class="language-plaintext highlighter-rouge">transmute</code> inside it because it imported one.
+Nothing in the parent module is private from the child, so we can <code class="language-plaintext highlighter-rouge">use foo::transmute</code> from
+<code class="language-plaintext highlighter-rouge">bar</code>.</p>
 
 <p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
-or, if you do use modules, put nothing other than <code>extern crate</code>s and <code>mod</code>s in the root.
+or, if you do use modules, put nothing other than <code class="language-plaintext highlighter-rouge">extern crate</code>s and <code class="language-plaintext highlighter-rouge">mod</code>s in the root.
 This is why we rarely see shenanigans like the above; there’s nothing in the root crate
-to import, aside from other crates specified by <code>extern crate</code>. The trick of
+to import, aside from other crates specified by <code class="language-plaintext highlighter-rouge">extern crate</code>. The trick of
 “reimport something from the parent module” is also pretty rare because there’s basically no
 point to using that (just import it directly!). So this is not the kind of code
 you’ll see in the wild.</p>
@@ -1390,12 +1390,12 @@ you’ll see in the wild.</p>
 <p>Basically, the way the import system works can be summed up as:</p>
 
 <ul>
-  <li><code>extern crate</code> and <code>use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-  <li><code>use foo::bar::baz</code> resolves the path relative to the root module</li>
-  <li><code>foo::bar::baz</code> in an inline path (i.e. not in a <code>use</code>) will resolve relative to the current module</li>
-  <li><code>::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-  <li><code>self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-  <li><code>super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+  <li><code class="language-plaintext highlighter-rouge">extern crate</code> and <code class="language-plaintext highlighter-rouge">use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves the path relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> in an inline path (i.e. not in a <code class="language-plaintext highlighter-rouge">use</code>) will resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
 </ul>
 
 <p>Alright, on to the other half of this. Privacy.</p>
@@ -1407,62 +1407,62 @@ you’ll see in the wild.</p>
 <p>Privacy, too, follows some basic rules:</p>
 
 <ul>
-  <li>If you can access a module, you can access all of its <code>pub</code> contents</li>
+  <li>If you can access a module, you can access all of its <code class="language-plaintext highlighter-rouge">pub</code> contents</li>
   <li>A module can always access its child modules, but not recursively
     <ul>
       <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
     </ul>
   </li>
   <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-  <li><code>pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
+  <li><code class="language-plaintext highlighter-rouge">pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
 </ul>
 
 <p>Giving some examples,</p>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // can access `foo::foofunc`, even though `foofunc` is private
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
-        pub fn barfunc() {}
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
-    }
-    // can access `foo::bar::barfunc()`, even though `bar` is private
-    fn foofunc() {}
-}
-</code></pre>
+    <span class="p">}</span>
+    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<pre><code class="language-rust">mod foo {
-    mod bar {
-        // We can access our parent and _all_ its contents,
-        // so we have access to `foo::baz`. We can access
-        // all pub contents of modules we have access to, so we
-        // can access `foo::baz::bazfunc`
-        use foo::baz::bazfunc;
-    }
-    mod baz {
-        pub fn bazfunc() {}
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c">// We can access our parent and _all_ its contents,</span>
+        <span class="c">// so we have access to `foo::baz`. We can access</span>
+        <span class="c">// all pub contents of modules we have access to, so we</span>
+        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
 path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
 
-<pre><code class="language-rust">pub mod foo {
-    /* not pub */ mod bar {
-        pub mod baz {
-            pub fn bazfunc() {}
-        }
-        pub mod quux {
-            use foo::bar::baz::bazfunc;
-        }
-    }
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+        <span class="p">}</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">quux</span> <span class="p">{</span>
+            <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We are able to write the path <code>foo::bar::baz::bazfunc</code> even though <code>bar</code> is private!</p>
+<p>We are able to write the path <code class="language-plaintext highlighter-rouge">foo::bar::baz::bazfunc</code> even though <code class="language-plaintext highlighter-rouge">bar</code> is private!</p>
 
-<p>This is because we still have <em>access</em> to the module <code>bar</code>, by being a descendent module.</p>
+<p>This is because we still have <em>access</em> to the module <code class="language-plaintext highlighter-rouge">bar</code>, by being a descendent module.</p>
 
 <hr />
 
@@ -1477,10 +1477,10 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-no
       <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code>'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>When I say “within your code”, I mean “anywhere but a <code>use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
       <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -1584,74 +1584,74 @@ I’d document it.</p>
 
 <p>The code was like this:</p>
 
-<pre><code class="language-rust">let maybe_foo = if some_condition {
-    thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
-} else {
-    thing.get_owned() // returns Option&lt;Foo&gt;
-};
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c">// returns Option&lt;Foo&gt;</span>
+<span class="p">};</span>
 
-use(maybe_foo);
-</code></pre>
+<span class="k">use</span><span class="p">(</span><span class="n">maybe_foo</span><span class="p">);</span>
+</code></pre></div></div>
 
 <p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
 
-<pre><code class="language-rust">#[derive(Debug)]
-struct Foo;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 
-struct Thingy {
-    foo: Foo
-}
+<span class="k">struct</span> <span class="n">Thingy</span> <span class="p">{</span>
+    <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
+<span class="p">}</span>
 
-impl Thingy {
-    pub fn get_ref(&amp;self) -&gt; Option&lt;&amp;Foo&gt; {
-        Some(&amp;self.foo)
-    }
-    pub fn get_owned(&amp;self) -&gt; Option&lt;Foo&gt; {
-        Some(Foo)
-    }
-    pub fn new() -&gt; Self {
-        Thingy {
-            foo: Foo
-        }
-    }
-}
+<span class="k">impl</span> <span class="n">Thingy</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_ref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="py">.foo</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_owned</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="n">Foo</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Self</span> <span class="p">{</span>
+        <span class="n">Thingy</span> <span class="p">{</span>
+            <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
 
 
-pub fn main() {
-    let some_condition = true;
-    let thing = Thingy::new();
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">some_condition</span> <span class="o">=</span> <span class="k">true</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">thing</span> <span class="o">=</span> <span class="nn">Thingy</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 
-    let maybe_foo = if some_condition {
-        thing.get_ref() // returns Option&lt;&amp;Foo&gt;, borrowed from `thing`
-    } else {
-        thing.get_owned() // returns Option&lt;Foo&gt;
-    };
+    <span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+        <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c">// returns Option&lt;Foo&gt;</span>
+    <span class="p">};</span>
     
-    println!("{:?}", maybe_foo);
-}
-</code></pre>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">maybe_foo</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>I’m only going to be changing the contents of <code>main()</code> here.</p>
+<p>I’m only going to be changing the contents of <code class="language-plaintext highlighter-rouge">main()</code> here.</p>
 
-<p>What’s happening here is that a non-<code>Copy</code> type, <code>Foo</code>, is returned in an <code>Option</code>. In one case,
-we have a reference to the <code>Foo</code>, and in another case an owned copy.</p>
+<p>What’s happening here is that a non-<code class="language-plaintext highlighter-rouge">Copy</code> type, <code class="language-plaintext highlighter-rouge">Foo</code>, is returned in an <code class="language-plaintext highlighter-rouge">Option</code>. In one case,
+we have a reference to the <code class="language-plaintext highlighter-rouge">Foo</code>, and in another case an owned copy.</p>
 
 <p>We want to set a variable to these, but of course we can’t because they’re different types.</p>
 
-<p>In one case, we have an owned <code>Foo</code>, and we can usually obtain a borrow from an owned type. For
-<code>Option</code>, there’s a convenience method <code>.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+<p>In one case, we have an owned <code class="language-plaintext highlighter-rouge">Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code class="language-plaintext highlighter-rouge">Option</code>, there’s a convenience method <code class="language-plaintext highlighter-rouge">.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
 
-<pre><code class="language-rust">let maybe_foo = if some_condition {
-    thing.get_ref()
-} else {
-    thing.get_owned().as_ref()
-};
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
 <p>This will give us an error.</p>
 
-<pre><code>error: borrowed value does not live long enough
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: borrowed value does not live long enough
   --&gt; &lt;anon&gt;:32:5
    |
 31 |         thing.get_owned().as_ref()
@@ -1663,59 +1663,59 @@ we have a reference to the <code>Foo</code>, and in another case an owned copy.<
    | - temporary value needs to live until here
 
 error: aborting due to previous error
-</code></pre>
+</code></pre></div></div>
 
-<p>The problem is, <code>thing.get_owned()</code> returns an owned value. There’s nothing that it gets anchored to
+<p>The problem is, <code class="language-plaintext highlighter-rouge">thing.get_owned()</code> returns an owned value. There’s nothing that it gets anchored to
 (we don’t set its value to a variable), so it is just a temporary – we can call methods on it, but
 once we’re done the value will go out of scope.</p>
 
 <p>What we want is something like</p>
 
-<pre><code class="language-rust">let maybe_foo = if some_condition {
-    thing.get_ref()
-} else {
-    let owned = thing.get_owned();
-    owned.as_ref()
-};
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
-<p>but this will still give a borrow error – <code>owned</code> will still go out of scope within the <code>if</code> block,
-and we need the reference to it last as long as <code>maybe_foo</code> (outside the block) is supposed to last.</p>
+<p>but this will still give a borrow error – <code class="language-plaintext highlighter-rouge">owned</code> will still go out of scope within the <code class="language-plaintext highlighter-rouge">if</code> block,
+and we need the reference to it last as long as <code class="language-plaintext highlighter-rouge">maybe_foo</code> (outside the block) is supposed to last.</p>
 
 <p>So this is no good.</p>
 
-<p>An alternate solution here <em>can</em> be copying/cloning the <code>Foo</code> in the <em>first</em> case by calling <code>.map(|x|
-x.clone())</code> or <code>.cloned()</code> or something. Sometimes you don’t want to clone, so this isn’t great.</p>
+<p>An alternate solution here <em>can</em> be copying/cloning the <code class="language-plaintext highlighter-rouge">Foo</code> in the <em>first</em> case by calling <code class="language-plaintext highlighter-rouge">.map(|x|
+x.clone())</code> or <code class="language-plaintext highlighter-rouge">.cloned()</code> or something. Sometimes you don’t want to clone, so this isn’t great.</p>
 
 <p>Another solution here – the generic advice for dealing with values which may be owned or borrow –
-is to use <code>Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+is to use <code class="language-plaintext highlighter-rouge">Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
 inlined enough.</p>
 
-<p>What we need to do here is to extend the lifetime of the temporary returned by <code>thing.get_owned()</code>.
-We need to extend it <em>past</em> the scope of the <code>if</code>.</p>
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code class="language-plaintext highlighter-rouge">thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code class="language-plaintext highlighter-rouge">if</code>.</p>
 
-<p>One way to do this is to have an <code>Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+<p>One way to do this is to have an <code class="language-plaintext highlighter-rouge">Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
 
-<pre><code class="language-rust">let mut owned = None;
-let maybe_foo = if some_condition {
-    thing.get_ref()
-} else {
-    owned = thing.get_owned();
-    owned.as_ref()
-};
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
-<p>This works in this case, but in this case we already had an <code>Option</code>. If <code>get_ref()</code> and <code>get_owned()</code>
-returned <code>&amp;Foo</code> and <code>Foo</code> respectively, then we’d need to do something like:</p>
+<p>This works in this case, but in this case we already had an <code class="language-plaintext highlighter-rouge">Option</code>. If <code class="language-plaintext highlighter-rouge">get_ref()</code> and <code class="language-plaintext highlighter-rouge">get_owned()</code>
+returned <code class="language-plaintext highlighter-rouge">&amp;Foo</code> and <code class="language-plaintext highlighter-rouge">Foo</code> respectively, then we’d need to do something like:</p>
 
-<pre><code class="language-rust">let mut owned = None;
-let maybe_foo = if some_condition {
-    thing.get_ref()
-} else {
-    owned = Some(thing.get_owned());
-    owned.as_ref().unwrap()
-};
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">thing</span><span class="nf">.get_owned</span><span class="p">());</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
 <p>which is icky since it introduces an unwrap.</p>
 
@@ -1724,37 +1724,37 @@ for the scope of the enclosing block.</p>
 
 <p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
 
-<pre><code class="language-rust">let owned; // 😯😯😯😯😯
-let maybe_foo = if some_condition {
-    thing.get_ref()
-} else {
-    owned = thing.get_owned();
-    owned.as_ref()
-};
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c">// 😯😯😯😯😯</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
 
 <p>We know that Rust doesn’t do “uninitialized” variables. If you want to name a variable, you have to
-initialize it. <code>let foo;</code> feels rather like magic in this context, because it looks like we’ve declared
+initialize it. <code class="language-plaintext highlighter-rouge">let foo;</code> feels rather like magic in this context, because it looks like we’ve declared
 an uninitialized variable.</p>
 
 <p>What’s less well known is that Rust <em>can</em> do “deferred” initialization. Here, you declare a variable
 and can initialize it later, but expressions involving the variable can only exist in branches
 where the compiler knows it has been initialized.</p>
 
-<p>This is the case here. We declared the <code>owned</code> variable beforehand. It now lives in the outer scope
+<p>This is the case here. We declared the <code class="language-plaintext highlighter-rouge">owned</code> variable beforehand. It now lives in the outer scope
 and won’t be destroyed until the end of the outer scope. However, the variable cannot be used directly
-in an expression in the first branch, or after the <code>if</code>. Doing so will give a compile time error
-saying <code>use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code>else</code> branch
+in an expression in the first branch, or after the <code class="language-plaintext highlighter-rouge">if</code>. Doing so will give a compile time error
+saying <code class="language-plaintext highlighter-rouge">use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code class="language-plaintext highlighter-rouge">else</code> branch
 because the compiler can see that it is unconditionally initialized in that branch.</p>
 
-<p>We can still read the value of <code>owned</code> indirectly through <code>maybe_foo</code> from outside the branch.
-This is okay because the storage of <code>owned</code> is guaranteed to live as long as the outer scope,
-and <code>maybe_foo</code> borrows from it. The only time <code>maybe_foo</code> is set to a value inside <code>owned</code> is when
-<code>owned</code> has been initialized, so it is safe.</p>
+<p>We can still read the value of <code class="language-plaintext highlighter-rouge">owned</code> indirectly through <code class="language-plaintext highlighter-rouge">maybe_foo</code> from outside the branch.
+This is okay because the storage of <code class="language-plaintext highlighter-rouge">owned</code> is guaranteed to live as long as the outer scope,
+and <code class="language-plaintext highlighter-rouge">maybe_foo</code> borrows from it. The only time <code class="language-plaintext highlighter-rouge">maybe_foo</code> is set to a value inside <code class="language-plaintext highlighter-rouge">owned</code> is when
+<code class="language-plaintext highlighter-rouge">owned</code> has been initialized, so it is safe.</p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1" role="doc-endnote">
-      <p>In my experience <code>.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code>.map()</code> <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>In my experience <code class="language-plaintext highlighter-rouge">.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code class="language-plaintext highlighter-rouge">.map()</code> <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -1814,7 +1814,7 @@ technology on online forums as well. And this doesn’t just benefit the users w
 this attitude can benefit your technology!</p>
 
 <p>Back when I used to be more active contributing to the Rust compiler, I also used to hang out in
-<code>#rust</code> a lot, and often answer newbie questions (now <code>#rust-beginners</code> exists too, and I hang out
+<code class="language-plaintext highlighter-rouge">#rust</code> a lot, and often answer newbie questions (now <code class="language-plaintext highlighter-rouge">#rust-beginners</code> exists too, and I hang out
 in both, but I don’t really actively participate as much). One thing I learned to do was probe
 deeper into why people hit that confusion in the first place. It’s almost always a “bad” mental
 model. Rust is rarely the first programming language folks learn, and people approach it with
@@ -1835,7 +1835,7 @@ model. And fix the docs so that it never happens again! Of course, not everyone 
 that’s what diagnostics are for (in the case of errors). They’re a tool to help us nudge the user
 towards the right mental model, whilst helping them fix their immediate problem. Rust has for a long
 time had pretty great diagnostics, with improvements happening all the time<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. I think this is at
-least in part due to the attitude of the folks in <code>#rust</code>; always trying to figure out how to
+least in part due to the attitude of the folks in <code class="language-plaintext highlighter-rouge">#rust</code>; always trying to figure out how to
 preempt various confusions they see.</p>
 
 <p>It’s a good attitude to have. I hope more folks, both in and out of the Rust community, approach
@@ -1880,10 +1880,10 @@ preempt various confusions they see.</p>
 
 <p>Oh, that’s already the case? Bummer.</p>
 
-<p>Often, when talking about Rust, folks refer to the core aliasing rule as “that <code>&amp;mut</code> thing”,
-“compile-time <code>RWLock</code>” (or “compile-time <code>RefCell</code>”), or something similar. Basically, referring to
-the fact that you can’t mutate the data that is currently held via an <code>&amp;</code> reference, and that you
-can’t mutate or read the data currently held via an <code>&amp;mut</code> reference except through that reference
+<p>Often, when talking about Rust, folks refer to the core aliasing rule as “that <code class="language-plaintext highlighter-rouge">&amp;mut</code> thing”,
+“compile-time <code class="language-plaintext highlighter-rouge">RWLock</code>” (or “compile-time <code class="language-plaintext highlighter-rouge">RefCell</code>”), or something similar. Basically, referring to
+the fact that you can’t mutate the data that is currently held via an <code class="language-plaintext highlighter-rouge">&amp;</code> reference, and that you
+can’t mutate or read the data currently held via an <code class="language-plaintext highlighter-rouge">&amp;mut</code> reference except through that reference
 itself.</p>
 
 <p>It’s always bugged me that we really don’t have a name for this thing. It’s one of the core
@@ -1899,7 +1899,7 @@ and purity, but I assure you, that language is Baby Rust. Or maybe Teenage Rust.
 
 <p>The point of this post isn’t really to encourage reviving the use of “INHTWAMA”; it’s
 a rather weird acronym that will probably confuse folks. I would like to have a better
-way of refering to “that <code>&amp;mut</code> thing”, but I’d prefer if it wasn’t a confusing acronym
+way of refering to “that <code class="language-plaintext highlighter-rouge">&amp;mut</code> thing”, but I’d prefer if it wasn’t a confusing acronym
 that carries no meaning of its own if you don’t know the history of it. That’s a recipe for
 making new community members feel like outsiders.</p>
 

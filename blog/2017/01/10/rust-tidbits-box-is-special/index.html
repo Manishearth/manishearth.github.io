@@ -122,64 +122,64 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code>Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
-<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code>Box&lt;T&gt;</code> has a funky <code>Deref</code> impl</a>.</p>
+<a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
 
 <p>Let’s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
 
-<pre><code class="language-rust">#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; Deref for Box&lt;T&gt; {
-    type Target = T;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
 
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
+    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-#[stable(feature = "rust1", since = "1.0.0")]
-impl&lt;T: ?Sized&gt; DerefMut for Box&lt;T&gt; {
-    fn deref_mut(&amp;mut self) -&gt; &amp;mut T {
-        &amp;mut **self
-    }
-}
-</code></pre>
+<span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Wait, what? <em>Squints</em></p>
 
-<pre><code class="language-rust">    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+</code></pre></div></div>
 
 <p><em>The call is coming from inside the house!</em></p>
 
-<p>In case you didn’t realize it, this deref impl returns <code>&amp;**self</code> – since <code>self</code>
-is an <code>&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code>Box&lt;T&gt;</code>, and the second dereference
-will dereference the box to provide a <code>T</code>. We then wrap it in a reference and return it.</p>
+<p>In case you didn’t realize it, this deref impl returns <code class="language-plaintext highlighter-rouge">&amp;**self</code> – since <code class="language-plaintext highlighter-rouge">self</code>
+is an <code class="language-plaintext highlighter-rouge">&amp;Box&lt;T&gt;</code>, dereferencing it once will provide a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, and the second dereference
+will dereference the box to provide a <code class="language-plaintext highlighter-rouge">T</code>. We then wrap it in a reference and return it.</p>
 
-<p>But wait, we are <em>defining</em> how a <code>Box&lt;T&gt;</code> is to be dereferenced (that’s what <code>Deref::deref</code> is
-for!), such a definition cannot itself dereference a <code>Box&lt;T&gt;</code>! That’s infinite recursion.</p>
+<p>But wait, we are <em>defining</em> how a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is to be dereferenced (that’s what <code class="language-plaintext highlighter-rouge">Deref::deref</code> is
+for!), such a definition cannot itself dereference a <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>! That’s infinite recursion.</p>
 
-<p>And indeed. For any other type such a <code>deref</code> impl would recurse infinitely. If you run
+<p>And indeed. For any other type such a <code class="language-plaintext highlighter-rouge">deref</code> impl would recurse infinitely. If you run
 <a href="https://play.rust-lang.org/?gist=9c8a02336c6816e57c83de39c103ca06&amp;version=stable&amp;backtrace=0">this code</a>:</p>
 
-<pre><code class="language-rust">use std::ops::Deref;
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ops</span><span class="p">::</span><span class="n">Deref</span><span class="p">;</span>
 
-struct LolBox&lt;T&gt;(T);
+<span class="k">struct</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
 
-impl&lt;T&gt; Deref for LolBox&lt;T&gt; {
-    type Target = T;
-    fn deref(&amp;self) -&gt; &amp;T {
-        &amp;**self
-    }
-}
-</code></pre>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">LolBox</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
+        <span class="o">&amp;**</span><span class="k">self</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>the compiler will warn you:</p>
 
-<pre><code class="language-text">warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
  --&gt; &lt;anon&gt;:7:5
   |
 7 |     fn deref(&amp;self) -&gt; &amp;T {
@@ -191,20 +191,20 @@ note: recursive call site
 8 |         &amp;**self
   |          ^^^^^^
   = help: a `loop` may express intention better if this is on purpose
-</code></pre>
+</code></pre></div></div>
 
 <p>Actually trying to dereference the type will lead to a stack overflow.</p>
 
-<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code>&amp;T</code></a>,
-or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code>Add</code> impl for number types</a>, or any other of the implementations of operators on
+<p>Clearly something is fishy here. This deref impl is similar to <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L2460">the deref impl for <code class="language-plaintext highlighter-rouge">&amp;T</code></a>,
+or the <a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263"><code class="language-plaintext highlighter-rouge">Add</code> impl for number types</a>, or any other of the implementations of operators on
 primitive types. For example we literally
-<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code>Add</code> on two integers to be their addition</a>. The reason these impls need to exist
-is so that people can still call <code>Add::add</code> if they need to in generic code and be able to pass
-integers to things with an <code>Add</code> bound. But the compiler knows how to use builtin operators on
+<a href="https://github.com/rust-lang/rust/blob/52c03d1d619fd25c961bc9de59bcc942b660d5db/src/libcore/ops.rs#L263">define <code class="language-plaintext highlighter-rouge">Add</code> on two integers to be their addition</a>. The reason these impls need to exist
+is so that people can still call <code class="language-plaintext highlighter-rouge">Add::add</code> if they need to in generic code and be able to pass
+integers to things with an <code class="language-plaintext highlighter-rouge">Add</code> bound. But the compiler knows how to use builtin operators on
 numbers and dereference borrowed references without these impls. But those are primitive types
-which are defined in the compiler, while <code>Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
+which are defined in the compiler, while <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is just a regular smart pointer struct, right?</p>
 
-<p>Turns out, <code>Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
+<p>Turns out, <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is special. It, too, is somewhat of a primitive type.</p>
 
 <p>This is partly due to historical accident.</p>
 
@@ -215,76 +215,76 @@ you that your code was broken! Sigils roamed the lands freely, and cargo was but
 which was destined to eventually end the tyranny of Makefiles. People were largely happy knowing
 that their closures were safely boxed and their threads sufficiently green.</p>
 
-<p>Back in these days, we didn’t have <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, or <code>String</code>. We had <code>~T</code>, <code>~[T]</code>, and <code>~str</code>.
-The second two are <em>not</em> equivalent to <code>Box&lt;[T]&gt;</code> and <code>Box&lt;str&gt;</code>, even though they may look like it,
-they are both growable containers like <code>Vec&lt;T&gt;</code> and <code>String</code>. <code>~</code> conceptually meant “owned”, though
+<p>Back in these days, we didn’t have <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code>, or <code class="language-plaintext highlighter-rouge">String</code>. We had <code class="language-plaintext highlighter-rouge">~T</code>, <code class="language-plaintext highlighter-rouge">~[T]</code>, and <code class="language-plaintext highlighter-rouge">~str</code>.
+The second two are <em>not</em> equivalent to <code class="language-plaintext highlighter-rouge">Box&lt;[T]&gt;</code> and <code class="language-plaintext highlighter-rouge">Box&lt;str&gt;</code>, even though they may look like it,
+they are both growable containers like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">String</code>. <code class="language-plaintext highlighter-rouge">~</code> conceptually meant “owned”, though
 IMO that caused more confusion than it was worth.</p>
 
-<p>You created a box using the <code>~</code> operator, e.g. <code>let x = ~1;</code>. It could be dereferenced with the <code>*</code>
+<p>You created a box using the <code class="language-plaintext highlighter-rouge">~</code> operator, e.g. <code class="language-plaintext highlighter-rouge">let x = ~1;</code>. It could be dereferenced with the <code class="language-plaintext highlighter-rouge">*</code>
 operator, and autoderef worked much like it does today.</p>
 
-<p>As a “primitive” type; like all primitive types, <code>~T</code> was special. The compiler knew things about
-it. The compiler knew how to dereference it without an explicit <code>Deref</code> impl. In fact, the <code>Deref</code>
-traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code>~T</code> did. <code>~T</code> never got an explicit <code>Deref</code> impl,
+<p>As a “primitive” type; like all primitive types, <code class="language-plaintext highlighter-rouge">~T</code> was special. The compiler knew things about
+it. The compiler knew how to dereference it without an explicit <code class="language-plaintext highlighter-rouge">Deref</code> impl. In fact, the <code class="language-plaintext highlighter-rouge">Deref</code>
+traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existence</a> much after <code class="language-plaintext highlighter-rouge">~T</code> did. <code class="language-plaintext highlighter-rouge">~T</code> never got an explicit <code class="language-plaintext highlighter-rouge">Deref</code> impl,
 though it probably should have.</p>
 
-<p>Eventually, there was a move to remove sigils from the language. The box constructor <code>~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code>box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
-<a href="https://github.com/rust-lang/rust/pull/13904"><code>~T</code> type became <code>Box&lt;T&gt;</code></a>. (<code>~[T]</code> and <code>~str</code> would also be removed, though <code>~str</code> took
-a very confusing detour with <code>StrBuf</code> first).</p>
+<p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
+<a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
+a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
-<p>However, <code>Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
-constructed, but it was still internally a special type. It didn’t even have a <code>Deref</code> impl yet,
-that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code>&amp;**self</code>, exactly the same
+<p>However, <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> was still special. It no longer needed special syntax to be referred to or
+constructed, but it was still internally a special type. It didn’t even have a <code class="language-plaintext highlighter-rouge">Deref</code> impl yet,
+that came <a href="https://github.com/rust-lang/rust/pull/20052">six months later</a>, and it was implemented as <code class="language-plaintext highlighter-rouge">&amp;**self</code>, exactly the same
 as it is today.</p>
 
 <p>But why does it <em>have</em> to be special now? Rust had all the features it needed (allocations,
-ownership, overloadable deref) to implement <code>Box&lt;T&gt;</code> in pure rust in the stdlib as if it
+ownership, overloadable deref) to implement <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> in pure rust in the stdlib as if it
 were a regular type.</p>
 
-<p>Turns out that Rust didn’t. You see, because <code>Box&lt;T&gt;</code> and before it <code>~T</code> were special, their
+<p>Turns out that Rust didn’t. You see, because <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and before it <code class="language-plaintext highlighter-rouge">~T</code> were special, their
 dereference semantics were implemented in a different part of the code. And, these semantics were
-not the same as the ones for <code>DerefImm</code> and <code>DerefMut</code>, which were created for use with other smart
-pointers. I don’t know if the possibility of being used for <code>~T</code> was considered when
-<code>DerefImm</code>/<code>DerefMut</code> were being implemented, or if it was a simple oversight, but <code>Box&lt;T&gt;</code> has
+not the same as the ones for <code class="language-plaintext highlighter-rouge">DerefImm</code> and <code class="language-plaintext highlighter-rouge">DerefMut</code>, which were created for use with other smart
+pointers. I don’t know if the possibility of being used for <code class="language-plaintext highlighter-rouge">~T</code> was considered when
+<code class="language-plaintext highlighter-rouge">DerefImm</code>/<code class="language-plaintext highlighter-rouge">DerefMut</code> were being implemented, or if it was a simple oversight, but <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has
 three pieces of behavior that could not be replicated in pure Rust at the time:</p>
 
 <ul>
-  <li><code>box foo</code> in a pattern would destructure a box into its contents. It’s somewhat the opposite of <code>ref</code></li>
-  <li><code>box foo()</code> performed placement box, so the result of <code>foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
-  <li>You could <em>move out of deref</em> with <code>Box&lt;T&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">box foo</code> in a pattern would destructure a box into its contents. It’s somewhat the opposite of <code class="language-plaintext highlighter-rouge">ref</code></li>
+  <li><code class="language-plaintext highlighter-rouge">box foo()</code> performed placement box, so the result of <code class="language-plaintext highlighter-rouge">foo()</code> could be directly written to a preallocated box, reducing extraneous copies</li>
+  <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
 <p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.
-For a <em>regular</em> type, <code>*foo</code> will produce a temporary that must be immediately borrowed or copied.
-You cannot do <code>let x = *y</code> for a non-<code>Copy</code> type. This dereference operation will call
-<code>DerefMut::deref_mut</code> or <code>Deref::deref</code> based on how it gets borrowed. With <code>Box&lt;T&gt;</code>, you can do
+For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
+You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
+<code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
 this:</p>
 
-<pre><code class="language-rust">let x = Box::new(vec![1,2,3,4]);
-let y = *x; // moves the vec out into `y`, then deallocates the box
-            // but does not call a destructor on the vec
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c">// moves the vec out into `y`, then deallocates the box</span>
+            <span class="c">// but does not call a destructor on the vec</span>
+</code></pre></div></div>
 
 <p>For any other type, such an operation will produce a “cannot move out of a borrow” error.</p>
 
-<p>This operation is colloquially called <code>DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
-past for making it into a trait. I suspect that the <code>DerefMove</code> semantics could even have been
-removed from <code>Box&lt;T&gt;</code> before 1.0 (I don’t find it <em>necessary</em>), but people had better things to do,
+<p>This operation is colloquially called <code class="language-plaintext highlighter-rouge">DerefMove</code>, and there has been <a href="https://github.com/rust-lang/rfcs/pull/178/files?short_path=6f69a99#diff-6f69a990502a98c2eeb172d87269005d">an rfc</a> in the
+past for making it into a trait. I suspect that the <code class="language-plaintext highlighter-rouge">DerefMove</code> semantics could even have been
+removed from <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> before 1.0 (I don’t find it <em>necessary</em>), but people had better things to do,
 like fixing the million other rough edges of the language that can’t be touched after backwards
 compatibility is a thing.</p>
 
-<p>So now we’re stuck with it. The current status is that <code>Box&lt;T&gt;</code> is <em>still</em> a special type in the
+<p>So now we’re stuck with it. The current status is that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> is <em>still</em> a special type in the
 compiler. By “special type” I don’t just mean that the compiler treats it a bit differently (this is
 true for any lang item), I mean that it literally is treated as
 <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.TypeVariants.html#TyBox.v">a completely new kind of type</a>, not as a struct the way it has been defined in liballoc.
 There’s a TON of cruft in the compiler related to this type, much of which can be removed, but some
-of which can’t. If we ever do get <code>DerefMove</code>, we should probably try removing it all again. After
-writing this post I’m half-convinced to try and implement an internal-use-only <code>DerefMove</code> and try
+of which can’t. If we ever do get <code class="language-plaintext highlighter-rouge">DerefMove</code>, we should probably try removing it all again. After
+writing this post I’m half-convinced to try and implement an internal-use-only <code class="language-plaintext highlighter-rouge">DerefMove</code> and try
 cleaning up the code myself.</p>
 
 <p>Most of this isn’t really useful to know unless you actually come across a case where you can make
-use of <code>DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
+use of <code class="language-plaintext highlighter-rouge">DerefMove</code> semantics, or if you work on the compiler. But it certainly is interesting!</p>
 
 <p>Next post: <a href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">What is a lang item?</a></p>
 
@@ -294,10 +294,10 @@ use of <code>DerefMove</code> semantics, or if you work on the compiler. But it 
       <p>Seriously though, does anyone use it much? I’ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p>It will probably eventually be replaced or made equivalent to the <code>&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It will probably eventually be replaced or made equivalent to the <code class="language-plaintext highlighter-rouge">&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
-      <p>It’s easier to special case the first two, much like how <code>for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>It’s easier to special case the first two, much like how <code class="language-plaintext highlighter-rouge">for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

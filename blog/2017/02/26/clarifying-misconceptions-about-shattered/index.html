@@ -151,11 +151,11 @@ largely moved off of it, but it’s still used, so it can still be a problem.</p
 
 <h2 id="what-did-the-researchers-do">What did the researchers do?</h2>
 
-<p>They found a hash collision for SHA-1. In essence, they found two strings, <code>A</code> and <code>B</code>, where
-<code>SHA1(A) == SHA1(B)</code>.</p>
+<p>They found a hash collision for SHA-1. In essence, they found two strings, <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>, where
+<code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>.</p>
 
 <p><em>However</em>, given the way SHA-1 works, this means that you can generate infinitely many other
-such pairs of strings. And given the nature of the exact <code>A</code> and <code>B</code> they created, it is possible
+such pairs of strings. And given the nature of the exact <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> they created, it is possible
 to use this to create arbitrary colliding PDFs.</p>
 
 <p>Basically, SHA-1 (and many other hash functions), operate on “blocks”. These are fixed-size chunks
@@ -172,17 +172,17 @@ been processed, and the final state is the result of the function.</p>
 <p>There’s an important thing to notice here. At each block, the only inputs are the block itself and the
 hash of the string up to that block.</p>
 
-<p>This means, if <code>A</code> and <code>B</code> are of a size that is a multiple of the block size, and <code>SHA1(A) == SHA1(B)</code>,
-then <code>SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code>C</code>, the state will
+<p>This means, if <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> are of a size that is a multiple of the block size, and <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>,
+then <code class="language-plaintext highlighter-rouge">SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code class="language-plaintext highlighter-rouge">C</code>, the state will
 be the same due to the hash collision, and after this point the next input blocks are identical in
 both cases, so the final hash will be the same.</p>
 
-<p>Now, while you might consider <code>A+C, B+C</code> to be the “same collision” as <code>A, B</code>, the implications
+<p>Now, while you might consider <code class="language-plaintext highlighter-rouge">A+C, B+C</code> to be the “same collision” as <code class="language-plaintext highlighter-rouge">A, B</code>, the implications
 of this are different than just “there is now one known pair of inputs that collide”, since everyone
-now has the ability to generate new colliding inputs by appending an arbitrary string to <code>A</code> and <code>B</code>.</p>
+now has the ability to generate new colliding inputs by appending an arbitrary string to <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>.</p>
 
-<p>Of course, these new collisions have the restriction that the strings will always start with <code>A</code> or
-<code>B</code> and the suffixes will be identical. If you want to break this restriction, you will
+<p>Of course, these new collisions have the restriction that the strings will always start with <code class="language-plaintext highlighter-rouge">A</code> or
+<code class="language-plaintext highlighter-rouge">B</code> and the suffixes will be identical. If you want to break this restriction, you will
 have to devote expensive resources to finding a new collision, like Google did.</p>
 
 <h2 id="how-does-this-let-us-generate-arbitrary-colliding-pdfs">How does this let us generate arbitrary colliding PDFs?</h2>
@@ -196,26 +196,26 @@ PDFs, not JPEGs.</p>
 pseudocode-y file format. The researchers found a collision between the strings:</p>
 
 <ul>
-  <li>A: <code>&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
-  <li>B: <code>&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
+  <li>A: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
+  <li>B: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
 </ul>
 
-<p>Here, <code>&lt;header data&gt;</code> is whatever is necessary to make the format work, and the “nonce”s are
-strings that make <code>A</code> and <code>B</code> have the same hash. Finding these nonces is where
+<p>Here, <code class="language-plaintext highlighter-rouge">&lt;header data&gt;</code> is whatever is necessary to make the format work, and the “nonce”s are
+strings that make <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> have the same hash. Finding these nonces is where
 the computational power is required, since you basically have to brute-force a solution.</p>
 
-<p>Now, to both these strings, they append a suffix C: <code>IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
+<p>Now, to both these strings, they append a suffix C: <code class="language-plaintext highlighter-rouge">IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
 This creates two complete documents. Both of the documents contain both images, but each one is instructed
-to display a different one. Note that since <code>SHA1(A) == SHA1(B)</code>, <code>SHA1(A + C) = SHA1(B + C)</code>, so these
+to display a different one. Note that since <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>, <code class="language-plaintext highlighter-rouge">SHA1(A + C) = SHA1(B + C)</code>, so these
 final documents have the same hash.</p>
 
-<p>The contents of <code>C</code> don’t affect the collision at all. So, we can insert any two images in <code>C</code>, to create
+<p>The contents of <code class="language-plaintext highlighter-rouge">C</code> don’t affect the collision at all. So, we can insert any two images in <code class="language-plaintext highlighter-rouge">C</code>, to create
 our own personal pair of colliding PDFs.</p>
 
 <p>The actual technique used is similar to this, and it relies on JPEG comment fields. They have found
 a collision between two strings that look like:</p>
 
-<pre><code class="language-text">pdf header data                       | String A
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pdf header data                       | String A
 begin embedded image                  |  
     jpg header data                   |
     declare jpg comment of length N   |
@@ -238,9 +238,9 @@ begin embedded image                  |
     jpg EOF marker (2 bytes)          | (comment ends here)
     image 2                           |
 end embedded image                    |
-</code></pre>
+</code></pre></div></div>
 
-<p>By playing with the nonces, they managed to generate a collision between <code>A</code> and <code>B</code>. In the first
+<p>By playing with the nonces, they managed to generate a collision between <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>. In the first
 pdf, the embedded image has a comment containing only the nonce. Once the JPEG reader gets past that
 comment, it sees the first image, displays it, and then sees the end-of-file marker and decides to
 stop. Since the PDF format doesn’t try to interpret the image itself, the PDF format won’t be
@@ -281,7 +281,7 @@ has uploaded a document with a hash, and you trust them to not be playing any tr
 an attacker won’t be able to generate a colliding document for this without immense
 resources. The attack only works when the attacker has control over the initial document;
 e.g. in a bait-and-switch-like attack where the attacker uploads document A, you read and verify it
-and broadcast your trust in document A with hash <code>SHA(A)</code>, and then the attacker switches it with
+and broadcast your trust in document A with hash <code class="language-plaintext highlighter-rouge">SHA(A)</code>, and then the attacker switches it with
 document B.</p>
 
 <div class="footnotes" role="doc-endnotes">

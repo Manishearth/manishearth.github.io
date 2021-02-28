@@ -122,10 +122,10 @@ explanation for those who are interested</em></p>
 
 <p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon’s blog post on the same topic</a></p>
 
-<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code>Copy</code></a> trait. There are other such
-“marker” traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>. I recommend reading that post if you’re not familiar with Rust wrapper types
-like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>, since I’ll be using them as examples throughout this post;
+<p>In my <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">previous post</a> I touched a bit on the <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code class="language-plaintext highlighter-rouge">Copy</code></a> trait. There are other such
+“marker” traits in the standard library, and the ones relevant to this discussion are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>
+and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a>. I recommend reading that post if you’re not familiar with Rust wrapper types
+like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell</code></a> and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a>, since I’ll be using them as examples throughout this post;
 but the concepts explained here are largely independent.</p>
 
 <p>For the purposes of this post, I’ll restrict thread safety to mean no data races or cross-thread
@@ -135,112 +135,112 @@ sessions</a> attempts to provide protocol safety using
 session types.</p>
 
 <p>These traits are auto-implemented using a feature called “opt in builtin traits”. So, for example,
-if struct <code>Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, unless we
-explicitly opt out using <code>impl !Sync for Foo {}</code>. Similarly, if struct <code>Foo</code> contains at least one
-non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> either, unless it explicitly opts in (<code>unsafe
+if struct <code class="language-plaintext highlighter-rouge">Foo</code> contains only <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> fields, it will also be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a>, unless we
+explicitly opt out using <code class="language-plaintext highlighter-rouge">impl !Sync for Foo {}</code>. Similarly, if struct <code class="language-plaintext highlighter-rouge">Foo</code> contains at least one
+non-<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> type, it will not be <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> either, unless it explicitly opts in (<code class="language-plaintext highlighter-rouge">unsafe
 impl Sync for Foo {}</code>)</p>
 
-<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> type is itself
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> for a non-<code>Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>. This
+<p>This means that, for example, a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code class="language-plaintext highlighter-rouge">Sender</code></a> for a <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> type is itself
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>, but a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code class="language-plaintext highlighter-rouge">Sender</code></a> for a non-<code class="language-plaintext highlighter-rouge">Send</code> type will not be <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>. This
 pattern is quite powerful; it lets one use channels with non-threadsafe data in a single-threaded
 context without requiring a separate “single threaded” channel abstraction.</p>
 
-<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> which contain
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> fields have explicitly opted out of one or more of these because the
+<p>At the same time, structs like <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a> and <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell</code></a> which contain
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>/<a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> fields have explicitly opted out of one or more of these because the
 invariants they rely on do not hold in threaded situations.</p>
 
 <p>It’s actually possible to design your own library with comparable thread safety guarantees outside
 of the compiler — while these marker traits are specially treated by the compiler, the special
 treatment is not necessary for their working. Any two opt-in builtin traits could be used here.</p>
 
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> have slightly differing meanings, but are very intertwined.</p>
 
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> types can be moved between threads without an issue. It answers the question
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> types can be moved between threads without an issue. It answers the question
 “if this variable were moved to another thread, would it still be valid for use?”.
-Most objects which completely own their contained data qualify here. Notably, <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> doesn’t
-(since it is shared ownership). Another exception is <a href="https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html"><code>LocalKey</code></a>, which
-<em>does</em> own its data but isn’t valid from other threads. Borrowed data does qualify to be <code>Send</code>, but
+Most objects which completely own their contained data qualify here. Notably, <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a> doesn’t
+(since it is shared ownership). Another exception is <a href="https://doc.rust-lang.org/nightly/std/thread/struct.LocalKey.html"><code class="language-plaintext highlighter-rouge">LocalKey</code></a>, which
+<em>does</em> own its data but isn’t valid from other threads. Borrowed data does qualify to be <code class="language-plaintext highlighter-rouge">Send</code>, but
 in most cases it can’t be sent across threads due to a constraint that will be touched upon later.</p>
 
-<p>Even though types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> use non-atomic reference counting, it can be sent safely
-between threads because this is a transfer of <em>ownership</em> (a move). Sending a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> to another thread
+<p>Even though types like <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell</code></a> use non-atomic reference counting, it can be sent safely
+between threads because this is a transfer of <em>ownership</em> (a move). Sending a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell</code></a> to another thread
 will be a move and will make it unusable from the original thread; so this is fine.</p>
 
-<p><a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>, on the other hand, is about synchronous access. It answers the question: “if
+<p><a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a>, on the other hand, is about synchronous access. It answers the question: “if
 multiple threads were all trying to access this data, would it be safe?”. Types like
-<a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a> and other lock/atomic based types implement this, along with primitive types.
-Things containing pointers generally are not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a>.</p>
+<a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code class="language-plaintext highlighter-rouge">Mutex</code></a> and other lock/atomic based types implement this, along with primitive types.
+Things containing pointers generally are not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a>.</p>
 
-<p><code>Sync</code> is sort of a crutch to <code>Send</code>; it helps make other types <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when sharing is
-involved. For example, <code>&amp;T</code> and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> are only <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> when the inner data is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (there’s an additional
-<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> bound in the case of <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a>). In words, stuff that has shared/borrowed ownership can be sent
+<p><code class="language-plaintext highlighter-rouge">Sync</code> is sort of a crutch to <code class="language-plaintext highlighter-rouge">Send</code>; it helps make other types <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> when sharing is
+involved. For example, <code class="language-plaintext highlighter-rouge">&amp;T</code> and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></a> are only <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> when the inner data is <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> (there’s an additional
+<a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> bound in the case of <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></a>). In words, stuff that has shared/borrowed ownership can be sent
 to another thread if the shared/borrowed data is synchronous-safe.</p>
 
-<p><a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a>, while <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> because of the non atomic reference counting.</p>
+<p><a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell</code></a>, while <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>, is not <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> because of the non atomic reference counting.</p>
 
-<p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code>thread::spawn()</code></a>. It has the signature</p>
+<p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code class="language-plaintext highlighter-rouge">thread::spawn()</code></a>. It has the signature</p>
 
-<pre><code class="language-rust">pub fn spawn&lt;F, T&gt;(f: F) -&gt; JoinHandle&lt;T&gt; where F: FnOnce() -&gt; T, F: Send + 'static, T: Send + 'static
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">JoinHandle</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">T</span><span class="p">,</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span>
+</code></pre></div></div>
 
 <p>Admittedly, this is confusing/noisy, partially because it’s allowed to return a value, and also because
-it returns a handle from which we can block on a thread join. We can conjure a simpler <code>spawn</code> API for our needs though:</p>
+it returns a handle from which we can block on a thread join. We can conjure a simpler <code class="language-plaintext highlighter-rouge">spawn</code> API for our needs though:</p>
 
-<pre><code class="language-rust">pub fn spawn&lt;F&gt;(f: F) where F: FnOnce(), F: Send + 'static
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">(),</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span>
+</code></pre></div></div>
 
 <p>which can be called like:</p>
 
-<pre><code class="language-rust">let mut x = vec![1,2,3,4];
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
 
-// `move` instructs the closure to move out of its environment
-thread::spawn(move || {
-   x.push(1);
+<span class="c">// `move` instructs the closure to move out of its environment</span>
+<span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+   <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
 
-});
+<span class="p">});</span>
 
-// x is not accessible here since it was moved
+<span class="c">// x is not accessible here since it was moved</span>
 
-</code></pre>
+</code></pre></div></div>
 
-<p>In words, <code>spawn()</code> will take a callable (usually a closure) that will be called once, and contains
-data which is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code>. Here, <code>'static</code> just means that there is no borrowed
+<p>In words, <code class="language-plaintext highlighter-rouge">spawn()</code> will take a callable (usually a closure) that will be called once, and contains
+data which is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> and <code class="language-plaintext highlighter-rouge">'static</code>. Here, <code class="language-plaintext highlighter-rouge">'static</code> just means that there is no borrowed
 data contained in the closure. This is the aforementioned constraint that prevents the sharing of
 borrowed data across threads; without it we would be able to send a borrowed pointer to a thread that
 could easily outlive the borrow, causing safety issues.</p>
 
 <p>There’s a slight nuance here about the closures — closures can capture outer variables,
-but by default they do so by-reference (hence the <code>move</code> keyword). They autoimplement <code>Send</code>
-and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> depending on their capture clauses. For more on their internal representation,
-see <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">huon’s post</a>. In this case, <code>x</code> was captured by-move; i.e. as <a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>
-(instead of being similar to <code>&amp;Vec&lt;T&gt;</code> or something), so the closure itself can be <code>Send</code>.
-Without the <code>move</code> keyword, the closure would not be `‘static’ since it contains borrowed
+but by default they do so by-reference (hence the <code class="language-plaintext highlighter-rouge">move</code> keyword). They autoimplement <code class="language-plaintext highlighter-rouge">Send</code>
+and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> depending on their capture clauses. For more on their internal representation,
+see <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">huon’s post</a>. In this case, <code class="language-plaintext highlighter-rouge">x</code> was captured by-move; i.e. as <a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code></a>
+(instead of being similar to <code class="language-plaintext highlighter-rouge">&amp;Vec&lt;T&gt;</code> or something), so the closure itself can be <code class="language-plaintext highlighter-rouge">Send</code>.
+Without the <code class="language-plaintext highlighter-rouge">move</code> keyword, the closure would not be `‘static’ since it contains borrowed
 content.</p>
 
-<p>Since the closure inherits the <code>Send</code>/<code>Sync</code>/<code>'static</code>-ness of its captured data, a closure
-capturing data of the correct type will satisfy the <code>F: Send+'static</code> bound.</p>
+<p>Since the closure inherits the <code class="language-plaintext highlighter-rouge">Send</code>/<code class="language-plaintext highlighter-rouge">Sync</code>/<code class="language-plaintext highlighter-rouge">'static</code>-ness of its captured data, a closure
+capturing data of the correct type will satisfy the <code class="language-plaintext highlighter-rouge">F: Send+'static</code> bound.</p>
 
-<p>Some examples of things that are allowed and not allowed by this function (for the type of <code>x</code>):</p>
+<p>Some examples of things that are allowed and not allowed by this function (for the type of <code class="language-plaintext highlighter-rouge">x</code>):</p>
 
 <ul>
-  <li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a>, <a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> are allowed because they are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <code>'static</code> (when the inner type is of the same kind)</li>
-  <li><code>&amp;T</code> isn’t allowed because it’s not <code>'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
-  <li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>, so it isn’t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
-  <li><code>Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code>Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> if the inner type is); we can’t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> doesn’t provide this by default.</li>
-  <li><code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn’t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> (so the <code>Arc&lt;Cell&lt;T&gt;&gt;</code> isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code>Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
-  <li><code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed (for <code>Send</code> <code>T</code>). The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> regardless of the inner <code>T</code> (as long as it is <code>Send</code>), and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc</code></a>. From the point of view of the inner type, it’s only being accessed by one thread at a time (slightly more complex in the case of <a href="http://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock</code></a>), so it doesn’t need to know about the threads involved. There can’t be data races when <code>Sync</code> types like these are involved.</li>
+  <li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code></a>, <a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a> are allowed because they are <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> and <code class="language-plaintext highlighter-rouge">'static</code> (when the inner type is of the same kind)</li>
+  <li><code class="language-plaintext highlighter-rouge">&amp;T</code> isn’t allowed because it’s not <code class="language-plaintext highlighter-rouge">'static</code>. This is good, because borrows should have a statically-known lifetime. Sending a borrowed pointer to a thread may lead to a use after free, or otherwise break aliasing rules.</li>
+  <li><a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a> isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>, so it isn’t allowed. We could have some other <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a>s hanging around, and end up with a data race on the refcount.</li>
+  <li><code class="language-plaintext highlighter-rouge">Arc&lt;Vec&lt;u32&gt;&gt;</code> is allowed (<a href="https://doc.rust-lang.org/std/vec/struct.Vec.html"><code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code></a> is <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a> and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> if the inner type is); we can’t cause a safety violation here. Iterator invalidation requires mutation, and <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></a> doesn’t provide this by default.</li>
+  <li><code class="language-plaintext highlighter-rouge">Arc&lt;Cell&lt;T&gt;&gt;</code> isn’t allowed. <a href="https://doc.rust-lang.org/std/cell/struct.Cell.html"><code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code></a> provides copying-based internal mutability, and isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> (so the <code class="language-plaintext highlighter-rouge">Arc&lt;Cell&lt;T&gt;&gt;</code> isn’t <a href="http://doc.rust-lang.org/std/marker/trait.Send.html"><code class="language-plaintext highlighter-rouge">Send</code></a>). If this were allowed, we could have cases where larger structs are getting written to from different threads simultaneously resulting in some random mishmash of the two. In other words, a data race.</li>
+  <li><code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code> or <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code> are allowed (for <code class="language-plaintext highlighter-rouge">Send</code> <code class="language-plaintext highlighter-rouge">T</code>). The inner types use threadsafe locks and provide lock-based internal mutability. They can guarantee that only one thread is writing to them at any point in time. For this reason, the mutexes are <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> regardless of the inner <code class="language-plaintext highlighter-rouge">T</code> (as long as it is <code class="language-plaintext highlighter-rouge">Send</code>), and <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> types can be shared safely with wrappers like <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc</code></a>. From the point of view of the inner type, it’s only being accessed by one thread at a time (slightly more complex in the case of <a href="http://doc.rust-lang.org/std/sync/struct.RwLock.html"><code class="language-plaintext highlighter-rouge">RwLock</code></a>), so it doesn’t need to know about the threads involved. There can’t be data races when <code class="language-plaintext highlighter-rouge">Sync</code> types like these are involved.</li>
 </ul>
 
-<p>As mentioned before, you can in fact create a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a>/<a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"><code>Receiver</code></a> pair of non-<code>Send</code> objects. This sounds a bit
-counterintuitive — shouldn’t we be only sending values which are <code>Send</code>? However, <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender&lt;T&gt;</code></a> is only
-<code>Send</code> if <code>T</code> is <code>Send</code>; so even if we can use a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code>Sender</code></a> of a non-<code>Send</code> type, we cannot send it to another thread,
+<p>As mentioned before, you can in fact create a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code class="language-plaintext highlighter-rouge">Sender</code></a>/<a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"><code class="language-plaintext highlighter-rouge">Receiver</code></a> pair of non-<code class="language-plaintext highlighter-rouge">Send</code> objects. This sounds a bit
+counterintuitive — shouldn’t we be only sending values which are <code class="language-plaintext highlighter-rouge">Send</code>? However, <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code class="language-plaintext highlighter-rouge">Sender&lt;T&gt;</code></a> is only
+<code class="language-plaintext highlighter-rouge">Send</code> if <code class="language-plaintext highlighter-rouge">T</code> is <code class="language-plaintext highlighter-rouge">Send</code>; so even if we can use a <a href="http://doc.rust-lang.org/std/sync/mpsc/struct.Sender.html"><code class="language-plaintext highlighter-rouge">Sender</code></a> of a non-<code class="language-plaintext highlighter-rouge">Send</code> type, we cannot send it to another thread,
 so it cannot be used to violate thread safety.</p>
 
-<p>There is also a way to utilize the <code>Send</code>-ness of <code>&amp;T</code> (which is not <code>'static</code>) for some <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code>Sync</code></a> <code>T</code>, namely <a href="http://doc.rust-lang.org/std/thread/fn.scoped.html"><code>thread::scoped</code></a>.
-This function does not have the <code>'static</code> bound, but it instead has an RAII guard which forces a join before the borrow ends. This
-allows for easy fork-join parallelism without necessarily needing a <a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex</code></a>.
-Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> cycles, so the API
-is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code>Send</code>/<code>Sync</code>,
+<p>There is also a way to utilize the <code class="language-plaintext highlighter-rouge">Send</code>-ness of <code class="language-plaintext highlighter-rouge">&amp;T</code> (which is not <code class="language-plaintext highlighter-rouge">'static</code>) for some <a href="http://doc.rust-lang.org/std/marker/trait.Sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a> <code class="language-plaintext highlighter-rouge">T</code>, namely <a href="http://doc.rust-lang.org/std/thread/fn.scoped.html"><code class="language-plaintext highlighter-rouge">thread::scoped</code></a>.
+This function does not have the <code class="language-plaintext highlighter-rouge">'static</code> bound, but it instead has an RAII guard which forces a join before the borrow ends. This
+allows for easy fork-join parallelism without necessarily needing a <a href="http://doc.rust-lang.org/std/sync/struct.Mutex.html"><code class="language-plaintext highlighter-rouge">Mutex</code></a>.
+Sadly, there <a href="http://cglab.ca/~abeinges/blah/everyone-peaches/">are</a> <a href="http://smallcultfollowing.com/babysteps/blog/2015/04/29/on-reference-counting-and-leaks/">problems</a> which crop up when this interacts with <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a> cycles, so the API
+is currently unstable and will be redesigned. This is not a problem with the language design or the design of <code class="language-plaintext highlighter-rouge">Send</code>/<code class="language-plaintext highlighter-rouge">Sync</code>,
 rather it is a perfect storm of small design inconsistencies in the libraries.</p>
 
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9628131">HN</a>, <a href="https://www.reddit.com/r/rust/comments/37s5x2/how_rust_achieves_thread_safety/">Reddit</a></small></p>
@@ -376,18 +376,18 @@ the topic in depth.</p>
 
 <h1 id="basic-pointer-types">Basic pointer types</h1>
 
-<h2 id="boxt"><code>Box&lt;T&gt;</code></h2>
+<h2 id="boxt"><code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> is an “owned pointer” or a “box”. While it can hand out borrowed references to the data, it is the only
+<p><a href="http://doc.rust-lang.org/std/boxed/struct.Box.html"><code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a> is an “owned pointer” or a “box”. While it can hand out borrowed references to the data, it is the only
 owner of the data. In particular, when something like the following occurs:</p>
 
-<pre><code class="language-rust">let x = Box::new(1);
-let y = x;
-// x no longer accessible here
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span>
+<span class="c">// x no longer accessible here</span>
+</code></pre></div></div>
 
-<p>Here, the box was <em>moved</em> into <code>y</code>. As <code>x</code> no longer owns it,
-the compiler will no longer allow the programmer to use <code>x</code> after this. A box
+<p>Here, the box was <em>moved</em> into <code class="language-plaintext highlighter-rouge">y</code>. As <code class="language-plaintext highlighter-rouge">x</code> no longer owns it,
+the compiler will no longer allow the programmer to use <code class="language-plaintext highlighter-rouge">x</code> after this. A box
 can similarly be moved <em>out</em> of a function by returning, and when a
 box (one which hasn’t been moved) goes out of scope, destructors are run, deallocating
 the inner data.</p>
@@ -397,31 +397,31 @@ to allocate some memory on the heap and safely pass a pointer to that memory aro
 is ideal. Note that you will only be allowed to share borrowed references to this by
 the regular borrowing rules, checked at compile time.</p>
 
-<h4 id="interlude-copy">Interlude: <code>Copy</code></h4>
+<h4 id="interlude-copy">Interlude: <code class="language-plaintext highlighter-rouge">Copy</code></h4>
 
-<p>Move/ownership semantics are not special to <code>Box&lt;T&gt;</code>; it is a feature of all types which are not <code>Copy</code>.</p>
+<p>Move/ownership semantics are not special to <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>; it is a feature of all types which are not <code class="language-plaintext highlighter-rouge">Copy</code>.</p>
 
-<p>A <code>Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
+<p>A <code class="language-plaintext highlighter-rouge">Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
 representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.
-Most types containing pointers to other data are not <code>Copy</code>, since there is additional data
+Most types containing pointers to other data are not <code class="language-plaintext highlighter-rouge">Copy</code>, since there is additional data
 elsewhere, and simply copying the stack representation may accidentally share ownership of that data
 in an unsafe manner.</p>
 
-<p>Types like <code>Vec&lt;T&gt;</code> and <code>String</code> which also have data on the heap are also not <code>Copy</code>. Types
-like the integer/boolean types are <code>Copy</code></p>
+<p>Types like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">String</code> which also have data on the heap are also not <code class="language-plaintext highlighter-rouge">Copy</code>. Types
+like the integer/boolean types are <code class="language-plaintext highlighter-rouge">Copy</code></p>
 
-<p><code>&amp;T</code> and raw pointers <em>are</em> <code>Copy</code>. Even though they do point
-to further data, they do not “own” that data. Whereas <code>Box&lt;T&gt;</code> can be thought of as
-“some data which happens to be dynamically allocated”, <code>&amp;T</code> is thought of as “a borrowing reference
+<p><code class="language-plaintext highlighter-rouge">&amp;T</code> and raw pointers <em>are</em> <code class="language-plaintext highlighter-rouge">Copy</code>. Even though they do point
+to further data, they do not “own” that data. Whereas <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> can be thought of as
+“some data which happens to be dynamically allocated”, <code class="language-plaintext highlighter-rouge">&amp;T</code> is thought of as “a borrowing reference
 to some data”. Even though both are pointers, only the first is considered to be “data”. Hence,
 a copy of the first should involve a copy of the data (which is not part of its stack representation),
-but a copy of the second only needs a copy of the reference. <code>&amp;mut T</code> is not <code>Copy</code> because mutable aliases
-cannot be shared, and <code>&amp;mut T</code> “owns” the data it points to somewhat since it can mutate.</p>
+but a copy of the second only needs a copy of the reference. <code class="language-plaintext highlighter-rouge">&amp;mut T</code> is not <code class="language-plaintext highlighter-rouge">Copy</code> because mutable aliases
+cannot be shared, and <code class="language-plaintext highlighter-rouge">&amp;mut T</code> “owns” the data it points to somewhat since it can mutate.</p>
 
-<p>Practically speaking, a type can be <code>Copy</code> if a copy of its stack representation doesn’t violate
+<p>Practically speaking, a type can be <code class="language-plaintext highlighter-rouge">Copy</code> if a copy of its stack representation doesn’t violate
 memory safety.</p>
 
-<h2 id="t-and-mut-t"><code>&amp;T</code> and <code>&amp;mut T</code></h2>
+<h2 id="t-and-mut-t"><code class="language-plaintext highlighter-rouge">&amp;T</code> and <code class="language-plaintext highlighter-rouge">&amp;mut T</code></h2>
 
 <p>These are immutable and mutable references respectively. They follow the “read-write lock” pattern
 described in my <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">previous post</a>, such that one may either have only one mutable reference
@@ -431,23 +431,23 @@ sections of code.</p>
 
 <p>These pointers cannot be copied in such a way that they outlive the lifetime associated with them.</p>
 
-<h2 id="const-t-and-mut-t"><code>*const T</code> and <code>*mut T</code></h2>
+<h2 id="const-t-and-mut-t"><code class="language-plaintext highlighter-rouge">*const T</code> and <code class="language-plaintext highlighter-rouge">*mut T</code></h2>
 
 <p>These are C-like raw pointers with no lifetime or ownership attached to them. They just point to some location
 in memory with no other restrictions. The only guarantee that these provide is that they cannot be dereferenced
-except in code marked <code>unsafe</code>.</p>
+except in code marked <code class="language-plaintext highlighter-rouge">unsafe</code>.</p>
 
-<p>These are useful when building safe, low cost abstractions like <code>Vec&lt;T&gt;</code>, but should be avoided in safe code.</p>
+<p>These are useful when building safe, low cost abstractions like <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code>, but should be avoided in safe code.</p>
 
-<h2 id="rct"><code>Rc&lt;T&gt;</code></h2>
+<h2 id="rct"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></h2>
 
 <p>This is the first wrapper we will cover that has a runtime cost.</p>
 
-<p><a href="http://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc&lt;T&gt;</code></a> is a reference counted pointer. In other words, this lets us have multiple “owning” pointers
+<p><a href="http://doc.rust-lang.org/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a> is a reference counted pointer. In other words, this lets us have multiple “owning” pointers
 to the same data, and the data will be freed (destructors will be run) when all pointers are out of scope.</p>
 
-<p>Internally, it contains a shared “reference count”, which is incremented each time the <code>Rc</code> is cloned, and decremented
-each time one of the <code>Rc</code>s goes out of scope. The main responsibility of <code>Rc&lt;T&gt;</code> is to ensure that destructors are called
+<p>Internally, it contains a shared “reference count”, which is incremented each time the <code class="language-plaintext highlighter-rouge">Rc</code> is cloned, and decremented
+each time one of the <code class="language-plaintext highlighter-rouge">Rc</code>s goes out of scope. The main responsibility of <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is to ensure that destructors are called
 for shared data.</p>
 
 <p>The internal data here is immutable, and if a cycle of references is created, the data will be leaked. If we want
@@ -461,66 +461,66 @@ Fitzgerald.</p>
 
 <p>This should be used when you wish to dynamically allocate and share some data (read-only) between various portions
 of your program, where it is not certain which portion will finish using the pointer last. It’s a viable alternative
-to <code>&amp;T</code> when <code>&amp;T</code> is either impossible to statically check for correctness, or creates extremely unergonomic code where
+to <code class="language-plaintext highlighter-rouge">&amp;T</code> when <code class="language-plaintext highlighter-rouge">&amp;T</code> is either impossible to statically check for correctness, or creates extremely unergonomic code where
 the programmer does not wish to spend the development cost of working with.</p>
 
 <p>This pointer is <em>not</em> thread safe, and Rust will not let it be sent or shared with other threads. This lets
 one avoid the cost of atomics in situations where they are unnecessary.</p>
 
-<p>There is a sister smart pointer to this one, <code>Weak&lt;T&gt;</code>. This is a non-owning, but also non-borrowed, smart pointer.
-It is also similar to <code>&amp;T</code>, but it is not restricted in lifetime — a <code>Weak&lt;T&gt;</code> can be held on to forever. However,
-it is possible that an attempt to access the inner data may fail and return <code>None</code>, since this can outlive the owned
-<code>Rc</code>s. This is useful for when one wants cyclic data structures and other things.</p>
+<p>There is a sister smart pointer to this one, <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code>. This is a non-owning, but also non-borrowed, smart pointer.
+It is also similar to <code class="language-plaintext highlighter-rouge">&amp;T</code>, but it is not restricted in lifetime — a <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code> can be held on to forever. However,
+it is possible that an attempt to access the inner data may fail and return <code class="language-plaintext highlighter-rouge">None</code>, since this can outlive the owned
+<code class="language-plaintext highlighter-rouge">Rc</code>s. This is useful for when one wants cyclic data structures and other things.</p>
 
 <h4 id="cost">Cost</h4>
 
-<p>As far as memory goes, <code>Rc&lt;T&gt;</code> is a single allocation, though it will allocate two extra words as compared to
-a regular <code>Box&lt;T&gt;</code> (for “strong” and “weak” refcounts).</p>
+<p>As far as memory goes, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is a single allocation, though it will allocate two extra words as compared to
+a regular <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> (for “strong” and “weak” refcounts).</p>
 
-<p><code>Rc&lt;T&gt;</code> has the computational cost of incrementing/decrementing the refcount whenever it is cloned or goes out of
+<p><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> has the computational cost of incrementing/decrementing the refcount whenever it is cloned or goes out of
 scope respectively. Note that a clone will not do a deep copy, rather it will simply increment the inner reference count
-and return a copy of the <code>Rc&lt;T&gt;</code></p>
+and return a copy of the <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></p>
 
 <h1 id="cell-types">Cell types</h1>
 
 <p>“Cells” provide interior mutability. In other words, they contain data which can be manipulated even
-if the type cannot be obtained in a mutable form (for example, when it is behind an <code>&amp;</code>-ptr or <code>Rc&lt;T&gt;</code>).</p>
+if the type cannot be obtained in a mutable form (for example, when it is behind an <code class="language-plaintext highlighter-rouge">&amp;</code>-ptr or <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>).</p>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/">The documentation for the <code>cell</code> module has a pretty good explanation for these</a>.</p>
+<p><a href="http://doc.rust-lang.org/doc/std/cell/">The documentation for the <code class="language-plaintext highlighter-rouge">cell</code> module has a pretty good explanation for these</a>.</p>
 
 <p>These types are <em>generally</em> found in struct fields, but they may be found elsewhere too.</p>
 
-<h2 id="cellt"><code>Cell&lt;T&gt;</code></h2>
+<h2 id="cellt"><code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.Cell.html"><code>Cell&lt;T&gt;</code></a> is a type that provides zero-cost interior mutability, but only for <code>Copy</code> types.
+<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.Cell.html"><code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code></a> is a type that provides zero-cost interior mutability, but only for <code class="language-plaintext highlighter-rouge">Copy</code> types.
 Since the compiler knows that all the data owned by the contained value is on the stack, there’s
 no worry of leaking any data behind references (or worse!) by simply replacing the data.</p>
 
 <p>It is still possible to violate your own invariants using this wrapper, so be careful when
-using it. If a field is wrapped in <code>Cell</code>, it’s a nice indicator that the chunk of data is mutable
+using it. If a field is wrapped in <code class="language-plaintext highlighter-rouge">Cell</code>, it’s a nice indicator that the chunk of data is mutable
 and may not stay the same between the time you first read it and when you intend to use it.</p>
 
-<pre><code class="language-rust">let x = Cell::new(1);
-let y = &amp;x;
-let z = &amp;x;
-x.set(2);
-y.set(3);
-z.set(4);
-println!("{}", x.get());
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
+<span class="n">x</span><span class="nf">.set</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">y</span><span class="nf">.set</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+<span class="n">z</span><span class="nf">.set</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="nf">.get</span><span class="p">());</span>
+</code></pre></div></div>
 
 <p>Note that here we were able to mutate the same value from various immutable references.</p>
 
 <p>This has the same runtime cost as the following:</p>
 
-<pre><code class="language-rust">let mut x = 1;
-let y = &amp;mut x;
-let z = &amp;mut x;
-x = 2;
-*y = 3;
-*z = 4;
-println!("{}", x;
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
+<span class="n">x</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+<span class="o">*</span><span class="n">z</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="p">;</span>
+</code></pre></div></div>
 
 <p>but it has the added benefit of actually compiling successfully.</p>
 
@@ -528,20 +528,20 @@ println!("{}", x;
 
 <p>This relaxes the “no aliasing with mutability” restriction in places where it’s
 unnecessary. However, this also relaxes the guarantees that the restriction provides;
-so if one’s invariants depend on data stored within <code>Cell</code>, one should be careful.</p>
+so if one’s invariants depend on data stored within <code class="language-plaintext highlighter-rouge">Cell</code>, one should be careful.</p>
 
-<p>This is useful for mutating primitives and other <code>Copy</code> types when there is no easy way of
-doing it in line with the static rules of <code>&amp;</code> and <code>&amp;mut</code>.</p>
+<p>This is useful for mutating primitives and other <code class="language-plaintext highlighter-rouge">Copy</code> types when there is no easy way of
+doing it in line with the static rules of <code class="language-plaintext highlighter-rouge">&amp;</code> and <code class="language-plaintext highlighter-rouge">&amp;mut</code>.</p>
 
-<p><a href="http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crlfl74">Gábor Lehel</a> summed up the guarantees provided by <code>Cell</code> in a rather succinct manner:</p>
+<p><a href="http://www.reddit.com/r/rust/comments/378tj6/blog_post_review_requested_container_types/crlfl74">Gábor Lehel</a> summed up the guarantees provided by <code class="language-plaintext highlighter-rouge">Cell</code> in a rather succinct manner:</p>
 
 <blockquote>
   <p>The basic guarantee we need to ensure is that interior references can’t be invalidated (left dangling)
-by mutation of the outer structure. (Think about references to the interiors of types like <code>Option</code>,
-<code>Box</code>, <code>Vec</code>, etc.) <code>&amp;</code>, <code>&amp;mut</code>, and Cell each make a different tradeoff here.
-<code>&amp;</code> allows shared interior references but forbids mutation;
-<code>&amp;mut</code> allows mutation xor interior references but not sharing;
-<code>Cell</code> allows shared mutability but not interior references.</p>
+by mutation of the outer structure. (Think about references to the interiors of types like <code class="language-plaintext highlighter-rouge">Option</code>,
+<code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, etc.) <code class="language-plaintext highlighter-rouge">&amp;</code>, <code class="language-plaintext highlighter-rouge">&amp;mut</code>, and Cell each make a different tradeoff here.
+<code class="language-plaintext highlighter-rouge">&amp;</code> allows shared interior references but forbids mutation;
+<code class="language-plaintext highlighter-rouge">&amp;mut</code> allows mutation xor interior references but not sharing;
+<code class="language-plaintext highlighter-rouge">Cell</code> allows shared mutability but not interior references.</p>
 </blockquote>
 
 <p>Ultimately, while shared mutability can cause many logical errors (as outlined in <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">my previous post
@@ -552,79 +552,79 @@ to the inner type whilst the variant is changed, pointers within that alias may 
 Similarly, if you change the length of a vector while you have an alias to one of its elements, that
 alias may be invalidated.</p>
 
-<p>Since <code>Cell</code> doesn’t allow references to the insides of a type (you can only copy out and copy back
+<p>Since <code class="language-plaintext highlighter-rouge">Cell</code> doesn’t allow references to the insides of a type (you can only copy out and copy back
 in), enums and structs alike are safe to be aliased mutably within this.</p>
 
-<p><a href="https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h">This comment by Eddy also touches on the guarantees of <code>Cell</code> and the alternatives</a></p>
+<p><a href="https://www.reddit.com/r/rust/comments/32ypxp/questions_about_mutability/cqfwl3h">This comment by Eddy also touches on the guarantees of <code class="language-plaintext highlighter-rouge">Cell</code> and the alternatives</a></p>
 
 <h4 id="cost-1">Cost</h4>
 
-<p>There is no runtime cost to using <code>Cell&lt;T&gt;</code>, however if one is using it
-to wrap larger (<code>Copy</code>) structs, it might be worthwhile to instead wrap individual
-fields in <code>Cell&lt;T&gt;</code> since each write is a full copy of the struct.</p>
+<p>There is no runtime cost to using <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code>, however if one is using it
+to wrap larger (<code class="language-plaintext highlighter-rouge">Copy</code>) structs, it might be worthwhile to instead wrap individual
+fields in <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code> since each write is a full copy of the struct.</p>
 
-<h2 id="refcellt"><code>RefCell&lt;T&gt;</code></h2>
+<h2 id="refcellt"><code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code></h2>
 
-<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html"><code>RefCell&lt;T&gt;</code></a> also provides interior mutability, but isn’t restricted to <code>Copy</code> types.</p>
+<p><a href="http://doc.rust-lang.org/doc/std/cell/struct.RefCell.html"><code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code></a> also provides interior mutability, but isn’t restricted to <code class="language-plaintext highlighter-rouge">Copy</code> types.</p>
 
-<p>Instead, it has a runtime cost. <code>RefCell&lt;T&gt;</code> enforces the RWLock pattern at runtime (it’s like a single-threaded mutex),
-unlike <code>&amp;T</code>/<code>&amp;mut T</code> which do so at compile time. This is done by the <code>borrow()</code> and
-<code>borrow_mut()</code> functions, which modify an internal reference count and return smart pointers
+<p>Instead, it has a runtime cost. <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> enforces the RWLock pattern at runtime (it’s like a single-threaded mutex),
+unlike <code class="language-plaintext highlighter-rouge">&amp;T</code>/<code class="language-plaintext highlighter-rouge">&amp;mut T</code> which do so at compile time. This is done by the <code class="language-plaintext highlighter-rouge">borrow()</code> and
+<code class="language-plaintext highlighter-rouge">borrow_mut()</code> functions, which modify an internal reference count and return smart pointers
 which can be dereferenced immutably and mutably respectively. The refcount is restored
 when the smart pointers go out of scope. With this system, we can dynamically ensure that
 there are never any other borrows active when a mutable borrow is active. If the programmer
 attempts to make such a borrow, the thread will panic.</p>
 
-<pre><code class="language-rust">let x = RefCell::new(vec![1,2,3,4]);
-{
-    println!("{:?}", *x.borrow())
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">RefCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
+<span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="n">x</span><span class="nf">.borrow</span><span class="p">())</span>
+<span class="p">}</span>
 
-{
-    let my_ref = x.borrow_mut();
-    my_ref.push(1);
-}
+<span class="p">{</span>
+    <span class="k">let</span> <span class="n">my_ref</span> <span class="o">=</span> <span class="n">x</span><span class="nf">.borrow_mut</span><span class="p">();</span>
+    <span class="n">my_ref</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
 
-</code></pre>
+</code></pre></div></div>
 
-<p>Similar to <code>Cell</code>, this is mainly useful for situations where it’s hard or impossible to satisfy the
+<p>Similar to <code class="language-plaintext highlighter-rouge">Cell</code>, this is mainly useful for situations where it’s hard or impossible to satisfy the
 borrow checker. Generally one knows that such mutations won’t happen in a nested form, but it’s good
 to check.</p>
 
-<p>For large, complicated programs, it becomes useful to put some things in <code>RefCell</code>s to
-make things simpler. For example, a lot of the maps in <a href="https://github.com/rust-lang/rust/blob/620d1ee5346bee10ba7ce129b2e20d6e59f0377d/src/librustc/middle/ty.rs#L803-L987">the <code>ctxt</code> struct</a> in the rust compiler
+<p>For large, complicated programs, it becomes useful to put some things in <code class="language-plaintext highlighter-rouge">RefCell</code>s to
+make things simpler. For example, a lot of the maps in <a href="https://github.com/rust-lang/rust/blob/620d1ee5346bee10ba7ce129b2e20d6e59f0377d/src/librustc/middle/ty.rs#L803-L987">the <code class="language-plaintext highlighter-rouge">ctxt</code> struct</a> in the rust compiler
 internals are inside this wrapper. These are only modified once (during creation, which is not
 right after initialization) or a couple of times in well-separated places. However, since this struct is
 pervasively used everywhere, juggling mutable and immutable pointers would be hard (perhaps impossible)
-and probably form a soup of <code>&amp;</code>-ptrs which would be hard to extend. On the other hand, the <code>RefCell</code>
+and probably form a soup of <code class="language-plaintext highlighter-rouge">&amp;</code>-ptrs which would be hard to extend. On the other hand, the <code class="language-plaintext highlighter-rouge">RefCell</code>
 provides a cheap (not zero-cost) way of safely accessing these. In the future, if someone adds some code
 that attempts to modify the cell when it’s already borrowed, it will cause a (usually deterministic) panic
 which can be traced back to the offending borrow.</p>
 
 <p>Similarly, in Servo’s DOM we have a lot of mutation, most of which is local to a DOM type, but
-some of which crisscrosses the DOM and modifies various things. Using <code>RefCell</code> and <code>Cell</code> to guard
+some of which crisscrosses the DOM and modifies various things. Using <code class="language-plaintext highlighter-rouge">RefCell</code> and <code class="language-plaintext highlighter-rouge">Cell</code> to guard
 all mutation lets us avoid worrying about mutability everywhere, and it simultaneously
 highlights the places where mutation is <em>actually</em> happening.</p>
 
-<p>Note that <code>RefCell</code> should be avoided if a mostly simple solution is possible with <code>&amp;</code> pointers.</p>
+<p>Note that <code class="language-plaintext highlighter-rouge">RefCell</code> should be avoided if a mostly simple solution is possible with <code class="language-plaintext highlighter-rouge">&amp;</code> pointers.</p>
 
 <h4 id="guarantees-2">Guarantees</h4>
 
-<p><code>RefCell</code> relaxes the <em>static</em> restrictions preventing aliased mutation, and
+<p><code class="language-plaintext highlighter-rouge">RefCell</code> relaxes the <em>static</em> restrictions preventing aliased mutation, and
 replaces them with <em>dynamic</em> ones. As such the guarantees have not changed.</p>
 
 <h4 id="cost-2">Cost</h4>
 
-<p><code>RefCell</code> does not allocate, but it contains an additional “borrow state”
+<p><code class="language-plaintext highlighter-rouge">RefCell</code> does not allocate, but it contains an additional “borrow state”
 indicator (one word in size) along with the data.</p>
 
 <p>At runtime each borrow causes a modification/check of the refcount.</p>
 
 <h1 id="synchronous-types">Synchronous types</h1>
 
-<p>Many of the types above cannot be used in a threadsafe manner. Particularly, <code>Rc&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code>,
+<p>Many of the types above cannot be used in a threadsafe manner. Particularly, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>,
 which both use non-atomic ref counts, cannot be used this way. This makes them cheaper to use, but one
-needs thread safe versions of these too. They exist, in the form of <code>Arc&lt;T&gt;</code> and <code>Mutex&lt;T&gt;</code>/<code>RWLock&lt;T&gt;</code></p>
+needs thread safe versions of these too. They exist, in the form of <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code>/<code class="language-plaintext highlighter-rouge">RWLock&lt;T&gt;</code></p>
 
 <p>Note that the non-threadsafe types <em>cannot</em> be sent between threads, and this is checked at compile time.
 I’ll touch on how this is done in a later blog post.</p>
@@ -632,45 +632,45 @@ I’ll touch on how this is done in a later blog post.</p>
 <p>There are many useful wrappers for concurrent programming in the <a href="https://doc.rust-lang.org/nightly/std/sync/index.html">sync</a> module, but I’m only going to cover
 the major ones.</p>
 
-<h2 id="arct"><code>Arc&lt;T&gt;</code></h2>
+<h2 id="arct"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></h2>
 
-<p><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code>Arc&lt;T&gt;</code></a> is just a version of <code>Rc&lt;T&gt;</code> that uses an atomic reference count (hence, “Arc”). This can be sent
+<p><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code></a> is just a version of <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> that uses an atomic reference count (hence, “Arc”). This can be sent
 freely between threads.</p>
 
-<p>C++’s <code>shared_ptr</code> is similar to <code>Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code>Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code>UnsafeCell&lt;T&gt;</code>
-is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code>unsafe</code> blocks).
+<p>C++’s <code class="language-plaintext highlighter-rouge">shared_ptr</code> is similar to <code class="language-plaintext highlighter-rouge">Arc</code>, however in C++s case the inner data is always mutable. For semantics
+similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
+is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code class="language-plaintext highlighter-rouge">unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won’t cause any memory unsafety. Remember that
-writing to a struct is not an atomic operation, and many functions like <code>vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code>UnsafeCell</code>)</p>
+writing to a struct is not an atomic operation, and many functions like <code class="language-plaintext highlighter-rouge">vec.push()</code> can reallocate internally
+and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
 
 <h4 id="guarantees-3">Guarantees</h4>
 
-<p>Like <code>Rc</code>, this provides the (thread safe) guarantee that the destructor for the internal data
-will be run when the last <code>Arc</code> goes out of scope (barring any cycles).</p>
+<p>Like <code class="language-plaintext highlighter-rouge">Rc</code>, this provides the (thread safe) guarantee that the destructor for the internal data
+will be run when the last <code class="language-plaintext highlighter-rouge">Arc</code> goes out of scope (barring any cycles).</p>
 
 <h4 id="cost-3">Cost</h4>
 <p>This has the added cost of using atomics for changing the refcount (which will happen whenever it is cloned
-or goes out of scope). When sharing data from an <code>Arc</code> in
-a single thread, it is preferable to share <code>&amp;</code> pointers whenever possible.</p>
+or goes out of scope). When sharing data from an <code class="language-plaintext highlighter-rouge">Arc</code> in
+a single thread, it is preferable to share <code class="language-plaintext highlighter-rouge">&amp;</code> pointers whenever possible.</p>
 
-<h2 id="mutext-and-rwlockt"><code>Mutex&lt;T&gt;</code> and <code>RwLock&lt;T&gt;</code></h2>
+<h2 id="mutext-and-rwlockt"><code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">RwLock&lt;T&gt;</code></h2>
 
-<p><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>Mutex&lt;T&gt;</code></a> and <a href="https://doc.rust-lang.org/std/sync/struct.RwLock.html"><code>RwLock&lt;T&gt;</code></a> provide mutual-exclusion via RAII guards. For both of these, the
-mutex is opaque until one calls <code>lock()</code> on it, at which point the thread will
+<p><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html"><code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code></a> and <a href="https://doc.rust-lang.org/std/sync/struct.RwLock.html"><code class="language-plaintext highlighter-rouge">RwLock&lt;T&gt;</code></a> provide mutual-exclusion via RAII guards. For both of these, the
+mutex is opaque until one calls <code class="language-plaintext highlighter-rouge">lock()</code> on it, at which point the thread will
 block until a lock can be acquired, and then a guard will be returned. This guard
 can be used to access the inner data (mutably), and the lock will be released when the
 guard goes out of scope.</p>
 
-<pre><code class="language-rust">{
-    let guard = mutex.lock();
-    // guard dereferences mutably to the inner type
-    *guard += 1;
-} // lock released when destructor runs
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
+    <span class="k">let</span> <span class="n">guard</span> <span class="o">=</span> <span class="n">mutex</span><span class="nf">.lock</span><span class="p">();</span>
+    <span class="c">// guard dereferences mutably to the inner type</span>
+    <span class="o">*</span><span class="n">guard</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span> <span class="c">// lock released when destructor runs</span>
+</code></pre></div></div>
 
-<p><code>RwLock</code> has the added benefit of being efficient for multiple reads. It is always
-safe to have multiple readers to shared data as long as there are no writers; and <code>RwLock</code>
+<p><code class="language-plaintext highlighter-rouge">RwLock</code> has the added benefit of being efficient for multiple reads. It is always
+safe to have multiple readers to shared data as long as there are no writers; and <code class="language-plaintext highlighter-rouge">RwLock</code>
 lets readers acquire a “read lock”. Such locks can be acquired concurrently and are kept track of
 via a reference count. Writers must obtain a “write lock” which can only be obtained when all readers
 have gone out of scope.</p>
@@ -689,37 +689,37 @@ can also be slow when there’s a lot of concurrent access happening.</p>
 
 <h1 id="composition">Composition</h1>
 
-<p>A common gripe when reading Rust code is with stuff like <code>Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> and more complicated
+<p>A common gripe when reading Rust code is with stuff like <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> and more complicated
 compositions of such types.</p>
 
 <p>Usually, it’s a case of composing together the guarantees that one needs, without paying for stuff that is
 unnecessary.</p>
 
-<p>For example, <code>Rc&lt;RefCell&lt;T&gt;&gt;</code> is one such composition. <code>Rc</code> itself can’t be dereferenced mutably;
-because <code>Rc</code> provides sharing and shared mutability isn’t good, so we put <code>RefCell</code> inside to get
+<p>For example, <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;T&gt;&gt;</code> is one such composition. <code class="language-plaintext highlighter-rouge">Rc</code> itself can’t be dereferenced mutably;
+because <code class="language-plaintext highlighter-rouge">Rc</code> provides sharing and shared mutability isn’t good, so we put <code class="language-plaintext highlighter-rouge">RefCell</code> inside to get
 dynamically verified shared mutability. Now we have shared mutable data, but it’s shared in a way
 that there can only be one mutator (and no readers) or multiple readers.</p>
 
-<p>Now, we can take this a step further, and have <code>Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code>Rc&lt;Vec&lt;RefCell&lt;T&gt;&gt;&gt;</code>.
+<p>Now, we can take this a step further, and have <code class="language-plaintext highlighter-rouge">Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code class="language-plaintext highlighter-rouge">Rc&lt;Vec&lt;RefCell&lt;T&gt;&gt;&gt;</code>.
 These are both shareable, mutable vectors, but they’re not the same.</p>
 
-<p>With the former, the <code>RefCell</code> is wrapping the <code>Vec</code>, so the <code>Vec</code> in its entirety is mutable.
-At the same time, there can only be one mutable borrow of the whole <code>Vec</code> at a given time. This
+<p>With the former, the <code class="language-plaintext highlighter-rouge">RefCell</code> is wrapping the <code class="language-plaintext highlighter-rouge">Vec</code>, so the <code class="language-plaintext highlighter-rouge">Vec</code> in its entirety is mutable.
+At the same time, there can only be one mutable borrow of the whole <code class="language-plaintext highlighter-rouge">Vec</code> at a given time. This
 means that your code cannot simultaneously work on different elements of the vector from different
-<code>Rc</code> handles. However, we are able to push and pop from the <code>Vec</code> at will. This is similar to an <code>&amp;mut Vec&lt;T&gt;</code>
+<code class="language-plaintext highlighter-rouge">Rc</code> handles. However, we are able to push and pop from the <code class="language-plaintext highlighter-rouge">Vec</code> at will. This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut Vec&lt;T&gt;</code>
 with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code>&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
-<p>In concurrent programs, we have a similar situation with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
+<p>In concurrent programs, we have a similar situation with <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
 
 <p>When reading code that uses these, go in step by step and look at the guarantees/costs provided.</p>
 
 <p>When choosing a composed type, we must do the reverse; figure out which guarantees we want, and at which
-point of the composition we need them. For example, if there is a choice between <code>Vec&lt;RefCell&lt;T&gt;&gt;</code> and <code>RefCell&lt;Vec&lt;T&gt;&gt;</code>,
+point of the composition we need them. For example, if there is a choice between <code class="language-plaintext highlighter-rouge">Vec&lt;RefCell&lt;T&gt;&gt;</code> and <code class="language-plaintext highlighter-rouge">RefCell&lt;Vec&lt;T&gt;&gt;</code>,
 we should figure out the tradeoffs as done above and pick one.</p>
 
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9613016">HN</a>, <a href="http://www.reddit.com/r/rust/comments/37hg1y/wrapper_types_in_rust_choosing_your_guarantees/">Reddit</a></small></p>
@@ -730,16 +730,16 @@ we should figure out the tradeoffs as done above and pick one.</p>
       <p>I’m not sure if this is the technical term for them, but I’ll be calling them that throughout this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>By “stack representation” I mean the data on the stack when a value of this type is held on the stack. For example, a <code>Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code>Vec</code>. Looking at this a different way, a type is <code>Copy</code> if a <code>memcopy</code> of the data copies all the data owned by it. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>By “stack representation” I mean the data on the stack when a value of this type is held on the stack. For example, a <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code class="language-plaintext highlighter-rouge">Vec</code>. Looking at this a different way, a type is <code class="language-plaintext highlighter-rouge">Copy</code> if a <code class="language-plaintext highlighter-rouge">memcopy</code> of the data copies all the data owned by it. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:4" role="doc-endnote">
-      <p><code>Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won’t compile since <code>UnsafeCell&lt;T&gt;</code> isn’t <code>Send</code> or <code>Sync</code>, but we can wrap it in a type and implement <code>Send</code>/<code>Sync</code> for it manually to get <code>Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code>Wrapper</code> is <code>struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won’t compile since <code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code> isn’t <code class="language-plaintext highlighter-rouge">Send</code> or <code class="language-plaintext highlighter-rouge">Sync</code>, but we can wrap it in a type and implement <code class="language-plaintext highlighter-rouge">Send</code>/<code class="language-plaintext highlighter-rouge">Sync</code> for it manually to get <code class="language-plaintext highlighter-rouge">Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code class="language-plaintext highlighter-rouge">Wrapper</code> is <code class="language-plaintext highlighter-rouge">struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:5" role="doc-endnote">
       <p>By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:3" role="doc-endnote">
-      <p><code>&amp;[T]</code> and <code>&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code>&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p><code class="language-plaintext highlighter-rouge">&amp;[T]</code> and <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -784,29 +784,29 @@ a Rust background; please let me know if some code or terminology needs to be ex
 to the same data (or a mutable alias when there are active immutable aliases),
 <strong>even from the same thread</strong>. In essence, it disallows one from doing things like:</p>
 
-<pre><code class="language-rust">let mut x = Vec::new();
-{
-    let ptr = &amp;mut x; // Take a mutable reference to `x`
-    ptr.push(1); // Allowed
-    let y = x[0]; // Not allowed (will not compile): as long as `ptr` is active,
-                  // x cannot be read from ...
-    x.push(1);    // .. or written to
-}
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<span class="p">{</span>
+    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c">// Take a mutable reference to `x`</span>
+    <span class="n">ptr</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Allowed</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Not allowed (will not compile): as long as `ptr` is active,</span>
+                  <span class="c">// x cannot be read from ...</span>
+    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>    <span class="c">// .. or written to</span>
+<span class="p">}</span>
 
 
-// alternatively,
+<span class="c">// alternatively,</span>
 
-let mut x = Vec::new();
-x.push(1); // Allowed
-{
-    let ptr = &amp;x; // Create an immutable reference
-    let y = ptr[0]; // Allowed, nobody can mutate
-    let y = x[0]; // Similarly allowed
-    x.push(1); // Not allowed (will not compile): as long as `ptr` is active,
-               // `x` is frozen for mutation
-}
+<span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Allowed</span>
+<span class="p">{</span>
+    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="c">// Create an immutable reference</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ptr</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Allowed, nobody can mutate</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Similarly allowed</span>
+    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Not allowed (will not compile): as long as `ptr` is active,</span>
+               <span class="c">// `x` is frozen for mutation</span>
+<span class="p">}</span>
 
-</code></pre>
+</code></pre></div></div>
 
 <p>This is essentially the “Read-Write lock” (RWLock) pattern, except it’s not being used in a
 threaded context, and the “locks” are done via static analysis (compile time “borrow checking”).</p>
@@ -825,28 +825,28 @@ are statically guaranteed to not stick around longer than the owner will prevent
 <p><a href="http://doc.rust-lang.org/nightly/book/enums.html">Rust enums</a> provide a form of algebraic data types. A Rust enum is allowed to “contain” data,
 for example you can have the enum</p>
 
-<pre><code class="language-rust">enum StringOrInt {
-    Str(String),
-    Int(i64)
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">StringOrInt</span> <span class="p">{</span>
+    <span class="nf">Str</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span>
+    <span class="nf">Int</span><span class="p">(</span><span class="nb">i64</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>which gives us a type that can either be a variant <code>Str</code>, with an associated string, or a variant <code>Int</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>, with an associated integer.</p>
+<p>which gives us a type that can either be a variant <code class="language-plaintext highlighter-rouge">Str</code>, with an associated string, or a variant <code class="language-plaintext highlighter-rouge">Int</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>, with an associated integer.</p>
 
 <p>With such an enum, we could cause a segfault like so:</p>
 
-<pre><code class="language-rust">let x = Str("Hi!".to_string()); // Create an instance of the `Str` variant with associated string "Hi!"
-let y = &amp;mut x; // Create a mutable alias to x
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">Str</span><span class="p">(</span><span class="s">"Hi!"</span><span class="nf">.to_string</span><span class="p">());</span> <span class="c">// Create an instance of the `Str` variant with associated string "Hi!"</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c">// Create a mutable alias to x</span>
 
-if let Str(ref insides) = x { // If x is a `Str`, assign its inner data to the variable `insides`
-    *y = Int(1); // Set `*y` to `Int(1), therefore setting `x` to `Int(1)` too
-    println!("x says: {}", insides); // Uh oh!
-}
-</code></pre>
+<span class="k">if</span> <span class="k">let</span> <span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">insides</span><span class="p">)</span> <span class="o">=</span> <span class="n">x</span> <span class="p">{</span> <span class="c">// If x is a `Str`, assign its inner data to the variable `insides`</span>
+    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Int</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Set `*y` to `Int(1), therefore setting `x` to `Int(1)` too</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"x says: {}"</span><span class="p">,</span> <span class="n">insides</span><span class="p">);</span> <span class="c">// Uh oh!</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>Here, we invalidated the <code>insides</code> reference because setting <code>x</code> to <code>Int(1)</code> meant that there is no longer a string inside it.
-However, <code>insides</code> is still a reference to a <code>String</code>, and the generated assembly would try to dereference the memory location where
-the pointer to the allocated string <em>was</em>, and probably end up trying to dereference <code>1</code> or some nearby data instead, and cause a segfault.</p>
+<p>Here, we invalidated the <code class="language-plaintext highlighter-rouge">insides</code> reference because setting <code class="language-plaintext highlighter-rouge">x</code> to <code class="language-plaintext highlighter-rouge">Int(1)</code> meant that there is no longer a string inside it.
+However, <code class="language-plaintext highlighter-rouge">insides</code> is still a reference to a <code class="language-plaintext highlighter-rouge">String</code>, and the generated assembly would try to dereference the memory location where
+the pointer to the allocated string <em>was</em>, and probably end up trying to dereference <code class="language-plaintext highlighter-rouge">1</code> or some nearby data instead, and cause a segfault.</p>
 
 <p>Okay, so far so good. We know that for Rust-style enums to work safely in Rust, we need the RWLock pattern. But are there any other
 reasons we need the RWLock pattern? Not many languages have such enums, so this shouldn’t really be a problem for them.</p>
@@ -863,13 +863,13 @@ to dig deeper.</p>
 
 <p>For example,</p>
 
-<pre><code class="language-rust">
-let buf = vec![1,2,3,4];
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">let</span> <span class="n">buf</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
 
-for i in &amp;buf {
-    buf.push(i);
-}
-</code></pre>
+<span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">buf</span> <span class="p">{</span>
+    <span class="n">buf</span><span class="nf">.push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Firstly, this will loop infinitely (if it compiled, which it doesn’t, because Rust prevents this). The
 equivalent C++ example would be <a href="http://stackoverflow.com/questions/5638323/modifying-a-data-structure-while-iterating-over-it">this one</a>, which I <a href="http://manishearth.github.io/Presentations/Rust/#/1/2">use</a> at every opportunity.</p>
@@ -885,7 +885,7 @@ a new, larger allocation may need to be done (freeing the old one), since vector
 <p>This means that when the vector overflows its capacity, it will reallocate, invalidating the reference stored in the
 iterator, and causing use-after-free.</p>
 
-<p>Of course, there is a trivial solution in this case — store a reference to the <code>Vec</code>/<code>vector</code> object inside
+<p>Of course, there is a trivial solution in this case — store a reference to the <code class="language-plaintext highlighter-rouge">Vec</code>/<code class="language-plaintext highlighter-rouge">vector</code> object inside
 the iterator instead of just the pointer to the vector on the heap. This leads to some extra indirection or a larger
 stack size for the iterator (depending on how you implement it), but overall will prevent the memory unsafety.</p>
 
@@ -915,21 +915,21 @@ a hybrid value, or a read happening halfway through a write.</p>
 would have been written with some invariants in mind, and arbitrary reads/writes possibly happening between them
 would invalidate those invariants. For example, a bit of code might first read the length of a vector, and then go ahead
 and iterate through it with a regular for loop bounded on the length.
-The invariant assumed here is the length of the vector. If <code>pop()</code> was called on the vector in some other thread, this invariant could be
-invalidated after the read to <code>length</code> but before the reads elsewhere, possibly causing a segfault or use-after-free in the last iteration.</p>
+The invariant assumed here is the length of the vector. If <code class="language-plaintext highlighter-rouge">pop()</code> was called on the vector in some other thread, this invariant could be
+invalidated after the read to <code class="language-plaintext highlighter-rouge">length</code> but before the reads elsewhere, possibly causing a segfault or use-after-free in the last iteration.</p>
 
 <p>However, we can have a situation similar to this (in spirit) in single threaded code. Consider the following:</p>
 
-<pre><code class="language-rust">let x = some_big_thing();
-let len = x.some_vec.len();
-for i in 0..len {
-    x.do_something_complicated(x.some_vec[i]);
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">some_big_thing</span><span class="p">();</span>
+<span class="k">let</span> <span class="n">len</span> <span class="o">=</span> <span class="n">x</span><span class="py">.some_vec</span><span class="nf">.len</span><span class="p">();</span>
+<span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="mi">0</span><span class="o">..</span><span class="n">len</span> <span class="p">{</span>
+    <span class="n">x</span><span class="nf">.do_something_complicated</span><span class="p">(</span><span class="n">x</span><span class="py">.some_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We have the same invariant here; but can we be sure that <code>x.do_something_complicated()</code> doesn’t modify <code>x.some_vec</code> for
-some reason? In a complicated codebase, where <code>do_something_complicated()</code> itself calls a lot of other functions which may
-also modify <code>x</code>, this can be hard to audit.</p>
+<p>We have the same invariant here; but can we be sure that <code class="language-plaintext highlighter-rouge">x.do_something_complicated()</code> doesn’t modify <code class="language-plaintext highlighter-rouge">x.some_vec</code> for
+some reason? In a complicated codebase, where <code class="language-plaintext highlighter-rouge">do_something_complicated()</code> itself calls a lot of other functions which may
+also modify <code class="language-plaintext highlighter-rouge">x</code>, this can be hard to audit.</p>
 
 <p>Of course, the above example is a simplification and contrived; but it doesn’t seem unreasonable to assume that such
 bugs can happen in large codebases — where many methods being called have side effects which may not always be evident.</p>
@@ -945,7 +945,7 @@ is available in Rust. It’s a type providing interior mutability and behaves li
 Similar wrappers can be written in other languages.</p>
 
 <p>Edit: In case of many primitives like simple integers, the problems with shared mutability turn out to not be a major issue.
-For these, we have a type called <a href="http://doc.rust-lang.org/nightly/std/cell/struct.Cell.html">Cell</a> which lets these be mutated and shared simultaenously. This works on all <code>Copy</code>
+For these, we have a type called <a href="http://doc.rust-lang.org/nightly/std/cell/struct.Cell.html">Cell</a> which lets these be mutated and shared simultaenously. This works on all <code class="language-plaintext highlighter-rouge">Copy</code>
 types; i.e. types which only need to be copied on the stack to be copied. (Unlike types involving pointers or other indirection)</p>
 
 <p>This sort of bug is a good source of reentrancy problems too.</p>
@@ -981,28 +981,28 @@ Mutable aliasing is important to fix however, because we can make a lot of assum
 Namely, by looking at a line of code we can know what happened wrt the locals. If there is the possibility of mutable aliasing out there; there’s the
 possibility that other locals were modified too. A very simple example is:</p>
 
-<pre><code class="language-rust">fn look_ma_no_temp_var_l33t_interview_swap(&amp;mut x, &amp;mut y) {
-    *x = *x + *y;
-    *y = *x - *y;
-    *x = *x - *y;
-}
-// or
-fn look_ma_no_temp_var_rockstar_interview_swap(&amp;mut x, &amp;mut y) {
-    *x = *x ^ *y;
-    *y = *x ^ *y;
-    *x = *x ^ *y;
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">look_ma_no_temp_var_l33t_interview_swap</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">+</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c">// or</span>
+<span class="k">fn</span> <span class="nf">look_ma_no_temp_var_rockstar_interview_swap</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+    <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>In both cases, when the two references are the same<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, instead of swapping, the two variables get set to zero.
-A user (internal to your library, or an API consumer) would expect <code>swap()</code> to not change anything when fed equal
+A user (internal to your library, or an API consumer) would expect <code class="language-plaintext highlighter-rouge">swap()</code> to not change anything when fed equal
 references, but this is doing something totally different. This assumption could get used in a program; for example instead
 of skipping the passes in an array sort where the slot is being compared with itself, one might just go ahead with it
-because <code>swap()</code> won’t change anything there anyway; but it does, and suddenly your sort function fills everything with
+because <code class="language-plaintext highlighter-rouge">swap()</code> won’t change anything there anyway; but it does, and suddenly your sort function fills everything with
 zeroes. This could be solved by documenting the precondition and using asserts, but the documentation gets harder and harder
-as <code>swap()</code> is used in the guts of other methods.</p>
+as <code class="language-plaintext highlighter-rouge">swap()</code> is used in the guts of other methods.</p>
 
-<p>Of course, the example above was contrived. It’s well known that those <code>swap()</code> implementations have that precondition,
+<p>Of course, the example above was contrived. It’s well known that those <code class="language-plaintext highlighter-rouge">swap()</code> implementations have that precondition,
 and shouldn’t be used in such cases. Also, in most swap algorithms it’s trivial to ignore cases when you’re comparing
 an element with itself, generally done by bounds checking.</p>
 
@@ -1033,7 +1033,7 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
       <p>Hereafter referred to as “The Question” <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:1" role="doc-endnote">
-      <p>Note: <code>Str</code> and <code>Int</code> are variant names which I chose; they are not keywords. Additionally, I’m using “associated foo” loosely here; Rust <em>does</em> have a distinct concept of “associated data” but it’s not relevant to this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Note: <code class="language-plaintext highlighter-rouge">Str</code> and <code class="language-plaintext highlighter-rouge">Int</code> are variant names which I chose; they are not keywords. Additionally, I’m using “associated foo” loosely here; Rust <em>does</em> have a distinct concept of “associated data” but it’s not relevant to this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>Note that this isn’t possible in Rust due to the borrow checker. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
@@ -1104,18 +1104,18 @@ the codebase), in Rust the compiler can do this for me!</p>
 extra allocations could be heavy, especially given that this was a feature that would be used
 by very few.</p>
 
-<p>So first I started off by adding a field to the <code>FieldInfo</code> struct which was a <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R285">slice of attributes</a>. Notice that I added a lifetime specifier, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R273">the <code>'a</code></a> to the struct definition.</p>
+<p>So first I started off by adding a field to the <code class="language-plaintext highlighter-rouge">FieldInfo</code> struct which was a <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R285">slice of attributes</a>. Notice that I added a lifetime specifier, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R273">the <code class="language-plaintext highlighter-rouge">'a</code></a> to the struct definition.</p>
 
-<pre><code class="language-rust">/// Summary of the relevant parts of a struct/enum field.
-pub struct FieldInfo&lt;'a&gt; {
-    /// ...
-    /// The attributes on the field
-    pub attrs: &amp;'a [ast::Attribute],
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Summary of the relevant parts of a struct/enum field.</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="c">/// ...</span>
+    <span class="c">/// The attributes on the field</span>
+    <span class="k">pub</span> <span class="n">attrs</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">],</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>For those of you new to Rust, a lifetime is part of the type of a reference. It’s related to the scope of the reference, and generally can be treated as
-a generic parameter. So, for example, here, I have a <code>FieldInfo</code> with a lifetime parameter of <code>'a</code> where <code>'a</code> is the lifetime of the inner slice of attributes.
+a generic parameter. So, for example, here, I have a <code class="language-plaintext highlighter-rouge">FieldInfo</code> with a lifetime parameter of <code class="language-plaintext highlighter-rouge">'a</code> where <code class="language-plaintext highlighter-rouge">'a</code> is the lifetime of the inner slice of attributes.
 If I construct this struct with slices from different scopes, its type will be different each time. Lifetimes can get automatically cast depending on their context however,
 and quite often they get elided away, so one doesn’t need to specify them that much (aside from struct/enum definitions). You can find more information <a href="http://doc.rust-lang.org/nightly/book/ownership.html#lifetimes">in the Rust book</a></p>
 
@@ -1123,95 +1123,95 @@ and quite often they get elided away, so one doesn’t need to specify them that
 to <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1155">their destination</a> through the chained methods.</p>
 
 <p>An important thing to note here is that none of the lifetime specifiers you see now in the commit were added when I did this. For example, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1410">the return value
-of <code>create_struct_pattern</code></a> was
-<code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)</code> at this point, not <code>(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)</code>.
+of <code class="language-plaintext highlighter-rouge">create_struct_pattern</code></a> was
+<code class="language-plaintext highlighter-rouge">(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)</code> at this point, not <code class="language-plaintext highlighter-rouge">(P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)</code>.
 You can ignore the complicated types being passed around, for now just pretend that a slice of attributes was returned.</p>
 
 <p>Now comes the magic. After these small changes necessary for the feature, I basically let the compiler do the rest of the work. See, at this point the code was wrong.
 I had forgotten lifetime specifiers in places where they were important, and still wasn’t sure if storing a reference would in fact be possible in the first place.
 However, the compiler was smart enough to figure things out for me. It would tell me to add lifetime specifiers, and I would add them.</p>
 
-<p>First, the compiler asked me to add <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R297">a lifetime to the <code>FieldInfo</code> parts of <code>SubstructureFields</code></a>. So, the following:</p>
+<p>First, the compiler asked me to add <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R297">a lifetime to the <code class="language-plaintext highlighter-rouge">FieldInfo</code> parts of <code class="language-plaintext highlighter-rouge">SubstructureFields</code></a>. So, the following:</p>
 
-<pre><code class="language-rust">pub enum SubstructureFields&lt;'a&gt; {
-    Struct(Vec&lt;FieldInfo&gt;),
-    EnumMatching(usize, &amp;'a ast::Variant, Vec&lt;FieldInfo&gt;),
-    // ...
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
+    <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>became</p>
 
-<pre><code class="language-rust">pub enum SubstructureFields&lt;'a&gt; {
-    Struct(Vec&lt;FieldInfo&lt;'a&gt;&gt;),
-    EnumMatching(usize, &amp;'a ast::Variant, Vec&lt;FieldInfo&lt;'a&gt;&gt;),
-    // ...
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
+    <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This needed to happen because elision doesn’t work for structs and enums,
-and besides, the compiler would need to know if the <code>&amp;ast::Variant</code> was supposed to be the same lifetime as the parameter of the <code>FieldInfo</code>s. I decided
-to just use the existing <code>'a</code> parameter, which meant that yes, the <code>&amp;ast::Variant</code> was supposed to live just as long. I could also have opted to give the <code>FieldInfo</code>s
-a different lifetime by adding a <code>'b</code> parameter, but I guessed that it would work this way too (knowing the origin of the fieldinfo and variant, and that implicit lifetime casting would
+and besides, the compiler would need to know if the <code class="language-plaintext highlighter-rouge">&amp;ast::Variant</code> was supposed to be the same lifetime as the parameter of the <code class="language-plaintext highlighter-rouge">FieldInfo</code>s. I decided
+to just use the existing <code class="language-plaintext highlighter-rouge">'a</code> parameter, which meant that yes, the <code class="language-plaintext highlighter-rouge">&amp;ast::Variant</code> was supposed to live just as long. I could also have opted to give the <code class="language-plaintext highlighter-rouge">FieldInfo</code>s
+a different lifetime by adding a <code class="language-plaintext highlighter-rouge">'b</code> parameter, but I guessed that it would work this way too (knowing the origin of the fieldinfo and variant, and that implicit lifetime casting would
 fix most issues that cropped up). I didn’t need to think this out much, though — the compiler gave me a suggestion and I could simply copy it.</p>
 
-<p>The next error was in <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1463"><code>create_enum_variant_pattern()</code></a>
-and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1404"><code>create_struct_pattern()</code></a> as well as some other places.</p>
+<p>The next error was in <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1463"><code class="language-plaintext highlighter-rouge">create_enum_variant_pattern()</code></a>
+and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R1404"><code class="language-plaintext highlighter-rouge">create_struct_pattern()</code></a> as well as some other places.</p>
 
 <p>Here, the method had a signature of</p>
 
-<pre><code class="language-rust">
-fn create_enum_variant_pattern(&amp;self,
-                               cx: &amp;mut ExtCtxt,
-                               enum_ident: ast::Ident,
-                               variant: &amp;ast::Variant,
-                               prefix: &amp;str,
-                               mutbl: ast::Mutability)
--&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;[ast::Attribute])&gt;)
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">fn</span> <span class="nf">create_enum_variant_pattern</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+                               <span class="n">cx</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">ExtCtxt</span><span class="p">,</span>
+                               <span class="n">enum_ident</span><span class="p">:</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Ident</span><span class="p">,</span>
+                               <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span>
+                               <span class="n">prefix</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span>
+                               <span class="n">mutbl</span><span class="p">:</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Mutability</span><span class="p">)</span>
+<span class="k">-&gt;</span> <span class="p">(</span><span class="n">P</span><span class="o">&lt;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Pat</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Span</span><span class="p">,</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Ident</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&amp;</span><span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">])</span><span class="o">&gt;</span><span class="p">)</span>
+</code></pre></div></div>
 
 <p>and I changed it to</p>
 
-<pre><code class="language-rust">
-fn create_enum_variant_pattern&lt;'a&gt;(&amp;self,
-                               cx: &amp;mut ExtCtxt,
-                               enum_ident: ast::Ident,
-                               variant: &amp;'a ast::Variant,
-                               prefix: &amp;str,
-                               mutbl: ast::Mutability)
--&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">fn</span> <span class="n">create_enum_variant_pattern</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span>
+                               <span class="n">cx</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">ExtCtxt</span><span class="p">,</span>
+                               <span class="n">enum_ident</span><span class="p">:</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Ident</span><span class="p">,</span>
+                               <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span>
+                               <span class="n">prefix</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span>
+                               <span class="n">mutbl</span><span class="p">:</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Mutability</span><span class="p">)</span>
+<span class="k">-&gt;</span> <span class="p">(</span><span class="n">P</span><span class="o">&lt;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Pat</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Span</span><span class="p">,</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Ident</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">])</span><span class="o">&gt;</span><span class="p">)</span>
+</code></pre></div></div>
 
-<p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code>StructDef</code> reference and returning it. What if the <code>StructDef</code> doesn’t live long enough?
+<p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code class="language-plaintext highlighter-rouge">StructDef</code> reference and returning it. What if the <code class="language-plaintext highlighter-rouge">StructDef</code> doesn’t live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there’s no single way to make the fix.
-In this case, the compiler suggested I add a <code>'a</code> to <code>&amp;StructDef</code> and the returned <code>&amp;[Attribute]</code>, and I did so. The <code>'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code>self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This meant that the returned attribute of the function will
-have a lifetime tied to <code>self</code> and the input <code>StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
+In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This meant that the returned attribute of the function will
+have a lifetime tied to <code class="language-plaintext highlighter-rouge">self</code> and the input <code class="language-plaintext highlighter-rouge">StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
 
-<pre><code class="language-rust">fn minicreate(&amp;self, variant: &amp;ast::Variant) -&gt; &amp;[ast::Attribute] {
-    // do stuff
-    // return variant.attributes
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
+    <span class="c">// do stuff</span>
+    <span class="c">// return variant.attributes</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>and changed it to</p>
 
-<pre><code class="language-rust">// we are sure that the returned slice cannot outlive the variant argument
-fn minicreate&lt;'a&gt;(&amp;self, variant: &amp;'a ast::Variant) -&gt; &amp;'a [ast::Attribute] {
-    // do stuff
-    // return variant.attributes
-}
-</code></pre>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// we are sure that the returned slice cannot outlive the variant argument</span>
+<span class="k">fn</span> <span class="n">minicreate</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
+    <span class="c">// do stuff</span>
+    <span class="c">// return variant.attributes</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Again, I didn’t need to think this out much (I’m only thinking it through now for this blog post). I followed the suggestion given to me by the compiler:</p>
 
-<pre><code class="language-text">error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: cannot infer an appropriate lifetime for automatic coercion due to conflicting requirements
 help: consider using an explicit lifetime parameter as shown: fn create_enum_variant_pattern&lt;'a&gt;(&amp;self, cx: &amp;mut ExtCtxt, enum_ident: ast::Ident, variant: &amp;'a ast::Variant, prefix: &amp;str, mutbl: ast::Mutability) -&gt; (P&lt;ast::Pat&gt;, Vec&lt;(Span, Option&lt;Ident&gt;, P&lt;Expr&gt;, &amp;'a [ast::Attribute])&gt;)
 
-</code></pre>
+</code></pre></div></div>
 
 <p>There were a couple of similar errors elsewhere that were caused by tying these two lifetimes together. Since these methods were chained, updating the lifetimes of a child method
 would mean that I would have to now update the parent method which passes its arguments down to the children and returns a modification of its return value (and thus must now impose the
-same restrictions on its own signature). All of this was done by just listening to the suggestions of the compiler (which all contain a function signature to try out). In <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R890">some cases</a> I introduced a <code>'b</code> lifetime, because tying it to <code>'a</code>
+same restrictions on its own signature). All of this was done by just listening to the suggestions of the compiler (which all contain a function signature to try out). In <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R890">some cases</a> I introduced a <code class="language-plaintext highlighter-rouge">'b</code> lifetime, because tying it to <code class="language-plaintext highlighter-rouge">'a</code>
 (the self lifetime parameter) was possibly too restrictive. All of this at the suggestion of the compiler.</p>
 
 <p>While this all seems long and complicated, in reality it wasn’t. I simply added the field to the initial struct, tried compiling a couple of times to figure out which code needed updating
@@ -1231,7 +1231,7 @@ with much cognitive overhead; I could just follow the compiler and it fixed ever
       <p>Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn’t prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn’t want to take. Additionally, whilst a shared pointer to the vector itself is immune to the issue of the vector being moved, since this was an API, someone consuming the API might take a reference of an attribute and hold on to it long enough for it to become invalidated. This is something we can’t have either – an API consumer should not have to worry about where the pointers will invalidate. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
-      <p>Note: This is not the lifetime of the reference <code>&amp;self</code>, which is the lifetime of the pointer (<code>&amp;'b self</code>), but the lifetime parameter of <code>self</code>, a <code>TraitDef&lt;'a&gt;</code>, which has a lifetime parameter for its child fields. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>Note: This is not the lifetime of the reference <code class="language-plaintext highlighter-rouge">&amp;self</code>, which is the lifetime of the pointer (<code class="language-plaintext highlighter-rouge">&amp;'b self</code>), but the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code>, a <code class="language-plaintext highlighter-rouge">TraitDef&lt;'a&gt;</code>, which has a lifetime parameter for its child fields. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

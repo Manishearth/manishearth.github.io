@@ -128,7 +128,7 @@ these are internal APIs and as such will never stabilize, so Clippy needs to be
 used with nightly Rust.</p>
 
 <p>We’re hoping this will change soon! The plan is that Clippy will eventually
-be distributed by Rustup, so something like <code>rustup component add clippy</code> will
+be distributed by Rustup, so something like <code class="language-plaintext highlighter-rouge">rustup component add clippy</code> will
 get you the clippy binary.</p>
 
 <p>The first steps are <a href="https://github.com/rust-lang/rust/pull/51122">happening</a>, we’re planning on setting it up so that when it compiles
@@ -159,10 +159,10 @@ its help enforcing the general “Rust Style”.</p>
 <p>So we came up with a better division of lints:</p>
 
 <ul>
-  <li>Correctness (Deny): Probable bugs, e.g. calling <code>.clone()</code> on <code>&amp;&amp;T</code>, which clones the (<code>Copy</code>) reference and not the actual type</li>
-  <li>Style (Warn): Style issues; where the fix usually doesn’t semantically change the code. For example, having a method named <code>into_foo()</code> that doesn’t take <code>self</code> by-move</li>
-  <li>Complexity (Warn): For detecting unnecessary code complexities and helping simplify them. For example, replacing <code>.filter(..).next()</code> with <code>.find(..)</code></li>
-  <li>Perf (Warn): Detecting potential performance footguns, like using <code>Box&lt;Vec&lt;T&gt;&gt;</code> or calling <code>.or(foo())</code> instead of <code>or_else(foo)</code>.</li>
+  <li>Correctness (Deny): Probable bugs, e.g. calling <code class="language-plaintext highlighter-rouge">.clone()</code> on <code class="language-plaintext highlighter-rouge">&amp;&amp;T</code>, which clones the (<code class="language-plaintext highlighter-rouge">Copy</code>) reference and not the actual type</li>
+  <li>Style (Warn): Style issues; where the fix usually doesn’t semantically change the code. For example, having a method named <code class="language-plaintext highlighter-rouge">into_foo()</code> that doesn’t take <code class="language-plaintext highlighter-rouge">self</code> by-move</li>
+  <li>Complexity (Warn): For detecting unnecessary code complexities and helping simplify them. For example, replacing <code class="language-plaintext highlighter-rouge">.filter(..).next()</code> with <code class="language-plaintext highlighter-rouge">.find(..)</code></li>
+  <li>Perf (Warn): Detecting potential performance footguns, like using <code class="language-plaintext highlighter-rouge">Box&lt;Vec&lt;T&gt;&gt;</code> or calling <code class="language-plaintext highlighter-rouge">.or(foo())</code> instead of <code class="language-plaintext highlighter-rouge">or_else(foo)</code>.</li>
   <li>Pedantic (Allow): Controversial or exceedingly pedantic lints</li>
   <li>Nursery (Allow): For lints which are buggy or need more work</li>
   <li>Cargo (Allow): Lints about your Cargo setup</li>
@@ -179,12 +179,12 @@ its help enforcing the general “Rust Style”.</p>
 and pinning down an idea of stability.</p>
 
 <p>The general plan we have right now is to have the same idea of lint stability as rustc; essentially
-we do not guarantee stability under <code>#[deny(lintname)]</code>. This is mostly fine since <code>deny</code> only affects
-the current crate (dependencies have their lints capped) so at most you’ll be forced to slap on an <code>allow</code>
+we do not guarantee stability under <code class="language-plaintext highlighter-rouge">#[deny(lintname)]</code>. This is mostly fine since <code class="language-plaintext highlighter-rouge">deny</code> only affects
+the current crate (dependencies have their lints capped) so at most you’ll be forced to slap on an <code class="language-plaintext highlighter-rouge">allow</code>
 somewhere after a rustup.</p>
 
 <p>With specifics, this means that we’ll never remove lints. We may recategorize them, or “deprecate” them
-(which makes the lint do nothing, but keeps the name around so that <code>#[allow(lintname)]</code> doesn’t break the build
+(which makes the lint do nothing, but keeps the name around so that <code class="language-plaintext highlighter-rouge">#[allow(lintname)]</code> doesn’t break the build
 aside from emitting a warning).</p>
 
 <p>We’ll also not change what individual lints do fundamentally. The kinds of changes you can expect are:</p>
