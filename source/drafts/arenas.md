@@ -12,9 +12,11 @@ Arenas aren't something you would typically reach for in Rust so fewer people kn
 
 Furthermore, there's a set of _really cool_ lifetime effects involved when implementing self-referential arenas, that I don't think have been written about before.
 
-I'm mostly writing this to talk about the cool lifetime effects, but I figured it's worth writing a general introduction that has something for all Rustaceans.
+I'm mostly writing this to talk about the cool lifetime effects, but I figured it's worth writing a general introduction that has something for all Rustaceans. If you know what arenas are and just want the cool lifetimes you can jump directly to [the section on implementing self-referential arenas][section-3].
 
-# What's an arena?
+ [section-3]: #implementing-a-self-referential-arena
+
+## What's an arena?
 
 An arena is essentially a way to group up allocations that are expected to have the same lifetime. Quite often you need to allocate a bunch of objects for the lifetime of an event, after which they can all be thrown away wholesale. It's inefficient to call into the system allocator each time, and far more preferable to _preallocate_ a bunch of memory for your objects, cleaning it all up at once once you're done with them as a whole.
 
@@ -26,11 +28,15 @@ Another goal might be that you want to write self referential data, like a compl
 
 These two goals are not necessarily disjoint: You may wish to use an arena to achieve both goals simultaneously. But you can also just have an arena that disallows self referential types (but has other nice properties). Later in this post I'm going to implement an arena that allows self-referential types but is not great on allocation pressure, mostly for ease of implementation. _Typically_ if you're writing an arena for self-referential types you can make it simultaneously reduce allocator pressure, but there can be tradeoffs.
 
-# How can I use an arena in Rust?
+## How can I use an arena in Rust?
 
-Typically to _use_ an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of, though [a cursory search of "arena" on crates.io][crates-search] turns up some promising candidates.
+Typically to _use_ an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of that I'll talk about below, though [a cursory search of "arena" on crates.io][crates-search] turns up many other promising candidates.
 
-## Bumpalo
+I'll also quickly note that if you just need cyclic graph structures, you don't _have_ to use an arena, the [`petgraph`] crate is often sufficient.
+
+ [`petgraph`]: https://docs.rs/petgraph/
+
+### Bumpalo
 
 [`Bumpalo`] is a fast "bump allocator", which allows heterogenous contents (but not cyclic references).
 
@@ -61,3 +67,51 @@ Rust does support swapping out the global allocator used by `Box`, `Vec`, `HashM
  [`bumpalo`]: https://docs.rs/bumpalo
  [bumpalo::boxed]: https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html
  [bumpalo::collections]: https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html
+
+### `typed-arena`
+
+[`typed-arena`] is an arena allocator that can only store objects of a single type, but it does allow for setting up cyclic references:
+
+```rust
+// Example from typed-arena docs
+
+use std::cell::Cell;
+use typed_arena::Arena;
+
+struct CycleParticipant<'a> {
+    other: Cell<Option<&'a CycleParticipant<'a>>>,
+}
+
+let arena = Arena::new();
+
+let a = arena.alloc(CycleParticipant { other: Cell::new(None) });
+let b = arena.alloc(CycleParticipant { other: Cell::new(None) });
+
+// mutate them after the fact to set up a cycle
+a.other.set(Some(b));
+b.other.set(Some(a));
+```
+
+Unlike `bumpalo`, `typed-arena` will always run destructors on its contents when the arena itself goes out of scope[^1]
+
+
+ [`typed-arena`]: https://docs.rs/typed-arena/
+ [^1]: You may wonder how it is safe for destructors to be safely run on cyclic references -- after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We'll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch">ones that use `#![may_dangle]`</a>.
+
+## Implementing a self-referential arena
+
+Self referential arenas are interesting because, typically, Rust is very very wary of self-referential data. But arenas let you clearly separate the step of "I don't care about this object" and "this object can be deleted" in a way that is sufficient to allow self-referential and cyclic types.
+
+The key to implementing an arena `Arena` with entries typed as `Entry` is in the following rules:
+
+ - `Arena` and `Entry` should both have a lifetime parameter: `Arena<'entry>` and `Entry<'entry>`
+ - `Arena` methods should all receive `Arena` as `&'arena self`, i.e. their `self` type is `&'arena Arena<'arena>`
+ - `Entry` should almost always be passed around as `&'entry Entry<'entry>` (it's useful to make an alias for this)
+
+That's basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. 
+
+My crate [`elsa`] implements an arena in 100% safe code [in one of its examples][mutable_arena]. This arena does _not_ save on allocations since [`elsa::FrozenVec`] requires its contents be behind some indirection, and it's not generic, but it's a reasonable way to illustrate how the lifetimes work without getting into the weeds of `unsafe`.
+
+ [`elsa`]: https://docs.rs/elsa
+ [`elsa::FrozenVec`]: https://docs.rs/elsa/1.4.0/elsa/vec/struct.FrozenVec.html
+ [mutable_arena]: https://github.com/Manishearth/elsa/blob/d23795f144a598d10bb21d8598cef4ed3d087522/examples/mutable_arena.rs
