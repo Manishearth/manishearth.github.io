@@ -116,7 +116,7 @@ The key to implementing an arena `Arena` with entries typed as `Entry` is in the
  - `Arena` and `Entry` should both have a lifetime parameter: `Arena<'arena>` and `Entry<'arena>`
  - `Arena` methods should all receive `Arena<'arena>` as `&'arena self`, i.e. their `self` type is `&'arena Arena<'arena>`
  - `Entry` should almost always be passed around as `&'arena Entry<'arena>` (it's useful to make an alias for this)
- - Use interior mutability, `&mut self` on `Arena` will make everything stop compiling. If using `unsafe` for mutability, make sure you have a `PhantomData` for `RefCell<Entry<'arena>>` somewhere.
+ - Use interior mutability; `&mut self` on `Arena` will make everything stop compiling. If using `unsafe` for mutability, make sure you have a `PhantomData` for `RefCell<Entry<'arena>>` somewhere.
 
 That's basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. Armed with the above rules you should be able to make your custom arena work with the guarantees you need without having to understand what's going on with the underlying lifetimes.
 
