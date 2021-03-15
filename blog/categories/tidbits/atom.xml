@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Tidbits | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/tidbits/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-03-15T15:47:34+00:00</updated>
+  <updated>2021-03-15T20:23:58+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -46,7 +46,7 @@
 
 <h3 id="bumpalo">Bumpalo</h3>
 
-<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents but not cyclic references.</p>
+<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents, and only allows cycles if you do not care about destructors getting run.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
 
@@ -66,7 +66,7 @@
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <p>Rust does support swapping out the global allocator used by <code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, <code class="language-plaintext highlighter-rouge">HashMap</code>, etc using <a href="https://doc.rust-lang.org/std/alloc/index.html#the-global_allocator-attribute"><code class="language-plaintext highlighter-rouge">#![global_allocator]</code></a>; and <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> supports being used in this way, so this crate is also useful for environments where you just need a fast bump allocator (e.g. light allocation in WASM).</p>
 
