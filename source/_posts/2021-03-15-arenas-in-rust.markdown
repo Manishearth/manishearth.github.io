@@ -39,7 +39,7 @@ I'll note that if you just need cyclic graph structures, you don't _have_ to use
 
 ### Bumpalo
 
-[`Bumpalo`] is a fast "bump allocator", which allows heterogenous contents but not cyclic references.
+[`Bumpalo`] is a fast "bump allocator", which allows heterogenous contents, and only allows cycles if you do not care about destructors getting run.
 
 ```rust
 use bumpalo::Bump;
@@ -60,7 +60,7 @@ let scooter = bump.alloc(Doggo {
 scooter.age += 1;
 ```
 
-Every call to [`Bump::alloc()`] returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other[^0]. By default it does not call destructors on its contents; however you can use [`bumpalo::boxed`][bumpalo::boxed] (or custom allocators on Nightly) to get this behavior. You can similarly use [`bumpalo::collections`][bumpalo::collections] to get [`bumpalo`]-backed vectors and strings.
+Every call to [`Bump::alloc()`] returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other[^0]. By default it does not call destructors on its contents; however you can use [`bumpalo::boxed`][bumpalo::boxed] (or custom allocators on Nightly) to get this behavior. You can similarly use [`bumpalo::collections`][bumpalo::collections] to get [`bumpalo`]-backed vectors and strings. [`bumpalo::boxed`][bumpalo::boxed] will not be allowed to participate in cycles.
 
 Rust does support swapping out the global allocator used by `Box`, `Vec`, `HashMap`, etc using [`#![global_allocator]`][global-alloc]; and [`bumpalo`] supports being used in this way, so this crate is also useful for environments where you just need a fast bump allocator (e.g. light allocation in WASM).
 
