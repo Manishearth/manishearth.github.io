@@ -193,6 +193,10 @@
 
 <p>It’s pretty rare to need to implement your own arena – <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> and <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> cover most of the use cases, and if they don’t cover yours you probably can find something that does on <a href="https://crates.io/search?q=arena">crates.io</a>. But if you really need to, or if you’re interested in the nitty-gritty lifetime details, this section is for you.</p>
 
+<div class="post-aside">
+<p>A note for people less familiar with lifetimes: the lifetimes in the syntaxes <code>&amp;'a Foo</code> and <code>Foo&lt;'b&gt;</code> mean different things. <code>'a</code> in <code>&amp;'a Foo</code> is the lifetime <em>of</em> <code>Foo</code>, or, at least the lifetime of <em>this</em> reference to <code>Foo</code>. <code>'b</code> in <code>Foo&lt;'b&gt;</code> is a lifetime <em>parameter</em> of <code>Foo</code>, and typically means something like “the lifetime of data <code>Foo</code> is allowed to reference”.</p>
+</div>
+
 <p>The key to implementing an arena <code class="language-plaintext highlighter-rouge">Arena</code> with entries typed as <code class="language-plaintext highlighter-rouge">Entry</code> is in the following rules:</p>
 
 <ul>
@@ -235,7 +239,7 @@
 
 <p>The lifetime <code class="language-plaintext highlighter-rouge">'arena</code> is essentially “the lifetime of the arena itself”. This is where it starts getting weird: typically if your type has a lifetime parameter, the caller gets to pick what goes in there. You don’t get to just say “this is the lifetime of the object itself”, the caller would typically be able to instantiate an <code class="language-plaintext highlighter-rouge">Arena&lt;'static&gt;</code> if they wish, or an <code class="language-plaintext highlighter-rouge">Arena&lt;'a&gt;</code> for some <code class="language-plaintext highlighter-rouge">'a</code>. But here we’re declaring that <code class="language-plaintext highlighter-rouge">'arena</code> is the lifetime of the arena itself; clearly something fishy is happenning here.</p>
 
-<p>Here’s we actually implement the arena:</p>
+<p>Here’s where we actually implement the arena:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
