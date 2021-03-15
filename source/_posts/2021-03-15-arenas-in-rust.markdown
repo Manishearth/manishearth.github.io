@@ -32,9 +32,10 @@ These two goals are not necessarily disjoint: You may wish to use an arena to ac
 
 Typically to _use_ an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of that I'll talk about below, though [a cursory search of "arena" on crates.io][crates-search] turns up many other promising candidates.
 
-I'll note that if you just need cyclic graph structures, you don't _have_ to use an arena, the excellent [`petgraph`] crate is often sufficient.
+I'll note that if you just need cyclic graph structures, you don't _have_ to use an arena, the excellent [`petgraph`] crate is often sufficient. [`slotmap`] is also useful; it's a map-like datastructure useful for self-referential data, based on generational indexing.
 
  [`petgraph`]: https://docs.rs/petgraph/
+ [`slotmap`]: https://docs.rs/slotmap/
 
 ### Bumpalo
 
