@@ -9,7 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="There’s been some discussion about arenas in Rust recently. Arenas aren’t something you would typically reach for in Rust so fewer people know about &hellip;">
+  <meta name="description" content="There’s been some discussion about arenas in Rust recently, and I thought I’d write about them. Arenas aren’t something you would typically reach for &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -17,7 +17,7 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Arenas in Rust">
-      <meta property="twitter:description" content="There’s been some discussion about arenas in Rust recently. Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for &hellip;">
+      <meta property="twitter:description" content="There’s been some discussion about arenas in Rust recently, and I thought I’d write about them. Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -110,21 +110,21 @@
   </header>
 
 
-<div class="entry-content"><p>There’s been some discussion about arenas in Rust recently.</p>
+<div class="entry-content"><p>There’s been some discussion about arenas in Rust recently, and I thought I’d write about them.</p>
 
 <p>Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional <code class="language-plaintext highlighter-rouge">unsafe</code>, so there’s no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust fields where arenas are more common.</p>
 
 <p>Furthermore, there’s a set of <em>really cool</em> lifetime effects involved when implementing self-referential arenas, that I don’t think have been written about before.</p>
 
-<p>I’m mostly writing this to talk about the cool lifetime effects, but I figured it’s worth writing a general introduction that has something for all Rustaceans. If you know what arenas are and just want the cool lifetimes you can skip directly to <a href="#implementing-a-self-referential-arena">the section on implementing self-referential arenas</a>.</p>
+<p>I’m mostly writing this to talk about the cool lifetime effects, but I figured it’s worth writing a general introduction that has something for all Rustaceans. If you know what arenas are and just want the cool lifetimes you can skip directly to <a href="#implementing-a-self-referential-arena">the section on implementing self-referential arenas</a>. Otherwise, read on.</p>
 
 <h2 id="whats-an-arena">What’s an arena?</h2>
 
-<p>An arena is essentially a way to group up allocations that are expected to have the same lifetime. Quite often you need to allocate a bunch of objects for the lifetime of an event, after which they can all be thrown away wholesale. It’s inefficient to call into the system allocator each time, and far more preferable to <em>preallocate</em> a bunch of memory for your objects, cleaning it all up at once once you’re done with them as a whole.</p>
+<p>An arena is essentially a way to group up allocations that are expected to have the same lifetime. Sometimes you need to allocate a bunch of objects for the lifetime of an event, after which they can all be thrown away wholesale. It’s inefficient to call into the system allocator each time, and far more preferable to <em>preallocate</em> a bunch of memory for your objects, cleaning it all up at once once you’re done with them.</p>
 
 <p>Broadly speaking, there are two reasons you might wish to use an arena:</p>
 
-<p>Firstly, your primary goal may be to reduce allocation pressure, as mentioned above. For example, in a game or application, there may be large mishmash of per-frame-tick objects that need to get allocated each frame, and then thrown away. This is <em>extremely</em> common in game development in particular, and allocator pressure is something gamedevs tend to care about. It’s easy enough to allocate an arena, fill it up during each frame and clear it out once the frame is over. This has additional benefits of cache locality; you can ensure that most of the per-frame objects (which are likely used more often than other objects) are usually in cache during the frame, since they’ve been allocated adjacently.</p>
+<p>Firstly, your primary goal may be to reduce allocation pressure, as mentioned above. For example, in a game or application, there may be large mishmash of per-frame-tick objects that need to get allocated each frame, and then thrown away. This is <em>extremely</em> common in game development in particular, and allocator pressure is something gamedevs tend to care about. With arenas, it’s easy enough to allocate an arena, fill it up during each frame and clear it out once the frame is over. This has additional benefits of cache locality: you can ensure that most of the per-frame objects (which are likely used more often than other objects) are usually in cache during the frame, since they’ve been allocated adjacently.</p>
 
 <p>Another goal might be that you want to write self referential data, like a complex graph with cycles, that can get cleaned up all at once. For example, when writing compilers, type information will likely need to reference other types and other such data, leading to a complex, potentially cyclic graph of types. Once you’ve computed a type you probably don’t need to throw it away individually, so you can use an arena to store all your computed type information, cleaning the whole thing up at once when you’re at a stage where the types don’t matter anymore. Using this pattern allows your code to not have to worry about whether the self-referential bits get deallocated “early”, it lets you make the assumption that if you have a <code class="language-plaintext highlighter-rouge">Ty</code> it lives as long as all the other <code class="language-plaintext highlighter-rouge">Ty</code>s and can reference them directly.</p>
 
@@ -134,11 +134,11 @@
 
 <p>Typically to <em>use</em> an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of that I’ll talk about below, though <a href="https://crates.io/search?q=arena">a cursory search of “arena” on crates.io</a> turns up many other promising candidates.</p>
 
-<p>I’ll also quickly note that if you just need cyclic graph structures, you don’t <em>have</em> to use an arena, the <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> crate is often sufficient.</p>
+<p>I’ll note that if you just need cyclic graph structures, you don’t <em>have</em> to use an arena, the excellent <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> crate is often sufficient.</p>
 
 <h3 id="bumpalo">Bumpalo</h3>
 
-<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents (but not cyclic references).</p>
+<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents but not cyclic references.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
 
@@ -158,9 +158,9 @@
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <code class="language-plaintext highlighter-rouge">Bump::alloc()</code> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other (but not in a cyclic way; the borrow checker will enforce this). By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <code class="language-plaintext highlighter-rouge">bumpalo</code>-backed vectors and strings.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings.</p>
 
-<p>Rust does support swapping out the global allocator used by <code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, <code class="language-plaintext highlighter-rouge">HashMap</code>, etc using <code class="language-plaintext highlighter-rouge">#![global_allocator]</code>; and <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> supports being used in this way, so this crate is also useful for environments where you just need a fast bump allocator (e.g. light allocation in WASM).</p>
+<p>Rust does support swapping out the global allocator used by <code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, <code class="language-plaintext highlighter-rouge">HashMap</code>, etc using <a href="https://doc.rust-lang.org/std/alloc/index.html#the-global_allocator-attribute"><code class="language-plaintext highlighter-rouge">#![global_allocator]</code></a>; and <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> supports being used in this way, so this crate is also useful for environments where you just need a fast bump allocator (e.g. light allocation in WASM).</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
@@ -185,22 +185,26 @@
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup></p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
 <p>Self referential arenas are interesting because, typically, Rust is very very wary of self-referential data. But arenas let you clearly separate the step of “I don’t care about this object” and “this object can be deleted” in a way that is sufficient to allow self-referential and cyclic types.</p>
 
+<p>It’s pretty rare to need to implement your own arena – <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> and <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> cover most of the use cases, and if they don’t cover yours you probably can find something that does on <a href="https://crates.io/search?q=arena">crates.io</a>. But if you really need to, or if you’re interested in the nitty-gritty lifetime details, this section is for you.</p>
+
 <p>The key to implementing an arena <code class="language-plaintext highlighter-rouge">Arena</code> with entries typed as <code class="language-plaintext highlighter-rouge">Entry</code> is in the following rules:</p>
 
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">Arena</code> and <code class="language-plaintext highlighter-rouge">Entry</code> should both have a lifetime parameter: <code class="language-plaintext highlighter-rouge">Arena&lt;'entry&gt;</code> and <code class="language-plaintext highlighter-rouge">Entry&lt;'entry&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Arena</code> and <code class="language-plaintext highlighter-rouge">Entry</code> should both have a lifetime parameter: <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> and <code class="language-plaintext highlighter-rouge">Entry&lt;'arena&gt;</code></li>
   <li><code class="language-plaintext highlighter-rouge">Arena</code> methods should all receive <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> as <code class="language-plaintext highlighter-rouge">&amp;'arena self</code>, i.e. their <code class="language-plaintext highlighter-rouge">self</code> type is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code></li>
-  <li><code class="language-plaintext highlighter-rouge">Entry</code> should almost always be passed around as <code class="language-plaintext highlighter-rouge">&amp;'entry Entry&lt;'entry&gt;</code> (it’s useful to make an alias for this)</li>
-  <li>Use interior mutability, <code class="language-plaintext highlighter-rouge">&amp;mut self</code> on <code class="language-plaintext highlighter-rouge">Arena</code> will make everything stop compiling</li>
+  <li><code class="language-plaintext highlighter-rouge">Entry</code> should almost always be passed around as <code class="language-plaintext highlighter-rouge">&amp;'arena Entry&lt;'arena&gt;</code> (it’s useful to make an alias for this)</li>
+  <li>Use interior mutability, <code class="language-plaintext highlighter-rouge">&amp;mut self</code> on <code class="language-plaintext highlighter-rouge">Arena</code> will make everything stop compiling. If using <code class="language-plaintext highlighter-rouge">unsafe</code> for mutability, make sure you have a <code class="language-plaintext highlighter-rouge">PhantomData</code> for <code class="language-plaintext highlighter-rouge">RefCell&lt;Entry&lt;'arena&gt;&gt;</code> somewhere.</li>
 </ul>
 
-<p>That’s basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. I’m going to go ahead and explain how this works, but if you just want to <em>use</em> an arena you don’t need to worry about this, and even if you want to <em>implement</em> one you probably can do without a lot of the detail (the rules above should suffice), but you may find it enlightening.</p>
+<p>That’s basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. Armed with the above rules you should be able to make your custom arena work with the guarantees you need without having to understand what’s going on with the underlying lifetimes.</p>
+
+<p>Let’s go through an implementation example, and then dissect <em>why</em> it works.</p>
 
 <h3 id="implementation">Implementation</h3>
 
@@ -328,7 +332,7 @@
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The [nomicon chapter on subtyping and variance] goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The [nomicon chapter on subtyping and variance] goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -402,8 +406,11 @@
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
+    <li id="fn:0" role="doc-endnote">
+      <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:1" role="doc-endnote">
-      <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on sufficiently generic types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
