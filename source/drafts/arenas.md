@@ -3,7 +3,7 @@ layout: post
 title: "Arenas in Rust"
 date: 2021-03-14 10:00:00 -0800
 comments: true
-categories: ["programming", "rust"]
+categories: ["programming", "rust", "tidbits"]
 ---
 
 There's been some discussion about arenas in Rust recently, and I thought I'd write about them.

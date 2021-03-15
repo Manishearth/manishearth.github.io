@@ -6,6 +6,9 @@ comments: true
 categories: programming rust mozilla tidbits
 ---
 
+_Note: This post was written before the Rust 2018 edition, and does not yet incorporate the [changes made to the module system][module-changes]._
+
+
 The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
 learning the language. A lot of these confusions stem from a misunderstanding of how it works.
 In explaining this I've seen that it's usually a common set of misunderstandings.
@@ -15,6 +18,7 @@ In the spirit of ["You're doing it wrong"][wrongwrongwrong], I want to try and e
 and helps avoid confusion.
 
 
+ [module-changes]: https://doc.rust-lang.org/edition-guide/rust-2018/module-system/index.html
  [wrongwrongwrong]: http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/
  [^1]: This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn't too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive.
 
