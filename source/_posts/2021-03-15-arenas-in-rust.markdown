@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Arenas in Rust"
-date: 2021-03-14 10:00:00 -0800
+date: 2021-03-15 08:17:20 -0700
 comments: true
 categories: ["programming", "rust", "tidbits"]
 ---
