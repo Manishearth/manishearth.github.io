@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2021-03-15T15:02:34+00:00</updated>
+  <updated>2021-03-15T15:18:20+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,333 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Arenas in Rust]]></title>
+    <link href="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/"/>
+    <updated>2021-03-15T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2021/03/15/arenas-in-rust</id>
+    <content type="html"><![CDATA[<p>There’s been some discussion about arenas in Rust recently, and I thought I’d write about them.</p>
+
+<p>Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional <code class="language-plaintext highlighter-rouge">unsafe</code>, so there’s no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust fields where arenas are more common.</p>
+
+<p>Furthermore, there’s a set of <em>really cool</em> lifetime effects involved when implementing self-referential arenas, that I don’t think have been written about before.</p>
+
+<p>I’m mostly writing this to talk about the cool lifetime effects, but I figured it’s worth writing a general introduction that has something for all Rustaceans. If you know what arenas are and just want the cool lifetimes you can skip directly to <a href="#implementing-a-self-referential-arena">the section on implementing self-referential arenas</a>. Otherwise, read on.</p>
+
+<h2 id="whats-an-arena">What’s an arena?</h2>
+
+<p>An arena is essentially a way to group up allocations that are expected to have the same lifetime. Sometimes you need to allocate a bunch of objects for the lifetime of an event, after which they can all be thrown away wholesale. It’s inefficient to call into the system allocator each time, and far more preferable to <em>preallocate</em> a bunch of memory for your objects, cleaning it all up at once once you’re done with them.</p>
+
+<p>Broadly speaking, there are two reasons you might wish to use an arena:</p>
+
+<p>Firstly, your primary goal may be to reduce allocation pressure, as mentioned above. For example, in a game or application, there may be large mishmash of per-frame-tick objects that need to get allocated each frame, and then thrown away. This is <em>extremely</em> common in game development in particular, and allocator pressure is something gamedevs tend to care about. With arenas, it’s easy enough to allocate an arena, fill it up during each frame and clear it out once the frame is over. This has additional benefits of cache locality: you can ensure that most of the per-frame objects (which are likely used more often than other objects) are usually in cache during the frame, since they’ve been allocated adjacently.</p>
+
+<p>Another goal might be that you want to write self referential data, like a complex graph with cycles, that can get cleaned up all at once. For example, when writing compilers, type information will likely need to reference other types and other such data, leading to a complex, potentially cyclic graph of types. Once you’ve computed a type you probably don’t need to throw it away individually, so you can use an arena to store all your computed type information, cleaning the whole thing up at once when you’re at a stage where the types don’t matter anymore. Using this pattern allows your code to not have to worry about whether the self-referential bits get deallocated “early”, it lets you make the assumption that if you have a <code class="language-plaintext highlighter-rouge">Ty</code> it lives as long as all the other <code class="language-plaintext highlighter-rouge">Ty</code>s and can reference them directly.</p>
+
+<p>These two goals are not necessarily disjoint: You may wish to use an arena to achieve both goals simultaneously. But you can also just have an arena that disallows self referential types (but has other nice properties). Later in this post I’m going to implement an arena that allows self-referential types but is not great on allocation pressure, mostly for ease of implementation. <em>Typically</em> if you’re writing an arena for self-referential types you can make it simultaneously reduce allocator pressure, but there can be tradeoffs.</p>
+
+<h2 id="how-can-i-use-an-arena-in-rust">How can I use an arena in Rust?</h2>
+
+<p>Typically to <em>use</em> an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of that I’ll talk about below, though <a href="https://crates.io/search?q=arena">a cursory search of “arena” on crates.io</a> turns up many other promising candidates.</p>
+
+<p>I’ll note that if you just need cyclic graph structures, you don’t <em>have</em> to use an arena, the excellent <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> crate is often sufficient.</p>
+
+<h3 id="bumpalo">Bumpalo</h3>
+
+<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents but not cyclic references.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
+
+<span class="c">// (example slightly modified from `bumpalo` docs)</span>
+
+<span class="c">// Create a new arena to bump allocate into.</span>
+<span class="k">let</span> <span class="n">bump</span> <span class="o">=</span> <span class="nn">Bump</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+<span class="c">// Allocate values into the arena.</span>
+<span class="k">let</span> <span class="n">scooter</span> <span class="o">=</span> <span class="n">bump</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">Doggo</span> <span class="p">{</span>
+    <span class="n">cuteness</span><span class="p">:</span> <span class="nn">u64</span><span class="p">::</span><span class="nf">max_value</span><span class="p">(),</span>
+    <span class="n">age</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="n">scritches_required</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="c">// Happy birthday, Scooter!</span>
+<span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings.</p>
+
+<p>Rust does support swapping out the global allocator used by <code class="language-plaintext highlighter-rouge">Box</code>, <code class="language-plaintext highlighter-rouge">Vec</code>, <code class="language-plaintext highlighter-rouge">HashMap</code>, etc using <a href="https://doc.rust-lang.org/std/alloc/index.html#the-global_allocator-attribute"><code class="language-plaintext highlighter-rouge">#![global_allocator]</code></a>; and <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> supports being used in this way, so this crate is also useful for environments where you just need a fast bump allocator (e.g. light allocation in WASM).</p>
+
+<h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
+
+<p><a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> is an arena allocator that can only store objects of a single type, but it does allow for setting up cyclic references:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Example from typed-arena docs</span>
+
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">cell</span><span class="p">::</span><span class="n">Cell</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">typed_arena</span><span class="p">::</span><span class="n">Arena</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="n">CycleParticipant</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">other</span><span class="p">:</span> <span class="n">Cell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="nv">'a</span> <span class="n">CycleParticipant</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
+<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
+
+<span class="c">// mutate them after the fact to set up a cycle</span>
+<span class="n">a</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">b</span><span class="p">));</span>
+<span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
+
+<h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
+
+<p>Self referential arenas are interesting because, typically, Rust is very very wary of self-referential data. But arenas let you clearly separate the step of “I don’t care about this object” and “this object can be deleted” in a way that is sufficient to allow self-referential and cyclic types.</p>
+
+<p>It’s pretty rare to need to implement your own arena – <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> and <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> cover most of the use cases, and if they don’t cover yours you probably can find something that does on <a href="https://crates.io/search?q=arena">crates.io</a>. But if you really need to, or if you’re interested in the nitty-gritty lifetime details, this section is for you.</p>
+
+<div class="post-aside">
+<p>For people less familiar with lifetimes: the lifetimes in the syntaxes <code>&amp;'a Foo</code> and <code>Foo&lt;'b&gt;</code> mean different things. <code>'a</code> in <code>&amp;'a Foo</code> is the lifetime <em>of</em> <code>Foo</code>, or, at least the lifetime of <em>this</em> reference to <code>Foo</code>. <code>'b</code> in <code>Foo&lt;'b&gt;</code> is a lifetime <em>parameter</em> of <code>Foo</code>, and typically means something like “the lifetime of data <code>Foo</code> is allowed to reference”.</p>
+</div>
+
+<p>The key to implementing an arena <code class="language-plaintext highlighter-rouge">Arena</code> with entries typed as <code class="language-plaintext highlighter-rouge">Entry</code> is in the following rules:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Arena</code> and <code class="language-plaintext highlighter-rouge">Entry</code> should both have a lifetime parameter: <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> and <code class="language-plaintext highlighter-rouge">Entry&lt;'arena&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Arena</code> methods should all receive <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> as <code class="language-plaintext highlighter-rouge">&amp;'arena self</code>, i.e. their <code class="language-plaintext highlighter-rouge">self</code> type is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Entry</code> should almost always be passed around as <code class="language-plaintext highlighter-rouge">&amp;'arena Entry&lt;'arena&gt;</code> (it’s useful to make an alias for this)</li>
+  <li>Use interior mutability; <code class="language-plaintext highlighter-rouge">&amp;mut self</code> on <code class="language-plaintext highlighter-rouge">Arena</code> will make everything stop compiling. If using <code class="language-plaintext highlighter-rouge">unsafe</code> for mutability, make sure you have a <code class="language-plaintext highlighter-rouge">PhantomData</code> for <code class="language-plaintext highlighter-rouge">RefCell&lt;Entry&lt;'arena&gt;&gt;</code> somewhere.</li>
+</ul>
+
+<p>That’s basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. Armed with the above rules you should be able to make your custom arena work with the guarantees you need without having to understand what’s going on with the underlying lifetimes.</p>
+
+<p>Let’s go through an implementation example, and then dissect <em>why</em> it works.</p>
+
+<h3 id="implementation">Implementation</h3>
+
+<p>My crate <a href="https://docs.rs/elsa"><code class="language-plaintext highlighter-rouge">elsa</code></a> implements an arena in 100% safe code <a href="https://github.com/Manishearth/elsa/blob/915d26008d8bae069927c551da506dba05d2755b/examples/mutable_arena.rs">in one of its examples</a>. This arena does <em>not</em> save on allocations since <a href="https://docs.rs/elsa/1.4.0/elsa/vec/struct.FrozenVec.html"><code class="language-plaintext highlighter-rouge">elsa::FrozenVec</code></a> requires its contents be behind some indirection, and it’s not generic, but it’s a reasonable way to illustrate how the lifetimes work without getting into the weeds of implementing a <em>really good</em> arena with <code class="language-plaintext highlighter-rouge">unsafe</code>.</p>
+
+<p>The example implements an arena of <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> types, <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code>. The goal is to implement some kind of directed social graph, which may have cycles.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">elsa</span><span class="p">::</span><span class="n">FrozenVec</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">people</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><a href="https://docs.rs/elsa/1.4.0/elsa/vec/struct.FrozenVec.html"><code class="language-plaintext highlighter-rouge">elsa::FrozenVec</code></a> is an append-only <code class="language-plaintext highlighter-rouge">Vec</code>-like abstraction that allows you to call <code class="language-plaintext highlighter-rouge">.push()</code> without needing a mutable reference, and is how we’ll be able to implement this arena in safe code.</p>
+
+<p>Each <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> has a list of people they follow but also keeps track of people who follow them:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">reverse_follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">// following the rule above about references to entry types</span>
+<span class="k">type</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nv">'arena</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>The lifetime <code class="language-plaintext highlighter-rouge">'arena</code> is essentially “the lifetime of the arena itself”. This is where it starts getting weird: typically if your type has a lifetime <em>parameter</em>, the caller gets to pick what goes in there. You don’t get to just say “this is the lifetime of the object itself”, the caller would typically be able to instantiate an <code class="language-plaintext highlighter-rouge">Arena&lt;'static&gt;</code> if they wish, or an <code class="language-plaintext highlighter-rouge">Arena&lt;'a&gt;</code> for some <code class="language-plaintext highlighter-rouge">'a</code>. But here we’re declaring that <code class="language-plaintext highlighter-rouge">'arena</code> is the lifetime of the arena itself; clearly something fishy is happening here.</p>
+
+<p>Here’s where we actually implement the arena:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="n">Arena</span> <span class="p">{</span>
+            <span class="n">people</span><span class="p">:</span> <span class="nn">FrozenVec</span><span class="p">::</span><span class="nf">new</span><span class="p">(),</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    
+    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+                  <span class="n">follows</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">idx</span> <span class="o">=</span> <span class="k">self</span><span class="py">.people</span><span class="nf">.len</span><span class="p">();</span>
+        <span class="k">self</span><span class="py">.people</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Person</span> <span class="p">{</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">follows</span><span class="p">:</span> <span class="n">follows</span><span class="nf">.into</span><span class="p">(),</span>
+            <span class="n">reverse_follows</span><span class="p">:</span> <span class="nn">Default</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span>
+        <span class="p">}));</span>
+        <span class="k">let</span> <span class="n">me</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.people</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
+            <span class="c">// We're mutating existing arena entries to add references,</span>
+            <span class="c">// potentially creating cycles!</span>
+            <span class="n">friend</span><span class="py">.reverse_follows</span><span class="nf">.push</span><span class="p">(</span><span class="n">me</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="n">me</span>
+    <span class="p">}</span>
+
+    <span class="k">fn</span> <span class="nf">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c">// code to print out every Person, their followers, and the people who follow them</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Note the <code class="language-plaintext highlighter-rouge">&amp;'arena self</code> in <code class="language-plaintext highlighter-rouge">add_person</code>.</p>
+
+<p>A <em>good</em> implementation here would typically separate out code handling the higher level invariant of “if A <code class="language-plaintext highlighter-rouge">follows</code> B then B <code class="language-plaintext highlighter-rouge">reverse_follows</code> A”, but this is just an example.</p>
+
+<p>And finally, we can use the arena like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+    <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+    <span class="k">let</span> <span class="n">best_friend</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"best friend"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">]);</span>
+    <span class="k">let</span> <span class="n">threes_a_crowd</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"threes a crowd"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
+    <span class="k">let</span> <span class="n">rando</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"rando"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+    <span class="k">let</span> <span class="mi">_</span><span class="n">everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
+    <span class="n">arena</span><span class="nf">.dump</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In this case all of the “mutability” happens in the implementation of the arena itself, but it would be possible for this code to add entries directly to the <code class="language-plaintext highlighter-rouge">follows</code>/<code class="language-plaintext highlighter-rouge">reverse_follows</code> lists, or <code class="language-plaintext highlighter-rouge">Person</code> could have <code class="language-plaintext highlighter-rouge">RefCell</code>s for other kinds of links, or whatever.</p>
+
+<h3 id="how-the-lifetimes-work">How the lifetimes work</h3>
+
+<p>So how does this work? As I said earlier, with such abstractions in Rust, the caller typically has freedom to set the lifetime based on what they do with it. For example, if you have a <code class="language-plaintext highlighter-rouge">HashMap&lt;K, &amp;'a str&gt;</code>, the <code class="language-plaintext highlighter-rouge">'a</code> will get set based on the lifetime of what you try to insert.</p>
+
+<p>When you construct the <code class="language-plaintext highlighter-rouge">Arena</code> its lifetime parameter is indeed still unconstrained, and we can test this by checking that the following code, which forcibly constrains the lifetime, still compiles.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>But the moment you try to do anything with the arena, this stops working:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+</code></pre></div></div>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0597]: `arena` does not live long enough
+  --&gt; examples/mutable_arena.rs:5:18
+   |
+4  |     let arena: Arena&lt;'static&gt; = Arena::new();
+   |                -------------- type annotation requires that `arena` is borrowed for `'static`
+5  |     let lonely = arena.add_person("lonely", vec![]);
+   |                  ^^^^^ borrowed value does not live long enough
+...
+11 | }
+   | - `arena` dropped here while still borrowed
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">add_person</code> method is somehow suddenly forcing the <code class="language-plaintext highlighter-rouge">'arena</code> parameter of <code class="language-plaintext highlighter-rouge">Arena</code> to be set to its <em>own</em> lifetime, constraining it (and making it impossible to force-constrain it to be anything else with type annotations).</p>
+
+<p>What’s going on here is a neat interaction with the <code class="language-plaintext highlighter-rouge">&amp;'arena self</code> signature of <code class="language-plaintext highlighter-rouge">add_person</code> (i.e. <code class="language-plaintext highlighter-rouge">self</code> is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'self&gt;</code>), and the fact that <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is an <a href="https://doc.rust-lang.org/nomicon/subtyping.html#variance"><em>invariant lifetime</em></a>.</p>
+
+<p>Usually in your Rust programs, lifetimes are a little bit stretchy-squeezy. The following code compiles just fine:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// ask for two strings *with the same lifetime*</span>
+<span class="k">fn</span> <span class="n">take_strings</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">)</span> <span class="p">{}</span>
+
+<span class="c">// string literal with lifetime 'static</span>
+<span class="k">let</span> <span class="n">lives_forever</span> <span class="o">=</span> <span class="s">"foo"</span><span class="p">;</span>
+<span class="c">// owned string with shorter, local lifetime</span>
+<span class="k">let</span> <span class="n">short_lived</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"bar"</span><span class="p">);</span>
+
+<span class="c">// still works!</span>
+<span class="nf">take_strings</span><span class="p">(</span><span class="n">lives_forever</span><span class="p">,</span> <span class="o">&amp;*</span><span class="n">short_lived</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
+
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+
+<p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
+
+<p>Let’s look at our two lines of code again. When the compiler sees the first line of the code below, it constructs <code class="language-plaintext highlighter-rouge">arena</code>, whose lifetime we’ll call <code class="language-plaintext highlighter-rouge">'a</code>. At this point the type of <code class="language-plaintext highlighter-rouge">arena</code> is <code class="language-plaintext highlighter-rouge">Arena&lt;'?&gt;</code>, where <code class="language-plaintext highlighter-rouge">'?</code> is made up notation for a yet-unconstrained lifetime.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> 
+<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+</code></pre></div></div>
+
+<p>Let’s actually rewrite this to be clearer on what the lifetimes are.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// type Arena&lt;'?&gt;, lives for 'a</span>
+
+<span class="c">// explicitly write the `self` that gets constructed when you call add_person</span>
+<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c">// type &amp;'a Arena&lt;'?&gt;</span>
+<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">add_person</span><span class="p">(</span><span class="n">ref_to_arena</span><span class="p">,</span> <span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+
+</code></pre></div></div>
+
+<p>Remember the second rule I listed earlier?</p>
+
+<blockquote>
+  <p><code class="language-plaintext highlighter-rouge">Arena</code> methods should all receive <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> as <code class="language-plaintext highlighter-rouge">&amp;'arena self</code>, i.e. their <code class="language-plaintext highlighter-rouge">self</code> type is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code></p>
+</blockquote>
+
+<p>We followed this rule; the signature of <code class="language-plaintext highlighter-rouge">add_person</code> is <code class="language-plaintext highlighter-rouge">fn add_person(&amp;'arena self)</code>. This means that <code class="language-plaintext highlighter-rouge">ref_to_arena</code> is <em>forced</em> to have a lifetime that matches the pattern <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code>. Currently its lifetime is <code class="language-plaintext highlighter-rouge">&amp;'a Arena&lt;'?&gt;</code>, which means that <code class="language-plaintext highlighter-rouge">'?</code> is <em>forced</em> to be the same as <code class="language-plaintext highlighter-rouge">'a</code>, i.e. the lifetime of the <code class="language-plaintext highlighter-rouge">arena</code> variable itself. If the lifetime weren’t invariant, the compiler would be able to squeeze other lifetimes to fit, but it is invariant, and the unconstrained lifetime is forced to be exactly one lifetime.</p>
+
+<p>And by this rather subtle sleight of hand we’re able to force the compiler to set the lifetime <em>parameter</em> of <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> to the lifetime of its <em>instance</em>.</p>
+
+<p>After this, the rest is pretty straightforward. <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> holds entries of type <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code>, which is basically a way of saying “a <code class="language-plaintext highlighter-rouge">Person</code> that is allowed to reference items of lifetime <code class="language-plaintext highlighter-rouge">'arena</code>, i.e. items in <code class="language-plaintext highlighter-rouge">Arena</code>”. <code class="language-plaintext highlighter-rouge">type PersonRef&lt;'arena&gt; = &amp;'arena Person&lt;'arena&gt;</code> is a convenient shorthand for “a reference to a <code class="language-plaintext highlighter-rouge">Person</code> that lives in <code class="language-plaintext highlighter-rouge">Arena</code> and is allowed to reference objects from it”.</p>
+
+<h3 id="what-about-destructors">What about destructors?</h3>
+
+<p>So a thing I’ve not covered so far is how this can be safe in the presence of destructors. If your arena is allowed to have cyclic references, and you write a destructor reading from those cyclic references, whichever participant in the cycle that is deleted later on will have dangling references.</p>
+
+<p>This gets to a <em>really</em> obscure part of Rust, even more obscure than variance. You almost never need to really understand this, beyond “explicit destructors subtly change borrow check behavior”. But it’s useful to know to get a better mental model of what’s going on here.</p>
+
+<p>If we add the following code to our arena example:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"goodbye {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">);</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
+            <span class="c">// potentially dangling!</span>
+            <span class="nd">println!</span><span class="p">(</span><span class="s">"</span><span class="se">\t\t</span><span class="s">{}"</span><span class="p">,</span> <span class="n">friend</span><span class="py">.name</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>we actually get this error:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">error</span><span class="p">[</span><span class="n">E0597</span><span class="p">]:</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">does</span> <span class="n">not</span> <span class="n">live</span> <span class="n">long</span> <span class="n">enough</span>
+  <span class="o">-</span><span class="k">-&gt;</span> <span class="n">examples</span><span class="o">/</span><span class="n">mutable_arena</span><span class="py">.rs</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">18</span>
+   <span class="p">|</span>
+<span class="mi">5</span>  <span class="p">|</span>     <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
+   <span class="p">|</span>                  <span class="o">^^^^^</span> <span class="n">borrowed</span> <span class="n">value</span> <span class="n">does</span> <span class="n">not</span> <span class="n">live</span> <span class="n">long</span> <span class="n">enough</span>
+<span class="o">...</span>
+<span class="mi">11</span> <span class="p">|</span> <span class="p">}</span>
+   <span class="p">|</span> <span class="o">-</span>
+   <span class="p">|</span> <span class="p">|</span>
+   <span class="p">|</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">dropped</span> <span class="n">here</span> <span class="k">while</span> <span class="n">still</span> <span class="n">borrowed</span>
+   <span class="p">|</span> <span class="n">borrow</span> <span class="n">might</span> <span class="n">be</span> <span class="n">used</span> <span class="n">here</span><span class="p">,</span> <span class="n">when</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">is</span> <span class="n">dropped</span> <span class="n">and</span> <span class="n">runs</span> <span class="n">the</span> <span class="n">destructor</span> <span class="k">for</span> <span class="k">type</span> <span class="err">`</span><span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'_</span><span class="o">&gt;</span><span class="err">`</span>
+</code></pre></div></div>
+
+<p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
+
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+
+<p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
+
+<p><em>Thanks to <a href="https://mpc.sh">Mark Cohen</a> and <a href="https://twitter.com/kneecaw/">Nika Layzell</a> for reviewing drafts of this post.</em></p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:0" role="doc-endnote">
+      <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1" role="doc-endnote">
+      <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>The technical term for this is “contravariant lifetime” <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Because you’re claiming the destructor “can’t see” the type or lifetime, see? <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Integrating Rust and C++ in Firefox]]></title>
@@ -3707,43 +4034,6 @@ making new community members feel like outsiders.</p>
 <p>But that post is amazing and I’d hate to see it drop out of the collective
 memory of the Rust community.</p>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Use Signal. Use Tor.]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/12/use-signal-use-tor/"/>
-    <updated>2017-03-12T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/12/use-signal-use-tor</id>
-    <content type="html"><![CDATA[<p>I went to send a missive today<br />
-As I have done so oft before<br />
-But I forgot to employ that scrap of advice<br />
-“Use Signal. Use Tor.”</p>
-
-<p>Intercepted of course the missive was<br />
-By a ferocious beast of lore<br />
-Because I failed to use that bit of advice<br />
-“Use Signal. Use Tor.”</p>
-
-<p>The beast was strong; and formidable<br />
-He hated the amendments four<br />
-I should have remembered that piece of advice<br />
-“Use Signal. Use Tor.”</p>
-
-<p>I tried to reason with the beast<br />
-but he only wanted war<br />
-Do not neglect that important advice<br />
-“Use Signal. Use Tor.”</p>
-
-<p>Here I lie in the belly of the beast<br />
-I shall discount this advice no more<br />
-If I ever manage to leave this place<br />
-I’ll use Signal, and Tor.</p>
-
-<p>Heed this advice, children.<br />
-It’s not something to ignore<br />
-Always, always, always, always<br />
-Use Signal. Use Tor.</p>
 ]]></content>
   </entry>
   
