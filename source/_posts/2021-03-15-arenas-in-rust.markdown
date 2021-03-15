@@ -8,7 +8,7 @@ categories: ["programming", "rust", "tidbits"]
 
 There's been some discussion about arenas in Rust recently, and I thought I'd write about them.
 
-Arenas aren't something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional `unsafe`, so there's no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust fields where arenas are more common.
+Arenas aren't something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional `unsafe`, so there's no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust from fields where arenas are more common.
 
 Furthermore, there's a set of _really cool_ lifetime effects involved when implementing self-referential arenas, that I don't think have been written about before.
 
