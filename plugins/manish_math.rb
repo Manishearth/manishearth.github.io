@@ -51,8 +51,8 @@ module Jekyll
   class MathyBlock < Liquid::Block
     def render(context)
       output = super
-      output = output.gsub(/\$\$([^$]*)\$\$/) { |s| Jekyll.safe_wrap("\\\\[" + Regexp.last_match[1] + "\\\\]")}
-      output = output.gsub(/\$([^$]*)\$/)  { |s| Jekyll.safe_wrap("\\\\(" + Regexp.last_match[1] + "\\\\)")}
+      output = output.gsub(/\$\$([^$]*)\$\$/) { |s| "\\\\[" + Regexp.last_match[1] + "\\\\]"}
+      output = output.gsub(/\$([^$]*)\$/)  { |s| "\\\\(" + Regexp.last_match[1] + "\\\\)"}
       return output
     end
   end
