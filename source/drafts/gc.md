@@ -83,6 +83,15 @@ Another aspect of this is that garbage collection is really a moment of global m
  [^3]: In general, finalizers in GCs are hard to implement soundly in any language, not just Rust, but Rust can sometimes be a bit more annoying about it.
  [^4]: Spolier: This is actually possible in Rust, and we'll get into it further in this post!
 
+## How would you even garbage collect without a runtime?
+
+In most garbage collected languages, there's a runtime that controls all execution and is able to pause execution to run the GC whenever it likes.
+
+Rust has a minimal runtime and can't do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (e.g. mutating a GC field, basically calling some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.
+
+Concurrent GCs can trigger the GC on a separate thread but will typically need to block other threads whenever these threads attempt to perform a GC operation.
+
+While this may restrict the flexibility of the garbage collector itself, this is actually pretty good for us from the side of API design: the garbage collection phase can only happen in certain well-known moments of the code, which means we only need to make things safe across _those_ boundaries. Many of the designs we shall look at build off of this observation.
 
 ## Tracing
 
@@ -117,7 +126,7 @@ I'm not going to get into the actual details of how mark-and-sweep algorithms wo
 
 ## rust-gc
 
-The [`gc`][gc] crate is one I wrote with [Nika Layzell] mostly as a fun exercise, to figure out if a safe GC API is _possible_. I've [written about the design in depth before][rustgc-post], but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special `GcCell` types so that it can update the root count:
+The [`gc`][gc] crate is one I wrote with [Nika Layzell] mostly as a fun exercise, to figure out if a safe GC API is _possible_. I've [written about the design in depth before][rustgc-post], but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special `GcCell` types so that they can update the root count:
 
 ```rust
 struct Foo {
@@ -135,6 +144,12 @@ let v = vec![foo];
 
 While this is essentially "free" on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired. Part of the goal of using GCs is to _avoid_ reference-counting-like patterns.
 
-[`gc`][gc] is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it gives a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.
+[`gc`][gc] is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it provides a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.
 
  [Nika Layzell]: https://twitter.com/kneecaw/
+
+## Servo's DOM integration
+
+[Servo][servo] is a browser engine in Rust that I used to work on full time. As mentioned earlier, browser engines typically implement a lot of their DOM types in native (i.e. Rust or C++, not JS) code, so for example [`Node`][servo-node] is a pure Rust object, and it [contains direct references to its children][servo-node-child] so Rust code can do things like traverse the tree without having to go back and forth between JS and Rust.
+
+  [servo-node]: https://doc.servo.org/script/dom/element/struct.Element.html
