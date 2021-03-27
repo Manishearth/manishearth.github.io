@@ -1,0 +1,358 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>A Tour of Safe Tracing GC Designs in Rust - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="I’ve been thinking about garbage collection in Rust for a long time, ever since I started working on Servo’s JS layer. I’ve designed a GC library, &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="A Tour of Safe Tracing GC Designs in Rust">
+      <meta property="twitter:description" content="I’ve been thinking about garbage collection in Rust for a long time, ever since I started working on Servo’s JS layer. I’ve designed a GC library, worked on GC integration ideas for Rust itself, &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/gc/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/manish.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar's blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">A Tour of Safe Tracing GC Designs in Rust</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>I’ve been thinking about garbage collection in Rust for a long time, ever since I started working on <a href="https://github.com/servo/servo">Servo</a>’s JS layer. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">designed a GC library</a>, <a href="https://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/">worked on GC integration ideas for Rust itself</a>, worked on Servo’s JS GC integration, and helped out with a <a href="https://github.com/asajeffrey/josephine">couple</a> <a href="https://github.com/kyren/gc-arena">other</a> GC projects in Rust.</p>
+
+<p>As a result, I tend to get pulled into GC discussions fairly often. I enjoy talking about GCs – don’t get me wrong – but I often end up going over the same stuff. Being <a href="https://manishearth.github.io/blog/2018/08/26/why-i-enjoy-blogging/#blogging-lets-me-be-lazy">lazy</a> I’d much prefer to be able to refer people to a single place where they can get up to speed on the general space of GC design, after which it’s possible to have more in depth discussions about the specific tradeoffs necessary.</p>
+
+<h3 id="a-note-on-terminology">A note on terminology</h3>
+
+<p>A thing that often muddles discussions about GCs is that according to some definition of “GC”, simple reference counting <em>is</em> a GC. Typically the definition of GC used in academia broadly refers to any kind of automatic memory management. However, most programmers familiar with the term “GC” will usually liken it to “what Java, Go, Haskell, and C# do”, which can be unambiguously referred to as <em>tracing</em> garbage collection.</p>
+
+<p>Tracing garbage collection is the kind which keeps track of which heap objects are directly reachable (“roots”), figures out the whole set of reachable heap objects (“tracing”, also, “marking”), and then cleans them up (“sweeping”).</p>
+
+<p>Throughout this blog post I will use the term “GC” to exclusively refer to tracing garbage collection/collectors.</p>
+
+<h2 id="why-write-gcs-for-rust">Why write GCs for Rust?</h2>
+
+<p>(If you already want to write a GC in Rust and are reading this post to get ideas for <em>how</em>, you can skip this section. You already know why someone would want to write a GC for Rust)</p>
+
+<p>Every time this topic is brought up someone will inevitably go “I thought the point of Rust was to avoid GCs” or “GCs will ruin Rust” or something. As a general rule it’s good to not give too much weight to the comments section, but I think it’s useful to explain why someone may wish for GC-like semantics in Rust.</p>
+
+<p>There are really two distinct kinds of use cases. Firstly, sometimes you need to manage memory with cycles and <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is inadequate for the job since <code class="language-plaintext highlighter-rouge">Rc</code>-cycles get leaked. <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> or an <a href="https://manishearth.github.io/blog/2021/03/15/arenas-in-rust/">arena</a> are often acceptable solutions for this kind of pattern, but not always, especially if your data is super heterogeneous. This kind of thing crops up often when dealing with concurrent datastructures; for example <a href="https://docs.rs/crossbeam/"><code class="language-plaintext highlighter-rouge">crossbeam</code></a> has <a href="https://docs.rs/crossbeam/0.8.0/crossbeam/epoch/index.html">an epoch-based memory management system</a> which, while not a full tracing GC, has a lot of characteristics in common with GCs.</p>
+
+<p>For the first use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+
+<p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM.</p>
+
+<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This is often fine!</p>
+
+<p>The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can’t “embed” efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Element</code></a>) are implemented in native code; and need to be able to contain references to other native GC’d types (it should be possible to inspect the <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">children of a <code class="language-plaintext highlighter-rouge">Node</code></a> without needing to call back into the JavaScript engine).</p>
+
+<p>So sometimes you need to be able to integrate with a GC from a runtime; or even implement your own GC if you are writing a runtime that needs one.</p>
+
+<h2 id="why-are-gcs-in-rust-hard">Why are GCs in Rust hard?</h2>
+
+<p>In one word: Rooting. In a garbage collector, the objects “directly” in use on the stack are the “roots”, and you need to be able to identify them. Here, when I say “directly”, I mean “accessible without having to go through other GC’d objects”, so putting an object inside a <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> does not make it stop being a root, but putting it inside some other GC’d object does.</p>
+
+<p>Unfortunately, Rust doesn’t really have a concept of “directly on the stack”:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span>
+<span class="p">}</span>
+<span class="c">// this is a root</span>
+<span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="c">// this is also a root</span>
+<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="c">// bar should no longer be a root (but we can't detect that!)</span>
+<span class="n">foo</span><span class="py">.bar</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
+<span class="c">// but foo should still be a root here since it's not inside</span>
+<span class="c">// another GC'd object</span>
+<span class="k">let</span> <span class="n">v</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">foo</span><span class="p">];</span>
+</code></pre></div></div>
+
+<p>Rust’s ownership system actually makes it easier to have fewer roots since it’s relatively easy to state that taking <code class="language-plaintext highlighter-rouge">&amp;T</code> of a GC’d object doesn’t need to create a new root, and let Rust’s ownership system sort it out, but being able to distinguish between “directly owned” and “indirectly owned” is super tricky.</p>
+
+<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
+
+<h2 id="tracing">Tracing</h2>
+
+<p>Before getting into the actual examples of GC design, I want to point out a commonality of design between all of them: how they do tracing.</p>
+
+<p>“Tracing” is the operation of traversing the graph of GC objects, starting from your roots and perusing their children, and their children’s children, and so on.</p>
+
+<p>In Rust, the easiest way to implement this is via a <a href="https://doc.rust-lang.org/book/ch19-06-macros.html#how-to-write-a-custom-derive-macro">custom derive</a>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">gc_context</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">GcContext</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(Trace)]</span>
+<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">vec</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+    <span class="n">extra_thing</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">just_a_string</span><span class="p">:</span> <span class="nb">String</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The custom derive of <code class="language-plaintext highlighter-rouge">Trace</code> basically just calls <code class="language-plaintext highlighter-rouge">trace()</code> on all the fields. <code class="language-plaintext highlighter-rouge">Vec</code>’s <code class="language-plaintext highlighter-rouge">Trace</code> implementation will be written to call <code class="language-plaintext highlighter-rouge">trace()</code> on all of its fields, and <code class="language-plaintext highlighter-rouge">String</code>’s <code class="language-plaintext highlighter-rouge">Trace</code> implementation will do nothing. <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> will likely have a <code class="language-plaintext highlighter-rouge">trace()</code> that marks its reachability in the <code class="language-plaintext highlighter-rouge">GcContext</code>, or something similar.</p>
+
+<p>This is a pretty standard pattern, and while the specifics of the <code class="language-plaintext highlighter-rouge">Trace</code> trait will typically vary, the general idea is roughly the same.</p>
+
+<p>I’m not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they’re not that interesting from the point of view of designing something a safe GC <em>API</em> in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they’ve not already been traced. Clean up any objects that were <em>not</em> found.</p>
+
+<h2 id="rust-gc">rust-gc</h2>
+
+<p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that it can update the root count:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
+<span class="p">}</span>
+<span class="c">// this is a root</span>
+<span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="c">// this is also a root</span>
+<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="c">// .borrow_mut()'s RAII guard unroots bar</span>
+<span class="o">*</span><span class="n">foo</span><span class="py">.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
+<span class="c">// foo is still a root here, no call to .set()</span>
+<span class="k">let</span> <span class="n">v</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">foo</span><span class="p">];</span>
+</code></pre></div></div>
+
+<p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired. Part of the goal of using GCs is to <em>avoid</em> reference-counting-like patterns.</p>
+
+<p><a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it gives a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Which currently does not have support for concurrent garbage collection, but it could be added. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Some JNI-using APIs are also forced to have <a href="https://developer.android.com/ndk/reference/group/bitmap#androidbitmap_lockpixels">explicit rooting APIs</a> to give access to things like raw buffers. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>In general, finalizers in GCs are hard to implement soundly in any language, not just Rust, but Rust can sometimes be a bit more annoying about it. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Spolier: This is actually possible in Rust, and we’ll get into it further in this post! <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+
+      
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/gc/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/gc/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I'm a self-taught programmer with interests in programming languages, online communities, human languages, Rust, and physics, to name a few. <br><br>
+
+    I'm currently on the Rust core team, and I work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2018/09/11/converting-a-webgl-application-to-webvr/">Converting a WebGL Application to WebVR</a>
+      </li>
+    
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2021 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
