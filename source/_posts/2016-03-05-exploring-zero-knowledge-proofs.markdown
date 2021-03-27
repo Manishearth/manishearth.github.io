@@ -379,8 +379,7 @@ reencrypt). This operation is the same as XORing by $e_o \oplus e_1$, which is t
 they can be placed in.
 {% endmathy %}
 
-Alright. Bob creates a ton of these "encrypted gates", and calculates all the adaptation keys. He
-also mixes up the truth tables of each encrypted gate[^8].
+Alright. Bob creates a ton of these "encrypted gates", and calculates all the adaptation keys for every possible pair of gates. He also mixes up the truth tables of each encrypted gate[^8].
 
 Now, he commits to these truth tables. A commitment for each entry in each truth table is made, so
 he'll end up with something like this:
