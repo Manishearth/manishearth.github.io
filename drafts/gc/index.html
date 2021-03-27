@@ -164,6 +164,16 @@
 
 <p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
 
+<h2 id="how-would-you-even-garbage-collect-without-a-runtime">How would you even garbage collect without a runtime?</h2>
+
+<p>In most garbage collected languages, there’s a runtime that controls all execution and is able to pause execution to run the GC whenever it likes.</p>
+
+<p>Rust has a minimal runtime and can’t do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (e.g. mutating a GC field, basically calling some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.</p>
+
+<p>Concurrent GCs can trigger the GC on a separate thread but will typically need to block other threads whenever these threads attempt to perform a GC operation.</p>
+
+<p>While this may restrict the flexibility of the garbage collector itself, this is actually pretty good for us from the side of API design: the garbage collection phase can only happen in certain well-known moments of the code, which means we only need to make things safe across <em>those</em> boundaries. Many of the designs we shall look at build off of this observation.</p>
+
 <h2 id="tracing">Tracing</h2>
 
 <p>Before getting into the actual examples of GC design, I want to point out a commonality of design between all of them: how they do tracing.</p>
@@ -192,7 +202,7 @@
 
 <h2 id="rust-gc">rust-gc</h2>
 
-<p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that it can update the root count:</p>
+<p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that they can update the root count:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
@@ -209,7 +219,11 @@
 
 <p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired. Part of the goal of using GCs is to <em>avoid</em> reference-counting-like patterns.</p>
 
-<p><a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it gives a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.</p>
+<p><a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it provides a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.</p>
+
+<h2 id="servos-dom-integration">Servo’s DOM integration</h2>
+
+<p><a href="https://github.com/servo/servo">Servo</a> is a browser engine in Rust that I used to work on full time. As mentioned earlier, browser engines typically implement a lot of their DOM types in native (i.e. Rust or C++, not JS) code, so for example <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Node</code></a> is a pure Rust object, and it <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">contains direct references to its children</a> so Rust code can do things like traverse the tree without having to go back and forth between JS and Rust.</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
