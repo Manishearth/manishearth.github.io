@@ -31,20 +31,20 @@ Basically, as time has gone by our decisionmaking process has become more and mo
  - Not feeling heard
  - Just getting exhausted by all the stuff that's going on
 
-The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on https://internals.rust-lang.org have similar problems.
+The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on [internals.rust-lang.org][irlo] have similar problems.
 
 Aaron [has written some extremely empathetic blog posts][listening-and-trust] about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven't already.
 
 Fundamentally I consider our problems to be social problems, not technical ones. In my opinion, technical solutions like changing the discussion forum format may be necessary but are not sufficient for fixing this.
 
  [listening-and-trust]: http://aturon.github.io/2018/05/25/listening-part-1/
-
+ [irlo]: https://internals.rust-lang.org
 
 ## The scaling problem
 
 I contend that all of these issues are symptoms of an underlying _scaling issue_, but also a failure of how our moderation works.
 
-The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you're leaving a comment for _everyone_ to read and interpret, and this is hard to get right. It's _much_ easier to have one-on-one discussions because it's easy to build a shared vocabulary and avoid misunderstandings. Any misunderstandings can often be quickly detected and corrected.
+The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you're leaving a comment for _everyone_ to read and interpret, and this is hard to get right. It's _much_ easier to have one-on-one discussions because it's easy to build a shared vocabulary and avoid misunderstandings; any misunderstandings can often be quickly detected and corrected.
 
 I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will _understand_ each other, even if they don't _agree_. In such situations the end result may leave one or both parties _unhappy_, but rarely _angry_. (It's also not necessary that axiom mismatches leave people unhappy, embracing [positive sum thinking] helps us come to mutually beneficial conclusions)
 
@@ -188,10 +188,10 @@ Overall what I've proposed here isn't a fully-formed idea; but it's the seed of 
 
 I'm really interested to hear what people think!
 
-_Thanks to [Aaron], [Ashley], [Adam], [Corey], [Arshia], [Michael], [Sunjay], [Nick] and other people I've probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts_
+_Thanks to [Aaron], [Ashley], [Adam], [Ember], [Arshia], [Michael], [Sunjay], [Nick] and other people I've probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts_
 
  [Ashley]: https://twitter.com/ag_dubs
- [Corey]: https://twitter.com/cmrx64/
+ [Ember]: https://twitter.com/ember_arlynx
  [Michael]: https://twitter.com/mgattozzi
  [Sunjay]: https://twitter.com/sunjay03
  [Arshia]: http://twitter.com/arshia__

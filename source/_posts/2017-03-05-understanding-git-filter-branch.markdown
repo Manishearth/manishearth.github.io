@@ -220,7 +220,7 @@ The final result can be found [here][ref].
 
 For the nomicon, the task was easier. In the case of the nomicon, it has always resided in
 `src/doc/nomicon`, `src/doc/tarpl`, or at the root. This last bit is interesting, when
-[Alexis][Gankro] was working on the nomicon, he started off by hacking on it in a separate repo, but
+[Alexis][Gankra] was working on the nomicon, she started off by hacking on it in a separate repo, but
 then within that repo moved it to `src/doc/tarpl`, and performed a merge commit with rustc. There's
 no inherent restriction in Git that all merges must have a common ancestor, and you can do stuff
 like this. I was [quite surprised][twitterz] when I saw this, since it's pretty uncommon in general,
@@ -237,7 +237,7 @@ $ git filter-branch -f --prune-empty --subdirectory-filter nomicon @
 ```
 
 Now, I had the whole history of the nomicon in the root dir. Except for the commits made by Alexis
-before his frankenmerge, because these got removed in the first subdirectory filter (the commits
+before her frankenmerge, because these got removed in the first subdirectory filter (the commits
 were operating outside of `src/doc`, even though their contents eventually got moved there).
 
 But, at this stage, I already had a branch with the nomicon at the root. Alexis' original commits
@@ -253,7 +253,7 @@ moved, and [`a54e64`][a54e64] itself only moved files, so the diffs should clean
 The final result can be found [here][nom].
 
 
- [Gankro]: http://twitter.com/Gankro/
+ [Gankra]: http://twitter.com/Gankra_
  [twitterz]: https://twitter.com/ManishEarth/status/837441118753062912
  [a54e64]: https://github.com/rust-lang/rust/commit/a54e64b3c41103c4f6ab840d8ddd3a56ec6b5da8
  [c7919f]: https://github.com/rust-lang/rust/commit/c7919f2d9835578321bf7556ad1a01fa42e8a7e8
