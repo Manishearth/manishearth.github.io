@@ -87,7 +87,7 @@ Another aspect of this is that garbage collection is really a moment of global m
 
 In most garbage collected languages, there's a runtime that controls all execution and is able to pause execution to run the GC whenever it likes.
 
-Rust has a minimal runtime and can't do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (e.g. mutating a GC field, basically calling some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.
+Rust has a minimal runtime and can't do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (things like mutating a GC field; basically some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.
 
 Concurrent GCs can trigger the GC on a separate thread but will typically need to block other threads whenever these threads attempt to perform a GC operation.
 
@@ -103,7 +103,8 @@ In Rust, the easiest way to implement this is via a [custom derive]:
 
 
 ```rust
-trait Trace {
+// unsafe to implement by hand since you can get it wrong
+unsafe trait Trace {
     fn trace(&mut self, gc_context: &mut GcContext);
 }
 
@@ -152,4 +153,164 @@ While this is essentially "free" on reads, this is a fair amount of reference co
 
 [Servo][servo] is a browser engine in Rust that I used to work on full time. As mentioned earlier, browser engines typically implement a lot of their DOM types in native (i.e. Rust or C++, not JS) code, so for example [`Node`][servo-node] is a pure Rust object, and it [contains direct references to its children][servo-node-child] so Rust code can do things like traverse the tree without having to go back and forth between JS and Rust.
 
+
+Servo's model is a little weird: roots are a _different type_, and lints enforce that unrooted heap references are never placed on the stack:
+
+```rust
+#[dom_struct] // this is #[derive(JSTraceable)] plus some markers for lints
+pub struct Node {
+    // the parent type, for inheritance
+    eventtarget: EventTarget,
+    // in the actual code this is a different helper type that combines
+    // the RefCell, Option, and Dom, but i've simplified it to use
+    // stdlib types for this example
+    prev_sibling: RefCell<Option<Dom<Node>>>,
+    next_sibling: RefCell<Option<Dom<Node>>>,
+    // ...
+}
+
+impl Node {
+    fn frob_next_sibling(&self) {
+        // fields can be accessed as borrows without any rooting
+        if let Some(next) = self.next_sibling.borrow().as_ref() {
+            next.frob();
+        }
+    }
+
+    fn get_next_sibling(&self) -> Option<DomRoot<Node>> {
+        // but you need to root things for them to escape the borrow
+        // .root() turns Dom<T> into DomRoot<T>
+        self.next_sibling.borrow().as_ref().map(|x| x.root())
+    }
+
+    fn illegal(&self) {
+        // this line of code would get linted by a custom lint called unrooted_must_root
+        // (which works somewhat similarly to the must_use stuff that Rust does)
+        let ohno: Dom<Node> = self.next_sibling.borrow_mut().take();
+    }
+}
+```
+
+`Dom<T>` is basically a smart pointer that behaves like `&T` but without a lifetime, whereas `DomRoot<T>` has the additional behavior of rooting on creation (and unrooting on `Drop`). The custom lint plugin essentially enforces that `Dom<T>`, and any DOM structs (tagged with `#[dom_struct]`) are never accessible on the stack aside from through `DomRoot<T>` or `&T`.
+
+I wouldn't recommend this approach; it works okay but we've wanted to move off of it for a while. But it's worth mentioning for completeness.
+
   [servo-node]: https://doc.servo.org/script/dom/element/struct.Element.html
+
+## Josephine (Servo's experimental GC plans)
+
+Given that Servo's existing GC solution depends on plugging in to the compiler to do additional static analysis, we wanted something better. So [Alan] designed [Josephine] ("JS affine"), which uses Rust's affine types and borrowing in a cleaner way to provide a safe GC system.
+
+Josephine is explicitly designed for Servo's use case and as such does a lot of neat things around "compartments" and such that are probably irrelevant unless you specifically wish for your GC to integrate with a JS engine.
+
+I mentioned earlier that the fact that the garbage collection phase can only happen in certain well-known moments of the code actually can make things easier for GC design, and Josephine is an example of this.
+
+Josephine has a "JS context", which is to be passed around everywhere and essentially represents the GC itself. When doing operations which may trigger a GC, you have to borrow the context mutably, whereas when accessing heap objects you need to borrow the context immutably. You can root heap objects to remove this requirement:
+
+```rust
+// cx is a `JSContext`, `node` is a `JSManaged<'a, C, Node>`
+// assuming next_sibling and prev_sibling are not Options for simplicity
+
+let next_sibling = node.next_sibling.borrow(cx);
+println!("Name: {:?}", next_sibling.name);
+// illegal, because cx is immutably borrowed by next_sibling
+// node.prev_sibling.borrow_mut(cx).frob();
+let ref mut root = cx.new_root();
+let next_sibling = next_sibling.in_root(root);
+// now it's fine, no outstanding borrows of `cx`
+node.prev_sibling.borrow_mut(cx).frob();
+```
+
+`new_root()` creates a new root, and `in_root` ties the lifetime of a JS managed type to the root instead of to the `JSContext` borrow, releasing the borrow of the `JSContext` and allowing it to be borrowed mutably for 
+
+Note that `.borrow()` and `.borrow_mut()` here are not runtime borrow-checking cost despite their similarities to `RefCell::borrow()`, they instead are doing some lifetime juggling to make things safe. Creating roots typically does have runtime cost. Sometimes you _may_ need to use `RefCell<T>` for the same reason it's used in `Rc`, but mostly only for non-GCd fields.
+
+Custom types are typically defined in two parts as so:
+
+```rust
+#[derive(Copy, Clone, Debug, Eq, PartialEq, JSTraceable, JSLifetime, JSCompartmental)]
+pub struct Element<'a, C> (pub JSManaged<'a, C, NativeElement<'a, C>>);
+
+#[derive(JSTraceable, JSLifetime, JSCompartmental)]
+pub struct NativeElement<'a, C> {
+    name: JSString<'a, C>,
+    parent: Option<Element<'a, C>>,
+    children: Vec<Element<'a, C>>,
+}
+```
+
+where `Element<'a>` is a copyable reference that is to be used inside other GC types, and `NativeElement<'a>` is its backing storage. The `C` parameter has to do with compartments and can be ignored.
+
+A neat thing worth pointing out is that there's no runtime borrow checking necessary for manipulating other GC references, even though roots let you hold multiple references to the same object!
+
+```rust
+let parent_root = cx.new_root();
+let parent = element.borrow(cx).parent.in_root(parent_root);
+let ref mut child_root = cx.new_root();
+
+// could potentially be a second reference to `element` if it was
+// the first child
+let first_child = parent.children[0].in_root(child_root);
+
+// this is okay, even though we hold a reference to `parent`
+// via element.parent, because we have rooted that reference so it's
+// now independent of whether `element.parent` changes!
+first_child.borrow_mut(cx).parent = None;
+```
+
+Essentially, when mutating a field, you have to obtain mutable access to the context, so there will not be any references to the field itself still around (e.g. `element.borrow(cx).parent`), only to the GC'd data within it, so you can change what a field references without invalidating other references to the _contents_ of what the field references. This is a pretty cool trick that enables GC _without runtime-checked interior mutability_, which is relatively rare in such designs.
+
+
+ [Alan]: https://github.com/asajeffrey/
+ [Josephine]: https://github.com/asajeffrey/josephine
+
+## Unfinished design for a builtin Rust GC
+
+For a while a couple of us worked on a way to make Rust _itself_ extensible with a pluggable GC, using LLVM stack map support for finding roots. After all, if we know which types are GC-ish, we can include metadata on how to find roots for each function, similar to how Rust functions currently contain unwinding hooks to enable cleanly running destructors during a panic.
+
+We never got around to figuring out a _complete_ design, but you can find [more information on what we figured out here][rust-design]. Essentially, it involved a `Trace` trait with more generic `trace` methods, an auto-implemented `Root` trait that works similar to `Send`, and compiler machinery to keep track of which `Root` types are on the stack.
+
+This is probably not too useful for people attempting to implement a GC, but I'm mentioning it for completeness' sake.
+
+Note that pre-1.0 Rust did have a builtin GC (`@T`, known as "managed pointers"), but IIRC in practice the cycle-management parts were not ever implemented so it behaved exactly like `Rc<T>`. I believe it was intended to have a cycle collector (I'll talk more about that in the next section).
+
+## bacon-rajan-cc (and cycle collectors in general)
+
+[Nick Fitzgerald][fitzgen] wrote [`bacon-rajan-cc`][bacon-rajan-cc] to implement ["Concurrent Cycle Collection in Reference Counted Systems"][bacon-rajan] by David F. Bacon and V.T. Rajan.
+
+This is what is colloquially called a _cycle collector_; a kind of garbage collector which is essentially "what if we took `Rc<T>` but made it detect cycles". The idea is that you don't actually need to _know_ what the roots are if you're maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it's pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different "colors" to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.
+
+A crucial observation here is that if you _only focus on potential garbage_, you can shift your definition of "root" a bit, when looking for cycles you don't need to look for references from the stack, you can be satisfied with references from _any part of the heap you know for a fact is reachable from things which are not potential garbage_.
+
+A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of _the actual garbage you have_ [^5]. There are of course other tradeoffs:  deallocation is often cheaper or "free" in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.
+
+The way [bacon-rajan-cc] works is that every time a reference count is decremented, the object is added to a list of "potential cycle roots", unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like `Rc`). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list _again_ and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treates any element not reachable from this "potential cycle root" list as "not garbage", and doesn't bother to visit it.
+
+Cycle collectors require tighter control over the garbage collection algorithm, and have differing performance characteristics, so they may not necessarily be suitable for all use cases for GC integration in Rust, but it's definitely worth considering!
+
+
+ [bacon-rajan-cc]: https://github.com/fitzgen/bacon-rajan-cc
+ [fitzgen]: https://github.com/fitzgen
+ [bacon-rajan]: https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
+ [^5]: Firefox's DOM actually uses a mark & sweep tracing GC _mixed with_ a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there's a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released.
+
+## Interlude: The similarities between `async` and GCs
+
+The next two examples use machinery from Rust's `async` functionality despite having nothing to do with async I/O, and I think it's important to talk about why that should make sense. I've [tweeted about this before][manish-async-tweet]: I and [Catherine West][kyren] figured this out when we were talking about [her GC idea][gc-arena] based on `async`.
+
+You can see some of this correspondence in Go: Go is a language that has both garbage collection and async I/O, and both of these use the same "safepoints" for yielding to the garbage collector or the scheduler. In Go, the compiler needs to automatically insert code that checks the "pulse" of the heap every now and then, and potentially runs garbage collection. It also needs to automatically insert code that can tell the scheduler "hey now is a safe time to interrupt me if a different goroutine wishes to run". These are very similar in principle -- they're both essentially places where the compiler is inserting "it is okay to interrupt me now" checks, sometimes called "interruption points" or "yield points".
+
+Now, Rust's compiler does not automatically insert interruption points. However, the design of `async` in Rust is essentially a way of adding _explicit_ interruption points to Rust. `foo().await` in Rust is a way of running `foo()` and expecting that the scheduler _may_ interrupt the code in between. The design of [`Future`][future] and [`Pin<P>`][pin-p] come out of making this safe and pleasant to work with.
+
+As we shall see, this same machinery can be used for creating safe interruption points for GCs in Rust.
+
+
+ [manish-async-tweet]: https://twitter.com/ManishEarth/status/1073651552768819200
+ [kyren]: https://github.com/kyren
+ [pin-p]: https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html
+ [future]: https://doc.rust-lang.org/nightly/std/future/trait.Future.html
+
+
+## Shifgrethor
+
+
