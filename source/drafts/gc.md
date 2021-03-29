@@ -39,13 +39,13 @@ There are really two distinct kinds of use cases. Firstly, sometimes you need to
 
 For the first use case it's rarely necessary to design a custom GC, you can look for a reusable crate like [`gc`][gc] [^1].
 
-The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that _do_ use a garbage collector. [Servo] needs to do this for integrating with the Spidermonkey JS engine and [luster] needed to do this for implementing the GC of its Lua VM.
+The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that _do_ use a garbage collector. [Servo] needs to do this for integrating with the Spidermonkey JS engine and [luster] needed to do this for implementing the GC of its Lua VM. [boa], a pure Rust JS runtime, uses the [`gc`][gc] crate to back its garbage collector.
 
 Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side[^2]. This is often fine!
 
 The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can't "embed" efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. [`Element`][servo-element]) are implemented in native code; and need to be able to contain references to other native GC'd types (it should be possible to inspect the [children of a `Node`][servo-node-child] without needing to call back into the JavaScript engine).
 
-So sometimes you need to be able to integrate with a GC from a runtime; or even implement your own GC if you are writing a runtime that needs one.
+So sometimes you need to be able to integrate with a GC from a runtime; or even implement your own GC if you are writing a runtime that needs one. In both of these cases you typically want to be able to safely manipulate GC'd objects from Rust code, and even directly put Rust types on the GC heap.
 
 
  [petgraph]: https://docs.rs/petgraph/
@@ -58,6 +58,7 @@ So sometimes you need to be able to integrate with a GC from a runtime; or even 
  [luster]: https://github.com/kyren/luster
  [servo-element]: https://doc.servo.org/script/dom/element/struct.Element.html
  [servo-node-child]: https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list
+ [boa]: https://github.com/jasonwilliams/boa/
 
 ## Why are GCs in Rust hard?
 
@@ -89,11 +90,11 @@ Another aspect of this is that garbage collection is really a moment of global m
 
 ## How would you even garbage collect without a runtime?
 
-In most garbage collected languages, there's a runtime that controls all execution and is able to pause execution to run the GC whenever it likes.
+In most garbage collected languages, there's a runtime that controls all execution, knows about every variable in the program, and is able to pause execution to run the GC whenever it likes.
 
 Rust has a minimal runtime and can't do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (things like mutating a GC field; basically some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.
 
-Concurrent GCs can trigger the GC on a separate thread but will typically need to block other threads whenever these threads attempt to perform a GC operation.
+Concurrent GCs can trigger the GC on a separate thread but will typically need to pause other threads whenever these threads attempt to perform a GC operation that could potentially be invalidated by the running garbage collector.
 
 While this may restrict the flexibility of the garbage collector itself, this is actually pretty good for us from the side of API design: the garbage collection phase can only happen in certain well-known moments of the code, which means we only need to make things safe across _those_ boundaries. Many of the designs we shall look at build off of this observation.
 
@@ -124,7 +125,7 @@ The custom derive of `Trace` basically just calls `trace()` on all the fields. `
 
 This is a pretty standard pattern, and while the specifics of the `Trace` trait will typically vary, the general idea is roughly the same.
 
-I'm not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they're not that interesting from the point of view of designing something a safe GC _API_ in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they've not already been traced. Clean up any objects that were _not_ found.
+I'm not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they're not that interesting from the point of view of designing a safe GC _API_ in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they've not already been traced. Clean up any objects that were _not_ found.
 
 
  [custom derive]: https://doc.rust-lang.org/book/ch19-06-macros.html#how-to-write-a-custom-derive-macro
@@ -215,17 +216,26 @@ Josephine has a "JS context", which is to be passed around everywhere and essent
 // cx is a `JSContext`, `node` is a `JSManaged<'a, C, Node>`
 // assuming next_sibling and prev_sibling are not Options for simplicity
 
-let next_sibling = node.next_sibling.borrow(cx);
+// borrows cx for `'b`
+let next_sibling: &'b Node = node.next_sibling.borrow(cx);
 println!("Name: {:?}", next_sibling.name);
 // illegal, because cx is immutably borrowed by next_sibling
 // node.prev_sibling.borrow_mut(cx).frob();
+
+// read from next_sibling to ensure it lives this long
+println!("{:?}", next_sibling.name);
+
 let ref mut root = cx.new_root();
-let next_sibling = next_sibling.in_root(root);
+// no longer needs to borrow cx, borrows root for 'root instead
+let next_sibling: JSManaged<'root, C, Node> = node.next_sibling.in_root(root);
 // now it's fine, no outstanding borrows of `cx`
 node.prev_sibling.borrow_mut(cx).frob();
+
+// read from next_sibling to ensure it lives this long
+println!("{:?}", next_sibling.name);
 ```
 
-`new_root()` creates a new root, and `in_root` ties the lifetime of a JS managed type to the root instead of to the `JSContext` borrow, releasing the borrow of the `JSContext` and allowing it to be borrowed mutably for 
+`new_root()` creates a new root, and `in_root` ties the lifetime of a JS managed type to the root instead of to the `JSContext` borrow, releasing the borrow of the `JSContext` and allowing it to be borrowed mutably in future `.borrow_mut()` calls.
 
 Note that `.borrow()` and `.borrow_mut()` here are not runtime borrow-checking cost despite their similarities to `RefCell::borrow()`, they instead are doing some lifetime juggling to make things safe. Creating roots typically does have runtime cost. Sometimes you _may_ need to use `RefCell<T>` for the same reason it's used in `Rc`, but mostly only for non-GCd fields.
 
@@ -243,7 +253,7 @@ pub struct NativeElement<'a, C> {
 }
 ```
 
-where `Element<'a>` is a copyable reference that is to be used inside other GC types, and `NativeElement<'a>` is its backing storage. The `C` parameter has to do with compartments and can be ignored.
+where `Element<'a>` is a convenient copyable reference that is to be used inside other GC types, and `NativeElement<'a>` is its backing storage. The `C` parameter has to do with compartments and can be ignored for now.
 
 A neat thing worth pointing out is that there's no runtime borrow checking necessary for manipulating other GC references, even though roots let you hold multiple references to the same object!
 
@@ -339,7 +349,11 @@ fn main() {
 
 All mutation goes through autogenerated accessors, so the crate has a little more control over traffic through the GC.
 
-Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.
+<s>Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.</s>
+
+Heap sessions allow for the heap to moved around, even sent to other threads, and their lifetime prevents heap objects from being mixed between sessions (TBD is this generativity?).
+
+TBD explain how the GC works here.
 
  [cell-gc]: https://github.com/jorendorff/cell-gc
  [jorendorff]: https://github.com/jorendorff/
@@ -497,6 +511,8 @@ As is hopefully obvious, the space of safe GC design in Rust is quite rich and h
 TBD: expand this section, maybe reframe
 
 
-_Thanks to TBD for reviewing drafts of this blog post_
+_Thanks to [Jason Orendorff][jorendorff], TBD for reviewing drafts of this blog post_
 
+
+ [jorendorff]: https://twitter.com/jorendorff/
 
