@@ -134,13 +134,13 @@
 
 <p>For the first use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
 
-<p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM.</p>
+<p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM. <a href="https://github.com/jasonwilliams/boa/">boa</a>, a pure Rust JS runtime, uses the <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate to back its garbage collector.</p>
 
 <p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>. This is often fine!</p>
 
 <p>The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can’t “embed” efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Element</code></a>) are implemented in native code; and need to be able to contain references to other native GC’d types (it should be possible to inspect the <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">children of a <code class="language-plaintext highlighter-rouge">Node</code></a> without needing to call back into the JavaScript engine).</p>
 
-<p>So sometimes you need to be able to integrate with a GC from a runtime; or even implement your own GC if you are writing a runtime that needs one.</p>
+<p>So sometimes you need to be able to integrate with a GC from a runtime; or even implement your own GC if you are writing a runtime that needs one. In both of these cases you typically want to be able to safely manipulate GC’d objects from Rust code, and even directly put Rust types on the GC heap.</p>
 
 <h2 id="why-are-gcs-in-rust-hard">Why are GCs in Rust hard?</h2>
 
@@ -168,11 +168,11 @@
 
 <h2 id="how-would-you-even-garbage-collect-without-a-runtime">How would you even garbage collect without a runtime?</h2>
 
-<p>In most garbage collected languages, there’s a runtime that controls all execution and is able to pause execution to run the GC whenever it likes.</p>
+<p>In most garbage collected languages, there’s a runtime that controls all execution, knows about every variable in the program, and is able to pause execution to run the GC whenever it likes.</p>
 
 <p>Rust has a minimal runtime and can’t do anything like this, especially not in a pluggable way your library can hook in to. For thread local GCs you basically have to write it such that GC operations (things like mutating a GC field; basically some subset of the APIs exposed by your GC library) are the only things that may trigger the garbage collector.</p>
 
-<p>Concurrent GCs can trigger the GC on a separate thread but will typically need to block other threads whenever these threads attempt to perform a GC operation.</p>
+<p>Concurrent GCs can trigger the GC on a separate thread but will typically need to pause other threads whenever these threads attempt to perform a GC operation that could potentially be invalidated by the running garbage collector.</p>
 
 <p>While this may restrict the flexibility of the garbage collector itself, this is actually pretty good for us from the side of API design: the garbage collection phase can only happen in certain well-known moments of the code, which means we only need to make things safe across <em>those</em> boundaries. Many of the designs we shall look at build off of this observation.</p>
 
@@ -201,7 +201,7 @@
 
 <p>This is a pretty standard pattern, and while the specifics of the <code class="language-plaintext highlighter-rouge">Trace</code> trait will typically vary, the general idea is roughly the same.</p>
 
-<p>I’m not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they’re not that interesting from the point of view of designing something a safe GC <em>API</em> in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they’ve not already been traced. Clean up any objects that were <em>not</em> found.</p>
+<p>I’m not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they’re not that interesting from the point of view of designing a safe GC <em>API</em> in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they’ve not already been traced. Clean up any objects that were <em>not</em> found.</p>
 
 <h2 id="rust-gc">rust-gc</h2>
 
@@ -281,17 +281,26 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// cx is a `JSContext`, `node` is a `JSManaged&lt;'a, C, Node&gt;`</span>
 <span class="c">// assuming next_sibling and prev_sibling are not Options for simplicity</span>
 
-<span class="k">let</span> <span class="n">next_sibling</span> <span class="o">=</span> <span class="n">node</span><span class="py">.next_sibling</span><span class="nf">.borrow</span><span class="p">(</span><span class="n">cx</span><span class="p">);</span>
+<span class="c">// borrows cx for `'b`</span>
+<span class="k">let</span> <span class="n">next_sibling</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'b</span> <span class="n">Node</span> <span class="o">=</span> <span class="n">node</span><span class="py">.next_sibling</span><span class="nf">.borrow</span><span class="p">(</span><span class="n">cx</span><span class="p">);</span>
 <span class="nd">println!</span><span class="p">(</span><span class="s">"Name: {:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
 <span class="c">// illegal, because cx is immutably borrowed by next_sibling</span>
 <span class="c">// node.prev_sibling.borrow_mut(cx).frob();</span>
+
+<span class="c">// read from next_sibling to ensure it lives this long</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
+
 <span class="k">let</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">root</span> <span class="o">=</span> <span class="n">cx</span><span class="nf">.new_root</span><span class="p">();</span>
-<span class="k">let</span> <span class="n">next_sibling</span> <span class="o">=</span> <span class="n">next_sibling</span><span class="nf">.in_root</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
+<span class="c">// no longer needs to borrow cx, borrows root for 'root instead</span>
+<span class="k">let</span> <span class="n">next_sibling</span><span class="p">:</span> <span class="n">JSManaged</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">Node</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">node</span><span class="py">.next_sibling</span><span class="nf">.in_root</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
 <span class="c">// now it's fine, no outstanding borrows of `cx`</span>
 <span class="n">node</span><span class="py">.prev_sibling</span><span class="nf">.borrow_mut</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span><span class="nf">.frob</span><span class="p">();</span>
+
+<span class="c">// read from next_sibling to ensure it lives this long</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">new_root()</code> creates a new root, and <code class="language-plaintext highlighter-rouge">in_root</code> ties the lifetime of a JS managed type to the root instead of to the <code class="language-plaintext highlighter-rouge">JSContext</code> borrow, releasing the borrow of the <code class="language-plaintext highlighter-rouge">JSContext</code> and allowing it to be borrowed mutably for</p>
+<p><code class="language-plaintext highlighter-rouge">new_root()</code> creates a new root, and <code class="language-plaintext highlighter-rouge">in_root</code> ties the lifetime of a JS managed type to the root instead of to the <code class="language-plaintext highlighter-rouge">JSContext</code> borrow, releasing the borrow of the <code class="language-plaintext highlighter-rouge">JSContext</code> and allowing it to be borrowed mutably in future <code class="language-plaintext highlighter-rouge">.borrow_mut()</code> calls.</p>
 
 <p>Note that <code class="language-plaintext highlighter-rouge">.borrow()</code> and <code class="language-plaintext highlighter-rouge">.borrow_mut()</code> here are not runtime borrow-checking cost despite their similarities to <code class="language-plaintext highlighter-rouge">RefCell::borrow()</code>, they instead are doing some lifetime juggling to make things safe. Creating roots typically does have runtime cost. Sometimes you <em>may</em> need to use <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> for the same reason it’s used in <code class="language-plaintext highlighter-rouge">Rc</code>, but mostly only for non-GCd fields.</p>
 
@@ -308,7 +317,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>where <code class="language-plaintext highlighter-rouge">Element&lt;'a&gt;</code> is a copyable reference that is to be used inside other GC types, and <code class="language-plaintext highlighter-rouge">NativeElement&lt;'a&gt;</code> is its backing storage. The <code class="language-plaintext highlighter-rouge">C</code> parameter has to do with compartments and can be ignored.</p>
+<p>where <code class="language-plaintext highlighter-rouge">Element&lt;'a&gt;</code> is a convenient copyable reference that is to be used inside other GC types, and <code class="language-plaintext highlighter-rouge">NativeElement&lt;'a&gt;</code> is its backing storage. The <code class="language-plaintext highlighter-rouge">C</code> parameter has to do with compartments and can be ignored for now.</p>
 
 <p>A neat thing worth pointing out is that there’s no runtime borrow checking necessary for manipulating other GC references, even though roots let you hold multiple references to the same object!</p>
 
@@ -356,7 +365,7 @@
 
 <h2 id="cell-gc">cell-gc</h2>
 
-<p><a href="https://github.com/jorendorff/">Jason Orendorff</a>’s <a href="https://github.com/jorendorff/cell-gc">cell-gc</a> crate is interesting, it has a concept of “heap sessions”. Here’s a modified example from the readme:</p>
+<p>[Jason Orendorff][jorendorff]’s [cell-gc] crate is interesting, it has a concept of “heap sessions”. Here’s a modified example from the readme:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">cell_gc</span><span class="p">::</span><span class="n">Heap</span><span class="p">;</span>
 
@@ -390,138 +399,174 @@
 
 <p>All mutation goes through autogenerated accessors, so the crate has a little more control over traffic through the GC.</p>
 
-<p>Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using <code class="language-plaintext highlighter-rouge">FrozenGcRef&lt;T&gt;</code>, which provides a separate refcounted root type.</p>
+<s>Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.&lt;/s&gt;
 
-<h2 id="interlude-the-similarities-between-async-and-gcs">Interlude: The similarities between <code class="language-plaintext highlighter-rouge">async</code> and GCs</h2>
+Heap sessions allow for the heap to moved around, even sent to other threads, and their lifetime prevents heap objects from being mixed between sessions (TBD is this generativity?).
 
-<p>The next two examples use machinery from Rust’s <code class="language-plaintext highlighter-rouge">async</code> functionality despite having nothing to do with async I/O, and I think it’s important to talk about why that should make sense. I’ve <a href="https://twitter.com/ManishEarth/status/1073651552768819200">tweeted about this before</a>: I and <a href="https://github.com/kyren">Catherine West</a> figured this out when we were talking about <a href="https://github.com/kyren/gc-arena">her GC idea</a> based on <code class="language-plaintext highlighter-rouge">async</code>.</p>
+TBD explain how the GC works here.
 
-<p>You can see some of this correspondence in Go: Go is a language that has both garbage collection and async I/O, and both of these use the same “safepoints” for yielding to the garbage collector or the scheduler. In Go, the compiler needs to automatically insert code that checks the “pulse” of the heap every now and then, and potentially runs garbage collection. It also needs to automatically insert code that can tell the scheduler “hey now is a safe time to interrupt me if a different goroutine wishes to run”. These are very similar in principle – they’re both essentially places where the compiler is inserting “it is okay to interrupt me now” checks, sometimes called “interruption points” or “yield points”.</p>
+ [cell-gc]: https://github.com/jorendorff/cell-gc
+ [jorendorff]: https://github.com/jorendorff/
 
-<p>Now, Rust’s compiler does not automatically insert interruption points. However, the design of <code class="language-plaintext highlighter-rouge">async</code> in Rust is essentially a way of adding <em>explicit</em> interruption points to Rust. <code class="language-plaintext highlighter-rouge">foo().await</code> in Rust is a way of running <code class="language-plaintext highlighter-rouge">foo()</code> and expecting that the scheduler <em>may</em> interrupt the code in between. The design of <a href="https://doc.rust-lang.org/nightly/std/future/trait.Future.html"><code class="language-plaintext highlighter-rouge">Future</code></a> and <a href="https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html"><code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code></a> come out of making this safe and pleasant to work with.</p>
+## Interlude: The similarities between `async` and GCs
 
-<p>As we shall see, this same machinery can be used for creating safe interruption points for GCs in Rust.</p>
+The next two examples use machinery from Rust's `async` functionality despite having nothing to do with async I/O, and I think it's important to talk about why that should make sense. I've [tweeted about this before][manish-async-tweet]: I and [Catherine West][kyren] figured this out when we were talking about [her GC idea][gc-arena] based on `async`.
 
-<h2 id="shifgrethor">Shifgrethor</h2>
+You can see some of this correspondence in Go: Go is a language that has both garbage collection and async I/O, and both of these use the same "safepoints" for yielding to the garbage collector or the scheduler. In Go, the compiler needs to automatically insert code that checks the "pulse" of the heap every now and then, and potentially runs garbage collection. It also needs to automatically insert code that can tell the scheduler "hey now is a safe time to interrupt me if a different goroutine wishes to run". These are very similar in principle -- they're both essentially places where the compiler is inserting "it is okay to interrupt me now" checks, sometimes called "interruption points" or "yield points".
 
-<p><a href="https://github.com/withoutboats/shifgrethor">shifgrethor</a> is an experiment by <a href="https://github.com/withoutboats/">Saoirse</a> to try and build a GC that uses <a href="https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html"><code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code></a> for managing roots. They’ve written extensively on the design of <a href="https://github.com/withoutboats/shifgrethor">shifgrethor</a> <a href="https://without.boats/tags/shifgrethor/">on their blog</a>. In particular, the <a href="https://without.boats/blog/shifgrethor-iii/">post on rooting</a> goes through how rooting works.</p>
+Now, Rust's compiler does not automatically insert interruption points. However, the design of `async` in Rust is essentially a way of adding _explicit_ interruption points to Rust. `foo().await` in Rust is a way of running `foo()` and expecting that the scheduler _may_ interrupt the code in between. The design of [`Future`][future] and [`Pin<p>`][pin-p] come out of making this safe and pleasant to work with.
 
-<p>The basic design is that there’s a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code> type that contains a <code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code>, which can be <em>immovably</em> tied to a stack frame using the same idea behind <code class="language-plaintext highlighter-rouge">pin-utils</code>’ <a href="https://docs.rs/pin-utils/0.1.0/pin_utils/macro.pin_mut.html"><code class="language-plaintext highlighter-rouge">pin_mut!()</code> macro</a>:</p>
+As we shall see, this same machinery can be used for creating safe interruption points for GCs in Rust.
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">letroot!</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
-<span class="k">let</span> <span class="n">gc</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Foo</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-</code></pre></div></div>
 
-<p>The fact that <code class="language-plaintext highlighter-rouge">root</code> is immovable allows for it to be treated as a true marker for the <em>stack frame</em> over anything else. The list of rooted types can be neatly stored in an ordered stack-like vector in the GC implementation, popping when individual roots go out of scope.</p>
+ [manish-async-tweet]: https://twitter.com/ManishEarth/status/1073651552768819200
+ [kyren]: https://github.com/kyren
+ [pin-p]: https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html
+ [future]: https://doc.rust-lang.org/nightly/std/future/trait.Future.html
 
-<p>If you wish to return a rooted object from a function, the function needs to accept a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code>:</p>
+## Shifgrethor
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Self</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="n">Self</span> <span class="p">{</span>
-        <span class="c">// ...</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+[shifgrethor] is an experiment by [Saoirse][withoutboats] to try and build a GC that uses [`Pin<p>`][pin-p] for managing roots. They've written extensively on the design of [shifgrethor][shifgrethor] [on their blog][shif-blog]. In particular, the [post on rooting][shif-root] goes through how rooting works.
 
-<p>All GC’d types have a <code class="language-plaintext highlighter-rouge">'root</code> lifetime of the root they trace back to, and are declared with a custom derive:</p>
+The basic design is that there's a `Root&lt;'root&gt;` type that contains a `Pin<p>`, which can be _immovably_ tied to a stack frame using the same idea behind `pin-utils`' [`pin_mut!()` macro][pin-mut]:
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(GC)]</span>
-<span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="nd">#[gc]</span> <span class="n">bar</span><span class="p">:</span> <span class="n">GcStore</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-<span class="p">}</span>
-</code></pre></div></div>
+```rust
+letroot!(root);
+let gc: Gc&lt;'root, Foo&gt; = root.gc(Foo::new());
+```
 
-<p><code class="language-plaintext highlighter-rouge">GcStore</code> is a way to have fields use the rooting of their parent. Normally, if you wanted to put <code class="language-plaintext highlighter-rouge">Gc&lt;'root2, Bar&lt;'root2&gt;&gt;</code> inside <code class="language-plaintext highlighter-rouge">Foo&lt;'root1&gt;</code> you would not be able to because the lifetimes derive from different roots. <code class="language-plaintext highlighter-rouge">GcStore</code>, along with autogenerated accessors from <code class="language-plaintext highlighter-rouge">#[derive(GC)]</code>, will set <code class="language-plaintext highlighter-rouge">Bar</code>’s lifetime to be the same as <code class="language-plaintext highlighter-rouge">Foo</code> when you attempt to stick it inside <code class="language-plaintext highlighter-rouge">Foo</code>.</p>
+The fact that `root` is immovable allows for it to be treated as a true marker for the _stack frame_ over anything else. The list of rooted types can be neatly stored in an ordered stack-like vector in the GC implementation, popping when individual roots go out of scope.
 
-<p>This design is somewhat similar to that of Servo where there’s a pair of types, one that lets us refer to GC types on the stack, and one that lets GC types refer to each other on the heap, but it uses <code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code> instead of a lint to enforce this safely, which is way nicer. <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code> and <code class="language-plaintext highlighter-rouge">GcStore</code> do a bunch of lifetime tweaking that’s reminiscent of Josephine’s rooting system, however there’s no need for an <code class="language-plaintext highlighter-rouge">&amp;mut JsContext</code> type that needs to be passed around everywhere.</p>
+If you wish to return a rooted object from a function, the function needs to accept a `Root&lt;'root&gt;`:
 
-<h2 id="gc-arena">gc-arena</h2>
+```rust
+fn new&lt;'root&gt;(root: Root&lt;'root&gt;) -&gt; Gc&lt;'root, Self&gt; {
+    root.gc(Self {
+        // ...
+    }
+}
+```
 
-<p><a href="https://github.com/kyren/gc-arena"><code class="language-plaintext highlighter-rouge">gc-arena</code></a> is <a href="https://github.com/kyren">Catherine West</a>’s experimental GC design for her Lua VM, <a href="https://github.com/kyren/luster"><code class="language-plaintext highlighter-rouge">luster</code></a>.</p>
+All GC'd types have a `'root` lifetime of the root they trace back to, and are declared with a custom derive:
 
-<p>The <code class="language-plaintext highlighter-rouge">gc-arena</code> crate forces all GC-manipulating code to go within <code class="language-plaintext highlighter-rouge">arena.mutate()</code> calls, between which garbage collection may occur.</p>
+```rust
+#[derive(GC)]
+struct Foo&lt;'root&gt; {
+    #[gc] bar: GcStore&lt;'root, Bar&gt;,
+}
+```
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
-<span class="nd">#[collect(no_drop)]</span>
-<span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">number</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">many_numbers</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
-<span class="p">}</span>
+`GcStore` is a way to have fields use the rooting of their parent. Normally, if you wanted to put `Gc&lt;'root2, Bar&lt;'root2&gt;&gt;` inside `Foo&lt;'root1&gt;` you would not be able to because the lifetimes derive from different roots. `GcStore`, along with autogenerated accessors from `#[derive(GC)]`, will set `Bar`'s lifetime to be the same as `Foo` when you attempt to stick it inside `Foo`.
 
-<span class="nd">make_arena!</span><span class="p">(</span><span class="n">TestArena</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
 
-<span class="k">let</span> <span class="k">mut</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">TestArena</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">ArenaParameters</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span> <span class="p">|</span><span class="n">mc</span><span class="p">|</span> <span class="n">TestRoot</span> <span class="p">{</span>
-    <span class="n">number</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">42</span><span class="p">),</span>
-    <span class="n">many_numbers</span><span class="p">:</span> <span class="nn">GcCell</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">()),</span>
-<span class="p">});</span>
+This design is somewhat similar to that of Servo where there's a pair of types, one that lets us refer to GC types on the stack, and one that lets GC types refer to each other on the heap, but it uses `Pin<p>` instead of a lint to enforce this safely, which is way nicer. `Root&lt;'root&gt;` and `GcStore` do a bunch of lifetime tweaking that's reminiscent of Josephine's rooting system, however there's no need for an `&amp;mut JsContext` type that needs to be passed around everywhere.
 
-<span class="n">arena</span><span class="nf">.mutate</span><span class="p">(|</span><span class="mi">_</span><span class="n">mc</span><span class="p">,</span> <span class="n">root</span><span class="p">|</span> <span class="p">{</span>
-    <span class="nd">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="o">*</span><span class="n">root</span><span class="p">)</span><span class="py">.number</span><span class="p">),</span> <span class="mi">42</span><span class="p">);</span>
-    <span class="n">root</span><span class="py">.numbers</span><span class="nf">.write</span><span class="p">(</span><span class="n">mc</span><span class="p">)</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
-<span class="p">});</span>
-</code></pre></div></div>
 
-<p>Mutation is done with <code class="language-plaintext highlighter-rouge">GcCell</code>, basically a fancier version of <code class="language-plaintext highlighter-rouge">Gc&lt;RefCell&lt;T&gt;&gt;</code>. All GC operations require a <code class="language-plaintext highlighter-rouge">MutationContext</code> (<code class="language-plaintext highlighter-rouge">mc</code>), which is only available within <code class="language-plaintext highlighter-rouge">arena.mutate()</code>. This crate allows for multiple GCs to operate simultaneously, and it enforces that GC types do not mix by using <em>generativity</em> (you can read more about generativity in _<a href="https://raw.githubusercontent.com/Gankra/thesis/master/thesis.pdf">“You Can’t Spell Trust Without Rust”</a> ch 6.3, by <a href="https://github.com/Gankra">Alexis Beingessner</a>, or by looking at the <a href="https://github.com/bluss/indexing"><code class="language-plaintext highlighter-rouge">indexing</code></a> crate).</p>
+ [shifgrethor]: https://github.com/withoutboats/shifgrethor
+ [withoutboats]: https://github.com/withoutboats/
+ [shif-blog]: https://without.boats/tags/shifgrethor/
+ [shif-root]: https://without.boats/blog/shifgrethor-iii/
+ [pin-mut]: https://docs.rs/pin-utils/0.1.0/pin_utils/macro.pin_mut.html
 
-<p>Only the arena root may survive between <code class="language-plaintext highlighter-rouge">mutate()</code> calls, and garbage collection does not happen during <code class="language-plaintext highlighter-rouge">.mutate()</code>, so rooting is easy – just follow the arena root.</p>
+## gc-arena
 
-<p>So far this is mostly like other arena-based systems, with a GC.</p>
+[`gc-arena`][gc-arena] is [Catherine West][kyren]'s experimental GC design for her Lua VM, [`luster`][luster].
 
-<p>The <em>really cool</em> part of the design is the <code class="language-plaintext highlighter-rouge">gc-sequence</code> crate, which essentially builds a <code class="language-plaintext highlighter-rouge">Future</code>-like API (using a <code class="language-plaintext highlighter-rouge">Sequence</code> trait) on top of <code class="language-plaintext highlighter-rouge">gc-arena</code> that can potentially make this very pleasant to use. Here’s a modified example from a test:</p>
+The `gc-arena` crate forces all GC-manipulating code to go within `arena.mutate()` calls, between which garbage collection may occur.
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
-<span class="nd">#[collect(no_drop)]</span>
-<span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">test</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
-<span class="p">}</span>
+```rust
+#[derive(Collect)]
+#[collect(no_drop)]
+struct TestRoot&lt;'gc&gt; {
+    number: Gc&lt;'gc, i32&gt;,
+    many_numbers: GcCell&lt;Vec&lt;Gc&lt;'gc, i32&gt;&gt;&gt;,
+}
 
-<span class="nd">make_sequencable_arena!</span><span class="p">(</span><span class="n">test_sequencer</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
-<span class="k">use</span> <span class="nn">test_sequencer</span><span class="p">::</span><span class="n">Arena</span> <span class="k">as</span> <span class="n">TestArena</span><span class="p">;</span>
+make_arena!(TestArena, TestRoot);
 
-<span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">TestArena</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">ArenaParameters</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span> <span class="p">|</span><span class="n">mc</span><span class="p">|</span> <span class="n">TestRoot</span> <span class="p">{</span>
-    <span class="n">test</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">42</span><span class="p">),</span>
-<span class="p">});</span>
+let mut arena = TestArena::new(ArenaParameters::default(), |mc| TestRoot {
+    number: Gc::allocate(mc, 42),
+    many_numbers: GcCell::allocate(mc, Vec::new()),
+});
 
-<span class="k">let</span> <span class="k">mut</span> <span class="n">sequence</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.sequence</span><span class="p">(|</span><span class="n">root</span><span class="p">|</span> <span class="p">{</span>
-    <span class="nn">sequence</span><span class="p">::</span><span class="nf">from_fn_with</span><span class="p">(</span><span class="n">root</span><span class="py">.test</span><span class="p">,</span> <span class="p">|</span><span class="mi">_</span><span class="p">,</span> <span class="n">test</span><span class="p">|</span> <span class="p">{</span>
-        <span class="k">if</span> <span class="o">*</span><span class="n">test</span> <span class="o">==</span> <span class="mi">42</span> <span class="p">{</span>
-            <span class="nf">Ok</span><span class="p">(</span><span class="o">*</span><span class="n">test</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
-        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-            <span class="nf">Err</span><span class="p">(</span><span class="s">"will not be generated"</span><span class="p">)</span>
-        <span class="p">}</span>
-    <span class="p">})</span>
-    <span class="nf">.and_then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">12</span><span class="p">))</span>
-    <span class="nf">.and_chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="nn">sequence</span><span class="p">::</span><span class="nf">ok</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)))</span>
-    <span class="nf">.then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">res</span><span class="p">|</span> <span class="n">res</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"should not be error"</span><span class="p">))</span>
-    <span class="nf">.chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span>
-    <span class="nf">.map</span><span class="p">(|</span><span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">60</span><span class="p">))</span>
-    <span class="nf">.flatten</span><span class="p">()</span>
-    <span class="nf">.boxed</span><span class="p">()</span>
-<span class="p">});</span>
+arena.mutate(|_mc, root| {
+    assert_eq!(*((*root).number), 42);
+    root.numbers.write(mc).push(Gc::allocate(mc, 0));
+});
+```
 
-<span class="k">loop</span> <span class="p">{</span>
-    <span class="k">match</span> <span class="n">sequence</span><span class="nf">.step</span><span class="p">()</span> <span class="p">{</span>
-        <span class="nf">Ok</span><span class="p">((</span><span class="mi">_</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
-            <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
-            <span class="k">return</span><span class="p">;</span>
-        <span class="p">}</span>
-        <span class="nf">Err</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">sequence</span> <span class="o">=</span> <span class="n">s</span><span class="p">,</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+Mutation is done with `GcCell`, basically a fancier version of `Gc&lt;RefCell<T>&gt;`. All GC operations require a `MutationContext` (`mc`), which is only available within `arena.mutate()`. This crate allows for multiple GCs to operate simultaneously, and it enforces that GC types do not mix by using _generativity_ (you can read more about generativity in _["You Can't Spell Trust Without Rust"][thesis] ch 6.3, by [Alexis Beingessner][gankra], or by looking at the [`indexing`] crate).
 
-<p>This is <em>very</em> similar to chained callback futures code; and if it could use the <code class="language-plaintext highlighter-rouge">Future</code> trait would be able to make use of <code class="language-plaintext highlighter-rouge">async</code> to convert this callback heavy code into sequential code with interrupt points using <code class="language-plaintext highlighter-rouge">await</code>. There were design constraints making <code class="language-plaintext highlighter-rouge">Future</code> not workable for this use case, though if Rust ever gets generators this would work well, and it’s quite possible that another GC with a similar design could be written, using <code class="language-plaintext highlighter-rouge">async</code>/<code class="language-plaintext highlighter-rouge">await</code> and <code class="language-plaintext highlighter-rouge">Future</code>.</p>
+Only the arena root may survive between `mutate()` calls, and garbage collection does not happen during `.mutate()`, so rooting is easy -- just follow the arena root.
 
-<p>Essentially, this paints a picture of an entire space of Rust GC design where GC mutations are performed using <code class="language-plaintext highlighter-rouge">await</code> (or <code class="language-plaintext highlighter-rouge">yield</code> if we ever get generators), and garbage collection can occur during those yield points, in a way that’s highly reminiscent of Go’s design.</p>
+So far this is mostly like other arena-based systems, with a GC.
 
-<h2 id="your-design-here">Your design here?</h2>
+The _really cool_ part of the design is the `gc-sequence` crate, which essentially builds a `Future`-like API (using a `Sequence` trait) on top of `gc-arena` that can potentially make this very pleasant to use. Here's a modified example from a test:
 
-<p>As is hopefully obvious, the space of safe GC design in Rust is quite rich and has a lot of interesting ideas. I’m really excited to see what folks come up with here!</p>
+```rust
+#[derive(Collect)]
+#[collect(no_drop)]
+struct TestRoot&lt;'gc&gt; {
+    test: Gc&lt;'gc, i32&gt;,
+}
 
-<p>TBD: expand this section, maybe reframe</p>
+make_sequencable_arena!(test_sequencer, TestRoot);
+use test_sequencer::Arena as TestArena;
 
-<p><em>Thanks to TBD for reviewing drafts of this blog post</em></p>
+let arena = TestArena::new(ArenaParameters::default(), |mc| TestRoot {
+    test: Gc::allocate(mc, 42),
+});
 
+let mut sequence = arena.sequence(|root| {
+    sequence::from_fn_with(root.test, |_, test| {
+        if *test == 42 {
+            Ok(*test + 10)
+        } else {
+            Err("will not be generated")
+        }
+    })
+    .and_then(|_, r| Ok(r + 12))
+    .and_chain(|_, r| Ok(sequence::ok(r - 10)))
+    .then(|_, res| res.expect("should not be error"))
+    .chain(|_, r| sequence::done(r + 10))
+    .map(|r| sequence::done(r - 60))
+    .flatten()
+    .boxed()
+});
+
+loop {
+    match sequence.step() {
+        Ok((_, output)) =&gt; {
+            assert_eq!(output, 4);
+            return;
+        }
+        Err(s) =&gt; sequence = s,
+    }
+}
+```
+
+This is _very_ similar to chained callback futures code; and if it could use the `Future` trait would be able to make use of `async` to convert this callback heavy code into sequential code with interrupt points using `await`. There were design constraints making `Future` not workable for this use case, though if Rust ever gets generators this would work well, and it's quite possible that another GC with a similar design could be written, using `async`/`await` and `Future`.
+
+Essentially, this paints a picture of an entire space of Rust GC design where GC mutations are performed using `await` (or `yield` if we ever get generators), and garbage collection can occur during those yield points, in a way that's highly reminiscent of Go's design.
+
+ [luster]: https://github.com/kyren/luster
+ [thesis]: https://raw.githubusercontent.com/Gankra/thesis/master/thesis.pdf
+ [gankra]: https://github.com/Gankra
+ [`indexing`]: https://github.com/bluss/indexing
+
+## Your design here?
+
+As is hopefully obvious, the space of safe GC design in Rust is quite rich and has a lot of interesting ideas. I'm really excited to see what folks come up with here!
+
+TBD: expand this section, maybe reframe
+
+
+_Thanks to [Jason Orendorff][jorendorff], TBD for reviewing drafts of this blog post_
+
+
+ [jorendorff]: https://twitter.com/jorendorff/
+
+</T></p></p></p></p></T></s>
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:0" role="doc-endnote">
