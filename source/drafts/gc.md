@@ -10,6 +10,8 @@ I've been thinking about garbage collection in Rust for a long time, ever since 
 
 As a result, I tend to get pulled into GC discussions fairly often. I enjoy talking about GCs -- don't get me wrong -- but I often end up going over the same stuff. Being [lazy] I'd much prefer to be able to refer people to a single place where they can get up to speed on the general space of GC design, after which it's possible to have more in depth discussions about the specific tradeoffs necessary.
 
+I'll note that some of the GCs in this post are experiments or unmaintained. The goal of this post is to showcase these as examples of _design_, not necessarily general-purpose crates you may wish to use, though some of them are usable crates as well.
+
  [servo]: https://github.com/servo/servo
  [rustgc-post]: https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/
  [rust-design]: https://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/
@@ -23,7 +25,9 @@ A thing that often muddles discussions about GCs is that according to some defin
 
 Tracing garbage collection is the kind which keeps track of which heap objects are directly reachable ("roots"), figures out the whole set of reachable heap objects ("tracing", also, "marking"), and then cleans them up ("sweeping").
 
-Throughout this blog post I will use the term "GC" to exclusively refer to tracing garbage collection/collectors.
+Throughout this blog post I will use the term "GC" to refer to tracing garbage collection/collectors unless otherwise stated[^0].
+
+ [^0]: I'm also going to completely ignore the field of _conservative_ stack-scanning tracing GCs where you figure out your roots by looking at all the stack memory and considering anything with a remotely heap-object-like bit pattern to be a root. These are interesting, but can't really be made 100% safe in the way Rust wants them to be unless you scan the heap as well.
 
 ## Why write GCs for Rust?
 
@@ -268,17 +272,21 @@ Essentially, when mutating a field, you have to obtain mutable access to the con
 
 For a while a couple of us worked on a way to make Rust _itself_ extensible with a pluggable GC, using LLVM stack map support for finding roots. After all, if we know which types are GC-ish, we can include metadata on how to find roots for each function, similar to how Rust functions currently contain unwinding hooks to enable cleanly running destructors during a panic.
 
-We never got around to figuring out a _complete_ design, but you can find [more information on what we figured out here][rust-design]. Essentially, it involved a `Trace` trait with more generic `trace` methods, an auto-implemented `Root` trait that works similar to `Send`, and compiler machinery to keep track of which `Root` types are on the stack.
+We never got around to figuring out a _complete_ design, but you can find more information on what we figured out in [my][rust-design] and [Felix's][felix-rust-design] posts on this subject. Essentially, it involved a `Trace` trait with more generic `trace` methods, an auto-implemented `Root` trait that works similar to `Send`, and compiler machinery to keep track of which `Root` types are on the stack.
 
 This is probably not too useful for people attempting to implement a GC, but I'm mentioning it for completeness' sake.
 
 Note that pre-1.0 Rust did have a builtin GC (`@T`, known as "managed pointers"), but IIRC in practice the cycle-management parts were not ever implemented so it behaved exactly like `Rc<T>`. I believe it was intended to have a cycle collector (I'll talk more about that in the next section).
 
+ [felix-rust-design]: http://blog.pnkfx.org/blog/categories/gc/
+
 ## bacon-rajan-cc (and cycle collectors in general)
 
-[Nick Fitzgerald][fitzgen] wrote [`bacon-rajan-cc`][bacon-rajan-cc] to implement ["Concurrent Cycle Collection in Reference Counted Systems"][bacon-rajan] by David F. Bacon and V.T. Rajan.
+[Nick Fitzgerald][fitzgen] wrote [`bacon-rajan-cc`][bacon-rajan-cc] to implement _["Concurrent Cycle Collection in Reference Counted Systems"][bacon-rajan]__ by David F. Bacon and V.T. Rajan.
 
-This is what is colloquially called a _cycle collector_; a kind of garbage collector which is essentially "what if we took `Rc<T>` but made it detect cycles". The idea is that you don't actually need to _know_ what the roots are if you're maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it's pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different "colors" to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.
+This is what is colloquially called a _cycle collector_; a kind of garbage collector which is essentially "what if we took `Rc<T>` but made it detect cycles". These are not typically considered to be _tracing_ garbage collectors, but they have a lot of similar characteristics.
+
+The idea is that you don't actually need to _know_ what the roots are if you're maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it's pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different "colors" to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.
 
 A crucial observation here is that if you _only focus on potential garbage_, you can shift your definition of "root" a bit, when looking for cycles you don't need to look for references from the stack, you can be satisfied with references from _any part of the heap you know for a fact is reachable from things which are not potential garbage_.
 
@@ -293,6 +301,48 @@ Cycle collectors require tighter control over the garbage collection algorithm, 
  [fitzgen]: https://github.com/fitzgen
  [bacon-rajan]: https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
  [^5]: Firefox's DOM actually uses a mark & sweep tracing GC _mixed with_ a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there's a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released.
+
+## cell-gc 
+
+[Jason Orendorff][jorendorff]'s [cell-gc] crate is interesting, it has a concept of "heap sessions". Here's a modified example from the readme:
+
+```rust
+use cell_gc::Heap;
+
+// implements IntoHeap, and also generates an IntListRef type and accessors
+#[derive(cell_gc_derive::IntoHeap)]
+struct IntList<'h> {
+    head: i64,
+    tail: Option<IntListRef<'h>>
+}
+
+fn main() {
+    // Create a heap (you'll only do this once in your whole program)
+    let mut heap = Heap::new();
+
+    heap.enter(|hs| {
+        // Allocate an object (returns an IntListRef)
+        let obj1 = hs.alloc(IntList { head: 17, tail: None });
+        assert_eq!(obj1.head(), 17);
+        assert_eq!(obj1.tail(), None);
+
+        // Allocate another object
+        let obj2 = hs.alloc(IntList { head: 33, tail: Some(obj1) });
+        assert_eq!(obj2.head(), 33);
+        assert_eq!(obj2.tail().unwrap().head(), 17);
+
+        // mutate `tail`
+        obj2.set_tail(None);
+    });
+}
+```
+
+All mutation goes through autogenerated accessors, so the crate has a little more control over traffic through the GC.
+
+Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.
+
+ [cell-gc]: https://github.com/jorendorff/cell-gc
+ [jorendorff]: https://github.com/jorendorff/
 
 ## Interlude: The similarities between `async` and GCs
 
@@ -310,7 +360,143 @@ As we shall see, this same machinery can be used for creating safe interruption 
  [pin-p]: https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html
  [future]: https://doc.rust-lang.org/nightly/std/future/trait.Future.html
 
-
 ## Shifgrethor
+
+[shifgrethor] is an experiment by [Saoirse][withoutboats] to try and build a GC that uses [`Pin<P>`][pin-p] for managing roots. They've written extensively on the design of [shifgrethor][shifgrethor] [on their blog][shif-blog]. In particular, the [post on rooting][shif-root] goes through how rooting works.
+
+The basic design is that there's a `Root<'root>` type that contains a `Pin<P>`, which can be _immovably_ tied to a stack frame using the same idea behind `pin-utils`' [`pin_mut!()` macro][pin-mut]:
+
+```rust
+letroot!(root);
+let gc: Gc<'root, Foo> = root.gc(Foo::new());
+```
+
+The fact that `root` is immovable allows for it to be treated as a true marker for the _stack frame_ over anything else. The list of rooted types can be neatly stored in an ordered stack-like vector in the GC implementation, popping when individual roots go out of scope.
+
+If you wish to return a rooted object from a function, the function needs to accept a `Root<'root>`:
+
+```rust
+fn new<'root>(root: Root<'root>) -> Gc<'root, Self> {
+    root.gc(Self {
+        // ...
+    }
+}
+```
+
+All GC'd types have a `'root` lifetime of the root they trace back to, and are declared with a custom derive:
+
+```rust
+#[derive(GC)]
+struct Foo<'root> {
+    #[gc] bar: GcStore<'root, Bar>,
+}
+```
+
+`GcStore` is a way to have fields use the rooting of their parent. Normally, if you wanted to put `Gc<'root2, Bar<'root2>>` inside `Foo<'root1>` you would not be able to because the lifetimes derive from different roots. `GcStore`, along with autogenerated accessors from `#[derive(GC)]`, will set `Bar`'s lifetime to be the same as `Foo` when you attempt to stick it inside `Foo`.
+
+
+This design is somewhat similar to that of Servo where there's a pair of types, one that lets us refer to GC types on the stack, and one that lets GC types refer to each other on the heap, but it uses `Pin<P>` instead of a lint to enforce this safely, which is way nicer. `Root<'root>` and `GcStore` do a bunch of lifetime tweaking that's reminiscent of Josephine's rooting system, however there's no need for an `&mut JsContext` type that needs to be passed around everywhere.
+
+
+ [shifgrethor]: https://github.com/withoutboats/shifgrethor
+ [withoutboats]: https://github.com/withoutboats/
+ [shif-blog]: https://without.boats/tags/shifgrethor/
+ [shif-root]: https://without.boats/blog/shifgrethor-iii/
+ [pin-mut]: https://docs.rs/pin-utils/0.1.0/pin_utils/macro.pin_mut.html
+
+## gc-arena
+
+[`gc-arena`][gc-arena] is [Catherine West][kyren]'s experimental GC design for her Lua VM, [`luster`][luster].
+
+The `gc-arena` crate forces all GC-manipulating code to go within `arena.mutate()` calls, between which garbage collection may occur.
+
+```rust
+#[derive(Collect)]
+#[collect(no_drop)]
+struct TestRoot<'gc> {
+    number: Gc<'gc, i32>,
+    many_numbers: GcCell<Vec<Gc<'gc, i32>>>,
+}
+
+make_arena!(TestArena, TestRoot);
+
+let mut arena = TestArena::new(ArenaParameters::default(), |mc| TestRoot {
+    number: Gc::allocate(mc, 42),
+    many_numbers: GcCell::allocate(mc, Vec::new()),
+});
+
+arena.mutate(|_mc, root| {
+    assert_eq!(*((*root).number), 42);
+    root.numbers.write(mc).push(Gc::allocate(mc, 0));
+});
+```
+
+Mutation is done with `GcCell`, basically a fancier version of `Gc<RefCell<T>>`. All GC operations require a `MutationContext` (`mc`), which is only available within `arena.mutate()`. This crate allows for multiple GCs to operate simultaneously, and it enforces that GC types do not mix by using _generativity_ (you can read more about generativity in _["You Can't Spell Trust Without Rust"][thesis] ch 6.3, by [Alexis Beingessner][gankra], or by looking at the [`indexing`] crate).
+
+Only the arena root may survive between `mutate()` calls, and garbage collection does not happen during `.mutate()`, so rooting is easy -- just follow the arena root.
+
+So far this is mostly like other arena-based systems, with a GC.
+
+The _really cool_ part of the design is the `gc-sequence` crate, which essentially builds a `Future`-like API (using a `Sequence` trait) on top of `gc-arena` that can potentially make this very pleasant to use. Here's a modified example from a test:
+
+```rust
+#[derive(Collect)]
+#[collect(no_drop)]
+struct TestRoot<'gc> {
+    test: Gc<'gc, i32>,
+}
+
+make_sequencable_arena!(test_sequencer, TestRoot);
+use test_sequencer::Arena as TestArena;
+
+let arena = TestArena::new(ArenaParameters::default(), |mc| TestRoot {
+    test: Gc::allocate(mc, 42),
+});
+
+let mut sequence = arena.sequence(|root| {
+    sequence::from_fn_with(root.test, |_, test| {
+        if *test == 42 {
+            Ok(*test + 10)
+        } else {
+            Err("will not be generated")
+        }
+    })
+    .and_then(|_, r| Ok(r + 12))
+    .and_chain(|_, r| Ok(sequence::ok(r - 10)))
+    .then(|_, res| res.expect("should not be error"))
+    .chain(|_, r| sequence::done(r + 10))
+    .map(|r| sequence::done(r - 60))
+    .flatten()
+    .boxed()
+});
+
+loop {
+    match sequence.step() {
+        Ok((_, output)) => {
+            assert_eq!(output, 4);
+            return;
+        }
+        Err(s) => sequence = s,
+    }
+}
+```
+
+This is _very_ similar to chained callback futures code; and if it could use the `Future` trait would be able to make use of `async` to convert this callback heavy code into sequential code with interrupt points using `await`. There were design constraints making `Future` not workable for this use case, though if Rust ever gets generators this would work well, and it's quite possible that another GC with a similar design could be written, using `async`/`await` and `Future`.
+
+Essentially, this paints a picture of an entire space of Rust GC design where GC mutations are performed using `await` (or `yield` if we ever get generators), and garbage collection can occur during those yield points, in a way that's highly reminiscent of Go's design.
+
+ [luster]: https://github.com/kyren/luster
+ [thesis]: https://raw.githubusercontent.com/Gankra/thesis/master/thesis.pdf
+ [gankra]: https://github.com/Gankra
+ [`indexing`]: https://github.com/bluss/indexing
+
+## Your design here?
+
+As is hopefully obvious, the space of safe GC design in Rust is quite rich and has a lot of interesting ideas. I'm really excited to see what folks come up with here!
+
+TBD: expand this section, maybe reframe
+
+
+_Thanks to TBD for reviewing drafts of this blog post_
 
 
