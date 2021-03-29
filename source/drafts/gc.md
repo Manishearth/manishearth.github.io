@@ -41,7 +41,7 @@ For the first use case it's rarely necessary to design a custom GC, you can look
 
 The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that _do_ use a garbage collector. [Servo] needs to do this for integrating with the Spidermonkey JS engine and [luster] needed to do this for implementing the GC of its Lua VM. [boa], a pure Rust JS runtime, uses the [`gc`][gc] crate to back its garbage collector.
 
-Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side[^2]. This is often fine!
+Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply "rooting" (we'll cover what that means in a bit) anything that crosses over to the C++ side[^2]. This is often fine!
 
 The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can't "embed" efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. [`Element`][servo-element]) are implemented in native code; and need to be able to contain references to other native GC'd types (it should be possible to inspect the [children of a `Node`][servo-node-child] without needing to call back into the JavaScript engine).
 
@@ -85,8 +85,49 @@ Rust's ownership system actually makes it easier to have fewer roots since it's 
 
 Another aspect of this is that garbage collection is really a moment of global mutation -- the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust's entire design is predicated on such rug-pulling being _very very bad and not to be allowed_, so this can be a bit problematic. This isn't as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers[^3]. Rooting would be far easier if, for example, you were able to declare areas of code where "no GC can happen"[^4] so you can tightly scope the rug-pulling and have to worry less about roots.
 
+
  [^3]: In general, finalizers in GCs are hard to implement soundly in any language, not just Rust, but Rust can sometimes be a bit more annoying about it.
  [^4]: Spolier: This is actually possible in Rust, and we'll get into it further in this post!
+
+
+### Destructors and finalizers
+
+It's worth calling out destructors in particular. A huge problem with custom destructors on GCd types is that the custom destructor totally can stash itself away into a long-lived reference during garbage collection, leading to a dangling reference:
+
+```rust
+struct LongLived {
+    dangle: RefCell<Option<Gc<CantKillMe>>>
+}
+
+struct CantKillMe {
+    // set up to point to itself during construction
+    self_ref: RefCell<Option<Gc<CantKillMe>>>
+    long_lived: Gc<Foo>
+}
+
+impl Drop for CantKillMe {
+    fn drop(&mut self) {
+        // attach self to long_lived
+        *self.long_lived.dangle.borrow_mut() = Some(self.self_ref.borrow().clone().unwrap());
+    }
+}
+
+let long = Gc::new(LongLived::new());
+{
+    let cant = Gc::new(CantKillMe::new());
+    *cant.self_ref.borrow_mut() = Some(cant.clone());
+    // cant goes out of scope, CantKillMe::drop is run
+    // cant is attached to long_lived.dangle but still cleaned up
+}
+
+// Dangling reference!
+let dangling = long.dangle.borrow().unwrap();
+```
+
+The most common  solution here is to disallow destructors on types that use `#[derive(Trace)]`, which can be done by having the custom derive generate a `Drop` implementation, or have it generate something which causes a conflicting type error.
+
+You can additionally provide a `Finalize` trait that has different semantics: the GC calls it while cleaning up GC objects, but it may be called multiple times or not at all. This kind of thing is typical in GCs outside of Rust as well.
+
 
 ## How would you even garbage collect without a runtime?
 
@@ -98,9 +139,11 @@ Concurrent GCs can trigger the GC on a separate thread but will typically need t
 
 While this may restrict the flexibility of the garbage collector itself, this is actually pretty good for us from the side of API design: the garbage collection phase can only happen in certain well-known moments of the code, which means we only need to make things safe across _those_ boundaries. Many of the designs we shall look at build off of this observation.
 
-## Tracing
+## Commonalities
 
-Before getting into the actual examples of GC design, I want to point out a commonality of design between all of them: how they do tracing.
+Before getting into the actual examples of GC design, I want to point out some commonalities of design between all of them, especially around how they do tracing:
+
+### Tracing
 
 "Tracing" is the operation of traversing the graph of GC objects, starting from your roots and perusing their children, and their children's children, and so on.
 
@@ -127,8 +170,12 @@ This is a pretty standard pattern, and while the specifics of the `Trace` trait 
 
 I'm not going to get into the actual details of how mark-and-sweep algorithms work in this post; there are a lot of potential designs for them and they're not that interesting from the point of view of designing a safe GC _API_ in Rust. However, the general idea is to keep a queue of found objects initially populated by the root, trace them to find new objects and queue them up if they've not already been traced. Clean up any objects that were _not_ found.
 
-
  [custom derive]: https://doc.rust-lang.org/book/ch19-06-macros.html#how-to-write-a-custom-derive-macro
+
+### Immutable-by-default
+
+Another commonality between these designs is that a `Gc<T>` is always potentially shared, and thus will need tight control over mutability to satisfy Rust's ownership invariants. This is typically achieved by using interior mutability, much like how `Rc<T>` is almost always paired with `RefCell<T>` for mutation, however some approaches (like that in [josephine]) do allow for mutability without runtime checking.
+
 
 ## rust-gc
 
@@ -148,11 +195,14 @@ let foo = Gc::new(Foo::new());
 let v = vec![foo];
 ```
 
-While this is essentially "free" on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired. Part of the goal of using GCs is to _avoid_ reference-counting-like patterns.
+While this is essentially "free" on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to _avoid_ the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that's a mix of tracing and reference counting[^10].
 
 [`gc`][gc] is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it provides a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.
 
  [Nika Layzell]: https://twitter.com/kneecaw/
+ [unified-bacon]: https://courses.cs.washington.edu/courses/cse590p/05au/p50-bacon.pdf
+ [^10]: Such hybrid approaches are common in high performance GCs; _<a href="https://courses.cs.washington.edu/courses/cse590p/05au/p50-bacon.pdf">"A Unified Theory of Garbage Collection"</a>_ by Bacon et al. covers a lot of the breadth of these approaches.
+
 
 ## Servo's DOM integration
 
@@ -198,7 +248,7 @@ impl Node {
 
 `Dom<T>` is basically a smart pointer that behaves like `&T` but without a lifetime, whereas `DomRoot<T>` has the additional behavior of rooting on creation (and unrooting on `Drop`). The custom lint plugin essentially enforces that `Dom<T>`, and any DOM structs (tagged with `#[dom_struct]`) are never accessible on the stack aside from through `DomRoot<T>` or `&T`.
 
-I wouldn't recommend this approach; it works okay but we've wanted to move off of it for a while. But it's worth mentioning for completeness.
+I wouldn't recommend this approach; it works okay but we've wanted to move off of it for a while because it relies on custom plugin lints for soundness. But it's worth mentioning for completeness.
 
   [servo-node]: https://doc.servo.org/script/dom/element/struct.Element.html
 
@@ -237,7 +287,7 @@ println!("{:?}", next_sibling.name);
 
 `new_root()` creates a new root, and `in_root` ties the lifetime of a JS managed type to the root instead of to the `JSContext` borrow, releasing the borrow of the `JSContext` and allowing it to be borrowed mutably in future `.borrow_mut()` calls.
 
-Note that `.borrow()` and `.borrow_mut()` here are not runtime borrow-checking cost despite their similarities to `RefCell::borrow()`, they instead are doing some lifetime juggling to make things safe. Creating roots typically does have runtime cost. Sometimes you _may_ need to use `RefCell<T>` for the same reason it's used in `Rc`, but mostly only for non-GCd fields.
+Note that `.borrow()` and `.borrow_mut()` here do not have runtime borrow-checking cost despite their similarities to `RefCell::borrow()`, they instead are doing some lifetime juggling to make things safe. Creating roots typically does have runtime cost. Sometimes you _may_ need to use `RefCell<T>` for the same reason it's used in `Rc`, but mostly only for non-GCd fields.
 
 Custom types are typically defined in two parts as so:
 
@@ -294,7 +344,7 @@ Note that pre-1.0 Rust did have a builtin GC (`@T`, known as "managed pointers")
 
 [Nick Fitzgerald][fitzgen] wrote [`bacon-rajan-cc`][bacon-rajan-cc] to implement _["Concurrent Cycle Collection in Reference Counted Systems"][bacon-rajan]__ by David F. Bacon and V.T. Rajan.
 
-This is what is colloquially called a _cycle collector_; a kind of garbage collector which is essentially "what if we took `Rc<T>` but made it detect cycles". These are not typically considered to be _tracing_ garbage collectors, but they have a lot of similar characteristics.
+This is what is colloquially called a _cycle collector_; a kind of garbage collector which is essentially "what if we took `Rc<T>` but made it detect cycles". Some people do not consider these to be _tracing_ garbage collectors, but they have a lot of similar characteristics (and they do still "trace" through types). They're often categorized as "hybrid" approaches, much like [`gc`][gc].
 
 The idea is that you don't actually need to _know_ what the roots are if you're maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it's pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different "colors" to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.
 
@@ -302,13 +352,13 @@ A crucial observation here is that if you _only focus on potential garbage_, you
 
 A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of _the actual garbage you have_ [^5]. There are of course other tradeoffs:  deallocation is often cheaper or "free" in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.
 
-The way [bacon-rajan-cc] works is that every time a reference count is decremented, the object is added to a list of "potential cycle roots", unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like `Rc`). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list _again_ and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treates any element not reachable from this "potential cycle root" list as "not garbage", and doesn't bother to visit it.
+The way [bacon-rajan-cc] works is that every time a reference count is decremented, the object is added to a list of "potential cycle roots", unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like `Rc`). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list _again_ and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treats any element not reachable from this "potential cycle root" list as "not garbage", and doesn't bother to visit it.
 
 Cycle collectors require tighter control over the garbage collection algorithm, and have differing performance characteristics, so they may not necessarily be suitable for all use cases for GC integration in Rust, but it's definitely worth considering!
 
 
  [bacon-rajan-cc]: https://github.com/fitzgen/bacon-rajan-cc
- [fitzgen]: https://github.com/fitzgen
+ [fitzgen]: https://fitzgeraldnick.com/
  [bacon-rajan]: https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
  [^5]: Firefox's DOM actually uses a mark & sweep tracing GC _mixed with_ a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there's a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released.
 
@@ -349,9 +399,9 @@ fn main() {
 
 All mutation goes through autogenerated accessors, so the crate has a little more control over traffic through the GC.
 
-<s>Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.</s>
+Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using `FrozenGcRef<T>`, which provides a separate refcounted root type.
 
-Heap sessions allow for the heap to moved around, even sent to other threads, and their lifetime prevents heap objects from being mixed between sessions (TBD is this generativity?).
+Heap sessions allow for the heap to moved around, even sent to other threads, and their lifetime prevents heap objects from being mixed between sessions. This uses a concept called _generativity_; you can read more about generativity in _["You Can't Spell Trust Without Rust"][thesis] ch 6.3, by [Alexis Beingessner][gankra], or by looking at the [`indexing`] crate.
 
 TBD explain how the GC works here.
 
@@ -445,11 +495,11 @@ arena.mutate(|_mc, root| {
 });
 ```
 
-Mutation is done with `GcCell`, basically a fancier version of `Gc<RefCell<T>>`. All GC operations require a `MutationContext` (`mc`), which is only available within `arena.mutate()`. This crate allows for multiple GCs to operate simultaneously, and it enforces that GC types do not mix by using _generativity_ (you can read more about generativity in _["You Can't Spell Trust Without Rust"][thesis] ch 6.3, by [Alexis Beingessner][gankra], or by looking at the [`indexing`] crate).
+Mutation is done with `GcCell`, basically a fancier version of `Gc<RefCell<T>>`. All GC operations require a `MutationContext` (`mc`), which is only available within `arena.mutate()`. 
 
-Only the arena root may survive between `mutate()` calls, and garbage collection does not happen during `.mutate()`, so rooting is easy -- just follow the arena root.
+Only the arena root may survive between `mutate()` calls, and garbage collection does not happen during `.mutate()`, so rooting is easy -- just follow the arena root. This crate allows for multiple GCs to coexist with separate heaps, and, similarly to [cell-gc], it uses generativity to enforce that the heaps do not get mixed.
 
-So far this is mostly like other arena-based systems, with a GC.
+So far this is mostly like other arena-based systems, but with a GC.
 
 The _really cool_ part of the design is the `gc-sequence` crate, which essentially builds a `Future`-like API (using a `Sequence` trait) on top of `gc-arena` that can potentially make this very pleasant to use. Here's a modified example from a test:
 
@@ -504,15 +554,17 @@ Essentially, this paints a picture of an entire space of Rust GC design where GC
  [gankra]: https://github.com/Gankra
  [`indexing`]: https://github.com/bluss/indexing
 
-## Your design here?
+## Moving forward
 
 As is hopefully obvious, the space of safe GC design in Rust is quite rich and has a lot of interesting ideas. I'm really excited to see what folks come up with here!
 
-TBD: expand this section, maybe reframe
+If you're interested in reading more about GCs in general, _["A Unified Theory of Garbage Collection"][bacon-unified]_ by Bacon et al and the [GC Handbook][gchandbook] are great reads.
 
+TBD: maybe expand this section?
 
-_Thanks to [Jason Orendorff][jorendorff], TBD for reviewing drafts of this blog post_
+_Thanks to [Jason Orendorff][jorendorff], [Nick Fitzgerald][fitzgen], [Nika Layzell][kneecaw], TBD for reviewing drafts of this blog post_
 
 
  [jorendorff]: https://twitter.com/jorendorff/
-
+ [bacon-unified]: https://courses.cs.washington.edu/courses/cse590p/05au/p50-bacon.pdf
+ [gchandbook]: http://gchandbook.org/
