@@ -114,13 +114,15 @@
 
 <p>As a result, I tend to get pulled into GC discussions fairly often. I enjoy talking about GCs – don’t get me wrong – but I often end up going over the same stuff. Being <a href="https://manishearth.github.io/blog/2018/08/26/why-i-enjoy-blogging/#blogging-lets-me-be-lazy">lazy</a> I’d much prefer to be able to refer people to a single place where they can get up to speed on the general space of GC design, after which it’s possible to have more in depth discussions about the specific tradeoffs necessary.</p>
 
+<p>I’ll note that some of the GCs in this post are experiments or unmaintained. The goal of this post is to showcase these as examples of <em>design</em>, not necessarily general-purpose crates you may wish to use, though some of them are usable crates as well.</p>
+
 <h3 id="a-note-on-terminology">A note on terminology</h3>
 
 <p>A thing that often muddles discussions about GCs is that according to some definition of “GC”, simple reference counting <em>is</em> a GC. Typically the definition of GC used in academia broadly refers to any kind of automatic memory management. However, most programmers familiar with the term “GC” will usually liken it to “what Java, Go, Haskell, and C# do”, which can be unambiguously referred to as <em>tracing</em> garbage collection.</p>
 
 <p>Tracing garbage collection is the kind which keeps track of which heap objects are directly reachable (“roots”), figures out the whole set of reachable heap objects (“tracing”, also, “marking”), and then cleans them up (“sweeping”).</p>
 
-<p>Throughout this blog post I will use the term “GC” to exclusively refer to tracing garbage collection/collectors.</p>
+<p>Throughout this blog post I will use the term “GC” to refer to tracing garbage collection/collectors unless otherwise stated<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>.</p>
 
 <h2 id="why-write-gcs-for-rust">Why write GCs for Rust?</h2>
 
@@ -130,11 +132,11 @@
 
 <p>There are really two distinct kinds of use cases. Firstly, sometimes you need to manage memory with cycles and <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is inadequate for the job since <code class="language-plaintext highlighter-rouge">Rc</code>-cycles get leaked. <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> or an <a href="https://manishearth.github.io/blog/2021/03/15/arenas-in-rust/">arena</a> are often acceptable solutions for this kind of pattern, but not always, especially if your data is super heterogeneous. This kind of thing crops up often when dealing with concurrent datastructures; for example <a href="https://docs.rs/crossbeam/"><code class="language-plaintext highlighter-rouge">crossbeam</code></a> has <a href="https://docs.rs/crossbeam/0.8.0/crossbeam/epoch/index.html">an epoch-based memory management system</a> which, while not a full tracing GC, has a lot of characteristics in common with GCs.</p>
 
-<p>For the first use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>For the first use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
 
 <p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM.</p>
 
-<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This is often fine!</p>
+<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply rooting anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>. This is often fine!</p>
 
 <p>The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can’t “embed” efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Element</code></a>) are implemented in native code; and need to be able to contain references to other native GC’d types (it should be possible to inspect the <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">children of a <code class="language-plaintext highlighter-rouge">Node</code></a> without needing to call back into the JavaScript engine).</p>
 
@@ -162,7 +164,7 @@
 
 <p>Rust’s ownership system actually makes it easier to have fewer roots since it’s relatively easy to state that taking <code class="language-plaintext highlighter-rouge">&amp;T</code> of a GC’d object doesn’t need to create a new root, and let Rust’s ownership system sort it out, but being able to distinguish between “directly owned” and “indirectly owned” is super tricky.</p>
 
-<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
+<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
 
 <h2 id="how-would-you-even-garbage-collect-without-a-runtime">How would you even garbage collect without a runtime?</h2>
 
@@ -330,7 +332,7 @@
 
 <p>For a while a couple of us worked on a way to make Rust <em>itself</em> extensible with a pluggable GC, using LLVM stack map support for finding roots. After all, if we know which types are GC-ish, we can include metadata on how to find roots for each function, similar to how Rust functions currently contain unwinding hooks to enable cleanly running destructors during a panic.</p>
 
-<p>We never got around to figuring out a <em>complete</em> design, but you can find <a href="https://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/">more information on what we figured out here</a>. Essentially, it involved a <code class="language-plaintext highlighter-rouge">Trace</code> trait with more generic <code class="language-plaintext highlighter-rouge">trace</code> methods, an auto-implemented <code class="language-plaintext highlighter-rouge">Root</code> trait that works similar to <code class="language-plaintext highlighter-rouge">Send</code>, and compiler machinery to keep track of which <code class="language-plaintext highlighter-rouge">Root</code> types are on the stack.</p>
+<p>We never got around to figuring out a <em>complete</em> design, but you can find more information on what we figured out in <a href="https://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/">my</a> and <a href="http://blog.pnkfx.org/blog/categories/gc/">Felix’s</a> posts on this subject. Essentially, it involved a <code class="language-plaintext highlighter-rouge">Trace</code> trait with more generic <code class="language-plaintext highlighter-rouge">trace</code> methods, an auto-implemented <code class="language-plaintext highlighter-rouge">Root</code> trait that works similar to <code class="language-plaintext highlighter-rouge">Send</code>, and compiler machinery to keep track of which <code class="language-plaintext highlighter-rouge">Root</code> types are on the stack.</p>
 
 <p>This is probably not too useful for people attempting to implement a GC, but I’m mentioning it for completeness’ sake.</p>
 
@@ -338,17 +340,57 @@
 
 <h2 id="bacon-rajan-cc-and-cycle-collectors-in-general">bacon-rajan-cc (and cycle collectors in general)</h2>
 
-<p><a href="https://github.com/fitzgen">Nick Fitzgerald</a> wrote <a href="https://github.com/fitzgen/bacon-rajan-cc"><code class="language-plaintext highlighter-rouge">bacon-rajan-cc</code></a> to implement <a href="https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf">“Concurrent Cycle Collection in Reference Counted Systems”</a> by David F. Bacon and V.T. Rajan.</p>
+<p><a href="https://github.com/fitzgen">Nick Fitzgerald</a> wrote <a href="https://github.com/fitzgen/bacon-rajan-cc"><code class="language-plaintext highlighter-rouge">bacon-rajan-cc</code></a> to implement _<a href="https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf">“Concurrent Cycle Collection in Reference Counted Systems”</a>__ by David F. Bacon and V.T. Rajan.</p>
 
-<p>This is what is colloquially called a <em>cycle collector</em>; a kind of garbage collector which is essentially “what if we took <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> but made it detect cycles”. The idea is that you don’t actually need to <em>know</em> what the roots are if you’re maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it’s pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different “colors” to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.</p>
+<p>This is what is colloquially called a <em>cycle collector</em>; a kind of garbage collector which is essentially “what if we took <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> but made it detect cycles”. These are not typically considered to be <em>tracing</em> garbage collectors, but they have a lot of similar characteristics.</p>
+
+<p>The idea is that you don’t actually need to <em>know</em> what the roots are if you’re maintaining reference counts: if a heap object has a reference count that is more than the number of heap objects referencing it, it must be a root. In practice it’s pretty inefficient to traverse the entire heap, so optimizations are applied, often by applying different “colors” to nodes, and by only looking at the set of objects that have recently have their reference counts decremented.</p>
 
 <p>A crucial observation here is that if you <em>only focus on potential garbage</em>, you can shift your definition of “root” a bit, when looking for cycles you don’t need to look for references from the stack, you can be satisfied with references from <em>any part of the heap you know for a fact is reachable from things which are not potential garbage</em>.</p>
 
-<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
+<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">6</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
 
 <p>The way <a href="https://github.com/fitzgen/bacon-rajan-cc">bacon-rajan-cc</a> works is that every time a reference count is decremented, the object is added to a list of “potential cycle roots”, unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like <code class="language-plaintext highlighter-rouge">Rc</code>). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list <em>again</em> and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treates any element not reachable from this “potential cycle root” list as “not garbage”, and doesn’t bother to visit it.</p>
 
 <p>Cycle collectors require tighter control over the garbage collection algorithm, and have differing performance characteristics, so they may not necessarily be suitable for all use cases for GC integration in Rust, but it’s definitely worth considering!</p>
+
+<h2 id="cell-gc">cell-gc</h2>
+
+<p><a href="https://github.com/jorendorff/">Jason Orendorff</a>’s <a href="https://github.com/jorendorff/cell-gc">cell-gc</a> crate is interesting, it has a concept of “heap sessions”. Here’s a modified example from the readme:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">cell_gc</span><span class="p">::</span><span class="n">Heap</span><span class="p">;</span>
+
+<span class="c">// implements IntoHeap, and also generates an IntListRef type and accessors</span>
+<span class="nd">#[derive(cell_gc_derive::IntoHeap)]</span>
+<span class="k">struct</span> <span class="n">IntList</span><span class="o">&lt;</span><span class="nv">'h</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">head</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span>
+    <span class="n">tail</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">IntListRef</span><span class="o">&lt;</span><span class="nv">'h</span><span class="o">&gt;&gt;</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c">// Create a heap (you'll only do this once in your whole program)</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">heap</span> <span class="o">=</span> <span class="nn">Heap</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+    <span class="n">heap</span><span class="nf">.enter</span><span class="p">(|</span><span class="n">hs</span><span class="p">|</span> <span class="p">{</span>
+        <span class="c">// Allocate an object (returns an IntListRef)</span>
+        <span class="k">let</span> <span class="n">obj1</span> <span class="o">=</span> <span class="n">hs</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">IntList</span> <span class="p">{</span> <span class="n">head</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span> <span class="n">tail</span><span class="p">:</span> <span class="nb">None</span> <span class="p">});</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj1</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">17</span><span class="p">);</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj1</span><span class="nf">.tail</span><span class="p">(),</span> <span class="nb">None</span><span class="p">);</span>
+
+        <span class="c">// Allocate another object</span>
+        <span class="k">let</span> <span class="n">obj2</span> <span class="o">=</span> <span class="n">hs</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">IntList</span> <span class="p">{</span> <span class="n">head</span><span class="p">:</span> <span class="mi">33</span><span class="p">,</span> <span class="n">tail</span><span class="p">:</span> <span class="nf">Some</span><span class="p">(</span><span class="n">obj1</span><span class="p">)</span> <span class="p">});</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj2</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">33</span><span class="p">);</span>
+        <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj2</span><span class="nf">.tail</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">17</span><span class="p">);</span>
+
+        <span class="c">// mutate `tail`</span>
+        <span class="n">obj2</span><span class="nf">.set_tail</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
+    <span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>All mutation goes through autogenerated accessors, so the crate has a little more control over traffic through the GC.</p>
+
+<p>Garbage collection typically happens after a heap session is over, you can pin types across heap sessions using <code class="language-plaintext highlighter-rouge">FrozenGcRef&lt;T&gt;</code>, which provides a separate refcounted root type.</p>
 
 <h2 id="interlude-the-similarities-between-async-and-gcs">Interlude: The similarities between <code class="language-plaintext highlighter-rouge">async</code> and GCs</h2>
 
@@ -362,8 +404,129 @@
 
 <h2 id="shifgrethor">Shifgrethor</h2>
 
+<p><a href="https://github.com/withoutboats/shifgrethor">shifgrethor</a> is an experiment by <a href="https://github.com/withoutboats/">Saoirse</a> to try and build a GC that uses <a href="https://doc.rust-lang.org/nightly/std/pin/struct.Pin.html"><code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code></a> for managing roots. They’ve written extensively on the design of <a href="https://github.com/withoutboats/shifgrethor">shifgrethor</a> <a href="https://without.boats/tags/shifgrethor/">on their blog</a>. In particular, the <a href="https://without.boats/blog/shifgrethor-iii/">post on rooting</a> goes through how rooting works.</p>
+
+<p>The basic design is that there’s a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code> type that contains a <code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code>, which can be <em>immovably</em> tied to a stack frame using the same idea behind <code class="language-plaintext highlighter-rouge">pin-utils</code>’ <a href="https://docs.rs/pin-utils/0.1.0/pin_utils/macro.pin_mut.html"><code class="language-plaintext highlighter-rouge">pin_mut!()</code> macro</a>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">letroot!</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">gc</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Foo</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+</code></pre></div></div>
+
+<p>The fact that <code class="language-plaintext highlighter-rouge">root</code> is immovable allows for it to be treated as a true marker for the <em>stack frame</em> over anything else. The list of rooted types can be neatly stored in an ordered stack-like vector in the GC implementation, popping when individual roots go out of scope.</p>
+
+<p>If you wish to return a rooted object from a function, the function needs to accept a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Self</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="n">Self</span> <span class="p">{</span>
+        <span class="c">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>All GC’d types have a <code class="language-plaintext highlighter-rouge">'root</code> lifetime of the root they trace back to, and are declared with a custom derive:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(GC)]</span>
+<span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[gc]</span> <span class="n">bar</span><span class="p">:</span> <span class="n">GcStore</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">GcStore</code> is a way to have fields use the rooting of their parent. Normally, if you wanted to put <code class="language-plaintext highlighter-rouge">Gc&lt;'root2, Bar&lt;'root2&gt;&gt;</code> inside <code class="language-plaintext highlighter-rouge">Foo&lt;'root1&gt;</code> you would not be able to because the lifetimes derive from different roots. <code class="language-plaintext highlighter-rouge">GcStore</code>, along with autogenerated accessors from <code class="language-plaintext highlighter-rouge">#[derive(GC)]</code>, will set <code class="language-plaintext highlighter-rouge">Bar</code>’s lifetime to be the same as <code class="language-plaintext highlighter-rouge">Foo</code> when you attempt to stick it inside <code class="language-plaintext highlighter-rouge">Foo</code>.</p>
+
+<p>This design is somewhat similar to that of Servo where there’s a pair of types, one that lets us refer to GC types on the stack, and one that lets GC types refer to each other on the heap, but it uses <code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code> instead of a lint to enforce this safely, which is way nicer. <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code> and <code class="language-plaintext highlighter-rouge">GcStore</code> do a bunch of lifetime tweaking that’s reminiscent of Josephine’s rooting system, however there’s no need for an <code class="language-plaintext highlighter-rouge">&amp;mut JsContext</code> type that needs to be passed around everywhere.</p>
+
+<h2 id="gc-arena">gc-arena</h2>
+
+<p><a href="https://github.com/kyren/gc-arena"><code class="language-plaintext highlighter-rouge">gc-arena</code></a> is <a href="https://github.com/kyren">Catherine West</a>’s experimental GC design for her Lua VM, <a href="https://github.com/kyren/luster"><code class="language-plaintext highlighter-rouge">luster</code></a>.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">gc-arena</code> crate forces all GC-manipulating code to go within <code class="language-plaintext highlighter-rouge">arena.mutate()</code> calls, between which garbage collection may occur.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
+<span class="nd">#[collect(no_drop)]</span>
+<span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">number</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">many_numbers</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">make_arena!</span><span class="p">(</span><span class="n">TestArena</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
+
+<span class="k">let</span> <span class="k">mut</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">TestArena</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">ArenaParameters</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span> <span class="p">|</span><span class="n">mc</span><span class="p">|</span> <span class="n">TestRoot</span> <span class="p">{</span>
+    <span class="n">number</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">42</span><span class="p">),</span>
+    <span class="n">many_numbers</span><span class="p">:</span> <span class="nn">GcCell</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">()),</span>
+<span class="p">});</span>
+
+<span class="n">arena</span><span class="nf">.mutate</span><span class="p">(|</span><span class="mi">_</span><span class="n">mc</span><span class="p">,</span> <span class="n">root</span><span class="p">|</span> <span class="p">{</span>
+    <span class="nd">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="o">*</span><span class="n">root</span><span class="p">)</span><span class="py">.number</span><span class="p">),</span> <span class="mi">42</span><span class="p">);</span>
+    <span class="n">root</span><span class="py">.numbers</span><span class="nf">.write</span><span class="p">(</span><span class="n">mc</span><span class="p">)</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>Mutation is done with <code class="language-plaintext highlighter-rouge">GcCell</code>, basically a fancier version of <code class="language-plaintext highlighter-rouge">Gc&lt;RefCell&lt;T&gt;&gt;</code>. All GC operations require a <code class="language-plaintext highlighter-rouge">MutationContext</code> (<code class="language-plaintext highlighter-rouge">mc</code>), which is only available within <code class="language-plaintext highlighter-rouge">arena.mutate()</code>. This crate allows for multiple GCs to operate simultaneously, and it enforces that GC types do not mix by using <em>generativity</em> (you can read more about generativity in _<a href="https://raw.githubusercontent.com/Gankra/thesis/master/thesis.pdf">“You Can’t Spell Trust Without Rust”</a> ch 6.3, by <a href="https://github.com/Gankra">Alexis Beingessner</a>, or by looking at the <a href="https://github.com/bluss/indexing"><code class="language-plaintext highlighter-rouge">indexing</code></a> crate).</p>
+
+<p>Only the arena root may survive between <code class="language-plaintext highlighter-rouge">mutate()</code> calls, and garbage collection does not happen during <code class="language-plaintext highlighter-rouge">.mutate()</code>, so rooting is easy – just follow the arena root.</p>
+
+<p>So far this is mostly like other arena-based systems, with a GC.</p>
+
+<p>The <em>really cool</em> part of the design is the <code class="language-plaintext highlighter-rouge">gc-sequence</code> crate, which essentially builds a <code class="language-plaintext highlighter-rouge">Future</code>-like API (using a <code class="language-plaintext highlighter-rouge">Sequence</code> trait) on top of <code class="language-plaintext highlighter-rouge">gc-arena</code> that can potentially make this very pleasant to use. Here’s a modified example from a test:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
+<span class="nd">#[collect(no_drop)]</span>
+<span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">test</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">make_sequencable_arena!</span><span class="p">(</span><span class="n">test_sequencer</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
+<span class="k">use</span> <span class="nn">test_sequencer</span><span class="p">::</span><span class="n">Arena</span> <span class="k">as</span> <span class="n">TestArena</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">TestArena</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">ArenaParameters</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span> <span class="p">|</span><span class="n">mc</span><span class="p">|</span> <span class="n">TestRoot</span> <span class="p">{</span>
+    <span class="n">test</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">42</span><span class="p">),</span>
+<span class="p">});</span>
+
+<span class="k">let</span> <span class="k">mut</span> <span class="n">sequence</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.sequence</span><span class="p">(|</span><span class="n">root</span><span class="p">|</span> <span class="p">{</span>
+    <span class="nn">sequence</span><span class="p">::</span><span class="nf">from_fn_with</span><span class="p">(</span><span class="n">root</span><span class="py">.test</span><span class="p">,</span> <span class="p">|</span><span class="mi">_</span><span class="p">,</span> <span class="n">test</span><span class="p">|</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="o">*</span><span class="n">test</span> <span class="o">==</span> <span class="mi">42</span> <span class="p">{</span>
+            <span class="nf">Ok</span><span class="p">(</span><span class="o">*</span><span class="n">test</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="nf">Err</span><span class="p">(</span><span class="s">"will not be generated"</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">})</span>
+    <span class="nf">.and_then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">12</span><span class="p">))</span>
+    <span class="nf">.and_chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="nn">sequence</span><span class="p">::</span><span class="nf">ok</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)))</span>
+    <span class="nf">.then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">res</span><span class="p">|</span> <span class="n">res</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"should not be error"</span><span class="p">))</span>
+    <span class="nf">.chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="nf">.map</span><span class="p">(|</span><span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">60</span><span class="p">))</span>
+    <span class="nf">.flatten</span><span class="p">()</span>
+    <span class="nf">.boxed</span><span class="p">()</span>
+<span class="p">});</span>
+
+<span class="k">loop</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">sequence</span><span class="nf">.step</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nf">Ok</span><span class="p">((</span><span class="mi">_</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
+            <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="nf">Err</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">sequence</span> <span class="o">=</span> <span class="n">s</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This is <em>very</em> similar to chained callback futures code; and if it could use the <code class="language-plaintext highlighter-rouge">Future</code> trait would be able to make use of <code class="language-plaintext highlighter-rouge">async</code> to convert this callback heavy code into sequential code with interrupt points using <code class="language-plaintext highlighter-rouge">await</code>. There were design constraints making <code class="language-plaintext highlighter-rouge">Future</code> not workable for this use case, though if Rust ever gets generators this would work well, and it’s quite possible that another GC with a similar design could be written, using <code class="language-plaintext highlighter-rouge">async</code>/<code class="language-plaintext highlighter-rouge">await</code> and <code class="language-plaintext highlighter-rouge">Future</code>.</p>
+
+<p>Essentially, this paints a picture of an entire space of Rust GC design where GC mutations are performed using <code class="language-plaintext highlighter-rouge">await</code> (or <code class="language-plaintext highlighter-rouge">yield</code> if we ever get generators), and garbage collection can occur during those yield points, in a way that’s highly reminiscent of Go’s design.</p>
+
+<h2 id="your-design-here">Your design here?</h2>
+
+<p>As is hopefully obvious, the space of safe GC design in Rust is quite rich and has a lot of interesting ideas. I’m really excited to see what folks come up with here!</p>
+
+<p>TBD: expand this section, maybe reframe</p>
+
+<p><em>Thanks to TBD for reviewing drafts of this blog post</em></p>
+
 <div class="footnotes" role="doc-endnotes">
   <ol>
+    <li id="fn:0" role="doc-endnote">
+      <p>I’m also going to completely ignore the field of <em>conservative</em> stack-scanning tracing GCs where you figure out your roots by looking at all the stack memory and considering anything with a remotely heap-object-like bit pattern to be a root. These are interesting, but can’t really be made 100% safe in the way Rust wants them to be unless you scan the heap as well. <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:1" role="doc-endnote">
       <p>Which currently does not have support for concurrent garbage collection, but it could be added. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
