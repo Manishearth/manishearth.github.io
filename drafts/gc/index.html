@@ -246,22 +246,34 @@
 
 <p>Another commonality between these designs is that a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is always potentially shared, and thus will need tight control over mutability to satisfy Rust’s ownership invariants. This is typically achieved by using interior mutability, much like how <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is almost always paired with <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> for mutation, however some approaches (like that in <a href="https://github.com/asajeffrey/josephine">josephine</a>) do allow for mutability without runtime checking.</p>
 
+<h3 id="threading">Threading</h3>
+
+<p>Some GCs are single-threaded, and some are multi-threaded. The single threaded ones typically have a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> type that is not <code class="language-plaintext highlighter-rouge">Send</code>, so while you can set up multiple graphs of GC types on different threads, they’re essentially independent. Garbage collection only affects the thread it is being performed for, all other threads can continue unhindered.</p>
+
+<p>Multithreaded GCs will have a <code class="language-plaintext highlighter-rouge">Send</code> <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> type. Garbage collection will typically, but not always, block any thread which attempts to access data managed by the GC during that time. In some languages there are “stop the world” garbage collectors which block all threads at “safepoints” inserted by the compiler; Rust does not have the capability to insert such safepoints and blocking threads on GCs is done at the library level.</p>
+
+<p>Most of the examples below are single-threaded, but their API design is not hard to extend towards a hypothetical multithreaded GC.</p>
+
 <h2 id="rust-gc">rust-gc</h2>
 
-<p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that they can update the root count:</p>
+<p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that they can update the root count. Basically, a “root count” is updated whenever something becomes a root or stops being a root:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
 <span class="p">}</span>
-<span class="c">// this is a root</span>
+<span class="c">// this is a root (root count = 1)</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// this is also a root</span>
+<span class="c">// this is also a root (root count = 1)</span>
 <span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// .borrow_mut()'s RAII guard unroots bar</span>
+<span class="c">// .borrow_mut()'s RAII guard unroots bar (sets its root count to 0)</span>
 <span class="o">*</span><span class="n">foo</span><span class="py">.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
 <span class="c">// foo is still a root here, no call to .set()</span>
 <span class="k">let</span> <span class="n">v</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">foo</span><span class="p">];</span>
+
+<span class="c">// at destrucion time, foo's root count is set to 0</span>
 </code></pre></div></div>
+
+<p>The actual garbage collection phase will occur when certain GC operations are performed at a time when the heap is considered to have gotten reasonably large according to some heuristics.</p>
 
 <p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to <em>avoid</em> the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that’s a mix of tracing and reference counting<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">6</a></sup>.</p>
 
