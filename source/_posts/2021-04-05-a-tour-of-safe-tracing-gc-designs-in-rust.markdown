@@ -568,7 +568,7 @@ As is hopefully obvious, the space of safe GC design in Rust is quite rich and h
 
 If you're interested in reading more about GCs in general, _["A Unified Theory of Garbage Collection"][bacon-unified]_ by Bacon et al and the [GC Handbook][gchandbook] are great reads.
 
-_Thanks to [Andi McClure][mcc], [Jason Orendorff][jorendorff], [Nick Fitzgerald][fitzgen], and [Nika Layzell][kneecaw] for providing feedback on drafts of this blog post_
+_Thanks to [Andi McClure][mcc], [Jason Orendorff][jorendorff], [Nick Fitzgerald][fitzgen], and [Nika Layzell] for providing feedback on drafts of this blog post_
 
 
  [jorendorff]: https://twitter.com/jorendorff/
