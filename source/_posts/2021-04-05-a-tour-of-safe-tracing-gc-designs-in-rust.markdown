@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "A Tour of Safe Tracing GC Designs in Rust"
-date: 2020-03-04 18:52:00 -0800
+date: 2021-04-05 08:32:30 -0700
 comments: true
 categories: ["programming", "rust", "mozilla"]
 ---
