@@ -99,6 +99,397 @@ that most folks aren’t aware of. Many of these tidbits are ones which may not 
       
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/">Rust Tidbits: What Is a Lang Item?</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
+that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
+much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
+found that a lot of these aren’t documented anywhere (not that they always should be), and sometimes
+depend on knowledge of compiler internals or history. As a fan of programming trivia myself, I’ve
+decided to try writing about these things whenever I come across them. “Tribal Knowledge” shouldn’t
+be a thing in a programming community; and trivia is fun!</em></p>
+
+<p>Previously in tidbits: <a href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"><code class="language-plaintext highlighter-rouge">Box</code> is Special</a></p>
+
+<p>Last time I talked about <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and how it is a special snowflake. Corey <a href="https://www.reddit.com/r/rust/comments/5nb86x/rust_tidbits_box_is_special/dca4y6n/?utm_content=permalink&amp;utm_medium=front&amp;utm_source=reddit&amp;utm_name=rust">asked</a> that
+I write more about lang items, which are basically all of the special snowflakes in the stdlib.</p>
+
+<p>So what <em>is</em> a lang item? Lang items are a way for the stdlib (and libcore) to define types, traits,
+functions, and other items which the compiler needs to know about.</p>
+
+<p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
+the Itanium ABI spec expects functions of certain names
+to just <em>exist</em>, which the compiler is supposed to call in various cases. The
+<code class="language-plaintext highlighter-rouge">__cxa_guard_*</code> functions from C++s deferred-initialization local statics (which
+I’ve <a href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/">explored in the past</a>) are an example of this. You’ll find that the spec is
+full of similar <code class="language-plaintext highlighter-rouge">__cxa</code> functions. While the spec just expects certain types,
+e.g. <code class="language-plaintext highlighter-rouge">std::type_traits</code> (“Type properties” § 20.10.4.3), to be magic and exist in certain locations,
+the compilers seem to implement them using intrinsics like <code class="language-plaintext highlighter-rouge">__is_trivial&lt;T&gt;</code> which aren’t defined
+in C++ code at all. So C++ compilers have a mix of solutions here, they partly insert calls
+to known ABI functions, and they partly implement “special” types via intrinsics which
+are detected and magicked when the compiler comes across them.</p>
+
+<p>However, this is not Rust’s solution. It does not care what the <code class="language-plaintext highlighter-rouge">Add</code> trait is named or where it is
+placed. Instead, it knew where the trait for addition was located because <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/ops.rs#L243"><em>we told it</em></a>.
+When you put <code class="language-plaintext highlighter-rouge">#[lang = "add"]</code> on a trait, the compiler knows to call <code class="language-plaintext highlighter-rouge">YourTrait::add(x, y)</code> when it
+encounters the addition operator. Of course, usually the compiler will already have been told about
+such a trait since libcore is usually the first library in the pipeline. If you want to actually use
+this, you need to <em>replace libcore</em>.</p>
+
+<p>Huh? You can’t do that, can you?</p>
+
+<p>It’s not a big secret that you can compile rust without the stdlib using
+<a href="https://doc.rust-lang.org/book/no-stdlib.html"><code class="language-plaintext highlighter-rouge">#![no_std]</code></a>. This is useful in cases when you are on an embedded system and can’t
+rely on an allocator existing. It’s also useful for writing your own alternate stdlib, though
+that’s not something folks do often. Of course, libstd itself <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd/lib.rs#L213-L214">uses <code class="language-plaintext highlighter-rouge">#![no_std]</code></a>,
+because without it the compiler will happily inject an <code class="language-plaintext highlighter-rouge">extern crate std</code> while trying to compile
+libstd and the universe will implode.</p>
+
+<p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
+libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
+only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
+trying to emulate it).</p>
+
+<p>Still, it’s possible to write a working Rust binary in <code class="language-plaintext highlighter-rouge">no_core</code> mode:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![feature(no_core)]</span>
+<span class="nd">#![feature(lang_items)]</span>
+
+<span class="c">// Look at me.</span>
+<span class="c">// Look at me.</span>
+<span class="c">// I'm the libcore now.</span>
+<span class="nd">#![no_core]</span>
+
+<span class="c">// Tell the compiler to link to appropriate runtime libs</span>
+<span class="c">// (This way I don't have to specify `-l` flags explicitly)</span>
+<span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"linux"</span><span class="nd">)]</span>
+<span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"c"</span><span class="nd">)]</span>
+<span class="k">extern</span> <span class="p">{}</span>
+<span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"macos"</span><span class="nd">)]</span>
+<span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"System"</span><span class="nd">)]</span>
+<span class="k">extern</span> <span class="p">{}</span>
+
+<span class="c">// Compiler needs these to proceed</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sized"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">Sized</span> <span class="p">{}</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"copy"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="nb">Copy</span> <span class="p">{}</span>
+
+<span class="c">// `main` isn't the actual entry point, `start` is.</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="c">// we can't really do much in this benighted hellhole of</span>
+    <span class="c">// an environment without bringing in more libraries.</span>
+    <span class="c">// We can make syscalls, segfault, and set the exit code.</span>
+    <span class="c">// To be sure that this actually ran, let's set the exit code.</span>
+    <span class="mi">42</span>
+<span class="p">}</span>
+
+<span class="c">// still need a main unless we want to use `#![no_main]`</span>
+<span class="c">// won't actually get called; `start()` is supposed to call it</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{}</span>
+</code></pre></div></div>
+
+<p>If you run this, the program will exit with exit code 42.</p>
+
+<p>Note that this already adds two lang items. <code class="language-plaintext highlighter-rouge">Sized</code> and <code class="language-plaintext highlighter-rouge">Copy</code>. It’s usually worth
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L88-L94">looking at the lang item in libcore</a> and copying it over unless you want to make
+tweaks. Beware that tweaks may not always work; not only does the compiler expect the lang item
+to exist, it expects it to make sense. There are properties of the lang item that it assumes
+are true, and failure to provide an appropriate lang item may cause the compiler to assert
+without a useful error message. In this case I do have a tweak, since
+the original definition of <code class="language-plaintext highlighter-rouge">Copy</code> is <code class="language-plaintext highlighter-rouge">pub trait Copy: Clone {}</code>, but I know that this tweak
+will work.</p>
+
+<p>Lang items are usually only required when you do an operation which needs them. There are 72 non-
+deprecated lang items and we only had to define three of them here. “start” is necessary to, well,
+start executables, and <code class="language-plaintext highlighter-rouge">Copy</code>/<code class="language-plaintext highlighter-rouge">Sized</code> are very crucial to how the compiler reasons about types and
+must exist.</p>
+
+<p>But let’s try doing something that will trigger a lang item to be required:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Rust will immediately complain:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ rustc test.rs
+error: requires `sync` lang_item
+</code></pre></div></div>
+
+<p>This is because Rust wants to enforce that types in statics (which can be accessed concurrently)
+are safe when accessed concurrently, i.e., they implement <code class="language-plaintext highlighter-rouge">Sync</code>. We haven’t defined <code class="language-plaintext highlighter-rouge">Sync</code> yet,
+so Rust doesn’t know how to enforce this restruction. The <code class="language-plaintext highlighter-rouge">Sync</code> trait is defined with the “sync”
+lang item, so we need to do:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sync"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
+</code></pre></div></div>
+
+<p>Note that the trait doesn’t have to be called <code class="language-plaintext highlighter-rouge">Sync</code> here, any trait name would work. This
+definition is also a slight <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L343-L351">departure from the one in the stdlib</a>, and in general you
+should include the auto trait impl (instead of specifically using <code class="language-plaintext highlighter-rouge">unsafe impl Sync for u8 {}</code>)
+since the compiler may assume it exists. Our code is small enough for this to not matter.</p>
+
+<p>Alright, let’s try defining our own addition trait as before. First, let’s see
+what happens if we try to add a struct when addition isn’t defined:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We get an error:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ rustc test.rs
+error[E0369]: binary operation `+` cannot be applied to type `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+   |
+note: an implementation of `std::ops::Add` might be missing for `Foo`
+  --&gt; test.rs:33:5
+   |
+33 |     Foo + Foo
+   |     ^^^
+
+error: aborting due to previous error
+</code></pre></div></div>
+
+<p>It is interesting to note that here the compiler <em>did</em> refer to <code class="language-plaintext highlighter-rouge">Add</code> by its path.
+This is because the diagnostics in the compiler are free to assume that libcore
+exists. However, the actual error just noted that it doesn’t know how to add two
+<code class="language-plaintext highlighter-rouge">Foo</code>s. But we can tell it how!</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
+<span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="nb">isize</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Foo</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="mi">42</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This will compile fine and the exit code of the program will be 42.</p>
+
+<p>An interesting bit of behavior is what happens if we try to add two numbers. It will give us the
+same kind of error, even though the addition of concrete primitives doesn’t
+go through <code class="language-plaintext highlighter-rouge">Add::add</code> (Rust asks LLVM to generate an add instruction directly). However, any addition operation still checks if <code class="language-plaintext highlighter-rouge">Add::add</code> is implemented, even though it won’t get <em>used</em> in the case of a primitive. We can even verify this!</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
+<span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="nb">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="nb">isize</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">isize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+        <span class="k">self</span> <span class="o">+</span> <span class="n">other</span> <span class="o">+</span> <span class="mi">50</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+<span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This will need to be compiled with <code class="language-plaintext highlighter-rouge">-C opt-level=2</code>, since numeric addition in debug mode panics on
+wrap and we haven’t defined the <code class="language-plaintext highlighter-rouge">"panic"</code> lang item to teach the compiler <em>how</em> to panic.</p>
+
+<p>It will exit with 42, not 92, since while the <code class="language-plaintext highlighter-rouge">Add</code> implementation is required for this to type
+check, it doesn’t actually get used.</p>
+
+<hr />
+
+<p>So what lang items <em>are</em> there, and why are they lang items? There’s a <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L252-L363">big list</a> in the
+compiler. Let’s go through them:</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L254-L272"><code class="language-plaintext highlighter-rouge">ImplItem</code> ones</a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">core</a>) are used to mark implementations on
+primitive types. <code class="language-plaintext highlighter-rouge">char</code> has some methods, and <em>someone</em> has to say <code class="language-plaintext highlighter-rouge">impl char</code> to define them. But
+coherence only allows us to impl methods on types defined in our own crate, and <code class="language-plaintext highlighter-rouge">char</code> isn’t defined
+… in any crate, so how do we add methods to it? <code class="language-plaintext highlighter-rouge">#[lang = "char"]</code> provides an escape hatch;
+applying that to <code class="language-plaintext highlighter-rouge">impl char</code> will allow you to break the coherence rules and add methods,
+<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libstd_unicode/char.rs#L134-L135">as is done in the standard library</a>. Since lang items can only be defined once, only
+a single crate gets the honor of adding methods to <code class="language-plaintext highlighter-rouge">char</code>, so we don’t have any of the issues that
+arise from sidestepping coherence.</p>
+
+<p>There are a bunch for the <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L274-L278">marker traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/marker.rs#L41-L356">core</a>):</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Send</code> is a lang item because you are allowed to use it in a <code class="language-plaintext highlighter-rouge">+</code> bound in a trait object (<code class="language-plaintext highlighter-rouge">Box&lt;SomeTrait+Send+Sync&gt;</code>), and the compiler caches it aggressively</li>
+  <li><code class="language-plaintext highlighter-rouge">Sync</code> is a lang item for the same reasons as <code class="language-plaintext highlighter-rouge">Send</code>, but also because the compiler needs to enforce its implementation on types used in statics</li>
+  <li><code class="language-plaintext highlighter-rouge">Copy</code> is fundamental to classifying values and reasoning about moves/etc, so it needs to be a lang item</li>
+  <li><code class="language-plaintext highlighter-rouge">Sized</code> is also fundamental to reasoning about which values may exist on the stack. It is also magically included as a bound on generic parameters unless excluded with <code class="language-plaintext highlighter-rouge">?Sized</code></li>
+  <li><a href="https://doc.rust-lang.org/nightly/std/marker/trait.Unsize.html"><code class="language-plaintext highlighter-rouge">Unsize</code></a> is implemented automatically on types using a specific set of rules (<a href="https://doc.rust-lang.org/nomicon/coercions.html">listed in the nomicon</a>). Unlike <code class="language-plaintext highlighter-rouge">Send</code> and <code class="language-plaintext highlighter-rouge">Sync</code>, this mechanism for autoimplementation is tailored for the use case of <code class="language-plaintext highlighter-rouge">Unsize</code> and can’t be reused on user-defined marker traits.</li>
+</ul>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L280"><code class="language-plaintext highlighter-rouge">Drop</code> is a lang item</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L174-L197">core</a>) because the compiler needs to know which types have destructors, and how to call
+these destructors.</p>
+
+<p><a href="https://doc.rust-lang.org/nightly/std/ops/trait.CoerceUnsized.html"><code class="language-plaintext highlighter-rouge">CoerceUnsized</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L282">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2743-L2746">core</a>) because the compiler is allowed to perform
+<a href="https://github.com/rust-lang/rfcs/blob/master/text/0982-dst-coercion.md">DST coercions</a> (<a href="https://doc.rust-lang.org/nomicon/coercions.html">nomicon</a>) when it is implemented.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L284-L307">All of the builtin operators</a> (also <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L311-L312"><code class="language-plaintext highlighter-rouge">Deref</code></a>
+and <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L318-L319"><code class="language-plaintext highlighter-rouge">PartialEq</code>/<code class="language-plaintext highlighter-rouge">PartialOrd</code></a>, which are listed later in the file) (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L243-L2035">core</a>)
+are lang items because the compiler needs to know what trait to require (and call)
+when it comes across such an operation.</p>
+
+<p><a href="http://doc.rust-lang.org/std/cell/struct.UnsafeCell.html"><code class="language-plaintext highlighter-rouge">UnsafeCell</code></a> <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L309">is a lang item</a>
+(<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/cell.rs#L1065-L1069">core</a>) because it has very special semantics; it prevents
+certain optimizations. Specifically, Rust is allowed to reorder reads/writes to <code class="language-plaintext highlighter-rouge">&amp;mut foo</code> with the
+assumption that the local variable holding the reference is the only alias allowed to read from
+or write to the data, and it is allowed to reorder reads from <code class="language-plaintext highlighter-rouge">&amp;foo</code> assuming that no other alias
+writes to it. We tell LLVM that these types are <code class="language-plaintext highlighter-rouge">noalias</code>. <code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code> turns this optimization
+off, allowing writes to <code class="language-plaintext highlighter-rouge">&amp;UnsafeCell&lt;T&gt;</code> references. This is used in the implementation of interior
+mutability types like <code class="language-plaintext highlighter-rouge">Cell&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, and <code class="language-plaintext highlighter-rouge">Mutex&lt;T&gt;</code>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L314-L316"><code class="language-plaintext highlighter-rouge">Fn</code> traits</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/ops.rs#L2556-L2659">core</a>) are used in dispatching function calls,
+and can be specified with special syntax sugar, so they need to be lang items. They also
+get autoimplemented on closures.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L321">The <code class="language-plaintext highlighter-rouge">"str_eq"</code> lang item</a> is outdated. It <em>used</em> to specify how to check the equality
+of a string value against a literal string pattern in a <code class="language-plaintext highlighter-rouge">match</code> (<code class="language-plaintext highlighter-rouge">match</code> uses structural equality,
+not <code class="language-plaintext highlighter-rouge">PartialEq::eq</code>), however I believe this behavior is now hardcoded in the compiler.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L332-L334">The panic-related lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libcore/panicking.rs#L39-L58">core</a>) exist because rustc itself
+inserts panics in a few places. The first one, <code class="language-plaintext highlighter-rouge">"panic"</code>, is used for integer overflow panics in debug mode, and
+<code class="language-plaintext highlighter-rouge">"panic_bounds_check"</code> is used for out of bounds indexing panics on slices. The last one,
+<code class="language-plaintext highlighter-rouge">"panic_fmt"</code> hooks into a function defined later in libstd.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L336-L337"><code class="language-plaintext highlighter-rouge">"exchange_malloc"</code> and <code class="language-plaintext highlighter-rouge">"box_free"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/heap.rs#L129-L152">alloc</a>) are for
+telling the compiler which functions to call in case it needs to do a <code class="language-plaintext highlighter-rouge">malloc()</code> or <code class="language-plaintext highlighter-rouge">free()</code>. These
+are used when constructing <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> via placement <code class="language-plaintext highlighter-rouge">box</code> syntax and when moving out of a deref of a
+box.</p>
+
+<p><a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L338"><code class="language-plaintext highlighter-rouge">"strdup_uniq"</code></a> seemed to be used in the past for moving string literals to the heap,
+but is no longer used.</p>
+
+<p>We’ve already seen <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L340">the start lang item</a> (<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">std</a>) being used in our
+minimal example program. This function is basically where you find Rust’s “runtime”: it gets called
+with a pointer to main and the command line arguments, it sets up the “runtime”, calls main, and
+tears down anything it needs to. Rust has a C-like minimal runtime, so
+<a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/libstd/rt.rs#L31-L67">the actual libstd definition</a> doesn’t do much.
+But you theoretically could stick a very heavy runtime initialization routine here.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L342-L344">exception handling lang items</a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs">panic_unwind</a>, in multiple
+platform-specific modules) specify various bits of the exception handling behavior. These hooks are
+called during various steps of unwinding: <code class="language-plaintext highlighter-rouge">eh_personality</code> is called when determining whether
+or not to stop at a stack frame or unwind up to the next one. <code class="language-plaintext highlighter-rouge">eh_unwind_resume</code> is the routine
+called when the unwinding code wishes to resume unwinding after calling destructors in a landing
+pad. <code class="language-plaintext highlighter-rouge">msvc_try_filter</code> defines some parameter that MSVC needs in its unwinding code. I don’t
+understand it, and apparently, <a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/libpanic_unwind/seh.rs#L232">neither does the person who wrote it</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L346"><code class="language-plaintext highlighter-rouge">"owned_box"</code></a> (<a href="https://github.com/rust-lang/rust/blob/408c2f7827be838aadcd05bd041dab94388af35d/src/liballoc/boxed.rs#L105-L107">alloc</a>) lang item tells the compiler which type is
+the <code class="language-plaintext highlighter-rouge">Box</code> type. In my previous post I covered how <code class="language-plaintext highlighter-rouge">Box</code> is special; this lang item is how the
+compiler finds impls on <code class="language-plaintext highlighter-rouge">Box</code> and knows what the type is. Unlike the other primitives, <code class="language-plaintext highlighter-rouge">Box</code> doesn’t
+actually have a type name (like <code class="language-plaintext highlighter-rouge">bool</code>) that can be used if you’re writing libcore or libstd. This
+lang item gives <code class="language-plaintext highlighter-rouge">Box</code> a type name that can be used to refer to it. (It also defines some,
+but not all, of the semantics of <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>)</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L348"><code class="language-plaintext highlighter-rouge">"phantom_data"</code></a> (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/marker.rs#L544-L546">core</a>) type itself is allowed to have
+an unused type parameter, and it can be used to help fix the variance and drop behavior
+of a generic type. More on this in <a href="https://doc.rust-lang.org/nomicon/phantom-data.html">the nomicon</a>.</p>
+
+<p>The <a href="https://github.com/rust-lang/rust/blob/1ca100d0428985f916eea153886762bed3909771/src/librustc/middle/lang_items.rs#L360"><code class="language-plaintext highlighter-rouge">"non_zero"</code></a> lang item (<a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/nonzero.rs#L38-L42">core</a>) marks the <code class="language-plaintext highlighter-rouge">NonZero&lt;T&gt;</code> type,
+a type which is guaranteed to never contain a bit pattern of only zeroes. This is used inside things
+like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> – we know that the pointers in these can/should never be null, so they
+contain a <code class="language-plaintext highlighter-rouge">NonZero&lt;*const T&gt;</code>. When used inside an enum like <code class="language-plaintext highlighter-rouge">Option&lt;Rc&lt;T&gt;&gt;</code>, the discriminant
+(the “tag” value that distinguishes between <code class="language-plaintext highlighter-rouge">Some</code> and <code class="language-plaintext highlighter-rouge">None</code>) is no longer necessary, since
+we can mark the <code class="language-plaintext highlighter-rouge">None</code> case as the case where the bits occupied by <code class="language-plaintext highlighter-rouge">NonZero</code> in the <code class="language-plaintext highlighter-rouge">Some</code> case
+are zero. Beware, this optimization also applies to C-like enums that don’t have a variant
+corresponding to a discriminant value of zero (unless they are <code class="language-plaintext highlighter-rouge">#[repr(C)]</code>)</p>
+
+<p>There are also a bunch of deprecated lang items there. For example, <code class="language-plaintext highlighter-rouge">NoCopy</code> used to be a struct
+that could be dropped within a type to make it not implement <code class="language-plaintext highlighter-rouge">Copy</code>; in the past <code class="language-plaintext highlighter-rouge">Copy</code>
+implementations were automatic like <code class="language-plaintext highlighter-rouge">Send</code> and <code class="language-plaintext highlighter-rouge">Sync</code> are today. <code class="language-plaintext highlighter-rouge">NoCopy</code> was the way to opt out.
+There also used to be <code class="language-plaintext highlighter-rouge">NoSend</code> and <code class="language-plaintext highlighter-rouge">NoSync</code>. <code class="language-plaintext highlighter-rouge">CovariantType</code>/<code class="language-plaintext highlighter-rouge">CovariantLifetime</code>/etc were the
+predecessors of <code class="language-plaintext highlighter-rouge">PhantomData</code>; they could be used to specify variance relations of a type with its
+type or lifetime parameters, but you can now do this with providing the right <code class="language-plaintext highlighter-rouge">PhantomData</code>, e.g.
+<code class="language-plaintext highlighter-rouge">InvariantType&lt;T&gt;</code> is now <code class="language-plaintext highlighter-rouge">PhantomData&lt;Cell&lt;T&gt;&gt;</code>.
+The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a> has more on variance. I don’t know why these lang items haven’t been
+removed (they don’t work anymore anyway); the only consumer of them is libcore so “deprecating” them
+seems unnecessary. It’s probably an oversight.</p>
+
+<p>Interestingly, <code class="language-plaintext highlighter-rouge">Iterator</code> and <code class="language-plaintext highlighter-rouge">IntoIterator</code> are <em>not</em> lang items, even though they are used in <code class="language-plaintext highlighter-rouge">for</code>
+loops. Instead, the compiler inserts hardcoded calls to <code class="language-plaintext highlighter-rouge">::std::iter::IntoIterator::into_iter</code> and
+<code class="language-plaintext highlighter-rouge">::std::iter::Iterator::next</code>, and a hardcoded reference to <code class="language-plaintext highlighter-rouge">::std::option::Option</code> (The paths use
+<code class="language-plaintext highlighter-rouge">core</code> in <code class="language-plaintext highlighter-rouge">no_std</code> mode). This is probably because the compiler desugars <code class="language-plaintext highlighter-rouge">for</code> loops before type
+resolution is done, so withut this, libcore would not be able to use for loops since the compiler
+wouldn’t know what calls to insert in place of the loops while compiling.</p>
+
+<hr />
+
+<p>Basically, whenever the compiler needs to use special treatment with an item – whether it be
+dispatching calls to functions and trait methods in various situations, conferring special semantics
+to types/traits, or requiring traits to be implemented, the type will be defined in the standard
+library (libstd, libcore, or one of the crates behind the libstd façade), and marked as a lang item.</p>
+
+<p>Some of the lang items are useful/necessary when working without libstd. Most only come into play if
+you want to replace libcore, which is a pretty niche thing to do, and knowing about them is rarely
+useful outside of the realm of compiler hacking.</p>
+
+<p>But, like with the <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> madness, I still find this quite interesting, even if it isn’t generally
+useful!</p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Though as we learned in the previous post, when <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>To be clear, I’m not aware of any plans to eventually stabilize this. It’s something that could happen. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2017/01/10/rust-tidbits-box-is-special/">Rust Tidbits: Box Is Special</a></h1>
     
     
@@ -3001,95 +3392,6 @@ welcome, we’d especially love performance improvements and testcases.</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2015/08/29/the-worlds-most-over-engineered-alarm-clock/">The World's Most Over-engineered Alarm Clock</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>A few weeks ago, I set up my Raspberry Pi as a music server so that I could listen to music without
-having to deal with keeping my laptop in a certain corner of the room.</p>
-
-<p>After setting it all up, it occurred to me: “I can do much more with this!”.</p>
-
-<p>Waking up to go to class in the morning is always a challenge for me. It’s not that I don’t wake up
-— I often wake up, cancel all the alarms, and go back to bed. Half-asleep me somehow has the
-skill to turn off alarms, but not the discipline of going to class<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. I’ve tried those apps that
-make you do math before you can cancel the alarm, and I’m able to do the math and go back to sleep
-without fully waking up in the process (Hey, I’m a physics student; math is what we do!).</p>
-
-<p>So I decided to create an alarm clock. Not just any alarm clock, the most overengineered alarm clock
-I can think of.</p>
-
-<p>It consists of the Pi connected to a speaker and kept in a hard-to-reach area of the room. The Pi is
-on a DHCP network. Every night, I ssh to the Pi, set the volume to full, and run a script which,
-using <code class="language-plaintext highlighter-rouge">at</code> and <code class="language-plaintext highlighter-rouge">mpg123</code>, will schedule jobs to run around the desired time of waking up. First,
-there will be a few pieces of soothing music (either violin music or parts of the <em>Interstellar</em>
-OST) run once or twice, a while before the time of waking up. Close to the time of waking up, there
-are a bunch of jobs where each one will run a string of annoying music. In my case, it’s the
-Minions’ banana song followed by Nyan Cat (I sometimes add more to this list).</p>
-
-<p>So far so good.</p>
-
-<p>Now, the soothing music gives asleep-me me a chance to surrender and wake up <em>before</em> the Nyan Cat
-begins, and often fear of Nyan Cat is a pretty good motivator to wake up. If I don’t wake up to
-the soft songs, the annoying ones invariably work.</p>
-
-<p>At this stage I’m still pretty groggy and have the intense urge to go back to bed. However, turning
-off the alarm isn’t simple. Since it’s in a hard to reach area of the room, I can’t just turn it
-off. I need to get up, sit in my chair, and turn on the laptop (which is hibernated/suspended), and
-kill it via ssh.</p>
-
-<p>This needs me to:</p>
-
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">nmap</code> the network to find the Pi (I’m the only one on this subnet who uses <code class="language-plaintext highlighter-rouge">ssh</code>, so this just needs a port filter)</li>
-  <li><code class="language-plaintext highlighter-rouge">ssh</code> into the Pi, remembering the password (I haven’t done this yet but I could further complicate things by changing the password often to reduce muscle-memory)</li>
-  <li><code class="language-plaintext highlighter-rouge">killall mpg123</code> to kill the currently playing song</li>
-  <li>Cancel the remaining <code class="language-plaintext highlighter-rouge">at</code> jobs. This can be done with <code class="language-plaintext highlighter-rouge">atq</code> + <code class="language-plaintext highlighter-rouge">atrm</code> for every job (tedious and long), or with <code class="language-plaintext highlighter-rouge">awk</code>. If I’ve already fully woken up, I’m able to do the <code class="language-plaintext highlighter-rouge">awk</code> one, otherwise half-asleep me ends up doing the brute-force one, which is enough manual typing to shake the remaining bits of sleepiness off.</li>
-</ul>
-
-<p>After this whole process, it’s pretty much guaranteed that I’m fully awake – there’s no going back now!</p>
-
-<p>So far it’s worked pretty well (both when I’ve slept on time and when I haven’t). The first ten minutes after this I’m rather annoyed, but after that I’m happy I woke up. If half-asleep me
-eventually gets the muscle memory to get past this process, I should probably be able to tweak it
-to add more complexity or change the way it works.</p>
-
-<p>Of course, having an arms race with oneself probably isn’t the best way to solve this problem. I
-suspect I’ll go back to regular alarms in a month or so, but it’s a fun experiment for now.</p>
-
-<p>However, by the time I’m done with this alarm clock, I’ll either be waking up on time, or I’ll be
-able to Linux in my sleep, which is a win-win!</p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>As a fourth year student the fully-awake me also has a bit of trouble with this ;) <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/5">&larr; Older</a>
@@ -3122,6 +3424,10 @@ able to Linux in my sleep, which is a win-win!</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
       </li>
     
@@ -3135,10 +3441,6 @@ able to Linux in my sleep, which is a win-win!</p>
     
       <li class="post">
         <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2018/09/11/converting-a-webgl-application-to-webvr/">Converting a WebGL Application to WebVR</a>
       </li>
     
   </ul>
