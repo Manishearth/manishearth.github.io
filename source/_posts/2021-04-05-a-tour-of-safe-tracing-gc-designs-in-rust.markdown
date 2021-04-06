@@ -37,7 +37,7 @@ Every time this topic is brought up someone will inevitably go "I thought the po
 
 There are really two distinct kinds of use cases. Firstly, sometimes you need to manage memory with cycles and `Rc<T>` is inadequate for the job since `Rc`-cycles get leaked. [`petgraph`][petgraph] or an [arena] are often acceptable solutions for this kind of pattern, but not always, especially if your data is super heterogeneous. This kind of thing crops up often when dealing with concurrent datastructures; for example [`crossbeam`][crossbeam] has [an epoch-based memory management system][crossbeam-epoch] which, while not a full tracing GC, has a lot of characteristics in common with GCs.
 
-For the first use case it's rarely necessary to design a custom GC, you can look for a reusable crate like [`gc`][gc] [^1].
+For this use case it's rarely necessary to design a custom GC, you can look for a reusable crate like [`gc`][gc] [^1].
 
 The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that _do_ use a garbage collector. [Servo] needs to do this for integrating with the Spidermonkey JS engine and [luster] needed to do this for implementing the GC of its Lua VM. [boa], a pure Rust JS runtime, uses the [`gc`][gc] crate to back its garbage collector.
 
