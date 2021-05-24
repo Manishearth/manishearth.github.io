@@ -102,7 +102,7 @@ struct LongLived {
 struct CantKillMe {
     // set up to point to itself during construction
     self_ref: RefCell<Option<Gc<CantKillMe>>>
-    long_lived: Gc<Foo>
+    long_lived: Gc<LongLived>
 }
 
 impl Drop for CantKillMe {
