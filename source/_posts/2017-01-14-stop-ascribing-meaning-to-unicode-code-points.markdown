@@ -58,8 +58,7 @@ code points have no intrinsic meaning. They are not "characters". I'm using scar
 because a "character" isn't a well-defined concept either, but we'll get to that later.
 
 For example, "e&#x0301;" is two code points (`e` +` ́`), where one of them is a combining accent. My name,
-"मनीष", visually looks like three "characters", but is four code points. The "नी" is made up of `न`
-+ `ी`. My last name contains a "character" made up of three code points (and multiple two-code-point
+"मनीष", visually looks like three "characters", but is four code points. The "नी" is made up of `न` + `ी`. My last name contains a "character" made up of three code points (as well as multiple other two-code-point
 "characters"). The flag emoji "🇺🇸" is also made of two code points, `🇺` + `🇸`.
 
 
@@ -68,7 +67,8 @@ They sometimes bunch up to form characters that fit in single "columns". This is
 the font, and if your application relies on this, you should be querying the font. There are even
 code points like U+FDFD (﷽) which are often rendered multiple columns wide. In fact, in my
 _monospace_ font in my text editor, that character is rendered _almost_ 12 columns wide. Yes,
-"almost", subsequent characters get offset a tiny bit. I don't know why.
+"almost", subsequent characters get offset a tiny bit, presumably because the font selection
+picking a non-monospace font for the character.
 
 
 Another false assumption is that editing actions (selection, backspace, cut, paste) operate on code
