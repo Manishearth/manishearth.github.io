@@ -123,7 +123,7 @@ but by default they do so by-reference (hence the `move` keyword). They autoimpl
 and [`Sync`][sync] depending on their capture clauses. For more on their internal representation,
 see [huon's post][huon-closure]. In this case, `x` was captured by-move; i.e. as [`Vec<T>`][vec]
 (instead of being similar to `&Vec<T>` or something), so the closure itself can be `Send`.
-Without the `move` keyword, the closure would not be `'static' since it contains borrowed
+Without the `move` keyword, the closure would not be `'static` since it contains borrowed
 content.
 
 Since the closure inherits the `Send`/`Sync`/`'static`-ness of its captured data, a closure
