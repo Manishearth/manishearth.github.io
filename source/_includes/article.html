@@ -1,6 +1,5 @@
 {% unless page.no_header %}
   <header>
-    {% if index %}
     {% if post.author %}
       {% assign author = post.author %}
     {% elsif page.author %}
@@ -8,10 +7,18 @@
     {% else %}
       {% assign author = site.author %}
     {% endif %}
+    {% if post.date %}
+      {% assign pgdate = post.date %}
+    {% elsif page.date %}
+      {% assign pgdate = page.date %}
+    {% endif %}
+
+    {% if index %}
       <h1 class="entry-title"><a href="{{ root_url }}{{ post.url }}">{% if site.titlecase %}{{ post.title | titlecase }}{% else %}{{ post.title }}{% endif %}</a></h1>
       <em>Posted by {{ author }} on {{ post.date | date: '%B %d, %Y'}}</em>
     {% else %}
       <h1 class="entry-title">{% if site.titlecase %}{{ page.title | titlecase }}{% else %}{{ page.title }}{% endif %}</h1>
+      <em>Posted by {{ author }} on {{ pgdate | date: '%B %d, %Y'}}</em>
     {% endif %}
     {% unless page.meta == false %}
       <p class="meta">
