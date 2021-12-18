@@ -106,7 +106,7 @@ The Rust moderation team operates mostly passively, we simply don't have the sca
 ## Participation guidelines
 
 
-Part of the solution here is recognizing that spaces for official discussion are _different_ from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensusbuilding official discussions aren't really covered. Nor are the repercussions of code of conduct violations really _appropriate_ for such disruptive comments anyway.
+Part of the solution here is recognizing that spaces for official discussion are _different_ from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensus building in official discussions aren't really covered. Nor are the repercussions of code of conduct violations really _appropriate_ for such disruptive comments anyway.
 
 A proposal I've circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:
 
