@@ -3,7 +3,7 @@ layout: post
 title: "Wrapper types in Rust: Choosing your guarantees"
 date: 2015-05-27 20:29:59 -0800
 comments: true
-categories: [Rust, Mozilla, Programming]
+categories: [rust, mozilla, programming]
 ---
 
 _This post is now [a part of the official rust book][trpl]_
@@ -84,7 +84,7 @@ memory safety.
 
 [^2]: By "stack representation" I mean the data on the stack when a value of this type is held on the stack. For example, a `Vec<T>` has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the `Vec`. Looking at this a different way, a type is `Copy` if a `memcopy` of the data copies all the data owned by it.
 
-## `&T` and `&mut T` 
+## `&T` and `&mut T`
 
 These are immutable and mutable references respectively. They follow the "read-write lock" pattern
 described in my [previous post][post-prev], such that one may either have only one mutable reference

@@ -3,7 +3,7 @@ layout: post
 title: "Where Rust really shines"
 date: 2015-05-03 03:49:49 -0800
 comments: true
-categories: [Rust, Mozilla, Programming]
+categories: [rust, mozilla, programming]
 ---
 
 Yesterday I was working on a [small feature](https://github.com/rust-lang/rust/pull/25027)

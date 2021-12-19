@@ -4,7 +4,7 @@ title: "How Rust achieves thread safety"
 date: 2015-05-30 04:25:32 -0800
 comments: true
 
-categories: [Rust, Mozilla, Programming]
+categories: [rust, mozilla, programming]
 ---
 
 
