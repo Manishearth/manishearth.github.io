@@ -4,7 +4,7 @@ title: "Exploring Zero-Knowledge proofs"
 date: 2016-03-05 01:46:01 -0800
 comments: true
 math: true
-categories: programming crypto
+categories: programming cryptography
 ---
 
 _Follow up article to this one [here][sudoku-post]_

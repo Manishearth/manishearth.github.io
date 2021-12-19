@@ -3,7 +3,7 @@ layout: post
 title: "Clarifying misconceptions about SHAttered"
 date: 2017-02-26 00:30:56 -0800
 comments: true
-categories: programming crypto
+categories: programming cryptography
 ---
 
 

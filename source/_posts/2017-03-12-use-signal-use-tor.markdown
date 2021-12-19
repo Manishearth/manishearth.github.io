@@ -3,7 +3,7 @@ layout: post
 title: "Use Signal. Use Tor."
 date: 2017-03-12 12:36:54 -0700
 comments: true
-categories: poetry crypto programming
+categories: poetry cryptography programming
 ---
 
 I went to send a missive today<br>

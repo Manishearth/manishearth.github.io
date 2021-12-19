@@ -3,7 +3,7 @@ layout: post
 title: "Fun crypto problem: Designing an anonymous reputation system"
 date: 2016-08-14 12:15:31 -0800
 comments: true
-categories: crypto
+categories: cryptography
 ---
 
 One of the reasons I like crypto is that it's a gold mine of interesting problems which feel

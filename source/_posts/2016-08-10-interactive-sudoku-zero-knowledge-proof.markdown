@@ -3,7 +3,7 @@ layout: post
 title: "Interactive Sudoku zero-knowledge proof"
 date: 2016-08-10 11:21:19 -0800
 comments: true
-categories: programming crypto
+categories: programming cryptography
 ---
 
 Back in March I was particularly interested in Zero-Knowledge Proofs. At the time, I wrote
