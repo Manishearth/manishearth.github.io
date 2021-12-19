@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "Fun crypto problem: Designing an anonymous reputation system"
+title: "Fun cryptography problem: Designing an anonymous reputation system"
 date: 2016-08-14 12:15:31 -0800
 comments: true
 categories: cryptography
 ---
 
-One of the reasons I like crypto is that it's a gold mine of interesting problems which feel
+One of the reasons I like cryptography is that it's a gold mine of interesting problems which feel
 like they are impossible to solve and if a solution exists, it must be magic.
 
 The other day, I came across one such problem [here][sarah-tweet], by @SarahJamieLewis
