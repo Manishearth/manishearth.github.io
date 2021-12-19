@@ -3,7 +3,7 @@ layout: post
 title: "The future of Clippy"
 date: 2018-06-05 14:42:24 -0700
 comments: true
-categories: 
+categories: rust programming
 ---
 
 We've recently been making lots of progress on future plans for [clippy] and I
