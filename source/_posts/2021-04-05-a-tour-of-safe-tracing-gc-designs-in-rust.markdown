@@ -3,7 +3,7 @@ layout: post
 title: "A Tour of Safe Tracing GC Designs in Rust"
 date: 2021-04-05 08:32:30 -0700
 comments: true
-categories: ["programming", "rust", "mozilla"]
+categories: ["mozilla", "programming", "rust"]
 ---
 
 I've been thinking about garbage collection in Rust for a long time, ever since I started working on [Servo]'s JS layer. I've [designed a GC library][rustgc-post], [worked on GC integration ideas for Rust itself][rust-design], worked on Servo's JS GC integration, and helped out with a [couple][josephine] [other][gc-arena] GC projects in Rust.
@@ -374,7 +374,7 @@ Cycle collectors require tighter control over the garbage collection algorithm, 
  [bacon-rajan]: https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
  [^5]: Firefox's DOM actually uses a mark & sweep tracing GC _mixed with_ a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there's a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released.
 
-## cell-gc 
+## cell-gc
 
 [Jason Orendorff][jorendorff]'s [cell-gc] crate is interesting, it has a concept of "heap sessions". Here's a modified example from the readme:
 
