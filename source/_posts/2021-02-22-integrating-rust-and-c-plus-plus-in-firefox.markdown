@@ -426,7 +426,7 @@ Also, try to make sure everything is `#[repr(C)]` across the boundary. Rust's `i
  [cpp-classes-pitfall]: #potential-pitfall-passing-c-classes-by-value-over-ffi
 
 
-##  Should C++ APIs be unconditionally `unsafe`?
+## Should C++ APIs be unconditionally `unsafe`?
 
 Before I get into this, I want to reiterate that most of the recommendations in this post are for _complex_ C++-Rust integrations, which are likely to only crop up when attempting to rewrite parts of a large C++ codebase in Rust. Such codebases have unique needs and it's important to calibrate for that when judging what's right for them.
 
