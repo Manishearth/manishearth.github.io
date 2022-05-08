@@ -1,0 +1,386 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Vision Zero-Copy Part 1: Not a Yoking Matter - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Vision Zero-Copy part 1: Not a yoking matter">
+      <meta property="twitter:description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. @@ cow tools goes here? Background For the past &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/zero1/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/manish.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar's blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/blog/categories">Categories</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title">Vision Zero-Copy Part 1: Not a Yoking Matter</h1>
+      <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><em>This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found <a href="https://@@@@">here</a>.</em></p>
+
+<p>@@ cow tools goes here?</p>
+
+<h2 id="background">Background</h2>
+
+<p>For the past year and a half I’ve been working full time on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, a new internationalization library in Rust being built under the Unicode Consortium as a collaboration between various companies.</p>
+
+<p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
+
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+
+<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization.</p>
+
+<h2 id="zero-copy-deserialization-the-basics">Zero-copy deserialization: the basics</h2>
+
+<p><em>This section can be skipped if you’re already familiar with zero-copy deserialization in Rust</em></p>
+
+<p>Deserialization typically involves two tasks, done in concert: validating the data, and constructing an in-memory representation that can be programmatically accessed; i.e., the final deserialized value.</p>
+
+<p>Depending on the format, the former is typically rather fast, but the latter can be super slow, typically around any variable-sized data which needs a new allocation and often a large copy.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="c">// this field is nearly free to construct</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="c">// constructing this will involve a small allocation and copy</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="c">// this may take a while</span>
+    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">RustFile</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>A typical binary data format will probably store this as a byte for the age, followed by the length of <code class="language-plaintext highlighter-rouge">name</code>, followed by the bytes for <code class="language-plaintext highlighter-rouge">name</code>, followed by another length for the vector, followed by whatever data is needed for each <code class="language-plaintext highlighter-rouge">RustFile</code> value. Deserializing the <code class="language-plaintext highlighter-rouge">u8</code> age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.</p>
+
+<p>A common technique in this scenario is to skip the allocation and copy by simply <em>validating</em> the bytes and storing a <em>reference</em> to the original data. This can only be done for serialization formats where the data is represented identically in the serialized file and in the deserialized value.</p>
+
+<p>When using <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> in Rust, this is typically done by using a <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> with <code class="language-plaintext highlighter-rouge">#[serde(borrow)]</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>Now, when <code class="language-plaintext highlighter-rouge">name</code> is being deserialized, the deserializer only needs to validate that it is in fact a valid UTF-8 <code class="language-plaintext highlighter-rouge">str</code>, and the final value for <code class="language-plaintext highlighter-rouge">name</code> will be a reference to the original data being deserialized from itself.</p>
+
+<p>A <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
+
+<div class="post-aside">
+<p>You may notice that <code>rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code>serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code>str</code> and <code>[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code>rkyv</code></a> can, however we’ve also managed to make this work with <a href="https://docs.rs/serde"><code>serde</code></a>. I’ll go in more depth about said reasons and our solution in [part 2].</p>
+
+</div>
+
+<h2 id="when-life-gives-you-lifetimes-">When life gives you lifetimes ….</h2>
+
+<p>Zero-copy deserialization in Rust has one very pesky downside: the lifetimes. Suddenly, all of your deserialized types have lifetimes on them. Of course they would; they’re no longer self-contained, instead containing references to the data they were originally deserialized from!</p>
+
+<p>This isn’t a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can also do stuff like this if they wish. In this case, <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.</p>
+
+<p>Unfortunately, lifetimes like these tend to make their way into everything. Every type holding onto your deserialized type needs a lifetime now and it’s likely going to become your users’ problem too.</p>
+
+<p>Furthermore, Rust lifetimes are a purely compile-time construct. If your value is of a type with a lifetime, you need to know at compile time by when it will definitely no longer be in use, and you need to hold on to its source data until then. Rust’s design means that you don’t need to worry about getting this <em>wrong</em>, since the compiler will catch you, but you still need to <em>do it</em>.</p>
+
+<p>Which isn’t ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.</p>
+
+<p>Typically in such cases you can use <a href="https://doc.rust-lang.org/stable/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a>, which is effectively the “runtime instead of compile time” version of <code class="language-plaintext highlighter-rouge">&amp;'a T</code>s safe shared reference, but this only works for cases where you’re sharing homogenous types, whereas in this case we’re attempting to share different types deserialized from one blob of data, which itself is of a different type.</p>
+
+<p>ICU4X would like users to be able to make use of caching and other data management strategies as needed, so this won’t do at all. For a while ICU4X had not one but <em>two</em> pervasive lifetimes threaded throughout most of its types: it was both confusing and not in line with our goals.</p>
+
+<h2 id="-demand-life-take-the-lifetimes-back">… demand life take the lifetimes back</h2>
+
+<p>@@ check original discussion doc for details</p>
+
+<p>@@ link to design doc</p>
+
+<p>After a bunch of discussion on this, with help from <a href="https://github.com/sffc">Shane</a> I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
+
+<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Some types explicitly mentioned for clarity</span>
+
+<span class="c">// load a file</span>
+<span class="k">let</span> <span class="n">file</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">fs</span><span class="p">::</span><span class="nf">read</span><span class="p">(</span><span class="s">"data.postcard"</span><span class="p">)</span><span class="o">?</span><span class="nf">.into</span><span class="p">();</span>
+
+<span class="c">// create a new Rc reference to the file data by cloning it,</span>
+<span class="c">// then use it as a cart for a Yoke</span>
+<span class="k">let</span> <span class="n">y</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+    <span class="c">// deserialize from the file</span>
+    <span class="k">let</span> <span class="n">cow</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span>  <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">);</span>
+    <span class="n">cow</span>
+<span class="p">})</span>
+
+<span class="c">// the string is still accessible with `.get()`</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">y</span><span class="nf">.get</span><span class="p">())</span>
+
+<span class="k">drop</span><span class="p">(</span><span class="n">y</span><span class="p">);</span>
+<span class="c">// only now will the reference count on the file be decreased</span>
+</code></pre></div></div>
+
+<h2 id="-make-life-rue-the-day-it-ever-decided-to-hand-you-lifetimes">… make life rue the day it ever decided to hand you lifetimes</h2>
+
+<p>@@ Make sure to thank jackh and eddyb</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+
+      
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/zero1/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/zero1/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I'm a self-taught programmer with interests in programming languages, human languages, Rust, physics, and online communities to name a few. <br><br>
+
+    I'm heavily involved in the <a href="https://www.rust-lang.org">Rust programming language</a>, leading the <a href="https://www.rust-lang.org/governance/teams/dev-tools">Devtools</a> and <a href="https://www.rust-lang.org/governance/teams/dev-tools#clippy">Clippy</a> teams. I also work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Categories</h1>
+  <ul id="sidebar_categories">
+    <li class='category'><a href='/blog/categories/c-/'>c++ (2)</a></li>
+<li class='category'><a href='/blog/categories/cryptography/'>cryptography (5)</a></li>
+<li class='category'><a href='/blog/categories/css/'>css (1)</a></li>
+<li class='category'><a href='/blog/categories/elections/'>elections (1)</a></li>
+<li class='category'><a href='/blog/categories/html/'>html (1)</a></li>
+<li class='category'><a href='/blog/categories/js/'>js (1)</a></li>
+<li class='category'><a href='/blog/categories/physics/'>physics (1)</a></li>
+<li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
+<li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
+<li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
+<li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
+<li class='category'><a href='/blog/categories/web/'>web (2)</a></li>
+<li class='category'><a href='/blog/categories/writing/'>writing (1)</a></li>
+
+  </ul>
+</section>
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2022 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
