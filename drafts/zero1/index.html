@@ -17,7 +17,7 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Vision Zero-Copy part 1: Not a yoking matter">
-      <meta property="twitter:description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. @@ cow tools goes here? Background For the past &hellip;">
+      <meta property="twitter:description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. Background For the past year and a half I’ve &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -118,8 +118,6 @@
 
 <div class="entry-content"><p><em>This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found <a href="https://@@@@">here</a>.</em></p>
 
-<p>@@ cow tools goes here?</p>
-
 <h2 id="background">Background</h2>
 
 <p>For the past year and a half I’ve been working full time on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, a new internationalization library in Rust being built under the Unicode Consortium as a collaboration between various companies.</p>
@@ -128,7 +126,10 @@
 
 <p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
-<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization.</p>
+<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
+
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="/images/post/cow-tools.png" width="400" /><figcaption class="caption-text"><p><small>Gary Larson, <a href="https://en.wikipedia.org/wiki/Cow_Tools">“Cow Tools”</a>, <em>The Far Side</em>. October 1982</small></p>
+</figcaption></figure>
 
 <h2 id="zero-copy-deserialization-the-basics">Zero-copy deserialization: the basics</h2>
 
@@ -167,12 +168,9 @@
 
 <p>Now, when <code class="language-plaintext highlighter-rouge">name</code> is being deserialized, the deserializer only needs to validate that it is in fact a valid UTF-8 <code class="language-plaintext highlighter-rouge">str</code>, and the final value for <code class="language-plaintext highlighter-rouge">name</code> will be a reference to the original data being deserialized from itself.</p>
 
-<p>A <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
+<p>An <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used instead of the <code class="language-plaintext highlighter-rouge">Cow</code>, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
 
-<div class="post-aside">
-<p>You may notice that <code>rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code>serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code>str</code> and <code>[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code>rkyv</code></a> can, however we’ve also managed to make this work with <a href="https://docs.rs/serde"><code>serde</code></a>. I’ll go in more depth about said reasons and our solution in [part 2].</p>
-
-</div>
+<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this work with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="https://@@@@">part 2</a>.</div>
 
 <h2 id="when-life-gives-you-lifetimes-">When life gives you lifetimes ….</h2>
 
@@ -190,7 +188,7 @@
 
 <p>ICU4X would like users to be able to make use of caching and other data management strategies as needed, so this won’t do at all. For a while ICU4X had not one but <em>two</em> pervasive lifetimes threaded throughout most of its types: it was both confusing and not in line with our goals.</p>
 
-<h2 id="-demand-life-take-the-lifetimes-back">… demand life take the lifetimes back</h2>
+<h2 id="-make-life-take-the-lifetimes-back">… make life take the lifetimes back</h2>
 
 <p>@@ check original discussion doc for details</p>
 
@@ -220,7 +218,68 @@
 <span class="c">// only now will the reference count on the file be decreased</span>
 </code></pre></div></div>
 
-<h2 id="-make-life-rue-the-day-it-ever-decided-to-hand-you-lifetimes">… make life rue the day it ever decided to hand you lifetimes</h2>
+<div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API.</div>
+<p>The type <code class="language-plaintext highlighter-rouge">Yoke&lt;Cow&lt;'static, str&gt;, Rc&lt;[u8]&gt;&gt;</code> is “a lifetime-erased <code class="language-plaintext highlighter-rouge">Cow&lt;str&gt;</code> ‘yoked’ to a backing data store ‘cart’ that is an <code class="language-plaintext highlighter-rouge">Rc&lt;[u8]&gt;</code>”. What this means is that the Cow contains references to data from the cart, however, the <code class="language-plaintext highlighter-rouge">Yoke</code> will hold on to the cart type until it is done, which ensures the references from the <code class="language-plaintext highlighter-rouge">Cow</code> no longer dangle.</p>
+
+<p>Most operations on the data within a <code class="language-plaintext highlighter-rouge">Yoke</code> operate via <code class="language-plaintext highlighter-rouge">.get()</code>, which in this case will return a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>, where <code class="language-plaintext highlighter-rouge">'a</code> is the lifetime of borrow of <code class="language-plaintext highlighter-rouge">.get()</code>. This keeps things safe: a <code class="language-plaintext highlighter-rouge">Cow&lt;'static, str&gt;</code> is not really safe to distribute in this case since <code class="language-plaintext highlighter-rouge">Cow</code> is not actually borrowing from static data; however it’s fine as long as we transform the lifetime to something shorter during accesses.</p>
+
+<p>Turns out, the <code class="language-plaintext highlighter-rouge">'static</code> found in <code class="language-plaintext highlighter-rouge">Yoke</code> types is actually a lie! Rust doesn’t really let you work with types with borrowed content without mentioning <em>some</em> lifetime, and here we want to relieve the compiler from its duty of managing lifetimes and manage them ourselves, so we need to give it <em>something</em> so that we can name the type, and <code class="language-plaintext highlighter-rouge">'static</code> is the only preexisting named lifetime in Rust.</p>
+
+<p>The actual signature of <code class="language-plaintext highlighter-rouge">.get()</code> is <a href="https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get">a bit weird</a> since it needs to be generic, but if our borrowed type is <code class="language-plaintext highlighter-rouge">Foo&lt;'a&gt;</code>, then the signature of <code class="language-plaintext highlighter-rouge">.get()</code> is something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="n">get</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>For a type to be allowed within a <code class="language-plaintext highlighter-rouge">Yoke&lt;Y, C&gt;</code>, it must implement <code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code>. This trait is unsafe to manually implement, in most cases you should autoderive it with <code class="language-plaintext highlighter-rouge">#[derive(Yokeable)]</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Yokeable,</span> <span class="nd">Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+    <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">)</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>Unlike most <code class="language-plaintext highlighter-rouge">#[derive]</code>s, <code class="language-plaintext highlighter-rouge">Yokeable</code> can be derived even if the fields do not already implement <code class="language-plaintext highlighter-rouge">Yokeable</code>, except for cases when fields with lifetimes also have other generic parameters. In such cases it typically suffices to tag the type with <code class="language-plaintext highlighter-rouge">#[yoke(prove_covariance_manually)]</code> and ensure any fields with lifetimes also implement <code class="language-plaintext highlighter-rouge">Yokeable</code>.</p>
+
+<p>There’s a bunch more you can do with <code class="language-plaintext highlighter-rouge">Yoke</code>, for example you can “project” a yoke to get a new yoke with a subset of the data found in the initial one:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="mi">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
+
+</code></pre></div></div>
+
+<p>This allows one to mix data coming from disparate Yokes.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Yoke</code>s are, perhaps surprisingly, <em>mutable</em> as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no <em>additional</em> borrowed data sneaks in:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+
+<span class="c">// make the name sound fancier</span>
+<span class="n">person</span><span class="nf">.with_mut</span><span class="p">(|</span><span class="n">person</span><span class="p">|</span> <span class="p">{</span>
+    <span class="c">// this will convert the `Cow` into owned one</span>
+    <span class="n">person</span><span class="py">.name</span><span class="nf">.to_mut</span><span class="p">()</span><span class="nf">.push</span><span class="p">(</span><span class="s">", Esq."</span><span class="p">)</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<h3 id="how-it-works">How it works</h3>
+
+<p>@@ don’t talk too much about variance</p>
+
+<h2 id="-make-life-rue-the-day-it-thought-it-could-give-you-lifetimes">… make life rue the day it thought it could give you lifetimes</h2>
+
+<p>@@ talk about the compiler bugs</p>
+
+<p>@@ turn into a corncob</p>
 
 <p>@@ Make sure to thank jackh and eddyb</p>
 
