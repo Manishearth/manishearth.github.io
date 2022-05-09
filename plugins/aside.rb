@@ -7,7 +7,7 @@ module Jekyll
     def initialize(tag_name, markup, tokens)      
       if markup.strip == "issue"
         @ty = "issue"
-      elsif markup == "example"
+      elsif markup.strip == "example"
         @ty = "example"
       else
         @ty = "note"

@@ -72,6 +72,7 @@ You may notice that `rust_files_written` can't be found in this new struct. This
 
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv
+ [part 2]: https://@@@@
 
 {% endaside %}
 
@@ -92,7 +93,7 @@ Typically in such cases you can use [`Rc<T>`], which is effectively the "runtime
 
 ICU4X would like users to be able to make use of caching and other data management strategies as needed, so this won't do at all. For a while ICU4X had not one but _two_ pervasive lifetimes threaded throughout most of its types: it was both confusing and not in line with our goals.
 
-## ... demand life take the lifetimes back
+## ... make life take the lifetimes back
 
 @@ check original discussion doc for details
 
@@ -123,9 +124,80 @@ drop(y);
 // only now will the reference count on the file be decreased
 ```
 
+{% aside issue %}
+
+Some of the APIs here may not quite work due to current compiler bugs. In this blog post I'm using the ideal version of these APIs for illustrative purposes, but it's worth checking with the Yoke docs to see if you may need to use an alternate workaround API.
+
+{% endaside %}
+The type `Yoke<Cow<'static, str>, Rc<[u8]>>` is "a lifetime-erased `Cow<str>` 'yoked' to a backing data store 'cart' that is an `Rc<[u8]>`". What this means is that the Cow contains references to data from the cart, however, the `Yoke` will hold on to the cart type until it is done, which ensures the references from the `Cow` no longer dangle.
+
+Most operations on the data within a `Yoke` operate via `.get()`, which in this case will return a `Cow<'a, str>`, where `'a` is the lifetime of borrow of `.get()`. This keeps things safe: a `Cow<'static, str>` is not really safe to distribute in this case since `Cow` is not actually borrowing from static data; however it's fine as long as we transform the lifetime to something shorter during accesses.
+
+Turns out, the `'static` found in `Yoke` types is actually a lie! Rust doesn't really let you work with types with borrowed content without mentioning _some_ lifetime, and here we want to relieve the compiler from its duty of managing lifetimes and manage them ourselves, so we need to give it _something_ so that we can name the type, and `'static` is the only preexisting named lifetime in Rust.
+
+The actual signature of `.get()` is [a bit weird][Yoke::get] since it needs to be generic, but if our borrowed type is `Foo<'a>`, then the signature of `.get()` is something like this:
+
+```rust
+impl Yoke<Foo<'static>> {
+    fn get<'a>(&'a self) -> &'a Foo<'a> {
+        ...
+    }
+}
+```
 
 
-## ... make life rue the day it ever decided to hand you lifetimes
+For a type to be allowed within a `Yoke<Y, C>`, it must implement `Yokeable<'a>`. This trait is unsafe to manually implement, in most cases you should autoderive it with `#[derive(Yokeable)]`:
+
+```rust
+#[derive(Yokeable, Serialize, Deserialize)]
+struct Person<'a> {
+    age: u8,
+    #[serde(borrow)]
+    name: Cow<'a, str>,
+}
+
+let person: Yoke<Person<'static>, Rc<[u8]> = Yoke::attach_to_cart(file.clone(), |contents| {
+    postcard::from_bytes(&contents)
+});
+```
+
+Unlike most `#[derive]`s, `Yokeable` can be derived even if the fields do not already implement `Yokeable`, except for cases when fields with lifetimes also have other generic parameters. In such cases it typically suffices to tag the type with `#[yoke(prove_covariance_manually)]` and ensure any fields with lifetimes also implement `Yokeable`.
+
+
+There's a bunch more you can do with `Yoke`, for example you can "project" a yoke to get a new yoke with a subset of the data found in the initial one:
+
+```rust
+let person: Yoke<Person<'static>, Rc<[u8]>> = ....;
+
+let person_name: Yoke<Cow<'static, str> = person.project(|p, _| p.name);
+
+```
+
+This allows one to mix data coming from disparate Yokes.
+
+`Yoke`s are, perhaps surprisingly, _mutable_ as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no _additional_ borrowed data sneaks in:
+
+```rust
+let person: Yoke<Person<'static>, Rc<[u8]>> = ....;
+
+// make the name sound fancier
+person.with_mut(|person| {
+    // this will convert the `Cow` into owned one
+    person.name.to_mut().push(", Esq.")
+})
+```
+
+
+### How it works
+
+@@ don't talk too much about variance
+
+
+## ... make life rue the day it thought it could give you lifetimes
+
+@@ talk about the compiler bugs
+
+@@ turn into a corncob
 
 @@ Make sure to thank jackh and eddyb
 
@@ -141,6 +213,7 @@ drop(y);
  [`Cow<'a, T>`]: https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html
  [`Rc<T>`]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
  [Shane]: https://github.com/sffc
+ [Yoke::get]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get
  [part 2]: https://@@@@
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.
