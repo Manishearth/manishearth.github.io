@@ -8,7 +8,6 @@ categories: ["mozilla", "programming", "rust"]
 
 _This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I've been working on recently. Part 2 can be found [here][part 2]._
 
-@@ cow tools goes here?
 
 ## Background
 
@@ -18,7 +17,10 @@ There's a lot I can say about ICU4X, but to focus on one core value proposition:
 
 See, a key part of performing correct internationalization is the _data_. Different locales[^1] do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates[^2], or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.
 
-Given the focus on data, a _very_ attractive option for us is zero-copy deserialization.
+Given the focus on data, a _very_ attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we've built some cool new libraries, this article is about one of them.
+
+
+{% imgcaption center /images/post/cow-tools.png 400 %}<small>Gary Larson, ["Cow Tools"](https://en.wikipedia.org/wiki/Cow_Tools), _The Far Side_. October 1982</small>{% endimgcaption %}
 
 
 ## Zero-copy deserialization: the basics
@@ -61,7 +63,7 @@ struct Person<'a> {
 
 Now, when `name` is being deserialized, the deserializer only needs to validate that it is in fact a valid UTF-8 `str`, and the final value for `name` will be a reference to the original data being deserialized from itself.
 
-A `&'a str` can also be used, however this makes the `Deserialize` impl much less general, since formats that do _not_ store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed [`Cow<'a, T>`] is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.
+An `&'a str` can also be used instead of the `Cow`, however this makes the `Deserialize` impl much less general, since formats that do _not_ store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed [`Cow<'a, T>`] is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.
 
 {% aside %}
 

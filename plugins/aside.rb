@@ -9,8 +9,10 @@ module Jekyll
     end
 
     def render(context)
-      output = super
-      "<div class=\"post-aside\">#{Kramdown::Document.new(output).to_html}</div>"
+      site = context.registers[:site]
+      converter = site.find_converter_instance(::Jekyll::Converters::Markdown)
+      output = converter.convert(super(context))
+      "<div class=\"post-aside\">#{output}</div>"
     end
   end
 end
