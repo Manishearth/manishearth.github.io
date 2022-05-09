@@ -3,8 +3,15 @@ module Jekyll
 
   class AsideBlock < Liquid::Block
   @img = nil
-
+  @ty = nil
     def initialize(tag_name, markup, tokens)      
+      if markup.strip == "issue"
+        @ty = "issue"
+      elsif markup == "example"
+        @ty = "example"
+      else
+        @ty = "note"
+      end
       super
     end
 
@@ -12,7 +19,12 @@ module Jekyll
       site = context.registers[:site]
       converter = site.find_converter_instance(::Jekyll::Converters::Markdown)
       output = converter.convert(super(context))
-      "<div class=\"post-aside\">#{output}</div>"
+      output = output.strip
+      unprefixed = output.delete_prefix("<p>").delete_suffix("</p>")
+      if unprefixed !~ /<p>/ and unprefixed !~ /<div>/
+        output = unprefixed
+      end
+      "<div class=\"post-aside post-aside-#{@ty}\">#{output}</div>"
     end
   end
 end
