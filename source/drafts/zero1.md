@@ -95,11 +95,9 @@ ICU4X would like users to be able to make use of caching and other data manageme
 
 ## ... make life take the lifetimes back
 
-@@ check original discussion doc for details
+_A lot of the design here can be found explained in the [design doc]_
 
-@@ link to design doc
-
-After a bunch of discussion on this, with help from [Shane] I designed [`yoke`], a crate that attempts to provide _lifetime erasure_ in Rust via self-referential types.
+After [a bunch of discussion][yoke-discussion] on this, with help from [Shane] I designed [`yoke`], a crate that attempts to provide _lifetime erasure_ in Rust via self-referential types.
 
 The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or `Person<'a>` from the previous examples) and "yoke" it to the value it was deserialized from, which we call a "cart":
 
@@ -129,6 +127,7 @@ drop(y);
 Some of the APIs here may not quite work due to current compiler bugs. In this blog post I'm using the ideal version of these APIs for illustrative purposes, but it's worth checking with the Yoke docs to see if you may need to use an alternate workaround API.
 
 {% endaside %}
+
 The type `Yoke<Cow<'static, str>, Rc<[u8]>>` is "a lifetime-erased `Cow<str>` 'yoked' to a backing data store 'cart' that is an `Rc<[u8]>`". What this means is that the Cow contains references to data from the cart, however, the `Yoke` will hold on to the cart type until it is done, which ensures the references from the `Cow` no longer dangle.
 
 Most operations on the data within a `Yoke` operate via `.get()`, which in this case will return a `Cow<'a, str>`, where `'a` is the lifetime of borrow of `.get()`. This keeps things safe: a `Cow<'static, str>` is not really safe to distribute in this case since `Cow` is not actually borrowing from static data; however it's fine as long as we transform the lifetime to something shorter during accesses.
@@ -187,11 +186,57 @@ person.with_mut(|person| {
 })
 ```
 
+Overall `Yoke` is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing.
 
 ### How it works
 
-@@ don't talk too much about variance
+`Yoke` works by relying on the concept of a _covariant lifetime_. The [`Yokeable`] trait looks like this:
 
+```rust
+
+pub unsafe trait Yokeable<'a>: 'static {
+    type Output: 'a;
+    // methods omitted
+}
+```
+
+and a typical implementation would look something like this:
+
+```rust
+unsafe impl<'a> Yokeable<'a> for Cow<'static, str> {
+    type Output: 'a = Cow<'a, str>;
+    // ...
+}
+```
+
+An implementation of this trait will be implemented on the `'static` version of a type with a lifetime (which I will call `Self<'static>`[^3] in this post), and maps the type to a version of it with a lifetime (`Self<'a>`). It must only be implemented on types where the lifetime `'a` is _covariant_, i.e., where it's safe to treat `Self<'a>` with `Self<'b>` when `'b` is a shorter lifetime. Most types with lifetimes fall in this category[^4], especially in the space of zero-copy deserialization; you can read more about variance in the [nomicon][nomicon-subtyping].
+
+For any `Yokeable` type `Foo<'static>`, you can obtain the version of that type with a lifetime `'a` with `<Foo as Yokeable<'a>>::Output`. The `Yokeable` trait exposes some methods that allow one to safely carry out the various transforms that are allowed on a type with a covariant lifetime.
+
+
+`#[derive(Yokeable)]`, in most cases, relies on the compiler's ability to determine if a lifetime is covariant, and doesn't actually generate much code! In most cases, the bodies of the various functions on `Yokeable` are pure safe code, looking like this:
+
+```rust
+impl<'a> Yokeable for Foo<'static> {
+    type Output: 'a = Foo<'a>;
+    fn transform(&self) -> &Self::Output {
+        self
+    }
+    fn transform_owned(self) -> Self::Output {
+        self
+    }
+    fn transform_mut<F>(&'a mut self, f: F)
+    where
+        F: 'static + for<'b> FnOnce(&'b mut Self::Output) {
+        f(self)
+    }
+    // fn make() omitted since it's not as relevant
+}
+```
+
+The compiler knows these are safe, and the `Yokeable` trait allows us to talk about types where these operations are safe, _generically_.
+
+Using this trait, `Yoke` then works by storing `Self<'static>` and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on `Yokeable` in various ways.
 
 ## ... make life rue the day it thought it could give you lifetimes
 
@@ -215,9 +260,14 @@ person.with_mut(|person| {
  [Shane]: https://github.com/sffc
  [Yoke::get]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get
  [part 2]: https://@@@@
+ [yoke-discussion]: https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099
+ [design doc]: https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md
+ [`Yokeable`]: https://docs.rs/yoke/latest/yoke/trait.Yokeable.html
+ [nomicon-subtyping]: https://doc.rust-lang.org/nomicon/subtyping.html
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.
  [^2]: Bear in mind, this isn't just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like `4/10/22` or `4/10/2022` or `April 10, 2022`, or `Sunday, April 10, 2022 C.E.`, or `Sun, Apr 10, 2022`, and that's not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale.
-
-
+ [^3]: This isn't real Rust syntax; since `Self` is always just `Self`, but we need to be able to refer to `Self` as a higher-kinded type in this scenario.
+ [^4]: Types that aren't are ones involving mutability (`&mut` or interior mutability) around the lifetime, and ones involving function pointers and trait objects.
+ 
 
