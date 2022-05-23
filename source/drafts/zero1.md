@@ -240,6 +240,8 @@ Using this trait, `Yoke` then works by storing `Self<'static>` and transforming 
 
 ## ... make life rue the day it thought it could give you lifetimes
 
+Life with this crate hasn't been all peachy. We've, uh ... [unfortunately][bug-10] [discovered][bug-1] [a][bug-2] [toweringly][bug-3] [large][bug-4] [pile][bug-5] [of][bug-6] [gnarly][bug-7] [compiler][bug-8] [bugs][bug-9].
+
 @@ talk about the compiler bugs
 
 @@ turn into a corncob
@@ -264,6 +266,16 @@ Using this trait, `Yoke` then works by storing `Self<'static>` and transforming 
  [design doc]: https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md
  [`Yokeable`]: https://docs.rs/yoke/latest/yoke/trait.Yokeable.html
  [nomicon-subtyping]: https://doc.rust-lang.org/nomicon/subtyping.html
+ [bug-1]: https://github.com/rust-lang/rust/issues/86703
+ [bug-2]: https://github.com/rust-lang/rust/issues/88446
+ [bug-3]: https://github.com/rust-lang/rust/issues/89436
+ [bug-4]: https://github.com/rust-lang/rust/issues/89196
+ [bug-5]: https://github.com/rust-lang/rust/issues/84937
+ [bug-6]: https://github.com/rust-lang/rust/issues/89418
+ [bug-7]: https://github.com/rust-lang/rust/issues/90950
+ [bug-8]: https://github.com/rust-lang/rust/issues/96223
+ [bug-9]: https://github.com/rust-lang/rust/issues/91899
+ [bug-10]: https://github.com/rust-lang/rust/issues/90638
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.
  [^2]: Bear in mind, this isn't just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like `4/10/22` or `4/10/2022` or `April 10, 2022`, or `Sunday, April 10, 2022 C.E.`, or `Sun, Apr 10, 2022`, and that's not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale.
