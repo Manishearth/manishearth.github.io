@@ -190,11 +190,9 @@
 
 <h2 id="-make-life-take-the-lifetimes-back">… make life take the lifetimes back</h2>
 
-<p>@@ check original discussion doc for details</p>
+<p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md">design doc</a></em></p>
 
-<p>@@ link to design doc</p>
-
-<p>After a bunch of discussion on this, with help from <a href="https://github.com/sffc">Shane</a> I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, with help from <a href="https://github.com/sffc">Shane</a> I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
 
 <p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”:</p>
 
@@ -219,6 +217,7 @@
 </code></pre></div></div>
 
 <div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API.</div>
+
 <p>The type <code class="language-plaintext highlighter-rouge">Yoke&lt;Cow&lt;'static, str&gt;, Rc&lt;[u8]&gt;&gt;</code> is “a lifetime-erased <code class="language-plaintext highlighter-rouge">Cow&lt;str&gt;</code> ‘yoked’ to a backing data store ‘cart’ that is an <code class="language-plaintext highlighter-rouge">Rc&lt;[u8]&gt;</code>”. What this means is that the Cow contains references to data from the cart, however, the <code class="language-plaintext highlighter-rouge">Yoke</code> will hold on to the cart type until it is done, which ensures the references from the <code class="language-plaintext highlighter-rouge">Cow</code> no longer dangle.</p>
 
 <p>Most operations on the data within a <code class="language-plaintext highlighter-rouge">Yoke</code> operate via <code class="language-plaintext highlighter-rouge">.get()</code>, which in this case will return a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>, where <code class="language-plaintext highlighter-rouge">'a</code> is the lifetime of borrow of <code class="language-plaintext highlighter-rouge">.get()</code>. This keeps things safe: a <code class="language-plaintext highlighter-rouge">Cow&lt;'static, str&gt;</code> is not really safe to distribute in this case since <code class="language-plaintext highlighter-rouge">Cow</code> is not actually borrowing from static data; however it’s fine as long as we transform the lifetime to something shorter during accesses.</p>
@@ -271,9 +270,53 @@
 <span class="p">})</span>
 </code></pre></div></div>
 
+<p>Overall <code class="language-plaintext highlighter-rouge">Yoke</code> is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing.</p>
+
 <h3 id="how-it-works">How it works</h3>
 
-<p>@@ don’t talk too much about variance</p>
+<p><code class="language-plaintext highlighter-rouge">Yoke</code> works by relying on the concept of a <em>covariant lifetime</em>. The <a href="https://docs.rs/yoke/latest/yoke/trait.Yokeable.html"><code class="language-plaintext highlighter-rouge">Yokeable</code></a> trait looks like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span><span class="p">;</span>
+    <span class="c">// methods omitted</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>and a typical implementation would look something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="c">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>, especially in the space of zero-copy deserialization; you can read more about variance in the <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a>.</p>
+
+<p>For any <code class="language-plaintext highlighter-rouge">Yokeable</code> type <code class="language-plaintext highlighter-rouge">Foo&lt;'static&gt;</code>, you can obtain the version of that type with a lifetime <code class="language-plaintext highlighter-rouge">'a</code> with <code class="language-plaintext highlighter-rouge">&lt;Foo as Yokeable&lt;'a&gt;&gt;::Output</code>. The <code class="language-plaintext highlighter-rouge">Yokeable</code> trait exposes some methods that allow one to safely carry out the various transforms that are allowed on a type with a covariant lifetime.</p>
+
+<p><code class="language-plaintext highlighter-rouge">#[derive(Yokeable)]</code>, in most cases, relies on the compiler’s ability to determine if a lifetime is covariant, and doesn’t actually generate much code! In most cases, the bodies of the various functions on <code class="language-plaintext highlighter-rouge">Yokeable</code> are pure safe code, looking like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span> <span class="k">for</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">transform</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nn">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+        <span class="k">self</span>
+    <span class="p">}</span>
+    <span class="k">fn</span> <span class="nf">transform_owned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+        <span class="k">self</span>
+    <span class="p">}</span>
+    <span class="k">fn</span> <span class="n">transform_mut</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span>
+    <span class="k">where</span>
+        <span class="n">F</span><span class="p">:</span> <span class="nv">'static</span> <span class="o">+</span> <span class="k">for</span><span class="o">&lt;</span><span class="nv">'b</span><span class="o">&gt;</span> <span class="nf">FnOnce</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'b</span> <span class="k">mut</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nf">f</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="c">// fn make() omitted since it's not as relevant</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The compiler knows these are safe, and the <code class="language-plaintext highlighter-rouge">Yokeable</code> trait allows us to talk about types where these operations are safe, <em>generically</em>.</p>
+
+<p>Using this trait, <code class="language-plaintext highlighter-rouge">Yoke</code> then works by storing <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code> and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on <code class="language-plaintext highlighter-rouge">Yokeable</code> in various ways.</p>
 
 <h2 id="-make-life-rue-the-day-it-thought-it-could-give-you-lifetimes">… make life rue the day it thought it could give you lifetimes</h2>
 
@@ -290,6 +333,12 @@
     </li>
     <li id="fn:2" role="doc-endnote">
       <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>This isn’t real Rust syntax; since <code class="language-plaintext highlighter-rouge">Self</code> is always just <code class="language-plaintext highlighter-rouge">Self</code>, but we need to be able to refer to <code class="language-plaintext highlighter-rouge">Self</code> as a higher-kinded type in this scenario. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Types that aren’t are ones involving mutability (<code class="language-plaintext highlighter-rouge">&amp;mut</code> or interior mutability) around the lifetime, and ones involving function pointers and trait objects. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
