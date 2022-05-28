@@ -320,11 +320,19 @@
 
 <h2 id="-make-life-rue-the-day-it-thought-it-could-give-you-lifetimes">… make life rue the day it thought it could give you lifetimes</h2>
 
-<p>@@ talk about the compiler bugs</p>
+<p>Life with this crate hasn’t been all peachy. We’ve, uh … <a href="https://github.com/rust-lang/rust/issues/90638">unfortunately</a> <a href="https://github.com/rust-lang/rust/issues/86703">discovered</a> <a href="https://github.com/rust-lang/rust/issues/88446">a</a> <a href="https://github.com/rust-lang/rust/issues/89436">toweringly</a> <a href="https://github.com/rust-lang/rust/issues/89196">large</a> <a href="https://github.com/rust-lang/rust/issues/84937">pile</a> <a href="https://github.com/rust-lang/rust/issues/89418">of</a> <a href="https://github.com/rust-lang/rust/issues/90950">gnarly</a> <a href="https://github.com/rust-lang/rust/issues/96223">compiler</a> <a href="https://github.com/rust-lang/rust/issues/91899">bugs</a>. A lot of this has its root in the fact that <code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code> in most cases is bound via <code class="language-plaintext highlighter-rouge">for&lt;'a&gt; Yokeable&lt;'a&gt;</code> (“<code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code> for all possible lifetimes <code class="language-plaintext highlighter-rouge">'a</code>”). The <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code> is a niche feature known as a higher-ranked lifetime or trait bound (often referred to as “HRTB”), and while it’s always been necessary in some capacity for Rust’s typesystem to be able to reason about function pointers, it’s also always been rather buggy and is often discouraged for usages like this.</p>
 
-<p>@@ turn into a corncob</p>
+<p>We’re using it so that we can talk about the lifetime of a type in a generic sense. Fortunately, there is a language feature under active development that will be better suited for this: <a href="https://rust-lang.github.io/generic-associated-types-initiative/index.html">Generic Associated Types</a>.</p>
 
-<p>@@ Make sure to thank jackh and eddyb</p>
+<p>This feature isn’t stable yet, but, fortunately for <em>us</em>, most compiler bugs involving <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code> <em>also</em> impact GATs, so we have been benefitting from the GAT work, and a lot of our bug reports have helped shore up the GAT code. Huge shout out to <a href="https://github.com/jackh726">Jack Huey</a> for fixing a lot of these bugs, and <a href="https://github.com/eddyb">eddyb</a> for helping out in the debugging process.</p>
+
+<p>As of Rust 1.61, a lot of the major bugs have been fixed, however there are still some bugs around trait bounds for which the <code class="language-plaintext highlighter-rouge">yoke</code> crate maintains some <a href="https://docs.rs/yoke/latest/yoke/trait_hack/index.html">workaround helpers</a>. It has been our experience that most compiler bugs here are not <em>restrictive</em> when it comes to what you can do with the crate, but they may end up with code that looks less than ideal. Overall, we still find it worth it, we’re able to do some really neat zero-copy stuff in a way that’s externally convenient (even if some of the internal code is messy), and we don’t have lifetimes everywhere.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p>While I don’t consider the <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> crate “done” yet, it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
