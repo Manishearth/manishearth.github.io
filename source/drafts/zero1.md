@@ -240,14 +240,21 @@ Using this trait, `Yoke` then works by storing `Self<'static>` and transforming 
 
 ## ... make life rue the day it thought it could give you lifetimes
 
-Life with this crate hasn't been all peachy. We've, uh ... [unfortunately][bug-10] [discovered][bug-1] [a][bug-2] [toweringly][bug-3] [large][bug-4] [pile][bug-5] [of][bug-6] [gnarly][bug-7] [compiler][bug-8] [bugs][bug-9].
+Life with this crate hasn't been all peachy. We've, uh ... [unfortunately][bug-10] [discovered][bug-1] [a][bug-2] [toweringly][bug-3] [large][bug-4] [pile][bug-5] [of][bug-6] [gnarly][bug-7] [compiler][bug-8] [bugs][bug-9]. A lot of this has its root in the fact that `Yokeable<'a>` in most cases is bound via `for<'a> Yokeable<'a>` ("`Yokeable<'a>` for all possible lifetimes `'a`"). The `for<'a>` is a niche feature known as a higher-ranked lifetime or trait bound (often referred to as "HRTB"), and while it's always been necessary in some capacity for Rust's typesystem to be able to reason about function pointers, it's also always been rather buggy and is often discouraged for usages like this.
 
-@@ talk about the compiler bugs
+We're using it so that we can talk about the lifetime of a type in a generic sense. Fortunately, there is a language feature under active development that will be better suited for this: [Generic Associated Types][GAT].
 
-@@ turn into a corncob
 
-@@ Make sure to thank jackh and eddyb
+This feature isn't stable yet, but, fortunately for _us_, most compiler bugs involving `for<'a>` _also_ impact GATs, so we have been benefitting from the GAT work, and a lot of our bug reports have helped shore up the GAT code. Huge shout out to [Jack Huey] for fixing a lot of these bugs, and [eddyb] for helping out in the debugging process.
 
+As of Rust 1.61, a lot of the major bugs have been fixed, however there are still some bugs around trait bounds for which the `yoke` crate maintains some [workaround helpers]. It has been our experience that most compiler bugs here are not _restrictive_ when it comes to what you can do with the crate, but they may end up with code that looks less than ideal. Overall, we still find it worth it, we're able to do some really neat zero-copy stuff in a way that's externally convenient (even if some of the internal code is messy), and we don't have lifetimes everywhere.
+
+
+## Try it out!
+
+While I don't consider the [`yoke`] crate "done" yet, it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
+
+_Thanks to @@@@ for reviewing drafts of this post_
 
 
 
@@ -276,6 +283,10 @@ Life with this crate hasn't been all peachy. We've, uh ... [unfortunately][bug-1
  [bug-8]: https://github.com/rust-lang/rust/issues/96223
  [bug-9]: https://github.com/rust-lang/rust/issues/91899
  [bug-10]: https://github.com/rust-lang/rust/issues/90638
+ [GAT]: https://rust-lang.github.io/generic-associated-types-initiative/index.html
+ [workaround helpers]: https://docs.rs/yoke/latest/yoke/trait_hack/index.html
+ [Jack Huey]: https://github.com/jackh726
+ [eddyb]: https://github.com/eddyb
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.
  [^2]: Bear in mind, this isn't just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like `4/10/22` or `4/10/2022` or `April 10, 2022`, or `Sunday, April 10, 2022 C.E.`, or `Sun, Apr 10, 2022`, and that's not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale.
