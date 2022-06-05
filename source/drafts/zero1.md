@@ -6,7 +6,7 @@ comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
 
-_This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I've been working on recently. Part 2 can be found [here][part 2]._
+_This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I've been working on recently. Part 2 can be found [here][part 2]. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization_ is.
 
 
 ## Background
@@ -96,7 +96,7 @@ ICU4X would like users to be able to make use of caching and other data manageme
 
 _A lot of the design here can be found explained in the [design doc]_
 
-After [a bunch of discussion][yoke-discussion] on this, with help from [Shane] I designed [`yoke`], a crate that attempts to provide _lifetime erasure_ in Rust via self-referential types.
+After [a bunch of discussion][yoke-discussion] on this, primarily with [Shane], I designed [`yoke`], a crate that attempts to provide _lifetime erasure_ in Rust via self-referential types.
 
 The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or `Person<'a>` from the previous examples) and "yoke" it to the value it was deserialized from, which we call a "cart":
 
