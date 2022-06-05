@@ -40,9 +40,8 @@ struct Person {
     // constructing this will involve a small allocation and copy
     name: String,
     // this may take a while
-    rust_files_written: Vec<RustFile>,
+    rust_files_written: Vec<String>,
 }
-
 ```
 
 A typical binary data format will probably store this as a byte for the age, followed by the length of `name`, followed by the bytes for `name`, followed by another length for the vector, followed by whatever data is needed for each `RustFile` value. Deserializing the `u8` age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.
