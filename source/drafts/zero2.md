@@ -46,17 +46,26 @@ struct Person {
 }
 ```
 
-and made the `name` field zero-copy by replacing it with a `Cow<'a, str>`. However, we weren't able to do the same with the `rust_files_written` field because [`serde`] does not handle zero-copy deserialization for things other than `[u8]` and `str`. Forget `Vec<String>`, even `Vec<u32>` can't be made zero-copy easily!
+and made the `name` field zero-copy by replacing it with a `Cow<'a, str>`. However, we weren't able to do the same with the `rust_files_written` field because [`serde`] does not handle zero-copy deserialization for things other than `[u8]` and `str`. Forget nested collections like `Vec<String>` (as `&[&str]`), even `Vec<u32>` (as `&[u32]`) can't be made zero-copy easily!
 
 
 This is not a fundamental restriction in zero-copy deserialization, indeed, the excellent [`rkyv`] library is able to support data like this. However, it's not as slam-dunk easy as `str` and `[u8]` and it's understandable that [`serde`] wishes to not pick sides on any tradeoffs here and leave it up to the users.
-
 
 So what's the actual problem here?
 
 ## Brobdingnagian Bewilderment
 
-The short answer is: endianness and alignment.
+The short answer is: endianness, alignment, and for `Vec<String>`, indirection.
+
+
+See, the way zero-copy deserialization works is by directly taking a pointer to the memory and declaring it to be the desired value. For this to work, that data _must_ be of a kind that looks the same on all machines, and must be legal to take a reference to.
+
+This is pretty straightforward for `[u8]` and `str`, their data is identical on every system. The borrowed version of `Vec<String>`, `&[&str]` is unlikely to look the same even across different executions of the program on the _same system_, because it contains pointers (indirection) that'll change each time depending on the data source!
+
+Pointers are hard. What about `Vec<u32>`/`[u32]`? Surely there's nothing wrong with a pile of integers?
+
+{% imgcaption center /images/post/castlevania-data.png 400 %}<small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small>{% endimgcaption %}
+
 
 
 
