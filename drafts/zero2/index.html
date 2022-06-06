@@ -1,0 +1,450 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Vision Zero-Copy Part 2: Zero-Copy All the Things - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="This is part 2 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found here &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Vision Zero-Copy part 2: Zero-Copy all the things">
+      <meta property="twitter:description" content="This is part 2 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found here. The posts can be read in any order, though the &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/zero2/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/manish.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar's blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/blog/categories">Categories</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title">Vision Zero-Copy Part 2: Zero-Copy All the Things</h1>
+      <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><em>This is part 2 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found <a href="@@@">here</a>. The posts can be read in any order, though the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+
+<h2 id="background">Background</h2>
+
+<p><em>This section is the same as in the last article and can be skipped if you’ve read it</em></p>
+
+<p>For the past year and a half I’ve been working full time on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, a new internationalization library in Rust being built under the Unicode Consortium as a collaboration between various companies.</p>
+
+<p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
+
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+
+<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
+
+<h2 id="what-can-you-zero-copy">What can you zero-copy?</h2>
+
+<p><em>If you’re unfamiliar with zero-copy deserialization, refer to the explanation in the previous article.</em></p>
+
+<p>In the <a href="@@@">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
+
+<p>This article is about expanding our capabilities on <em>what we can make</em> zero-copy data.</p>
+
+<p>We previously saw this struct:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="c">// this field is nearly free to construct</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="c">// constructing this will involve a small allocation and copy</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="c">// this may take a while</span>
+    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>and made the <code class="language-plaintext highlighter-rouge">name</code> field zero-copy by replacing it with a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>. However, we weren’t able to do the same with the <code class="language-plaintext highlighter-rouge">rust_files_written</code> field because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> does not handle zero-copy deserialization for things other than <code class="language-plaintext highlighter-rouge">[u8]</code> and <code class="language-plaintext highlighter-rouge">str</code>. Forget nested collections like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code> (as <code class="language-plaintext highlighter-rouge">&amp;[&amp;str]</code>), even <code class="language-plaintext highlighter-rouge">Vec&lt;u32&gt;</code> (as <code class="language-plaintext highlighter-rouge">&amp;[u32]</code>) can’t be made zero-copy easily!</p>
+
+<p>This is not a fundamental restriction in zero-copy deserialization, indeed, the excellent <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> library is able to support data like this. However, it’s not as slam-dunk easy as <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code> and it’s understandable that <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> wishes to not pick sides on any tradeoffs here and leave it up to the users.</p>
+
+<p>So what’s the actual problem here?</p>
+
+<h2 id="blefuscudian-bewilderment">Blefuscudian Bewilderment</h2>
+
+<p>The short answer is: endianness, alignment, and for <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, indirection.</p>
+
+<p>See, the way zero-copy deserialization works is by directly taking a pointer to the memory and declaring it to be the desired value. For this to work, that data <em>must</em> be of a kind that looks the same on all machines, and must be legal to take a reference to.</p>
+
+<p>This is pretty straightforward for <code class="language-plaintext highlighter-rouge">[u8]</code> and <code class="language-plaintext highlighter-rouge">str</code>, their data is identical on every system. <code class="language-plaintext highlighter-rouge">str</code> does need a validation step to ensure it’s valid UTF-8, but the general thrust of zero-copy serialization is to replace expensive deserialization with cheaper validation, so we’re fine with that.</p>
+
+<p>On the other hand, the borrowed version of <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, <code class="language-plaintext highlighter-rouge">&amp;[&amp;str]</code> is unlikely to look the same even across different executions of the program on the <em>same system</em>, because it contains pointers (indirection) that’ll change each time depending on the data source!</p>
+
+<p>Pointers are hard. What about <code class="language-plaintext highlighter-rouge">Vec&lt;u32&gt;</code>/<code class="language-plaintext highlighter-rouge">[u32]</code>? Surely there’s nothing wrong with a pile of integers?</p>
+
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="/images/post/castlevania-data.png" width="400" /><figcaption class="caption-text"><p><small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small></p>
+</figcaption></figure>
+
+<p>This is where the endianness and alignment come in. Firstly, a <code class="language-plaintext highlighter-rouge">u32</code> doesn’t look exactly the same on all systems, some systems are “big endian”, where the integer <code class="language-plaintext highlighter-rouge">0xABCDEF</code> would be represented in memory as <code class="language-plaintext highlighter-rouge">[0xAB, 0xCD, 0xEF]</code>, whereas others are “little endian” and would represent it <code class="language-plaintext highlighter-rouge">[0xEF, 0xCD, 0xAB]</code>. Most systems these days are little-endian, but not all, so you may need to care about this.</p>
+
+<p>This would mean that a <code class="language-plaintext highlighter-rouge">[u32]</code> serialized on a little endian system would come out completely garbled on a big-endian system if we’re naïvely zero-copy deserializing.</p>
+
+<p>Secondly, a lot of systems impose <em>alignment</em> restrictions on types like <code class="language-plaintext highlighter-rouge">u32</code>. A <code class="language-plaintext highlighter-rouge">u32</code> cannot be found at any old memory address, on most modern systems it must be found at a memory address that’s a multiple of 4. Similarly, a <code class="language-plaintext highlighter-rouge">u64</code> must be at a memory address that’s a multiple of 8, and so on. The subsection of data being serialized, however, may be found at any address. It’s possible to design a serialization framework where a particular field in the data is forced to have a particular alignment (<a href="https://docs.rs/rkyv/latest/rkyv/util/struct.AlignedVec.html">rkyv has this</a>), however it’s kinda tricky and requires you to have control over the alignment of the original loaded data, which isn’t a part of serde’s model.</p>
+
+<p>So how can we address this?</p>
+
+<h2 id="zerovec-and-varzerovec">ZeroVec and VarZeroVec</h2>
+
+<p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/zerovec/design_doc.md">design doc</a></em></p>
+
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/78#issuecomment-817090204">a bunch of discussions</a> with [Shane], we designed <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, a crate that attempts to solve this problem, in a way that works with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>.</p>
+
+<p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
+
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+
+<p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
+
+<p>There’s also a [<code class="language-plaintext highlighter-rouge">ZeroMap</code>] type that provides a binary-search based map that works with types compatible with either <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> or <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>.</p>
+
+<p>So, for example, to make the following struct zero-copy:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">DataStruct</span> <span class="p">{</span>
+    <span class="n">nums</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">chars</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">char</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">strs</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>you can do something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">DataStruct</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">nums</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">chars</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">char</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">strs</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Once deserialized, the data can be accessed with <code class="language-plaintext highlighter-rouge">data.nums.get(index)</code> or <code class="language-plaintext highlighter-rouge">data.strs[index]</code>, etc.</p>
+
+<p>Custom types can also be supported within these types with some effort, if you’d like the following complex data to be zero-copy:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Date</span> <span class="p">{</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">u64</span><span class="p">,</span>
+    <span class="n">m</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">d</span><span class="p">:</span> <span class="nb">u8</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">Date</span><span class="p">,</span>
+    <span class="n">favorite_character</span><span class="p">:</span> <span class="nb">char</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Data</span> <span class="p">{</span>
+    <span class="n">important_dates</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">important_people</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">birthdays_to_people</span><span class="p">:</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">Date</span><span class="p">,</span> <span class="n">Person</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>you can do something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// custom fixed-size ULE type for ZeroVec</span>
+<span class="nd">#[zerovec::make_ule(DateULE)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Date</span> <span class="p">{</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">u64</span><span class="p">,</span>
+    <span class="n">m</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">d</span><span class="p">:</span> <span class="nb">u8</span>
+<span class="p">}</span>
+
+<span class="c">// custom variable sized VarULE type for VarZeroVec</span>
+<span class="nd">#[zerovec::make_varule(PersonULE)]</span>
+<span class="nd">#[zerovec::derive(Serialize,</span> <span class="nd">Deserialize)]</span> <span class="c">// add Serde impls to PersonULE</span>
+<span class="nd">#[derive(Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">Date</span><span class="p">,</span>
+    <span class="n">favorite_character</span><span class="p">:</span> <span class="nb">char</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Data</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">important_dates</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="c">// note: VarZeroVec always must reference the ULE type directly</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">important_people</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">birthdays_to_people</span><span class="p">:</span> <span class="n">ZeroMap</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Unfortunately the inner “ULE type” workings are not <em>completely</em> hidden from the user, especially for <code class="language-plaintext highlighter-rouge">VarZeroVec</code>-compatible types, but the crate does a fair number of things to attempt to make it pleasant to work with.</p>
+
+<p>In general, <code class="language-plaintext highlighter-rouge">ZeroVec</code> should be used for types that are fixed-size and implement <code class="language-plaintext highlighter-rouge">Copy</code>, whereas <code class="language-plaintext highlighter-rouge">VarZeroVec</code> is to be used with types that logically contain a variable amount of data, like vectors, maps, strings, and aggregates of the same. <code class="language-plaintext highlighter-rouge">VarZeroVec</code> will always be used with a dynamically sized type, yielding references to that type.</p>
+
+<h2 id="how-it-works">How it works</h2>
+
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the @@@</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>As mentioned in the previous post, while zero-copy deserializing, it is typical to use borrowed-or-owned types like <code class="language-plaintext highlighter-rouge">Cow</code> over pure borrowed types because it’s not necessary that data in a human-readable format will be able to zero-copy deserialize. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+
+      
+
+
+<span class="aftersep beforesep">
+    <a class='category' href='/blog/categories/mozilla/'><img width='16px' style='border:none;box-shadow:none;vertical-align:middle;' src='/images/mozilla-dino.png' title='This post will show up on planet.mozilla.org' /></a>
+</span>
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/zero2/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/zero2/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I'm a self-taught programmer with interests in programming languages, human languages, Rust, physics, and online communities to name a few. <br><br>
+
+    I'm heavily involved in the <a href="https://www.rust-lang.org">Rust programming language</a>, leading the <a href="https://www.rust-lang.org/governance/teams/dev-tools">Devtools</a> and <a href="https://www.rust-lang.org/governance/teams/dev-tools#clippy">Clippy</a> teams. I also work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Categories</h1>
+  <ul id="sidebar_categories">
+    <li class='category'><a href='/blog/categories/c-/'>c++ (2)</a></li>
+<li class='category'><a href='/blog/categories/cryptography/'>cryptography (5)</a></li>
+<li class='category'><a href='/blog/categories/css/'>css (1)</a></li>
+<li class='category'><a href='/blog/categories/elections/'>elections (1)</a></li>
+<li class='category'><a href='/blog/categories/html/'>html (1)</a></li>
+<li class='category'><a href='/blog/categories/js/'>js (1)</a></li>
+<li class='category'><a href='/blog/categories/physics/'>physics (1)</a></li>
+<li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
+<li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
+<li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
+<li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
+<li class='category'><a href='/blog/categories/web/'>web (2)</a></li>
+<li class='category'><a href='/blog/categories/writing/'>writing (1)</a></li>
+
+  </ul>
+</section>
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2022 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

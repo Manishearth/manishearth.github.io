@@ -17,7 +17,7 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Vision Zero-Copy part 1: Not a yoking matter">
-      <meta property="twitter:description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. Background For the past year and a half I’ve &hellip;">
+      <meta property="twitter:description" content="This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. The posts can be read in any order, though this &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found <a href="https://@@@@">here</a>.</em></p>
+<div class="entry-content"><p><em>This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found <a href="https://@@@@">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -146,9 +146,8 @@
     <span class="c">// constructing this will involve a small allocation and copy</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
     <span class="c">// this may take a while</span>
-    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">RustFile</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
-
 </code></pre></div></div>
 
 <p>A typical binary data format will probably store this as a byte for the age, followed by the length of <code class="language-plaintext highlighter-rouge">name</code>, followed by the bytes for <code class="language-plaintext highlighter-rouge">name</code>, followed by another length for the vector, followed by whatever data is needed for each <code class="language-plaintext highlighter-rouge">RustFile</code> value. Deserializing the <code class="language-plaintext highlighter-rouge">u8</code> age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.</p>
@@ -192,7 +191,7 @@
 
 <p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md">design doc</a></em></p>
 
-<p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, with help from <a href="https://github.com/sffc">Shane</a> I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, primarily with <a href="https://github.com/sffc">Shane</a>, I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
 
 <p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”:</p>
 
