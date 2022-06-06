@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Vision Zero-Copy part 1: Not a yoking matter"
+title: "Zero-Copy Stuff part 1: Not a yoking matter"
 date: 2021-04-05 08:32:30 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]

@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Vision Zero-Copy part 2: Zero-Copy all the things"
+title: "Zero-Copy Stuff part 2: Zero-Copy all the things"
 date: 2021-04-05 08:32:30 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
