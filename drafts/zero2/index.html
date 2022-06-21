@@ -184,11 +184,11 @@
 
 <p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/zerovec/design_doc.md">design doc</a></em></p>
 
-<p>After <a href="https://github.com/unicode-org/icu4x/issues/78#issuecomment-817090204">a bunch of discussions</a> with [Shane], we designed <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, a crate that attempts to solve this problem, in a way that works with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>.</p>
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/78#issuecomment-817090204">a bunch of discussions</a> with [Shane], we designed <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, a crate that attempts to solve this problem, in a way that works with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>.</p>
 
 <p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
 
-<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
 
 <p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
 
@@ -269,7 +269,7 @@
 <span class="k">struct</span> <span class="n">Data</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nd">#[serde(borrow)]</span>
     <span class="n">important_dates</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="c">// note: VarZeroVec always must reference the ULE type directly</span>
+    <span class="c">// note: VarZeroVec always must reference the unsized ULE type directly</span>
     <span class="nd">#[serde(borrow)]</span>
     <span class="n">important_people</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="nd">#[serde(borrow)]</span>
@@ -281,9 +281,115 @@
 
 <p>In general, <code class="language-plaintext highlighter-rouge">ZeroVec</code> should be used for types that are fixed-size and implement <code class="language-plaintext highlighter-rouge">Copy</code>, whereas <code class="language-plaintext highlighter-rouge">VarZeroVec</code> is to be used with types that logically contain a variable amount of data, like vectors, maps, strings, and aggregates of the same. <code class="language-plaintext highlighter-rouge">VarZeroVec</code> will always be used with a dynamically sized type, yielding references to that type.</p>
 
+<p>I’ve noted before that these types are like <code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code>. They can be dealt with in a mutable-owned fashion, but it’s not the primary focus of the crate. In particular, <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> will be significantly slower to mutate than something like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be <em>generating</em> your data in a situation without too many performance constraints, but you want the operation of <em>reading</em> the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it’s not terribly slow, just something to look out for and benchmark if necessary.</p>
+
 <h2 id="how-it-works">How it works</h2>
 
-<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the @@@</p>
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
+
+<p>There’s also a safe [<code class="language-plaintext highlighter-rouge">AsULE</code>] trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">Sized</span> <span class="o">+</span> <span class="nb">Copy</span> <span class="o">+</span> <span class="nv">'static</span> <span class="p">{</span>
+    <span class="c">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="c">// less relevant utility methods omitted</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">AsULE</span><span class="p">:</span> <span class="nb">Copy</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">ULE</span><span class="p">;</span>
+
+    <span class="c">// Convert to the ULE type</span>
+    <span class="k">fn</span> <span class="nf">to_unaligned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">;</span>
+    <span class="c">// Convert back from the ULE type</span>
+    <span class="k">fn</span> <span class="nf">from_unaligned</span><span class="p">(</span><span class="n">unaligned</span><span class="p">:</span> <span class="nn">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Self</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">VarULE</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
+    <span class="c">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="mi">_</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="c">// Construct a reference to Self from a known-valid byte slice</span>
+    <span class="c">// This is necessary since VarULE types are dynamically sized and the working of the metadata</span>
+    <span class="c">// of the fat pointer varies between such types</span>
+    <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">from_byte_slice_unchecked</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">Self</span><span class="p">;</span>
+
+    <span class="c">// less relevant utility methods omitted</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroVec&lt;T&gt;</code> takes in types that are <code class="language-plaintext highlighter-rouge">AsULE</code> and stores them internally as slices of their ULE types (<code class="language-plaintext highlighter-rouge">&amp;[T::ULE]</code>). Such slices can be freely zero-copy serialized. When you attempt to index a <code class="language-plaintext highlighter-rouge">ZeroVec</code>, it converts the value back to <code class="language-plaintext highlighter-rouge">T</code> on the fly, an operation that’s usually just an unaligned load.</p>
+
+<p><code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> is a bit more complicated. The beginning of its memory stores the indices of every element in the vector, followed by the data for all of the elements just splatted one after the other. As long as the dynamically sized data can be represented in a <em>flat</em> fashion (without further internal indirection), it can implement <code class="language-plaintext highlighter-rouge">VarULE</code>, and thus be used in <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code>. <code class="language-plaintext highlighter-rouge">str</code> implements this, but so do <code class="language-plaintext highlighter-rouge">ZeroSlice&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">VarZeroSlice&lt;T&gt;</code>, allowing for infinite nesting of <code class="language-plaintext highlighter-rouge">zerovec</code> types!</p>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroMap&lt;T&gt;</code> works similarly to the <a href="https://docs.rs/litemap"><code class="language-plaintext highlighter-rouge">litemap</code></a> crate, it’s a map built out of two vectors, using binary search to find keys. This isn’t always as efficient as a hash map but it can work well in a zero-copy way since it can just be backed by <code class="language-plaintext highlighter-rouge">ZeroVec</code> and <code class="language-plaintext highlighter-rouge">VarZeroVec</code>. There’s a bunch of trait infrastructure that allows it to automatically select <code class="language-plaintext highlighter-rouge">ZeroVec</code> or <code class="language-plaintext highlighter-rouge">VarZeroVec</code> for each of the key and value vectors based on the type of the key or value.</p>
+
+<h2 id="what-about-rkyv">What about rkyv?</h2>
+
+<p>An important question when we started down this path was: what about <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a>? It had at the time just received a fair amount of attention in the Rust community, and seemed like a pretty cool library targeting the same space.</p>
+
+<p>And in general if you’re looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It’s an impressive library with a lot of thought put into it. When we were refining <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a> we learned a lot from <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> having some insightful discussions with <a href="https://github.com/djkoloski">David</a> and comparing notes on approaches.</p>
+
+<p>The main sticking point, for us, was that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> works kinda separately from <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>: it uses its own traits and own serialization mechanism. We really liked <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>’s model and wanted to keep using it, especially since we wanted to support a variety of human-readable and non-human-readable data formats, including <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, which is explicitly designed for low-resource environments. This becomes even more important for data interchange; we’d want programs written in other languages to be able to construct and send over data without necessarily being constrained to a particular wire format.</p>
+
+<p>The goal of <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> is essentially to bring <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a>-like improvements to a <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> universe without disrupting that universe too much. <code class="language-plaintext highlighter-rouge">zerovec</code> types, on human-readable formats like JSON, serialize to a normal human-readable representation of the structure, and on binary formats like <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, serialize to a compact, zero-copy-friendly representation that Just Works.</p>
+
+<h2 id="how-does-it-perform">How does it perform?</h2>
+
+<p>So off the bat I’ll mention that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> maintains <a href="https://github.com/djkoloski/rust_serialization_benchmark">a very good benchmark suite</a> that I really need to get around to integrating with zerovec. It’s been part of what’s delaying me publishing this post, and at this point I’d rather publish with the benchmarks I have rather than delaying further. I might update this post with the Good Benchmarks later!</p>
+
+<p>The complete benchmark run details can be found <a href="https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0">here</a> (run via <code class="language-plaintext highlighter-rouge">cargo bench</code> at <a href="https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec"><code class="language-plaintext highlighter-rouge">1e072b32</code></a>), I’m pulling out some specific data points for illustration:</p>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroVec</code>:</p>
+
+<table>
+<thead><th>Benchmark</th><th>Slice</th><th>ZeroVec</th></thead>
+<tbody>
+
+   <tr><th>Deserialization (with <code>bincode</code>)</th></tr>
+   <tr><th>Deserialize a vector of 100 u32s</th><td>141.55 ns</td><td>12.166 ns</td></tr>
+   <tr><th>Deserialize a vector of 15 chars</th><td>225.55 ns</td><td>25.668 ns</td></tr>
+   <tr><th>Deserialize and then sum a vector of 20 u32s</th><td>47.423 ns</td><td>14.131 ns</td></tr>
+
+   <tr><th>Element fetching performance</th></tr>
+   <tr><th>Sum a vector of 75 u32 elements</th><td>4.3091 ns</td><td>5.7108 ns</td></tr>
+   <tr><th>Binary search a vector of 1000 u32 elements, 50 times</th><td>428.48 ns</td><td>565.23 ns</td></tr>
+   <tr><th>Binary search a vector of 1000 u32 elements, 50 times</th><td>428.48 ns</td><td>565.23 ns</td></tr>
+   <tr><th>Serialization</th></tr>
+
+   <tr><th>Serialize a vector of 20 u32s</th><td>51.324 ns</td><td>21.582 ns</td></tr>
+   <tr><th>Serialize a vector of 15 chars</th><td>195.75 ns</td><td>21.123 ns</td></tr>
+</tbody>
+</table>
+
+<p><br />
+In general we don’t care about serialization performance much, however serialization is fast here because <code class="language-plaintext highlighter-rouge">ZeroVec</code>s are always stored in memory as the same form they would be serialized at. This can make mutation slower. Fetching operations are a little bit slower on <code class="language-plaintext highlighter-rouge">ZeroVec</code>. The deserialization performance is where we see our real wins, sometimes being more than ten times as fast!</p>
+
+<p><code class="language-plaintext highlighter-rouge">VarZeroVec</code>:</p>
+
+<p>The strings are randomly generated, picked with sizes between 2 and 20 code points, and the same set of strings is used for any given row.</p>
+
+<table>
+<thead><th>Benchmark</th><th><code>Vec&lt;String&gt;</code></th><th><code>Vec&lt;&amp;str&gt;</code></th><th>VarZeroVec</th></thead>
+<tbody>
+
+   <tr><th>Deserialize (len 100)</th><td>11.274 us</td><td>2.2486 us</td><td>1.9446 us</td></tr>
+
+   <tr><th>Count code points (len 100)</th><td colspan="2">728.99 ns</td><td>1265.0 ns</td></tr>
+   <tr><th>Binary search for 1 element (len 500)</th><td colspan="2">57.788 ns</td><td>122.10 ns</td></tr>
+   <tr><th>Binary search for 10 elements (len 500)</th><td colspan="2">451.40 ns</td><td>803.67 ns</td></tr>
+
+</tbody>
+</table>
+<p><br /></p>
+
+<p>Here, fetching operations are a bit slower since they need to read the indexing array, but there’s still a decent win for zero-copy deserialization. The deserialization wins stack up for more complex data; for <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code> you can get <em>most</em> of the wins by using <code class="language-plaintext highlighter-rouge">Vec&lt;&amp;str&gt;</code>, but that’s not necessarily possible for something more complex. We don’t currently have mutation benchmarks for <code class="language-plaintext highlighter-rouge">VarZeroVec</code>, but mutation can be slow and as mentioned before it’s not intended to be used much in client code.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p>Similar to [<code class="language-plaintext highlighter-rouge">yoke</code>], I don’t consider the <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> crate “done” yet, but it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -295,6 +401,9 @@
     </li>
     <li id="fn:3" role="doc-endnote">
       <p>As mentioned in the previous post, while zero-copy deserializing, it is typical to use borrowed-or-owned types like <code class="language-plaintext highlighter-rouge">Cow</code> over pure borrowed types because it’s not necessary that data in a human-readable format will be able to zero-copy deserialize. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Most modern systems are little endian, so this imposes one fewer potential cost on conversion. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
