@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "Zero-Copy Stuff part 2: Zero-Copy all the things"
+title: "Zero-Copy All The Things! (Zero-Copy #2)"
 date: 2021-04-05 08:32:30 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
 
 
-_This is part 2 of a two-part series on interesting abstractions for zero-copy deserialization I've been working on recently. Part 1 can be found [here][part 1]. The posts can be read in any order, though the first post contains an explanation of what zero-copy deserialization_ is.
+_This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
 
 
 ## Background
@@ -71,7 +71,7 @@ Pointers are hard. What about `Vec<u32>`/`[u32]`? Surely there's nothing wrong w
 
 {% imgcaption center /images/post/castlevania-data.png 400 %}<small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small>{% endimgcaption %}
 
-This is where the endianness and alignment come in. Firstly, a `u32` doesn't look exactly the same on all systems, some systems are "big endian", where the integer `0xABCDEF` would be represented in memory as `[0xAB, 0xCD, 0xEF]`, whereas others are "little endian" and would represent it `[0xEF, 0xCD, 0xAB]`. Most systems these days are little-endian, but not all, so you may need to care about this.
+This is where the endianness and alignment come in. Firstly, a `u32` doesn't look exactly the same on all systems, some systems are "big endian", where the integer `0x00ABCDEF` would be represented in memory as `[0x00, 0xAB, 0xCD, 0xEF]`, whereas others are "little endian" and would represent it `[0xEF, 0xCD, 0xAB, 0x00]`. Most systems these days are little-endian, but not all, so you may need to care about this.
 
 This would mean that a `[u32]` serialized on a little endian system would come out completely garbled on a big-endian system if we're naïvely zero-copy deserializing.
 
@@ -93,7 +93,6 @@ The core abstractions of the crate are the two types, [`ZeroVec`] and [`VarZeroV
 Similarly, [`VarZeroVec`] may be used with types implementing [`VarULE`] (e.g. `str`). It _is_ able to hand out references `VarZeroVec<str>` behaves very similarly to how `&[str]` would work if such a type were allowed to exist in Rust. You can even nest them, making types like `VarZeroVec<VarZeroSlice<ZeroSlice<u32>>>`, the zero-copy equivalent of `Vec<Vec<Vec<u32>>>`.
 
 There's also a [`ZeroMap`] type that provides a binary-search based map that works with types compatible with either [`ZeroVec`] or [`VarZeroVec`].
-
 
 So, for example, to make the following struct zero-copy:
 
@@ -188,7 +187,7 @@ Unfortunately the inner "ULE type" workings are not _completely_ hidden from the
 In general, `ZeroVec` should be used for types that are fixed-size and implement `Copy`, whereas `VarZeroVec` is to be used with types that logically contain a variable amount of data, like vectors, maps, strings, and aggregates of the same. `VarZeroVec` will always be used with a dynamically sized type, yielding references to that type.
 
 
-I've noted before that these types are like `Cow<'a, T>`. They can be dealt with in a mutable-owned fashion, but it's not the primary focus of the crate. In particular, `VarZeroVec<T>` will be significantly slower to mutate than something like `Vec<String>`, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be _generating_ your data in a situation without too many performance constraints, but you want the operation of _reading_ the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it's not terribly slow, just something to look out for and benchmark if necessary.
+I've noted before that these types are like `Cow<'a, T>`; they can be dealt with in a mutable-owned fashion, but it's not the primary focus of the crate. In particular, `VarZeroVec<T>` will be significantly slower to mutate than something like `Vec<String>`, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be _generating_ your data in a situation without too many performance constraints, but you want the operation of _reading_ the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it's not terribly slow, just something to look out for and benchmark if necessary.
 
 
 ## How it works
@@ -239,7 +238,7 @@ pub unsafe trait VarULE: 'static {
 
 An important question when we started down this path was: what about [`rkyv`]? It had at the time just received a fair amount of attention in the Rust community, and seemed like a pretty cool library targeting the same space.
 
-And in general if you're looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It's an impressive library with a lot of thought put into it. When we were refining [`zerovec`][zerovec-lib] we learned a lot from [`rkyv`] having some insightful discussions with [David] and comparing notes on approaches.
+And in general if you're looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It's an impressive library with a lot of thought put into it. When I was refining [`zerovec`][zerovec-lib] I learned a lot from [`rkyv`] having some insightful discussions with [David] and comparing notes on approaches.
 
 The main sticking point, for us, was that [`rkyv`] works kinda separately from [`serde`]: it uses its own traits and own serialization mechanism. We really liked [`serde`]'s model and wanted to keep using it, especially since we wanted to support a variety of human-readable and non-human-readable data formats, including [`postcard`], which is explicitly designed for low-resource environments. This becomes even more important for data interchange; we'd want programs written in other languages to be able to construct and send over data without necessarily being constrained to a particular wire format.
 
@@ -258,7 +257,7 @@ Well, I was delaying working on this post until I had those benchmarks integrate
 
 {% discussion pion-minus%}Hmph.{% enddiscussion %}
 
-The complete benchmark run details can be found [here][bench-run] (run via `cargo bench` at [`1e072b32`][bench-hash]), I'm pulling out some specific data points for illustration:
+The complete benchmark run details can be found [here][bench-run] (run via `cargo bench` at [`1e072b32`][bench-hash]. I'm pulling out some specific data points for illustration:
 
 `ZeroVec`:
 
@@ -330,8 +329,9 @@ _Thanks to @@@@ for reviewing drafts of this post_
  [`ZeroVec`]: https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html
  [`ZeroSlice`]: https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html
  [`VarZeroVec`]: https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html
+ [`ZeroMap`]: https://docs.rs/zerovec/latest/zerovec/enum.ZeroMap.html
  [`ULE`]: https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html
- [`ULE`]: https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html
+ [`AsULE`]: https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html
  [`VarULE`]: https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html
  [David]: https://github.com/djkoloski
  [rkyv-bench]: https://github.com/djkoloski/rust_serialization_benchmark

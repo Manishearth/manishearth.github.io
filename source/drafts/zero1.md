@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "Zero-Copy Stuff part 1: Not a yoking matter"
+title: "Not a Yoking Matter (Zero-Copy #1)"
 date: 2021-04-05 08:32:30 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
 
-_This is part 1 of a two-part series on interesting abstractions for zero-copy deserialization I've been working on recently. Part 2 can be found [here][part 2]. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization_ is.
+_This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization_ is.
 
 
 ## Background
@@ -66,7 +66,7 @@ An `&'a str` can also be used instead of the `Cow`, however this makes the `Dese
 
 {% aside %}
 
-You may notice that `rust_files_written` can't be found in this new struct. This is because [`serde`], out of the box, can't handle zero-copy deserialization for anything other than `str` and `[u8]`, for very good reasons. Other frameworks like [`rkyv`] can, however we've also managed to make this work with [`serde`]. I'll go in more depth about said reasons and our solution in [part 2].
+You may notice that `rust_files_written` can't be found in this new struct. This is because [`serde`], out of the box, can't handle zero-copy deserialization for anything other than `str` and `[u8]`, for very good reasons. Other frameworks like [`rkyv`] can, however we've also managed to make this possible with [`serde`]. I'll go in more depth about said reasons and our solution in [part 2].
 
 
  [`serde`]: https://docs.rs/serde
@@ -75,18 +75,22 @@ You may notice that `rust_files_written` can't be found in this new struct. This
 
 {% endaside %}
 
+{% discussion pion-nought %} Aren't there still copies occurring here with the `age` field? {% enddiscussion %}
+
+Yes, "zero-copy" is somewhat of a misnomer, what it really means is "zero allocations", or, alternatively, "zero large copies". Look at it this way: data like `age` does get copied, but without, say, allocating a vector of `Person<'a>`, you're only going to see that copy occur a couple times when individually deserializing `Person<'a>`s or when deserializing some struct that contains `Person<'a>` a couple times. To have a large copy occur _without_ involving allocations, your type would have to be something that is that large on the stack in the first place, which people avoid in general because it means a large copy every time you move the value around even when you're not deserializing.
+
 ## When life gives you lifetimes ....
 
 Zero-copy deserialization in Rust has one very pesky downside: the lifetimes. Suddenly, all of your deserialized types have lifetimes on them. Of course they would; they're no longer self-contained, instead containing references to the data they were originally deserialized from!
 
-This isn't a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can also do stuff like this if they wish. In this case, [`serde`], in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.
+This isn't a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can do stuff like this if they wish, too. In this case, [`serde`], in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.
 
 
 Unfortunately, lifetimes like these tend to make their way into everything. Every type holding onto your deserialized type needs a lifetime now and it's likely going to become your users' problem too.
 
 Furthermore, Rust lifetimes are a purely compile-time construct. If your value is of a type with a lifetime, you need to know at compile time by when it will definitely no longer be in use, and you need to hold on to its source data until then. Rust's design means that you don't need to worry about getting this _wrong_, since the compiler will catch you, but you still need to _do it_.
 
-Which isn't ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.
+All of this isn't ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.
 
 Typically in such cases you can use [`Rc<T>`], which is effectively the "runtime instead of compile time" version of `&'a T`s safe shared reference, but this only works for cases where you're sharing homogenous types, whereas in this case we're attempting to share different types deserialized from one blob of data, which itself is of a different type.
 
@@ -100,15 +104,15 @@ After [a bunch of discussion][yoke-discussion] on this, primarily with [Shane], 
 
 {% discussion pion-nought %} Wait, _lifetime_ erasure? {% enddiscussion %}
 
-Yes, like type erasure. "Type erasure" (in Rust, using `dyn Trait`) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Similarly, the core value proposition of `yoke` is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.
+Like type erasure! "Type erasure" (in Rust, done using `dyn Trait`) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Analogously, the core value proposition of `yoke` is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.
 
 {% discussion pion-nought %} Doesn't `Rc<T>` already let you make lifetimes a runtime decision? {% enddiscussion %}
 
-Kind of, `Rc<T>` on its own lets you _avoid_ lifetimes, whereas `Yoke` works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.
+Kind of, `Rc<T>` on its own lets you _avoid_ compile-time lifetimes, whereas `Yoke` works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.
 
 {% discussion pion-nought %} Cool! What does that look like? {% enddiscussion %}
 
-The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or `Person<'a>` from the previous examples) and "yoke" it to the value it was deserialized from, which we call a "cart".
+The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or something more complicated) and "yoke" it to the value it was deserialized from, which we call a "cart".
 
 {% discussion pion-minus%}_\*groan\*_ not another crate named with a pun, Manish. {% enddiscussion %}
 
@@ -139,9 +143,14 @@ drop(y);
 
 {% aside issue %}
 
-Some of the APIs here may not quite work due to current compiler bugs. In this blog post I'm using the ideal version of these APIs for illustrative purposes, but it's worth checking with the Yoke docs to see if you may need to use an alternate workaround API.
+Some of the APIs here may not quite work due to current compiler bugs. In this blog post I'm using the ideal version of these APIs for illustrative purposes, but it's worth checking with the Yoke docs to see if you may need to use an alternate workaround API. _Most_ of the bugs have been fixed as of Rust 1.61.
 
 {% endaside %}
+
+{% discussion pion-plus %} The example above uses [`postcard`]: `postcard` is a really neat `serde`-compatible binary serialization format, designed for use on resource constrained environments. It's quite fast and has a low codesize, check it out!
+
+ [`postcard`]: https://docs.rs/postcard
+{%enddiscussion%}
 
 The type `Yoke<Cow<'static, str>, Rc<[u8]>>` is "a lifetime-erased `Cow<str>` 'yoked' to a backing data store 'cart' that is an `Rc<[u8]>`". What this means is that the Cow contains references to data from the cart, however, the `Yoke` will hold on to the cart type until it is done, which ensures the references from the `Cow` no longer dangle.
 
@@ -201,7 +210,7 @@ person.with_mut(|person| {
 })
 ```
 
-Overall `Yoke` is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing.
+Overall `Yoke` is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing. In ICU4X the abstractions we use to load data always use `Yoke`s, allowing various data loading strategies — including caching — to be mixed
 
 
 ### How it works
@@ -211,7 +220,6 @@ Overall `Yoke` is a pretty powerful abstraction, useful for a host of situations
 `Yoke` works by relying on the concept of a _covariant lifetime_. The [`Yokeable`] trait looks like this:
 
 ```rust
-
 pub unsafe trait Yokeable<'a>: 'static {
     type Output: 'a;
     // methods omitted
@@ -227,7 +235,12 @@ unsafe impl<'a> Yokeable<'a> for Cow<'static, str> {
 }
 ```
 
-An implementation of this trait will be implemented on the `'static` version of a type with a lifetime (which I will call `Self<'static>`[^3] in this post), and maps the type to a version of it with a lifetime (`Self<'a>`). It must only be implemented on types where the lifetime `'a` is _covariant_, i.e., where it's safe to treat `Self<'a>` with `Self<'b>` when `'b` is a shorter lifetime. Most types with lifetimes fall in this category[^4], especially in the space of zero-copy deserialization; you can read more about variance in the [nomicon][nomicon-subtyping].
+An implementation of this trait will be implemented on the `'static` version of a type with a lifetime (which I will call `Self<'static>`[^3] in this post), and maps the type to a version of it with a lifetime (`Self<'a>`). It must only be implemented on types where the lifetime `'a` is _covariant_, i.e., where it's safe to treat `Self<'a>` with `Self<'b>` when `'b` is a shorter lifetime. Most types with lifetimes fall in this category[^4], especially in the space of zero-copy deserialization.
+
+{% discussion pion-plus %}You can read more about variance in the [nomicon][nomicon-subtyping]! 
+
+ [nomicon-subtyping]: https://doc.rust-lang.org/nomicon/subtyping.html
+{% enddiscussion %}
 
 For any `Yokeable` type `Foo<'static>`, you can obtain the version of that type with a lifetime `'a` with `<Foo as Yokeable<'a>>::Output`. The `Yokeable` trait exposes some methods that allow one to safely carry out the various transforms that are allowed on a type with a covariant lifetime.
 
@@ -255,9 +268,9 @@ impl<'a> Yokeable for Foo<'static> {
 The compiler knows these are safe because it knows that the type is covariant, and the `Yokeable` trait allows us to talk about types where these operations are safe, _generically_.
 
 
-{% discussion pion-plus%} In simpler terms, there's a certain useful property about lifetime "stretchiness" that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply. {% enddiscussion %}
+{% discussion pion-plus%} In other words, there's a certain useful property about lifetime "stretchiness" that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply. {% enddiscussion %}
 
-Using this trait, `Yoke` then works by storing `Self<'static>` and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on `Yokeable` in various ways.
+Using this trait, `Yoke` then works by storing `Self<'static>` and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on `Yokeable` in various ways. Knowing that the lifetime is covariant is what makes it safe to do such lifetime "squeezing". The `'static` is a lie, but it's safe to do that kind of thing as long as the value isn't actually accessed with the `'static` lifetime, and we take great care to ensure it doesn't leak.
 
 ## ... make life rue the day it thought it could give you lifetimes
 
@@ -290,10 +303,10 @@ _Thanks to @@@@ for reviewing drafts of this post_
  [Shane]: https://github.com/sffc
  [Yoke::get]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get
  [part 2]: https://@@@@
+ [part 3]: https://@@@@
  [yoke-discussion]: https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099
  [design doc]: https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md
  [`Yokeable`]: https://docs.rs/yoke/latest/yoke/trait.Yokeable.html
- [nomicon-subtyping]: https://doc.rust-lang.org/nomicon/subtyping.html
  [bug-1]: https://github.com/rust-lang/rust/issues/86703
  [bug-2]: https://github.com/rust-lang/rust/issues/88446
  [bug-3]: https://github.com/rust-lang/rust/issues/89436
