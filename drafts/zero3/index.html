@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Zero-Copy Crates Part 3: So Zero It's Negative - In Pursuit of Laziness</title>
+  <title>Zero-Copy Crates Part 3: So Zero It's Negative? - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
@@ -16,7 +16,7 @@
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="Zero-Copy crates part 3: So zero it's negative">
+      <meta property="twitter:title" content="Zero-Copy crates part 3: So Zero It's Negative?">
       <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. The first two parts can be found here and here respectively. The posts &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
@@ -99,7 +99,7 @@
     
 
     
-      <h1 class="entry-title">Zero-Copy Crates Part 3: So Zero It's Negative</h1>
+      <h1 class="entry-title">Zero-Copy Crates Part 3: So Zero It's Negative?</h1>
       <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
@@ -140,7 +140,65 @@
 
 <p>Bear with me.</p>
 
-<p>As mentioned in the previous posts, <a href="https://github.com/unicode-org/icu4x">ICU4X</a> needs</p>
+<p>As mentioned in the previous posts, internationalization libraries like <a href="https://github.com/unicode-org/icu4x">ICU4X</a> need to be able to load and manage a lot of internationalization data. ICU4X in particular wants this part of the process to be as flexible and efficient as possible. The focus on efficiency is why we use zero-copy deserialization for basically everything, whereas the focus on flexibility has led to a robust and pluggable data loading infrastructure that allows you to mix and match data sources.</p>
+
+<p>Deserialization is a <em>great</em> way to load data since it’s in and of itself quite flexible! You can put your data in a neat little package and load it off the filesystem! Or send it over the network! It’s even better when you have efficient techniques like zero-copy deserialization because the cost is low.</p>
+
+<p>But the thing is, there is still a cost. Even with zero-copy deserialization, you have to <em>validate</em> the data you receive. It’s often a cost folks are happy to pay, but that’s not always the case.</p>
+
+<p>For example, you might be, say, <a href="https://www.mozilla.org/en-US/firefox/">a web browser interested in ICU4X</a>, and you <em>really</em> care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.</p>
+
+<p>You <em>could</em> write a very unsafe version of <code class="language-plaintext highlighter-rouge">serde::Deserialize</code> that operates on fully trusted data and uses some data format that is easy to zero-copy deserialize whilst avoiding any kind of validation. However, this would still have some cost: you still have to scan the data to reconstruct the full deserialized output. More importantly, it would require a parallel universe of unsafe serde-like traits that everyone has to derive or implement, where even small bugs in manual implementations would likely cause memory corruption.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Sounds like you need some format that needs no validation or scanning to zero-copy deserialize, and can be produced safely. But that doesn’t exist, does it?
+            </div>
+        </div>
+
+<p>It does.</p>
+
+<p>… but you’re not going to like where I’m going with this.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Oh no.
+            </div>
+        </div>
+
+<p>There is such a format: <em>Rust code</em>. Specifically, Rust code in <code class="language-plaintext highlighter-rouge">static</code>s. When compiled, Rust <code class="language-plaintext highlighter-rouge">static</code>s are basically “free” to load, beyond the typical costs involved in paging in memory. The Rust compiler trusts itself to be good at codegen, so it doesn’t need validation when loading a compiled <code class="language-plaintext highlighter-rouge">static</code> from memory. There is the possibility of codegen bugs, however we have to trust the compiler about that for the rest of our program anyway!</p>
+
+<p>If we can figure out a way to “serialize to <code class="language-plaintext highlighter-rouge">const</code> Rust code”, the resultant Rust code could just be compiled in to the binary, and people who need to load trusted data into ICU4X can load it for free!</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             What does “<code class="language-plaintext highlighter-rouge">const</code> code” mean in this context?
+            </div>
+        </div>
+
+<p>In Rust, <code class="language-plaintext highlighter-rouge">const</code> code essentially is code that can be proven to be side-effect-free, and it’s the only kind of code allowed in <code class="language-plaintext highlighter-rouge">static</code>s, <code class="language-plaintext highlighter-rouge">const</code>s, and <code class="language-plaintext highlighter-rouge">const fn</code>s.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             I see! Does this code actually have to be “constant”?
+            </div>
+        </div>
+
+<p>Not quite! Rust supports mutation and even things like for loops in <code class="language-plaintext highlighter-rouge">const</code> code!</p>
+
+<p>For a long time only very simple code was allowed in <code class="language-plaintext highlighter-rouge">const</code>, but over the last year the scope of what that environment can do has expanded greatly, and it’s actually possible to complicated things here, which is precisely what enables this crate to exist.</p>
+
+<h2 id="databake"><code class="language-plaintext highlighter-rouge">databake</code></h2>
+
+<p>Enter <a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a>. <code class="language-plaintext highlighter-rouge">databake</code> is a crate that provides just this; the ability to serialize your types to <code class="language-plaintext highlighter-rouge">const</code> code that can then be used in <code class="language-plaintext highlighter-rouge">static</code>s allowing for truly zero-cost data loading, no serialization necessary.</p>
 
 </div>
 
