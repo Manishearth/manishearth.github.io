@@ -193,7 +193,47 @@
 
 <p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, primarily with <a href="https://github.com/sffc">Shane</a>, I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
 
-<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”:</p>
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Wait, <em>lifetime</em> erasure?
+            </div>
+        </div>
+
+<p>Yes, like type erasure. “Type erasure” (in Rust, using <code class="language-plaintext highlighter-rouge">dyn Trait</code>) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Similarly, the core value proposition of <code class="language-plaintext highlighter-rouge">yoke</code> is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Doesn’t <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> already let you make lifetimes a runtime decision?
+            </div>
+        </div>
+
+<p>Kind of, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> on its own lets you <em>avoid</em> lifetimes, whereas <code class="language-plaintext highlighter-rouge">Yoke</code> works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Cool! What does that look like?
+            </div>
+        </div>
+
+<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”.</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             <em>*groan*</em> not another crate named with a pun, Manish.
+            </div>
+        </div>
+
+<p>I will never stop.</p>
+
+<p>Anyway, here’s what that looks like.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Some types explicitly mentioned for clarity</span>
 
@@ -273,6 +313,14 @@
 
 <h3 id="how-it-works">How it works</h3>
 
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Manish is about to say the word “covariant” so I’m going to get ahead of him and say: If you have trouble understanding this and the next section, don’t worry! The internal workings of his crate rely on multiple niche concepts that most Rustaceans never need to care about, even those working on otherwise advanced code.
+            </div>
+        </div>
+
 <p><code class="language-plaintext highlighter-rouge">Yoke</code> works by relying on the concept of a <em>covariant lifetime</em>. The <a href="https://docs.rs/yoke/latest/yoke/trait.Yokeable.html"><code class="language-plaintext highlighter-rouge">Yokeable</code></a> trait looks like this:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
@@ -313,7 +361,15 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The compiler knows these are safe, and the <code class="language-plaintext highlighter-rouge">Yokeable</code> trait allows us to talk about types where these operations are safe, <em>generically</em>.</p>
+<p>The compiler knows these are safe because it knows that the type is covariant, and the <code class="language-plaintext highlighter-rouge">Yokeable</code> trait allows us to talk about types where these operations are safe, <em>generically</em>.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             In simpler terms, there’s a certain useful property about lifetime “stretchiness” that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply.
+            </div>
+        </div>
 
 <p>Using this trait, <code class="language-plaintext highlighter-rouge">Yoke</code> then works by storing <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code> and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on <code class="language-plaintext highlighter-rouge">Yokeable</code> in various ways.</p>
 
