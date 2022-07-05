@@ -98,7 +98,23 @@ _A lot of the design here can be found explained in the [design doc]_
 
 After [a bunch of discussion][yoke-discussion] on this, primarily with [Shane], I designed [`yoke`], a crate that attempts to provide _lifetime erasure_ in Rust via self-referential types.
 
-The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or `Person<'a>` from the previous examples) and "yoke" it to the value it was deserialized from, which we call a "cart":
+{% discussion pion-nought %} Wait, _lifetime_ erasure? {% enddiscussion %}
+
+Yes, like type erasure. "Type erasure" (in Rust, using `dyn Trait`) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Similarly, the core value proposition of `yoke` is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.
+
+{% discussion pion-nought %} Doesn't `Rc<T>` already let you make lifetimes a runtime decision? {% enddiscussion %}
+
+Kind of, `Rc<T>` on its own lets you _avoid_ lifetimes, whereas `Yoke` works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.
+
+{% discussion pion-nought %} Cool! What does that look like? {% enddiscussion %}
+
+The general idea is that you can take a zero-copy deserializeable type like a `Cow<'a, str>` (or `Person<'a>` from the previous examples) and "yoke" it to the value it was deserialized from, which we call a "cart".
+
+{% discussion pion-minus%}_\*groan\*_ not another crate named with a pun, Manish. {% enddiscussion %}
+
+I will never stop.
+
+Anyway, here's what that looks like.
 
 ```rust
 // Some types explicitly mentioned for clarity
@@ -187,7 +203,10 @@ person.with_mut(|person| {
 
 Overall `Yoke` is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing.
 
+
 ### How it works
+
+{% discussion pion-plus %} Manish is about to say the word "covariant" so I'm going to get ahead of him and say: If you have trouble understanding this and the next section, don't worry! The internal workings of his crate rely on multiple niche concepts that most Rustaceans never need to care about, even those working on otherwise advanced code. {% enddiscussion %}
 
 `Yoke` works by relying on the concept of a _covariant lifetime_. The [`Yokeable`] trait looks like this:
 
@@ -233,7 +252,10 @@ impl<'a> Yokeable for Foo<'static> {
 }
 ```
 
-The compiler knows these are safe, and the `Yokeable` trait allows us to talk about types where these operations are safe, _generically_.
+The compiler knows these are safe because it knows that the type is covariant, and the `Yokeable` trait allows us to talk about types where these operations are safe, _generically_.
+
+
+{% discussion pion-plus%} In simpler terms, there's a certain useful property about lifetime "stretchiness" that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply. {% enddiscussion %}
 
 Using this trait, `Yoke` then works by storing `Self<'static>` and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on `Yokeable` in various ways.
 

@@ -25,7 +25,10 @@ Given the focus on data, a _very_ attractive option for us is zero-copy deserial
 
 ## What can you zero-copy?
 
-_If you're unfamiliar with zero-copy deserialization, refer to the explanation in the previous article._
+{% discussion pion-plus%}If you're unfamiliar with zero-copy deserialization, check out the explanation in the [previous article]!
+
+ [previous article]: @@@@
+{% enddiscussion %}
 
 
 In the [previous article][part 1] we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on _what you can do with_ zero-copy data.
@@ -243,10 +246,17 @@ The main sticking point, for us, was that [`rkyv`] works kinda separately from [
 The goal of [`zerovec`] is essentially to bring [`rkyv`]-like improvements to a [`serde`] universe without disrupting that universe too much. `zerovec` types, on human-readable formats like JSON, serialize to a normal human-readable representation of the structure, and on binary formats like [`postcard`], serialize to a compact, zero-copy-friendly representation that Just Works.
 
 
+
 ## How does it perform?
 
 
-So off the bat I'll mention that [`rkyv`] maintains [a very good benchmark suite][rkyv-bench] that I really need to get around to integrating with zerovec. It's been part of what's delaying me publishing this post, and at this point I'd rather publish with the benchmarks I have rather than delaying further. I might update this post with the Good Benchmarks later!
+So off the bat I'll mention that [`rkyv`] maintains [a very good benchmark suite][rkyv-bench] that I really need to get around to integrating with zerovec, but haven't yet.
+
+{% discussion pion-minus%}Why not go do that first? It would make your post better!{% enddiscussion %}
+
+Well, I was delaying working on this post until I had those benchmarks integrated, but that's not how executive function works, and at this point I'd rather publish with the benchmarks I have rather than delaying further. I might update this post with the Good Benchmarks later!
+
+{% discussion pion-minus%}Hmph.{% enddiscussion %}
 
 The complete benchmark run details can be found [here][bench-run] (run via `cargo bench` at [`1e072b32`][bench-hash]), I'm pulling out some specific data points for illustration:
 
