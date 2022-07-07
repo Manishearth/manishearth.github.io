@@ -5,19 +5,19 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Zero-Copy Crates Part 1: Not a Yoking Matter - In Pursuit of Laziness</title>
+  <title>Not a Yoking Matter (Zero-Copy #1) - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found &hellip;">
+  <meta name="description" content="This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="Zero-Copy crates part 1: Not a yoking matter">
-      <meta property="twitter:description" content="This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found here. The posts can be read in any order, though &hellip;">
+      <meta property="twitter:title" content="Not a Yoking Matter (Zero-Copy #1)">
+      <meta property="twitter:description" content="This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -99,7 +99,7 @@
     
 
     
-      <h1 class="entry-title">Zero-Copy Crates Part 1: Not a Yoking Matter</h1>
+      <h1 class="entry-title">Not a Yoking Matter (Zero-Copy #1)</h1>
       <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 2 can be found <a href="https://@@@@">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="https://@@@@">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="https://@@@@">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -169,19 +169,29 @@
 
 <p>An <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used instead of the <code class="language-plaintext highlighter-rouge">Cow</code>, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
 
-<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this work with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="https://@@@@">part 2</a>.</div>
+<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="https://@@@@">part 2</a>.</div>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Aren’t there still copies occurring here with the <code class="language-plaintext highlighter-rouge">age</code> field?
+            </div>
+        </div>
+
+<p>Yes, “zero-copy” is somewhat of a misnomer, what it really means is “zero allocations”, or, alternatively, “zero large copies”. Look at it this way: data like <code class="language-plaintext highlighter-rouge">age</code> does get copied, but without, say, allocating a vector of <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code>, you’re only going to see that copy occur a couple times when individually deserializing <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code>s or when deserializing some struct that contains <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> a couple times. To have a large copy occur <em>without</em> involving allocations, your type would have to be something that is that large on the stack in the first place, which people avoid in general because it means a large copy every time you move the value around even when you’re not deserializing.</p>
 
 <h2 id="when-life-gives-you-lifetimes-">When life gives you lifetimes ….</h2>
 
 <p>Zero-copy deserialization in Rust has one very pesky downside: the lifetimes. Suddenly, all of your deserialized types have lifetimes on them. Of course they would; they’re no longer self-contained, instead containing references to the data they were originally deserialized from!</p>
 
-<p>This isn’t a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can also do stuff like this if they wish. In this case, <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.</p>
+<p>This isn’t a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can do stuff like this if they wish, too. In this case, <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.</p>
 
 <p>Unfortunately, lifetimes like these tend to make their way into everything. Every type holding onto your deserialized type needs a lifetime now and it’s likely going to become your users’ problem too.</p>
 
 <p>Furthermore, Rust lifetimes are a purely compile-time construct. If your value is of a type with a lifetime, you need to know at compile time by when it will definitely no longer be in use, and you need to hold on to its source data until then. Rust’s design means that you don’t need to worry about getting this <em>wrong</em>, since the compiler will catch you, but you still need to <em>do it</em>.</p>
 
-<p>Which isn’t ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.</p>
+<p>All of this isn’t ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.</p>
 
 <p>Typically in such cases you can use <a href="https://doc.rust-lang.org/stable/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a>, which is effectively the “runtime instead of compile time” version of <code class="language-plaintext highlighter-rouge">&amp;'a T</code>s safe shared reference, but this only works for cases where you’re sharing homogenous types, whereas in this case we’re attempting to share different types deserialized from one blob of data, which itself is of a different type.</p>
 
@@ -201,7 +211,7 @@
             </div>
         </div>
 
-<p>Yes, like type erasure. “Type erasure” (in Rust, using <code class="language-plaintext highlighter-rouge">dyn Trait</code>) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Similarly, the core value proposition of <code class="language-plaintext highlighter-rouge">yoke</code> is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.</p>
+<p>Like type erasure! “Type erasure” (in Rust, done using <code class="language-plaintext highlighter-rouge">dyn Trait</code>) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Analogously, the core value proposition of <code class="language-plaintext highlighter-rouge">yoke</code> is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.</p>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -211,7 +221,7 @@
             </div>
         </div>
 
-<p>Kind of, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> on its own lets you <em>avoid</em> lifetimes, whereas <code class="language-plaintext highlighter-rouge">Yoke</code> works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.</p>
+<p>Kind of, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> on its own lets you <em>avoid</em> compile-time lifetimes, whereas <code class="language-plaintext highlighter-rouge">Yoke</code> works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.</p>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -221,7 +231,7 @@
             </div>
         </div>
 
-<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> from the previous examples) and “yoke” it to the value it was deserialized from, which we call a “cart”.</p>
+<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or something more complicated) and “yoke” it to the value it was deserialized from, which we call a “cart”.</p>
 
 <div class="discussion discussion-issue">
             <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="/images/pion-minus.png" />
@@ -255,7 +265,15 @@
 <span class="c">// only now will the reference count on the file be decreased</span>
 </code></pre></div></div>
 
-<div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API.</div>
+<div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API. <em>Most</em> of the bugs have been fixed as of Rust 1.61.</div>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             The example above uses <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>: <code class="language-plaintext highlighter-rouge">postcard</code> is a really neat <code class="language-plaintext highlighter-rouge">serde</code>-compatible binary serialization format, designed for use on resource constrained environments. It’s quite fast and has a low codesize, check it out!
+            </div>
+        </div>
 
 <p>The type <code class="language-plaintext highlighter-rouge">Yoke&lt;Cow&lt;'static, str&gt;, Rc&lt;[u8]&gt;&gt;</code> is “a lifetime-erased <code class="language-plaintext highlighter-rouge">Cow&lt;str&gt;</code> ‘yoked’ to a backing data store ‘cart’ that is an <code class="language-plaintext highlighter-rouge">Rc&lt;[u8]&gt;</code>”. What this means is that the Cow contains references to data from the cart, however, the <code class="language-plaintext highlighter-rouge">Yoke</code> will hold on to the cart type until it is done, which ensures the references from the <code class="language-plaintext highlighter-rouge">Cow</code> no longer dangle.</p>
 
@@ -309,7 +327,7 @@
 <span class="p">})</span>
 </code></pre></div></div>
 
-<p>Overall <code class="language-plaintext highlighter-rouge">Yoke</code> is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing.</p>
+<p>Overall <code class="language-plaintext highlighter-rouge">Yoke</code> is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing. In ICU4X the abstractions we use to load data always use <code class="language-plaintext highlighter-rouge">Yoke</code>s, allowing various data loading strategies — including caching — to be mixed</p>
 
 <h3 id="how-it-works">How it works</h3>
 
@@ -323,8 +341,7 @@
 
 <p><code class="language-plaintext highlighter-rouge">Yoke</code> works by relying on the concept of a <em>covariant lifetime</em>. The <a href="https://docs.rs/yoke/latest/yoke/trait.Yokeable.html"><code class="language-plaintext highlighter-rouge">Yokeable</code></a> trait looks like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
-<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span><span class="p">;</span>
     <span class="c">// methods omitted</span>
 <span class="p">}</span>
@@ -338,7 +355,15 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>, especially in the space of zero-copy deserialization; you can read more about variance in the <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a>.</p>
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             You can read more about variance in the <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a>!
+            </div>
+        </div>
 
 <p>For any <code class="language-plaintext highlighter-rouge">Yokeable</code> type <code class="language-plaintext highlighter-rouge">Foo&lt;'static&gt;</code>, you can obtain the version of that type with a lifetime <code class="language-plaintext highlighter-rouge">'a</code> with <code class="language-plaintext highlighter-rouge">&lt;Foo as Yokeable&lt;'a&gt;&gt;::Output</code>. The <code class="language-plaintext highlighter-rouge">Yokeable</code> trait exposes some methods that allow one to safely carry out the various transforms that are allowed on a type with a covariant lifetime.</p>
 
@@ -367,11 +392,11 @@
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
-             In simpler terms, there’s a certain useful property about lifetime “stretchiness” that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply.
+             In other words, there’s a certain useful property about lifetime “stretchiness” that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply.
             </div>
         </div>
 
-<p>Using this trait, <code class="language-plaintext highlighter-rouge">Yoke</code> then works by storing <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code> and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on <code class="language-plaintext highlighter-rouge">Yokeable</code> in various ways.</p>
+<p>Using this trait, <code class="language-plaintext highlighter-rouge">Yoke</code> then works by storing <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code> and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on <code class="language-plaintext highlighter-rouge">Yokeable</code> in various ways. Knowing that the lifetime is covariant is what makes it safe to do such lifetime “squeezing”. The <code class="language-plaintext highlighter-rouge">'static</code> is a lie, but it’s safe to do that kind of thing as long as the value isn’t actually accessed with the <code class="language-plaintext highlighter-rouge">'static</code> lifetime, and we take great care to ensure it doesn’t leak.</p>
 
 <h2 id="-make-life-rue-the-day-it-thought-it-could-give-you-lifetimes">… make life rue the day it thought it could give you lifetimes</h2>
 

@@ -5,19 +5,19 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Zero-Copy Crates Part 3: So Zero It's Negative? - In Pursuit of Laziness</title>
+  <title>So Zero It's ... Negative? (Zero-Copy #3) - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. The first two parts &hellip;">
+  <meta name="description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="Zero-Copy crates part 3: So Zero It's Negative?">
-      <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. The first two parts can be found here and here respectively. The posts &hellip;">
+      <meta property="twitter:title" content="So Zero It's ... Negative?  (Zero-Copy #3)">
+      <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -99,7 +99,7 @@
     
 
     
-      <h1 class="entry-title">Zero-Copy Crates Part 3: So Zero It's Negative?</h1>
+      <h1 class="entry-title">So Zero It's ... Negative? (Zero-Copy #3)</h1>
       <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. The first two parts can be found <a href="@@@">here</a> and <a href="@@@">here</a> respectively. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="@@@">here</a>; while Part 2 is about making it work for more types and can be found <a href="@@@">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <blockquote>
   <p>And when Alexander saw the breadth of his work, he wept. For there were no more copies left to zero.</p>
@@ -126,7 +126,7 @@
 
 <p>@@@ Potentially swap the order of part 1 and part 2.</p>
 
-<p><a href="@@@">Part 1</a> of this series attempted to answer the question”how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="@@@">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
+<p><a href="@@@">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="@@@">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
 
 <p>This part goes one step further and asks “what if we could avoid deserialization altogether?”.</p>
 
@@ -172,7 +172,9 @@
 
 <p>There is such a format: <em>Rust code</em>. Specifically, Rust code in <code class="language-plaintext highlighter-rouge">static</code>s. When compiled, Rust <code class="language-plaintext highlighter-rouge">static</code>s are basically “free” to load, beyond the typical costs involved in paging in memory. The Rust compiler trusts itself to be good at codegen, so it doesn’t need validation when loading a compiled <code class="language-plaintext highlighter-rouge">static</code> from memory. There is the possibility of codegen bugs, however we have to trust the compiler about that for the rest of our program anyway!</p>
 
-<p>If we can figure out a way to “serialize to <code class="language-plaintext highlighter-rouge">const</code> Rust code”, the resultant Rust code could just be compiled in to the binary, and people who need to load trusted data into ICU4X can load it for free!</p>
+<p>This is even more “zero” than “zero-copy deserialization”! Regular “zero copy deserialization” still involves a scanning and potentially a validation step, it’s really more about “zero allocations” than actually avoiding <em>all</em> of the copies. On the other hand, there’s truly no copies or anything going on when you load Rust statics; it’s already ready to go as a <code class="language-plaintext highlighter-rouge">&amp;'static</code> reference!</p>
+
+<p>We just have to figure out a way to “serialize to <code class="language-plaintext highlighter-rouge">const</code> Rust code” such that the resultant Rust code could just be compiled in to the binary, and people who need to load trusted data into ICU4X can load it for free!</p>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -192,14 +194,76 @@
             </div>
         </div>
 
-<p>Not quite! Rust supports mutation and even things like for loops in <code class="language-plaintext highlighter-rouge">const</code> code!</p>
+<p>Not quite! Rust supports mutation and even things like for loops in <code class="language-plaintext highlighter-rouge">const</code> code! Ultimately, it has to be the kind of code that <em>can</em> be computed at compile time with no difference of behavior: so no reading from files or the network, or using random numbers.</p>
 
-<p>For a long time only very simple code was allowed in <code class="language-plaintext highlighter-rouge">const</code>, but over the last year the scope of what that environment can do has expanded greatly, and it’s actually possible to complicated things here, which is precisely what enables this crate to exist.</p>
+<p>For a long time only very simple code was allowed in <code class="language-plaintext highlighter-rouge">const</code>, but over the last year the scope of what that environment can do has expanded greatly, and it’s actually possible to do complicated things here, which is precisely what enables us to actually do “serialize to Rust code” in a reasonable way.</p>
 
 <h2 id="databake"><code class="language-plaintext highlighter-rouge">databake</code></h2>
 
-<p>Enter <a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a>. <code class="language-plaintext highlighter-rouge">databake</code> is a crate that provides just this; the ability to serialize your types to <code class="language-plaintext highlighter-rouge">const</code> code that can then be used in <code class="language-plaintext highlighter-rouge">static</code>s allowing for truly zero-cost data loading, no serialization necessary.</p>
+<p><em>A lot of the design here can also be found in the <a href="https://docs.google.com/document/d/192l7yr6hVnG11Dr8a7mDLonIb6c8rr6zq-iswrZtlXE/edit">design doc</a>. While I did the bulk of the design for this crate, it was almost completely implemented by <a href="https://github.com/robertbastian">Robert</a>, who also worked on integrating it into ICU4X.</em></p>
 
+<p>Enter <a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a> (née <code class="language-plaintext highlighter-rouge">crabbake</code>). <code class="language-plaintext highlighter-rouge">databake</code> is a crate that provides just this; the ability to serialize your types to <code class="language-plaintext highlighter-rouge">const</code> code that can then be used in <code class="language-plaintext highlighter-rouge">static</code>s allowing for truly zero-cost data loading, no deserialization necessary!</p>
+
+<p>The core entry point to <code class="language-plaintext highlighter-rouge">databake</code> is the <code class="language-plaintext highlighter-rouge">Bake</code> trait:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">Bake</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">bake</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CrateEnv</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">TokenStream</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A <code class="language-plaintext highlighter-rouge">TokenStream</code> is the type typically used in Rust <a href="https://doc.rust-lang.org/reference/procedural-macros.html">procedural macros</a> to represent a snippet of Rust code. The <code class="language-plaintext highlighter-rouge">Bake</code> trait allows you to take an instance of a type, and convert it to Rust code that represents the same value.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">CrateEnv</code> object is used to track which crates are needed, so that it is possible for tools generating this code to let the user know which direct dependencies are needed.</p>
+
+<p>This trait is augmented by a <a href="https://docs.rs/databake/0.1.1/databakee/derive.Bake.html"><code class="language-plaintext highlighter-rouge">#[derive(Bake)]</code></a> custom derive that can be used to apply it to most types automatically:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// inside crate `bar`, module `module.rs`</span>
+
+<span class="k">use</span> <span class="nn">databake</span><span class="p">::</span><span class="n">Bake</span><span class="p">;</span>
+
+<span class="nd">#[derive(Bake)]</span>
+<span class="nd">#[databake(path</span> <span class="nd">=</span> <span class="nd">bar::module)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+   <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span>
+   <span class="k">pub</span> <span class="n">age</span><span class="p">:</span> <span class="nb">u32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As with most custom derives, this only works on structs and enums that contain other types that already implement <code class="language-plaintext highlighter-rouge">Bake</code>. Most types not involving mandatory allocation should be able to.</p>
+
+<h2 id="what-it-looks-like">What it looks like</h2>
+
+<p>ICU4X generates all of its test data into JSON, [<code class="language-plaintext highlighter-rouge">postcard</code>], and baked formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/main/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
+
+<p>For our “test” data, which is currently 2.7 MB in the [<code class="language-plaintext highlighter-rouge">postcard</code>] format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500MB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+
+<h2 id="limitations">Limitations</h2>
+
+<p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
+
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, and then you could do something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="@@@">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p>[<code class="language-plaintext highlighter-rouge">crabbake</code>] is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>In ICU4X, a “data key” can be used to talk about a specific type of data, for example the decimal symbols data has a <code class="language-plaintext highlighter-rouge">decimal/symbols@1</code> data key. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
 </div>
 
 

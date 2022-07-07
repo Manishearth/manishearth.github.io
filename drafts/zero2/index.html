@@ -5,19 +5,19 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Zero-Copy Crates Part 2: Zero-Copy All the Things - In Pursuit of Laziness</title>
+  <title>Zero-Copy All the Things! (Zero-Copy #2) - In Pursuit of Laziness</title>
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found &hellip;">
+  <meta name="description" content="This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="Zero-Copy crates part 2: Zero-Copy all the things">
-      <meta property="twitter:description" content="This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found here. The posts can be read in any order, though &hellip;">
+      <meta property="twitter:title" content="Zero-Copy All The Things! (Zero-Copy #2)">
+      <meta property="twitter:description" content="This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -99,7 +99,7 @@
     
 
     
-      <h1 class="entry-title">Zero-Copy Crates Part 2: Zero-Copy All the Things</h1>
+      <h1 class="entry-title">Zero-Copy All the Things! (Zero-Copy #2)</h1>
       <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on recently. Part 1 can be found <a href="@@@">here</a>. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -178,7 +178,7 @@
 <figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="/images/post/castlevania-data.png" width="400" /><figcaption class="caption-text"><p><small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small></p>
 </figcaption></figure>
 
-<p>This is where the endianness and alignment come in. Firstly, a <code class="language-plaintext highlighter-rouge">u32</code> doesn’t look exactly the same on all systems, some systems are “big endian”, where the integer <code class="language-plaintext highlighter-rouge">0xABCDEF</code> would be represented in memory as <code class="language-plaintext highlighter-rouge">[0xAB, 0xCD, 0xEF]</code>, whereas others are “little endian” and would represent it <code class="language-plaintext highlighter-rouge">[0xEF, 0xCD, 0xAB]</code>. Most systems these days are little-endian, but not all, so you may need to care about this.</p>
+<p>This is where the endianness and alignment come in. Firstly, a <code class="language-plaintext highlighter-rouge">u32</code> doesn’t look exactly the same on all systems, some systems are “big endian”, where the integer <code class="language-plaintext highlighter-rouge">0x00ABCDEF</code> would be represented in memory as <code class="language-plaintext highlighter-rouge">[0x00, 0xAB, 0xCD, 0xEF]</code>, whereas others are “little endian” and would represent it <code class="language-plaintext highlighter-rouge">[0xEF, 0xCD, 0xAB, 0x00]</code>. Most systems these days are little-endian, but not all, so you may need to care about this.</p>
 
 <p>This would mean that a <code class="language-plaintext highlighter-rouge">[u32]</code> serialized on a little endian system would come out completely garbled on a big-endian system if we’re naïvely zero-copy deserializing.</p>
 
@@ -194,7 +194,7 @@
 
 <p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
 
-<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
 
 <p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
 
@@ -287,13 +287,13 @@
 
 <p>In general, <code class="language-plaintext highlighter-rouge">ZeroVec</code> should be used for types that are fixed-size and implement <code class="language-plaintext highlighter-rouge">Copy</code>, whereas <code class="language-plaintext highlighter-rouge">VarZeroVec</code> is to be used with types that logically contain a variable amount of data, like vectors, maps, strings, and aggregates of the same. <code class="language-plaintext highlighter-rouge">VarZeroVec</code> will always be used with a dynamically sized type, yielding references to that type.</p>
 
-<p>I’ve noted before that these types are like <code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code>. They can be dealt with in a mutable-owned fashion, but it’s not the primary focus of the crate. In particular, <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> will be significantly slower to mutate than something like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be <em>generating</em> your data in a situation without too many performance constraints, but you want the operation of <em>reading</em> the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it’s not terribly slow, just something to look out for and benchmark if necessary.</p>
+<p>I’ve noted before that these types are like <code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code>; they can be dealt with in a mutable-owned fashion, but it’s not the primary focus of the crate. In particular, <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> will be significantly slower to mutate than something like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be <em>generating</em> your data in a situation without too many performance constraints, but you want the operation of <em>reading</em> the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it’s not terribly slow, just something to look out for and benchmark if necessary.</p>
 
 <h2 id="how-it-works">How it works</h2>
 
-<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
 
-<p>There’s also a safe [<code class="language-plaintext highlighter-rouge">AsULE</code>] trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
+<p>There’s also a safe <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">AsULE</code></a> trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">Sized</span> <span class="o">+</span> <span class="nb">Copy</span> <span class="o">+</span> <span class="nv">'static</span> <span class="p">{</span>
     <span class="c">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
@@ -334,7 +334,7 @@
 
 <p>An important question when we started down this path was: what about <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a>? It had at the time just received a fair amount of attention in the Rust community, and seemed like a pretty cool library targeting the same space.</p>
 
-<p>And in general if you’re looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It’s an impressive library with a lot of thought put into it. When we were refining <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a> we learned a lot from <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> having some insightful discussions with <a href="https://github.com/djkoloski">David</a> and comparing notes on approaches.</p>
+<p>And in general if you’re looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It’s an impressive library with a lot of thought put into it. When I was refining <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a> I learned a lot from <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> having some insightful discussions with <a href="https://github.com/djkoloski">David</a> and comparing notes on approaches.</p>
 
 <p>The main sticking point, for us, was that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> works kinda separately from <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>: it uses its own traits and own serialization mechanism. We really liked <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>’s model and wanted to keep using it, especially since we wanted to support a variety of human-readable and non-human-readable data formats, including <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, which is explicitly designed for low-resource environments. This becomes even more important for data interchange; we’d want programs written in other languages to be able to construct and send over data without necessarily being constrained to a particular wire format.</p>
 
@@ -362,7 +362,7 @@
             </div>
         </div>
 
-<p>The complete benchmark run details can be found <a href="https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0">here</a> (run via <code class="language-plaintext highlighter-rouge">cargo bench</code> at <a href="https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec"><code class="language-plaintext highlighter-rouge">1e072b32</code></a>), I’m pulling out some specific data points for illustration:</p>
+<p>The complete benchmark run details can be found <a href="https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0">here</a> (run via <code class="language-plaintext highlighter-rouge">cargo bench</code> at <a href="https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec"><code class="language-plaintext highlighter-rouge">1e072b32</code></a>. I’m pulling out some specific data points for illustration:</p>
 
 <p><code class="language-plaintext highlighter-rouge">ZeroVec</code>:</p>
 
