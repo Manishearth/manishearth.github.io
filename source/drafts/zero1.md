@@ -44,7 +44,7 @@ struct Person {
 }
 ```
 
-A typical binary data format will probably store this as a byte for the age, followed by the length of `name`, followed by the bytes for `name`, followed by another length for the vector, followed by whatever data is needed for each `RustFile` value. Deserializing the `u8` age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.
+A typical binary data format will probably store this as a byte for the age, followed by the length of `name`, followed by the bytes for `name`, followed by another length for the vector, followed by a length and string data for each `String` value. Deserializing the `u8` age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.
 
 A common technique in this scenario is to skip the allocation and copy by simply _validating_ the bytes and storing a _reference_ to the original data. This can only be done for serialization formats where the data is represented identically in the serialized file and in the deserialized value.
 
