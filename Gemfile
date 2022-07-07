@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 
-gem "jekyll", "~> 4.1.1"
+gem "jekyll", "~> 4.2.2"
 gem "rake", "~> 13.0.3"
 # This is the default theme for new Jekyll sites. You may change this to anything you like.
 gem "minima", "~> 2.5"
@@ -10,10 +10,10 @@ gem "minima", "~> 2.5"
 # gem "github-pages", group: :jekyll_plugins
 # If you have any plugins, put them here!
 group :jekyll_plugins do
-  gem "jekyll-feed", "~> 0.12"
+  gem "jekyll-feed", "~> 0.16"
   gem "jekyll-compose"
   gem "stringex"
-  gem "pygments.rb"
+  gem "pygments.rb", "~> 2.3.0"
   gem "rdiscount"
   gem "jekyll-paginate"
   gem 'compass', '~> 1.0.1'
