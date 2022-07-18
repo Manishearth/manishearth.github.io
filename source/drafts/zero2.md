@@ -311,7 +311,7 @@ Here, fetching operations are a bit slower since they need to read the indexing 
 
 Similar to [`yoke`], I don't consider the [`zerovec`] crate "done" yet, but it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](twitter.com/plaidfinch), @@@@ for reviewing drafts of this post_
 
 
 

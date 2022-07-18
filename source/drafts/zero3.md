@@ -98,9 +98,60 @@ pub struct Person<'a> {
 
 As with most custom derives, this only works on structs and enums that contain other types that already implement `Bake`. Most types not involving mandatory allocation should be able to.
 
+## How to use it
+
+
+`databake` itself doesn't really prescribe any particular code generation strategy. It can be used in a proc macro or in a `build.rs`, or, even in a separate binary. ICU4X does the latter, since that's just what ICU4X's model for data generation is: clients can use the binary to customize the format and contents of the data they need.
+
+
+So a typical way of using this crate might be to do something like this in `build.rs`:
+
+```rust
+use some_dep::Data;
+use databake::Bake;
+use quote::quote;
+
+fn main() {
+   // load data from file
+   let json_data = include_str!("data.json");
+
+   // deserialize from json
+   let my_data: Data = serde_json::from_str(json_data);
+
+   // get a token tree out of it
+   let baked = my_data.bake();
+
+
+   // Construct rust code with this in a static
+   // The quote macro is used by procedural macros to do easy codegen,
+   // but it's useful in build scripts as well.
+   let my_data_rs = quote! {
+      use some_dep::Data;
+      static MY_DATA: Data = #baked;
+   }
+
+   // Write to file
+   let out_dir = env::var_os("OUT_DIR").unwrap();
+   let dest_path = Path::new(&out_dir).join("data.rs");
+   fs::write(
+      &dest_path,
+      &my_data_rs.to_string()
+   ).unwrap();
+
+   // (Optional step omitted: run rustfmt on the file)
+
+   // tell Cargo that we depend on this file
+   println!("cargo:rerun-if-changed=src/data.json");
+}
+```
+
+
 ## What it looks like
 
-ICU4X generates all of its test data into JSON, [`postcard`], and baked formats. For example, for [this JSON data representing how a particular locale does numbers][decimals-json], the "baked" data looks like [this][decimals-baked]. That's a rather simple data type, but we do use this for more complex data like [date time symbol data][datetime-baked], which is unfortunately too big for GitHub to render normally.
+ICU4X generates all of its test data into JSON, [`postcard`], and "baked" formats. For example, for [this JSON data representing how a particular locale does numbers][decimals-json], the "baked" data looks like [this][decimals-baked]. That's a rather simple data type, but we do use this for more complex data like [date time symbol data][datetime-baked], which is unfortunately too big for GitHub to render normally.
+
+
+ICU4X's code for generating this is in [this file][icu4x-databake-file]. It's complicated primarily because ICU4X's data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it [calls `tokenize()`][tokenize-call], which is a thin wrapper around [calling `.bake()` on the data and some other stuff][tokenize-body]. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our "testdata" crate as a module, but there are many possibilities here!
 
 For our "test" data, which is currently 2.7 MB in the [`postcard`] format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That's ... a lot of Rust code, and tools like rust-analyzer struggle to load it. It's of course much smaller once compiled into the binary, though that's much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500MB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM's ability to deduplicate statics further, so if, for example, two different locales have _mostly_ the same data for a given data key[^1] with some differences, LLVM may be able to use the same statics for sub-data.
 
@@ -121,7 +172,7 @@ This means that for things like `ZeroVec` (see [part 2]), we can't actually just
 
 [`crabbake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
 
-_Thanks to @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](twitter.com/plaidfinch), @@@@ for reviewing drafts of this post_
 
 
 
@@ -139,6 +190,9 @@ _Thanks to @@@@ for reviewing drafts of this post_
  [decimals-json]: https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json
  [decimals-baked]: https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41
  [datetime-baked]: https://raw.githubusercontent.com/unicode-org/icu4x/main/provider/testdata/data/baked/datetime/datesymbols_v1.rs
+ [icu4x-databake-file]: https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs
+ [tokenize-call]: https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118
+ [tokenize-body]: https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136
  [^1]: In ICU4X, a "data key" can be used to talk about a specific type of data, for example the decimal symbols data has a `decimal/symbols@1` data key.
  [^2]: Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well.
  [const-alloc]: https://github.com/rust-lang/const-eval/issues/20
