@@ -128,7 +128,7 @@ having to deal with keeping my laptop in a certain corner of the room.</p>
 
 <p>Waking up to go to class in the morning is always a challenge for me. It’s not that I don’t wake up
 — I often wake up, cancel all the alarms, and go back to bed. Half-asleep me somehow has the
-skill to turn off alarms, but not the discipline of going to class<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. I’ve tried those apps that
+skill to turn off alarms, but not the discipline of going to class<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. I’ve tried those apps that
 make you do math before you can cancel the alarm, and I’m able to do the math and go back to sleep
 without fully waking up in the process (Hey, I’m a physics student; math is what we do!).</p>
 
@@ -217,7 +217,7 @@ able to Linux in my sleep, which is a win-win!</p>
 
   <div class="entry-content"><p>For a while now I’ve been quite interested in compilers and systems programming in general; and I
 feel that an important feature of systems programming is that it’s relatively easy to figure out
-what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">1</a></sup>. Conversely, it’s
+what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">1</a></sup>. Conversely, it’s
 important to know how your tools work more than ever in systems programming. So when I see a
 language feature I’m not familiar with, I’m interested in finding out how it works under the hood.</p>
 
@@ -226,7 +226,7 @@ features and nuances of C++. However, I am pretty good at Rust and understand a 
 the compiler internals. This gives me a great perspective — I’ve not yet internalized most C++
 features to take them for granted, and I’m well equipped to investigate these features.</p>
 
-<p>Today I came across some C++ code similar to the following<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">2</a></sup>:</p>
+<p>Today I came across some C++ code similar to the following<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">2</a></sup>:</p>
 
 <div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
     <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
@@ -264,7 +264,7 @@ THING in section .data
 <p>Similarly, when you have a <code class="language-plaintext highlighter-rouge">static</code> that is initialized with a function, it’s stored in the <code class="language-plaintext highlighter-rouge">.bss</code>
 section, and initialized before <code class="language-plaintext highlighter-rouge">main()</code>. Again, easily verified:</p>
 
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include&lt;iostream&gt;
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include</span><span class="cpf">&lt;iostream&gt;</span><span class="cp">
 </span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
 
 <span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
@@ -291,7 +291,7 @@ Symbol "THING" is static storage at address 0x601198.
 THING in section .bss
 </code></pre></div></div>
 
-<p>We can also leave statics uninitialized (<code class="language-plaintext highlighter-rouge">static int THING;</code>) and they will be placed in <code class="language-plaintext highlighter-rouge">.bss</code><sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote">3</a></sup>.</p>
+<p>We can also leave statics uninitialized (<code class="language-plaintext highlighter-rouge">static int THING;</code>) and they will be placed in <code class="language-plaintext highlighter-rouge">.bss</code><sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">3</a></sup>.</p>
 
 <p>So far so good.</p>
 
@@ -310,11 +310,11 @@ identifier.</p>
 
 <p>However, this isn’t the case. What tipped me off was that this called <code class="language-plaintext highlighter-rouge">Env()</code>, and I wasn’t so sure
 that the environment was guaranteed to be properly initialized and available before <code class="language-plaintext highlighter-rouge">main()</code> is
-called <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">4</a></sup>.</p>
+called <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">4</a></sup>.</p>
 
 <p>Instead, these are statics which are initialized the first time the function is called.</p>
 
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include&lt;iostream&gt;
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include</span><span class="cpf">&lt;iostream&gt;</span><span class="cp">
 </span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
 
 <span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
@@ -405,7 +405,7 @@ somehow take care of recursive initialization.</p>
 <p><code class="language-plaintext highlighter-rouge">__cxa_guard_acquire</code> and <code class="language-plaintext highlighter-rouge">__cxa_guard_release</code> acquire and release a lock to prevent recursive
 initialization. So this program will crash:</p>
 
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include&lt;iostream&gt;
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include</span><span class="cpf">&lt;iostream&gt;</span><span class="cp">
 </span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
 
 <span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">recur</span><span class="p">);</span>
@@ -464,7 +464,7 @@ to “initializing”, the mutex is released, the value is initialized, and the 
 <p>I suppose that this implementation would work, though it’s not the one being used. The
 <a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
 uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">5</a></sup>. This is okay because the C++
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">5</a></sup>. This is okay because the C++
 spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
 
 <blockquote>
@@ -568,7 +568,7 @@ happening there. One step closer to being a better systems programmer!</p>
 
 
   <div class="entry-content"><p><em>In every talk I have given till now, the question “how does Rust achieve thread safety?”
-has invariably come up<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
+has invariably come up<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. I usually just give an overview, but this provides a more comprehensive
 explanation for those who are interested</em></p>
 
 <p>See also: <a href="http://huonw.github.io/blog/2015/02/some-notes-on-send-and-sync/">Huon’s blog post on the same topic</a></p>
@@ -631,26 +631,26 @@ to another thread if the shared/borrowed data is synchronous-safe.</p>
 
 <p>Bringing it together, the gatekeeper for all this is <a href="http://doc.rust-lang.org/std/thread/fn.spawn.html"><code class="language-plaintext highlighter-rouge">thread::spawn()</code></a>. It has the signature</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">JoinHandle</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">T</span><span class="p">,</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">JoinHandle</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">T</span><span class="p">,</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">'static</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">'static</span>
 </code></pre></div></div>
 
 <p>Admittedly, this is confusing/noisy, partially because it’s allowed to return a value, and also because
 it returns a handle from which we can block on a thread join. We can conjure a simpler <code class="language-plaintext highlighter-rouge">spawn</code> API for our needs though:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">(),</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="nv">'static</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="n">spawn</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnOnce</span><span class="p">(),</span> <span class="n">F</span><span class="p">:</span> <span class="nb">Send</span> <span class="o">+</span> <span class="k">'static</span>
 </code></pre></div></div>
 
 <p>which can be called like:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
 
-<span class="c">// `move` instructs the closure to move out of its environment</span>
+<span class="c1">// `move` instructs the closure to move out of its environment</span>
 <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
 
 <span class="p">});</span>
 
-<span class="c">// x is not accessible here since it was moved</span>
+<span class="c1">// x is not accessible here since it was moved</span>
 
 </code></pre></div></div>
 
@@ -739,7 +739,7 @@ rather it is a perfect storm of small design inconsistencies in the libraries.</
   <div class="entry-content"><p>More than a <a href="http://inpursuitoflaziness.blogspot.in/2014/02/50-shades-of-green.html">year ago</a> I blogged (and <a href="http://inpursuitoflaziness.blogspot.in/2014/04/50-more-shades-of-green.html">blogged again</a> later) about my
 <a href="https://github.com/Manishearth">ongoing github streak</a>.</p>
 
-<p>The GitHub streak has since gone on for more than 500 days<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, and has been a really enriching experience.</p>
+<p>The GitHub streak has since gone on for more than 500 days<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, and has been a really enriching experience.</p>
 
 <p>Yesterday; I noticed something. I had reached end-game with this exercise. The streak is something I don’t think about anymore,
 and I don’t make any efforts to keep it going. It just … happens. My involvement in open source has reached a level where
@@ -765,12 +765,12 @@ also gotten well into the habit of sending pull requests for fixing mistakes or 
 I have tons of things queued that I want to work on (both personal and as a part of Servo/Rust/elsewhere), if only I had the time.</p>
 
 <p>If you do have enough spare time, I do recommend trying this. Once you get enough momentum the power of habit will keep it going, and if
-my case is anything of an indicator<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup> you’ll eventually have a good chunk of contributions and some concrete open source involvement.</p>
+my case is anything of an indicator<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup> you’ll eventually have a good chunk of contributions and some concrete open source involvement.</p>
 
 <p>Please note that GitHub streaks shouldn’t be used as a metric, <em>ever</em>. They’re great for self motivation. As a metric for tracking employee performance,
 or for filtering interview candidates; not so much. It’s way too rough a metric (like LoC written), and oversimplifies the work that goes into code.
 As far as using it to boost interview candidates; not everyone has the time or inclination to contribute to open source after a day job in programming,
-and <em>that’s okay</em>. I’m a physics student — programming is like a hobby for me<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> which I’ll gladly do daily. Now that I have a programming intern,
+and <em>that’s okay</em>. I’m a physics student — programming is like a hobby for me<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup> which I’ll gladly do daily. Now that I have a programming intern,
 I’m pretty sure there will be days where I don’t want to program further after leaving the office.</p>
 
 <div class="footnotes" role="doc-endnotes">
@@ -827,7 +827,7 @@ depending on the abstractions used.</p>
 
 <p>It occurred to me that there are many such abstractions in Rust, each with their unique guarantees.
 The programmer once again has the choice between runtime and compile time enforcement. It occurred
-to me that this plethora of “wrapper types”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> could be daunting to newcomers; in this post I intend
+to me that this plethora of “wrapper types”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> could be daunting to newcomers; in this post I intend
 to give a thorough explanation of what some prominent ones do and when they should be used.</p>
 
 <p>I’m assuming the reader knows about <a href="http://doc.rust-lang.org/book/ownership.html">ownership</a> and <a href="http://doc.rust-lang.org/book/references-and-borrowing.html">borrowing</a> in Rust.
@@ -844,7 +844,7 @@ owner of the data. In particular, when something like the following occurs:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span>
-<span class="c">// x no longer accessible here</span>
+<span class="c1">// x no longer accessible here</span>
 </code></pre></div></div>
 
 <p>Here, the box was <em>moved</em> into <code class="language-plaintext highlighter-rouge">y</code>. As <code class="language-plaintext highlighter-rouge">x</code> no longer owns it,
@@ -863,7 +863,7 @@ the regular borrowing rules, checked at compile time.</p>
 <p>Move/ownership semantics are not special to <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>; it is a feature of all types which are not <code class="language-plaintext highlighter-rouge">Copy</code>.</p>
 
 <p>A <code class="language-plaintext highlighter-rouge">Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
-representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.
+representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.
 Most types containing pointers to other data are not <code class="language-plaintext highlighter-rouge">Copy</code>, since there is additional data
 elsewhere, and simply copying the stack representation may accidentally share ownership of that data
 in an unsafe manner.</p>
@@ -1099,11 +1099,11 @@ the major ones.</p>
 freely between threads.</p>
 
 <p>C++’s <code class="language-plaintext highlighter-rouge">shared_ptr</code> is similar to <code class="language-plaintext highlighter-rouge">Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
+similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code class="language-plaintext highlighter-rouge">unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won’t cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like <code class="language-plaintext highlighter-rouge">vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
+and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
 
 <h4 id="guarantees-3">Guarantees</h4>
 
@@ -1125,9 +1125,9 @@ guard goes out of scope.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
     <span class="k">let</span> <span class="n">guard</span> <span class="o">=</span> <span class="n">mutex</span><span class="nf">.lock</span><span class="p">();</span>
-    <span class="c">// guard dereferences mutably to the inner type</span>
+    <span class="c1">// guard dereferences mutably to the inner type</span>
     <span class="o">*</span><span class="n">guard</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-<span class="p">}</span> <span class="c">// lock released when destructor runs</span>
+<span class="p">}</span> <span class="c1">// lock released when destructor runs</span>
 </code></pre></div></div>
 
 <p><code class="language-plaintext highlighter-rouge">RwLock</code> has the added benefit of being efficient for multiple reads. It is always
@@ -1172,7 +1172,7 @@ with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
 <p>In concurrent programs, we have a similar situation with <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
@@ -1252,24 +1252,24 @@ to the same data (or a mutable alias when there are active immutable aliases),
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 <span class="p">{</span>
-    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c">// Take a mutable reference to `x`</span>
-    <span class="n">ptr</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Allowed</span>
-    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Not allowed (will not compile): as long as `ptr` is active,</span>
-                  <span class="c">// x cannot be read from ...</span>
-    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>    <span class="c">// .. or written to</span>
+    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// Take a mutable reference to `x`</span>
+    <span class="n">ptr</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Allowed</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Not allowed (will not compile): as long as `ptr` is active,</span>
+                  <span class="c1">// x cannot be read from ...</span>
+    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>    <span class="c1">// .. or written to</span>
 <span class="p">}</span>
 
 
-<span class="c">// alternatively,</span>
+<span class="c1">// alternatively,</span>
 
 <span class="k">let</span> <span class="k">mut</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-<span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Allowed</span>
+<span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Allowed</span>
 <span class="p">{</span>
-    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="c">// Create an immutable reference</span>
-    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ptr</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Allowed, nobody can mutate</span>
-    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c">// Similarly allowed</span>
-    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Not allowed (will not compile): as long as `ptr` is active,</span>
-               <span class="c">// `x` is frozen for mutation</span>
+    <span class="k">let</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="c1">// Create an immutable reference</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ptr</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Allowed, nobody can mutate</span>
+    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">// Similarly allowed</span>
+    <span class="n">x</span><span class="nf">.push</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Not allowed (will not compile): as long as `ptr` is active,</span>
+               <span class="c1">// `x` is frozen for mutation</span>
 <span class="p">}</span>
 
 </code></pre></div></div>
@@ -1282,7 +1282,7 @@ and immutable <a href="http://doc.rust-lang.org/nightly/book/references-and-borr
 problems that these concepts prevent. It makes sense that having only one “owner” and then multiple “borrowers” who
 are statically guaranteed to not stick around longer than the owner will prevent things like use-after-free.</p>
 
-<p>But what could possibly be wrong with having multiple handles for mutating an object? Why do we need an RWLock pattern? <sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup></p>
+<p>But what could possibly be wrong with having multiple handles for mutating an object? Why do we need an RWLock pattern? <sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup></p>
 
 <h2 id="it-causes-memory-unsafety">It causes memory unsafety</h2>
 
@@ -1297,16 +1297,16 @@ for example you can have the enum</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>which gives us a type that can either be a variant <code class="language-plaintext highlighter-rouge">Str</code>, with an associated string, or a variant <code class="language-plaintext highlighter-rouge">Int</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>, with an associated integer.</p>
+<p>which gives us a type that can either be a variant <code class="language-plaintext highlighter-rouge">Str</code>, with an associated string, or a variant <code class="language-plaintext highlighter-rouge">Int</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>, with an associated integer.</p>
 
 <p>With such an enum, we could cause a segfault like so:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">Str</span><span class="p">(</span><span class="s">"Hi!"</span><span class="nf">.to_string</span><span class="p">());</span> <span class="c">// Create an instance of the `Str` variant with associated string "Hi!"</span>
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c">// Create a mutable alias to x</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">Str</span><span class="p">(</span><span class="s">"Hi!"</span><span class="nf">.to_string</span><span class="p">());</span> <span class="c1">// Create an instance of the `Str` variant with associated string "Hi!"</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// Create a mutable alias to x</span>
 
-<span class="k">if</span> <span class="k">let</span> <span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">insides</span><span class="p">)</span> <span class="o">=</span> <span class="n">x</span> <span class="p">{</span> <span class="c">// If x is a `Str`, assign its inner data to the variable `insides`</span>
-    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Int</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// Set `*y` to `Int(1), therefore setting `x` to `Int(1)` too</span>
-    <span class="nd">println!</span><span class="p">(</span><span class="s">"x says: {}"</span><span class="p">,</span> <span class="n">insides</span><span class="p">);</span> <span class="c">// Uh oh!</span>
+<span class="k">if</span> <span class="k">let</span> <span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">insides</span><span class="p">)</span> <span class="o">=</span> <span class="n">x</span> <span class="p">{</span> <span class="c1">// If x is a `Str`, assign its inner data to the variable `insides`</span>
+    <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Int</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// Set `*y` to `Int(1), therefore setting `x` to `Int(1)` too</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"x says: {}"</span><span class="p">,</span> <span class="n">insides</span><span class="p">);</span> <span class="c1">// Uh oh!</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -1332,7 +1332,7 @@ to dig deeper.</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="k">let</span> <span class="n">buf</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
 
-<span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">buf</span> <span class="p">{</span>
+<span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="o">&amp;</span><span class="n">buf</span> <span class="p">{</span>
     <span class="n">buf</span><span class="nf">.push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1388,7 +1388,7 @@ invalidated after the read to <code class="language-plaintext highlighter-rouge"
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">some_big_thing</span><span class="p">();</span>
 <span class="k">let</span> <span class="n">len</span> <span class="o">=</span> <span class="n">x</span><span class="py">.some_vec</span><span class="nf">.len</span><span class="p">();</span>
-<span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="mi">0</span><span class="o">..</span><span class="n">len</span> <span class="p">{</span>
+<span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mi">0</span><span class="o">..</span><span class="n">len</span> <span class="p">{</span>
     <span class="n">x</span><span class="nf">.do_something_complicated</span><span class="p">(</span><span class="n">x</span><span class="py">.some_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1452,7 +1452,7 @@ possibility that other locals were modified too. A very simple example is:</p>
     <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
     <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">-</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
 <span class="p">}</span>
-<span class="c">// or</span>
+<span class="c1">// or</span>
 <span class="k">fn</span> <span class="nf">look_ma_no_temp_var_rockstar_interview_swap</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
     <span class="o">*</span><span class="n">x</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
     <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span> <span class="o">^</span> <span class="o">*</span><span class="n">y</span><span class="p">;</span>
@@ -1460,7 +1460,7 @@ possibility that other locals were modified too. A very simple example is:</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>In both cases, when the two references are the same<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, instead of swapping, the two variables get set to zero.
+<p>In both cases, when the two references are the same<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, instead of swapping, the two variables get set to zero.
 A user (internal to your library, or an API consumer) would expect <code class="language-plaintext highlighter-rouge">swap()</code> to not change anything when fed equal
 references, but this is doing something totally different. This assumption could get used in a program; for example instead
 of skipping the passes in an array sort where the slot is being compared with itself, one might just go ahead with it
@@ -1550,7 +1550,7 @@ and I wished to give it access to a list of things known as “attributes”, wh
 or use a reference (pointer) to it or its contents.</p>
 
 <p>In a language like C++ there’s only once choice in this situation; that is
-to clone the vector<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
+to clone the vector<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn’t deallocated by the time I’m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
 capacity it will be reallocated, invalidating any other pointers to its contents).</p>
 
@@ -1577,10 +1577,10 @@ by very few.</p>
 
 <p>So first I started off by adding a field to the <code class="language-plaintext highlighter-rouge">FieldInfo</code> struct which was a <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R285">slice of attributes</a>. Notice that I added a lifetime specifier, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R273">the <code class="language-plaintext highlighter-rouge">'a</code></a> to the struct definition.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Summary of the relevant parts of a struct/enum field.</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cd">/// Summary of the relevant parts of a struct/enum field.</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">/// ...</span>
-    <span class="c">/// The attributes on the field</span>
+    <span class="cd">/// ...</span>
+    <span class="cd">/// The attributes on the field</span>
     <span class="k">pub</span> <span class="n">attrs</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">],</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1607,7 +1607,7 @@ However, the compiler was smart enough to figure things out for me. It would tel
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
     <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -1616,7 +1616,7 @@ However, the compiler was smart enough to figure things out for me. It would tel
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
     <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -1655,21 +1655,21 @@ and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a9
 
 <p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code class="language-plaintext highlighter-rouge">StructDef</code> reference and returning it. What if the <code class="language-plaintext highlighter-rouge">StructDef</code> doesn’t live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there’s no single way to make the fix.
-In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This meant that the returned attribute of the function will
+In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. This meant that the returned attribute of the function will
 have a lifetime tied to <code class="language-plaintext highlighter-rouge">self</code> and the input <code class="language-plaintext highlighter-rouge">StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
-    <span class="c">// do stuff</span>
-    <span class="c">// return variant.attributes</span>
+    <span class="c1">// do stuff</span>
+    <span class="c1">// return variant.attributes</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>and changed it to</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// we are sure that the returned slice cannot outlive the variant argument</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// we are sure that the returned slice cannot outlive the variant argument</span>
 <span class="k">fn</span> <span class="n">minicreate</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
-    <span class="c">// do stuff</span>
-    <span class="c">// return variant.attributes</span>
+    <span class="c1">// do stuff</span>
+    <span class="c1">// return variant.attributes</span>
 <span class="p">}</span>
 </code></pre></div></div>
 

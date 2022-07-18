@@ -126,7 +126,7 @@
 
 <p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
 
-<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
@@ -148,11 +148,11 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
 <span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
-    <span class="c">// this field is nearly free to construct</span>
+    <span class="c1">// this field is nearly free to construct</span>
     <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="c">// constructing this will involve a small allocation and copy</span>
+    <span class="c1">// constructing this will involve a small allocation and copy</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
-    <span class="c">// this may take a while</span>
+    <span class="c1">// this may take a while</span>
     <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -194,7 +194,7 @@
 
 <p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
 
-<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
 
 <p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
 
@@ -251,7 +251,7 @@
 
 <p>you can do something like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// custom fixed-size ULE type for ZeroVec</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// custom fixed-size ULE type for ZeroVec</span>
 <span class="nd">#[zerovec::make_ule(DateULE)]</span>
 <span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
 <span class="k">struct</span> <span class="n">Date</span> <span class="p">{</span>
@@ -260,9 +260,9 @@
     <span class="n">d</span><span class="p">:</span> <span class="nb">u8</span>
 <span class="p">}</span>
 
-<span class="c">// custom variable sized VarULE type for VarZeroVec</span>
+<span class="c1">// custom variable sized VarULE type for VarZeroVec</span>
 <span class="nd">#[zerovec::make_varule(PersonULE)]</span>
-<span class="nd">#[zerovec::derive(Serialize,</span> <span class="nd">Deserialize)]</span> <span class="c">// add Serde impls to PersonULE</span>
+<span class="nd">#[zerovec::derive(Serialize,</span> <span class="nd">Deserialize)]</span> <span class="c1">// add Serde impls to PersonULE</span>
 <span class="nd">#[derive(Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
 <span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">birthday</span><span class="p">:</span> <span class="n">Date</span><span class="p">,</span>
@@ -275,7 +275,7 @@
 <span class="k">struct</span> <span class="n">Data</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nd">#[serde(borrow)]</span>
     <span class="n">important_dates</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="c">// note: VarZeroVec always must reference the unsized ULE type directly</span>
+    <span class="c1">// note: VarZeroVec always must reference the unsized ULE type directly</span>
     <span class="nd">#[serde(borrow)]</span>
     <span class="n">important_people</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="nd">#[serde(borrow)]</span>
@@ -291,36 +291,36 @@
 
 <h2 id="how-it-works">How it works</h2>
 
-<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
 
 <p>There’s also a safe <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">AsULE</code></a> trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">Sized</span> <span class="o">+</span> <span class="nb">Copy</span> <span class="o">+</span> <span class="nv">'static</span> <span class="p">{</span>
-    <span class="c">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
-    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">ULE</span><span class="p">:</span> <span class="nb">Sized</span> <span class="o">+</span> <span class="nb">Copy</span> <span class="o">+</span> <span class="k">'static</span> <span class="p">{</span>
+    <span class="c1">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
 
-    <span class="c">// less relevant utility methods omitted</span>
+    <span class="c1">// less relevant utility methods omitted</span>
 <span class="p">}</span>
 
 <span class="k">pub</span> <span class="k">trait</span> <span class="n">AsULE</span><span class="p">:</span> <span class="nb">Copy</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">ULE</span><span class="p">;</span>
 
-    <span class="c">// Convert to the ULE type</span>
-    <span class="k">fn</span> <span class="nf">to_unaligned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">;</span>
-    <span class="c">// Convert back from the ULE type</span>
-    <span class="k">fn</span> <span class="nf">from_unaligned</span><span class="p">(</span><span class="n">unaligned</span><span class="p">:</span> <span class="nn">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Self</span><span class="p">;</span>
+    <span class="c1">// Convert to the ULE type</span>
+    <span class="k">fn</span> <span class="nf">to_unaligned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">;</span>
+    <span class="c1">// Convert back from the ULE type</span>
+    <span class="k">fn</span> <span class="nf">from_unaligned</span><span class="p">(</span><span class="n">unaligned</span><span class="p">:</span> <span class="k">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">;</span>
 <span class="p">}</span>
 
-<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">VarULE</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
-    <span class="c">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
-    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="mi">_</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">VarULE</span><span class="p">:</span> <span class="k">'static</span> <span class="p">{</span>
+    <span class="c1">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">_bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
 
-    <span class="c">// Construct a reference to Self from a known-valid byte slice</span>
-    <span class="c">// This is necessary since VarULE types are dynamically sized and the working of the metadata</span>
-    <span class="c">// of the fat pointer varies between such types</span>
-    <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">from_byte_slice_unchecked</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">Self</span><span class="p">;</span>
+    <span class="c1">// Construct a reference to Self from a known-valid byte slice</span>
+    <span class="c1">// This is necessary since VarULE types are dynamically sized and the working of the metadata</span>
+    <span class="c1">// of the fat pointer varies between such types</span>
+    <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">from_byte_slice_unchecked</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">Self</span><span class="p">;</span>
 
-    <span class="c">// less relevant utility methods omitted</span>
+    <span class="c1">// less relevant utility methods omitted</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -413,7 +413,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Similar to [<code class="language-plaintext highlighter-rouge">yoke</code>], I don’t consider the <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> crate “done” yet, but it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="twitter.com/plaidfinch">Finch</a>, @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>

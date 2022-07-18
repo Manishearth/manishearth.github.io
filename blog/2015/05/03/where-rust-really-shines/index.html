@@ -131,7 +131,7 @@ and I wished to give it access to a list of things known as “attributes”, wh
 or use a reference (pointer) to it or its contents.</p>
 
 <p>In a language like C++ there’s only once choice in this situation; that is
-to clone the vector<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
+to clone the vector<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn’t deallocated by the time I’m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
 capacity it will be reallocated, invalidating any other pointers to its contents).</p>
 
@@ -158,10 +158,10 @@ by very few.</p>
 
 <p>So first I started off by adding a field to the <code class="language-plaintext highlighter-rouge">FieldInfo</code> struct which was a <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R285">slice of attributes</a>. Notice that I added a lifetime specifier, <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b#diff-6fa0bf762b2ef85690cce1a0fd8d5a20R273">the <code class="language-plaintext highlighter-rouge">'a</code></a> to the struct definition.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Summary of the relevant parts of a struct/enum field.</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cd">/// Summary of the relevant parts of a struct/enum field.</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">/// ...</span>
-    <span class="c">/// The attributes on the field</span>
+    <span class="cd">/// ...</span>
+    <span class="cd">/// The attributes on the field</span>
     <span class="k">pub</span> <span class="n">attrs</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">],</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -188,7 +188,7 @@ However, the compiler was smart enough to figure things out for me. It would tel
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
     <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&gt;</span><span class="p">),</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -197,7 +197,7 @@ However, the compiler was smart enough to figure things out for me. It would tel
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">SubstructureFields</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nf">Struct</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
     <span class="nf">EnumMatching</span><span class="p">(</span><span class="nb">usize</span><span class="p">,</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldInfo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;</span><span class="p">),</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -236,21 +236,21 @@ and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a9
 
 <p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code class="language-plaintext highlighter-rouge">StructDef</code> reference and returning it. What if the <code class="language-plaintext highlighter-rouge">StructDef</code> doesn’t live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there’s no single way to make the fix.
-In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. This meant that the returned attribute of the function will
+In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. This meant that the returned attribute of the function will
 have a lifetime tied to <code class="language-plaintext highlighter-rouge">self</code> and the input <code class="language-plaintext highlighter-rouge">StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
-    <span class="c">// do stuff</span>
-    <span class="c">// return variant.attributes</span>
+    <span class="c1">// do stuff</span>
+    <span class="c1">// return variant.attributes</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>and changed it to</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// we are sure that the returned slice cannot outlive the variant argument</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// we are sure that the returned slice cannot outlive the variant argument</span>
 <span class="k">fn</span> <span class="n">minicreate</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
-    <span class="c">// do stuff</span>
-    <span class="c">// return variant.attributes</span>
+    <span class="c1">// do stuff</span>
+    <span class="c1">// return variant.attributes</span>
 <span class="p">}</span>
 </code></pre></div></div>
 

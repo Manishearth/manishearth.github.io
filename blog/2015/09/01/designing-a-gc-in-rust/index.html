@@ -240,7 +240,7 @@ value on the stack which belongs to one of these regions.</p>
 where the GCd pointer is accessible, but through a non-GC pointer.</p>
 
 <p>We decided rather early on that we didn’t want a GC based on lints or stack scanning. Both are
-rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. We were also hoping that
+rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. We were also hoping that
 Rust’s type system and ownership semantics could help us in designing a good, safe, API.</p>
 
 <p>So, we needed a way to keep track of roots, and we needed a way to trace objects.</p>
@@ -293,12 +293,12 @@ public interface) has its “root count” set to one.</p>
 <p>When this <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is cloned, an identical <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
 underlying root count is incremented. Cloning a <code class="language-plaintext highlighter-rouge">Gc</code> does not perform a deep copy.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
 
-<span class="c">// ptr points to the underlying box, which contains the data as well as</span>
-<span class="c">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
+<span class="c1">// ptr points to the underlying box, which contains the data as well as</span>
+<span class="c1">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
 
-<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
+<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c1">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
 </code></pre></div></div>
 
 <p>This is rather similar to how <code class="language-plaintext highlighter-rouge">Rc</code> works, however there is no <code class="language-plaintext highlighter-rouge">root</code> field, and the <code class="language-plaintext highlighter-rouge">roots</code> counter
@@ -315,16 +315,16 @@ handled by “unrooting” the first GC thing:</p>
     <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// why anyone would want to GC an integer I'll never know</span>
-                     <span class="c">// but I'll stick with this example since it's simple</span>
+<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// why anyone would want to GC an integer I'll never know</span>
+                     <span class="c1">// but I'll stick with this example since it's simple</span>
 
 <span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">bar</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">baz</span><span class="p">:</span> <span class="n">a</span><span class="p">});</span>
-<span class="c">// a.root = false, (*a.ptr).roots--</span>
-<span class="c">// b initialized similar to previous example</span>
+<span class="c1">// a.root = false, (*a.ptr).roots--</span>
+<span class="c1">// b initialized similar to previous example</span>
 
-<span class="c">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
-<span class="c">// other than through `b`, and `a` is no longer a root.</span>
-<span class="c">// To avoid moving a, passing `a.clone()` to `b` will work</span>
+<span class="c1">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
+<span class="c1">// other than through `b`, and `a` is no longer a root.</span>
+<span class="c1">// To avoid moving a, passing `a.clone()` to `b` will work</span>
 </code></pre></div></div>
 
 <p>Of course, we need a way to traverse the object passed to the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, in this case <code class="language-plaintext highlighter-rouge">Foo</code>, and look
@@ -350,14 +350,14 @@ possible to move rooted things into heap objects and vice versa:</p>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
 
-<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c">// uh oh, x is still considered rooted!</span>
+<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c1">// uh oh, x is still considered rooted!</span>
 
-<span class="c">// and the reverse!</span>
+<span class="c1">// and the reverse!</span>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">)));</span>
 
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// x was never rooted!</span>
-<span class="c">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// x was never rooted!</span>
+<span class="c1">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
 </code></pre></div></div>
 
 <p>Since <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> doesn’t implement <code class="language-plaintext highlighter-rouge">DerefMut</code>, none of this is possible — one cannot mutate the
@@ -365,7 +365,7 @@ inner data. This is one of the places where Rust’s ownership/mutability system
 in our favor.</p>
 
 <p>Of course, an immutable GC isn’t very useful. We can’t even create cycles in an immutable GC, so why
-would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>?</p>
+would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>?</p>
 
 <p>So of course, we needed to make it somehow mutable. People using <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> solve this problem by using
 <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
@@ -386,21 +386,21 @@ which is tracked by an internal field similar to <code class="language-plaintext
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">30</span><span class="p">)});</span>
 <span class="p">{</span>
-    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c">// the `Gc(30)` from `y.b` was rooted by this call</span>
-                           <span class="c">// but since we don't actually use it here,</span>
-                           <span class="c">// the destructor gets rid of it.</span>
-                           <span class="c">// We could use swap() to retain access to it.</span>
-    <span class="c">// ...</span>
-    <span class="c">// x unrooted</span>
+    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// the `Gc(30)` from `y.b` was rooted by this call</span>
+                           <span class="c1">// but since we don't actually use it here,</span>
+                           <span class="c1">// the destructor gets rid of it.</span>
+                           <span class="c1">// We could use swap() to retain access to it.</span>
+    <span class="c1">// ...</span>
+    <span class="c1">// x unrooted</span>
 <span class="p">}</span>
 
 
-<span class="c">// and the reverse case works too:</span>
+<span class="c1">// and the reverse case works too:</span>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">GcCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">))));</span>
 
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
-                               <span class="c">// before `x` can access it</span>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
+                               <span class="c1">// before `x` can access it</span>
 </code></pre></div></div>
 
 <p>So now, mutation works too! We have a working garbage collector!</p>

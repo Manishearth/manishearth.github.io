@@ -146,7 +146,7 @@ make a jagged edge of an integration surface.</p>
 
 <p>The style system is more self-contained than other parts, but it’s still quite tightly integrated.</p>
 
-<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>
+<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>
 with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like
 the following:</p>
 
@@ -168,7 +168,7 @@ the following:</p>
 
 <ul>
   <li><code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> has a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code>, everything else is the default</li>
-  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
+  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
 </ul>
 
 <p>From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS,
@@ -315,17 +315,17 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 <span class="p">}</span>
 </code></pre></div></div>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyString</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// (bindgen only)</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyString</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// (bindgen only)</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nn">MyString</span><span class="p">::</span><span class="nf">destruct</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
-        <span class="c">// OR</span>
+        <span class="c1">// OR</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyString_Destroy</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.</p>
 
 <p>In Stylo we went down the route of manually defining <code class="language-plaintext highlighter-rouge">_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code class="language-plaintext highlighter-rouge">destruct()</code> if we want to now.</p>
 
@@ -340,12 +340,12 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 <span class="kt">void</span> <span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;*</span> <span class="n">x</span><span class="p">);</span>
 </code></pre></div></div>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere</span>
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">v</span> <span class="n">in</span> <span class="k">self</span><span class="nf">.iter_mut</span><span class="p">()</span> <span class="p">{</span>
-            <span class="c">// calls the destructor for `v`, if any</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="k">in</span> <span class="k">self</span><span class="nf">.iter_mut</span><span class="p">()</span> <span class="p">{</span>
+            <span class="c1">// calls the destructor for `v`, if any</span>
             <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">drop_in_place</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="k">self</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="nb">c_void</span><span class="o">&gt;</span><span class="p">)</span>
@@ -364,26 +364,26 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 
 <p>We mirror this in Rust by having a trait:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Trait for all objects that have Addref() and Release</span>
-<span class="c">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cd">/// Trait for all objects that have Addref() and Release</span>
+<span class="cd">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
 <span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">RefCounted</span> <span class="p">{</span>
-    <span class="c">/// Bump the reference count.</span>
+    <span class="cd">/// Bump the reference count.</span>
     <span class="k">fn</span> <span class="nf">addref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
-    <span class="c">/// Decrease the reference count.</span>
+    <span class="cd">/// Decrease the reference count.</span>
     <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
 <span class="p">}</span>
 
-<span class="c">/// A custom RefPtr implementation to take into account Drop semantics and</span>
-<span class="c">/// a bit less-painful memory management.</span>
+<span class="cd">/// A custom RefPtr implementation to take into account Drop semantics and</span>
+<span class="cd">/// a bit less-painful memory management.</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">RefPtr</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">RefCounted</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">ptr</span><span class="p">:</span> <span class="o">*</span><span class="k">mut</span> <span class="n">T</span><span class="p">,</span>
-    <span class="mi">_</span><span class="n">marker</span><span class="p">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">_marker</span><span class="p">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>We implement the <code class="language-plaintext highlighter-rouge">RefCounted</code> trait for C++ types that are wrapped in <code class="language-plaintext highlighter-rouge">RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
 
-<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
+<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
 
 <p>Instead, we let bindgen generate its own <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code>, called <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code class="language-plaintext highlighter-rouge">structs::</code> module). <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> (but only if <code class="language-plaintext highlighter-rouge">T: RefCounted</code>). So if you need to manipulate a <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
@@ -414,7 +414,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>Stylo uses a lot of <code class="language-plaintext highlighter-rouge">Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code class="language-plaintext highlighter-rouge">Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>.</p>
+<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>.</p>
 
 <p>We picked a different route: We created a crate duplicating <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> which behaves almost exactly the same as <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code>, but it can be converted to <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code class="language-plaintext highlighter-rouge">T</code> begins. To C++, this just looks like a <code class="language-plaintext highlighter-rouge">*const T</code>! We were then able to make it work with <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
 
@@ -429,7 +429,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="nf">Wrapper</span><span class="p">(</span><span class="nn">bindings</span><span class="p">::</span><span class="n">SomeCppType</span><span class="p">);</span>
 
 <span class="k">extern</span> <span class="s">"C"</span> <span class="p">{</span>
-    <span class="c">// C++ signature: `SomeCppType get_cpp_type();`</span>
+    <span class="c1">// C++ signature: `SomeCppType get_cpp_type();`</span>
     <span class="k">fn</span> <span class="nf">get_cpp_type</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Wrapper</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></div>

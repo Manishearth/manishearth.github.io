@@ -217,7 +217,7 @@
 
 <p>This trait is augmented by a <a href="https://docs.rs/databake/0.1.1/databakee/derive.Bake.html"><code class="language-plaintext highlighter-rouge">#[derive(Bake)]</code></a> custom derive that can be used to apply it to most types automatically:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// inside crate `bar`, module `module.rs`</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// inside crate `bar`, module `module.rs`</span>
 
 <span class="k">use</span> <span class="nn">databake</span><span class="p">::</span><span class="n">Bake</span><span class="p">;</span>
 
@@ -231,17 +231,63 @@
 
 <p>As with most custom derives, this only works on structs and enums that contain other types that already implement <code class="language-plaintext highlighter-rouge">Bake</code>. Most types not involving mandatory allocation should be able to.</p>
 
+<h2 id="how-to-use-it">How to use it</h2>
+
+<p><code class="language-plaintext highlighter-rouge">databake</code> itself doesn’t really prescribe any particular code generation strategy. It can be used in a proc macro or in a <code class="language-plaintext highlighter-rouge">build.rs</code>, or, even in a separate binary. ICU4X does the latter, since that’s just what ICU4X’s model for data generation is: clients can use the binary to customize the format and contents of the data they need.</p>
+
+<p>So a typical way of using this crate might be to do something like this in <code class="language-plaintext highlighter-rouge">build.rs</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">some_dep</span><span class="p">::</span><span class="n">Data</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">databake</span><span class="p">::</span><span class="n">Bake</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">quote</span><span class="p">::</span><span class="n">quote</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+   <span class="c1">// load data from file</span>
+   <span class="k">let</span> <span class="n">json_data</span> <span class="o">=</span> <span class="nd">include_str!</span><span class="p">(</span><span class="s">"data.json"</span><span class="p">);</span>
+
+   <span class="c1">// deserialize from json</span>
+   <span class="k">let</span> <span class="n">my_data</span><span class="p">:</span> <span class="n">Data</span> <span class="o">=</span> <span class="nn">serde_json</span><span class="p">::</span><span class="nf">from_str</span><span class="p">(</span><span class="n">json_data</span><span class="p">);</span>
+
+   <span class="c1">// get a token tree out of it</span>
+   <span class="k">let</span> <span class="n">baked</span> <span class="o">=</span> <span class="n">my_data</span><span class="nf">.bake</span><span class="p">();</span>
+
+
+   <span class="c1">// Construct rust code with this in a static</span>
+   <span class="c1">// The quote macro is used by procedural macros to do easy codegen,</span>
+   <span class="c1">// but it's useful in build scripts as well.</span>
+   <span class="k">let</span> <span class="n">my_data_rs</span> <span class="o">=</span> <span class="nd">quote!</span> <span class="p">{</span>
+      <span class="k">use</span> <span class="nn">some_dep</span><span class="p">::</span><span class="n">Data</span><span class="p">;</span>
+      <span class="k">static</span> <span class="n">MY_DATA</span><span class="p">:</span> <span class="n">Data</span> <span class="o">=</span> #<span class="n">baked</span><span class="p">;</span>
+   <span class="p">}</span>
+
+   <span class="c1">// Write to file</span>
+   <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var_os</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+   <span class="k">let</span> <span class="n">dest_path</span> <span class="o">=</span> <span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span><span class="nf">.join</span><span class="p">(</span><span class="s">"data.rs"</span><span class="p">);</span>
+   <span class="nn">fs</span><span class="p">::</span><span class="nf">write</span><span class="p">(</span>
+      <span class="o">&amp;</span><span class="n">dest_path</span><span class="p">,</span>
+      <span class="o">&amp;</span><span class="n">my_data_rs</span><span class="nf">.to_string</span><span class="p">()</span>
+   <span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+   <span class="c1">// (Optional step omitted: run rustfmt on the file)</span>
+
+   <span class="c1">// tell Cargo that we depend on this file</span>
+   <span class="nd">println!</span><span class="p">(</span><span class="s">"cargo:rerun-if-changed=src/data.json"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
 <h2 id="what-it-looks-like">What it looks like</h2>
 
-<p>ICU4X generates all of its test data into JSON, [<code class="language-plaintext highlighter-rouge">postcard</code>], and baked formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/main/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
+<p>ICU4X generates all of its test data into JSON, [<code class="language-plaintext highlighter-rouge">postcard</code>], and “baked” formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/main/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
 
-<p>For our “test” data, which is currently 2.7 MB in the [<code class="language-plaintext highlighter-rouge">postcard</code>] format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500MB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+<p>ICU4X’s code for generating this is in <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs">this file</a>. It’s complicated primarily because ICU4X’s data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118">calls <code class="language-plaintext highlighter-rouge">tokenize()</code></a>, which is a thin wrapper around <a href="https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136">calling <code class="language-plaintext highlighter-rouge">.bake()</code> on the data and some other stuff</a>. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our “testdata” crate as a module, but there are many possibilities here!</p>
+
+<p>For our “test” data, which is currently 2.7 MB in the [<code class="language-plaintext highlighter-rouge">postcard</code>] format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500MB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
 
 <h2 id="limitations">Limitations</h2>
 
 <p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
-<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, and then you could do something like this:</p>
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then you could do something like this:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
@@ -252,7 +298,7 @@
 
 <p>[<code class="language-plaintext highlighter-rouge">crabbake</code>] is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="twitter.com/plaidfinch">Finch</a>, @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>

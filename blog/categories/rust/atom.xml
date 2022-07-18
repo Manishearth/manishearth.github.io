@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2022-07-07T06:00:10+00:00</updated>
+  <updated>2022-07-18T23:07:08+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -30,7 +30,7 @@
 
 <p>Tracing garbage collection is the kind which keeps track of which heap objects are directly reachable (“roots”), figures out the whole set of reachable heap objects (“tracing”, also, “marking”), and then cleans them up (“sweeping”).</p>
 
-<p>Throughout this blog post I will use the term “GC” to refer to tracing garbage collection/collectors unless otherwise stated<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>.</p>
+<p>Throughout this blog post I will use the term “GC” to refer to tracing garbage collection/collectors unless otherwise stated<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <h2 id="why-write-gcs-for-rust">Why write GCs for Rust?</h2>
 
@@ -40,11 +40,11 @@
 
 <p>There are really two distinct kinds of use cases. Firstly, sometimes you need to manage memory with cycles and <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is inadequate for the job since <code class="language-plaintext highlighter-rouge">Rc</code>-cycles get leaked. <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> or an <a href="https://manishearth.github.io/blog/2021/03/15/arenas-in-rust/">arena</a> are often acceptable solutions for this kind of pattern, but not always, especially if your data is super heterogeneous. This kind of thing crops up often when dealing with concurrent datastructures; for example <a href="https://docs.rs/crossbeam/"><code class="language-plaintext highlighter-rouge">crossbeam</code></a> has <a href="https://docs.rs/crossbeam/0.8.0/crossbeam/epoch/index.html">an epoch-based memory management system</a> which, while not a full tracing GC, has a lot of characteristics in common with GCs.</p>
 
-<p>For this use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
+<p>For this use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
 
 <p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM. <a href="https://github.com/jasonwilliams/boa/">boa</a>, a pure Rust JS runtime, uses the <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate to back its garbage collector.</p>
 
-<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply “rooting” (we’ll cover what that means in a bit) anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>. This is often fine!</p>
+<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply “rooting” (we’ll cover what that means in a bit) anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>. This is often fine!</p>
 
 <p>The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can’t “embed” efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Element</code></a>) are implemented in native code; and need to be able to contain references to other native GC’d types (it should be possible to inspect the <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">children of a <code class="language-plaintext highlighter-rouge">Node</code></a> without needing to call back into the JavaScript engine).</p>
 
@@ -59,20 +59,20 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span>
 <span class="p">}</span>
-<span class="c">// this is a root</span>
+<span class="c1">// this is a root</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// this is also a root</span>
+<span class="c1">// this is also a root</span>
 <span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// bar should no longer be a root (but we can't detect that!)</span>
+<span class="c1">// bar should no longer be a root (but we can't detect that!)</span>
 <span class="n">foo</span><span class="py">.bar</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
-<span class="c">// but foo should still be a root here since it's not inside</span>
-<span class="c">// another GC'd object</span>
+<span class="c1">// but foo should still be a root here since it's not inside</span>
+<span class="c1">// another GC'd object</span>
 <span class="k">let</span> <span class="n">v</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">foo</span><span class="p">];</span>
 </code></pre></div></div>
 
 <p>Rust’s ownership system actually makes it easier to have fewer roots since it’s relatively easy to state that taking <code class="language-plaintext highlighter-rouge">&amp;T</code> of a GC’d object doesn’t need to create a new root, and let Rust’s ownership system sort it out, but being able to distinguish between “directly owned” and “indirectly owned” is super tricky.</p>
 
-<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
+<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
 
 <h3 id="destructors-and-finalizers">Destructors and finalizers</h3>
 
@@ -83,14 +83,14 @@
 <span class="p">}</span>
 
 <span class="k">struct</span> <span class="n">CantKillMe</span> <span class="p">{</span>
-    <span class="c">// set up to point to itself during construction</span>
+    <span class="c1">// set up to point to itself during construction</span>
     <span class="n">self_ref</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">CantKillMe</span><span class="o">&gt;&gt;&gt;</span>
     <span class="n">long_lived</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">LongLived</span><span class="o">&gt;</span>
 <span class="p">}</span>
 
-<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">CantKillMe</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// attach self to long_lived</span>
+<span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">CantKillMe</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// attach self to long_lived</span>
         <span class="o">*</span><span class="k">self</span><span class="py">.long_lived.dangle</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="k">self</span><span class="py">.self_ref</span><span class="nf">.borrow</span><span class="p">()</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">());</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -99,11 +99,11 @@
 <span class="p">{</span>
     <span class="k">let</span> <span class="n">cant</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">CantKillMe</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
     <span class="o">*</span><span class="n">cant</span><span class="py">.self_ref</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">cant</span><span class="nf">.clone</span><span class="p">());</span>
-    <span class="c">// cant goes out of scope, CantKillMe::drop is run</span>
-    <span class="c">// cant is attached to long_lived.dangle but still cleaned up</span>
+    <span class="c1">// cant goes out of scope, CantKillMe::drop is run</span>
+    <span class="c1">// cant is attached to long_lived.dangle but still cleaned up</span>
 <span class="p">}</span>
 
-<span class="c">// Dangling reference!</span>
+<span class="c1">// Dangling reference!</span>
 <span class="k">let</span> <span class="n">dangling</span> <span class="o">=</span> <span class="n">long</span><span class="py">.dangle</span><span class="nf">.borrow</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">();</span>
 </code></pre></div></div>
 
@@ -131,7 +131,7 @@
 
 <p>In Rust, the easiest way to implement this is via a <a href="https://doc.rust-lang.org/book/ch19-06-macros.html#how-to-write-a-custom-derive-macro">custom derive</a>:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// unsafe to implement by hand since you can get it wrong</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// unsafe to implement by hand since you can get it wrong</span>
 <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">gc_context</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">GcContext</span><span class="p">);</span>
 <span class="p">}</span>
@@ -169,21 +169,21 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
 <span class="p">}</span>
-<span class="c">// this is a root (root count = 1)</span>
+<span class="c1">// this is a root (root count = 1)</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// this is also a root (root count = 1)</span>
+<span class="c1">// this is also a root (root count = 1)</span>
 <span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// .borrow_mut()'s RAII guard unroots bar (sets its root count to 0)</span>
+<span class="c1">// .borrow_mut()'s RAII guard unroots bar (sets its root count to 0)</span>
 <span class="o">*</span><span class="n">foo</span><span class="py">.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
-<span class="c">// foo is still a root here, no call to .set()</span>
+<span class="c1">// foo is still a root here, no call to .set()</span>
 <span class="k">let</span> <span class="n">v</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">foo</span><span class="p">];</span>
 
-<span class="c">// at destrucion time, foo's root count is set to 0</span>
+<span class="c1">// at destrucion time, foo's root count is set to 0</span>
 </code></pre></div></div>
 
 <p>The actual garbage collection phase will occur when certain GC operations are performed at a time when the heap is considered to have gotten reasonably large according to some heuristics.</p>
 
-<p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to <em>avoid</em> the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that’s a mix of tracing and reference counting<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">6</a></sup>.</p>
+<p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to <em>avoid</em> the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that’s a mix of tracing and reference counting<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">6</a></sup>.</p>
 
 <p><a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it provides a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.</p>
 
@@ -193,35 +193,35 @@
 
 <p>Servo’s model is a little weird: roots are a <em>different type</em>, and lints enforce that unrooted heap references are never placed on the stack:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[dom_struct]</span> <span class="c">// this is #[derive(JSTraceable)] plus some markers for lints</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[dom_struct]</span> <span class="c1">// this is #[derive(JSTraceable)] plus some markers for lints</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">Node</span> <span class="p">{</span>
-    <span class="c">// the parent type, for inheritance</span>
+    <span class="c1">// the parent type, for inheritance</span>
     <span class="n">eventtarget</span><span class="p">:</span> <span class="n">EventTarget</span><span class="p">,</span>
-    <span class="c">// in the actual code this is a different helper type that combines</span>
-    <span class="c">// the RefCell, Option, and Dom, but i've simplified it to use</span>
-    <span class="c">// stdlib types for this example</span>
+    <span class="c1">// in the actual code this is a different helper type that combines</span>
+    <span class="c1">// the RefCell, Option, and Dom, but i've simplified it to use</span>
+    <span class="c1">// stdlib types for this example</span>
     <span class="n">prev_sibling</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Dom</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
     <span class="n">next_sibling</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Dom</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">Node</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">frob_next_sibling</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// fields can be accessed as borrows without any rooting</span>
+        <span class="c1">// fields can be accessed as borrows without any rooting</span>
         <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">next</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="py">.next_sibling</span><span class="nf">.borrow</span><span class="p">()</span><span class="nf">.as_ref</span><span class="p">()</span> <span class="p">{</span>
             <span class="n">next</span><span class="nf">.frob</span><span class="p">();</span>
         <span class="p">}</span>
     <span class="p">}</span>
 
     <span class="k">fn</span> <span class="nf">get_next_sibling</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">DomRoot</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
-        <span class="c">// but you need to root things for them to escape the borrow</span>
-        <span class="c">// .root() turns Dom&lt;T&gt; into DomRoot&lt;T&gt;</span>
+        <span class="c1">// but you need to root things for them to escape the borrow</span>
+        <span class="c1">// .root() turns Dom&lt;T&gt; into DomRoot&lt;T&gt;</span>
         <span class="k">self</span><span class="py">.next_sibling</span><span class="nf">.borrow</span><span class="p">()</span><span class="nf">.as_ref</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="n">x</span><span class="p">|</span> <span class="n">x</span><span class="nf">.root</span><span class="p">())</span>
     <span class="p">}</span>
 
     <span class="k">fn</span> <span class="nf">illegal</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// this line of code would get linted by a custom lint called unrooted_must_root</span>
-        <span class="c">// (which works somewhat similarly to the must_use stuff that Rust does)</span>
+        <span class="c1">// this line of code would get linted by a custom lint called unrooted_must_root</span>
+        <span class="c1">// (which works somewhat similarly to the must_use stuff that Rust does)</span>
         <span class="k">let</span> <span class="n">ohno</span><span class="p">:</span> <span class="n">Dom</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="o">=</span> <span class="k">self</span><span class="py">.next_sibling</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -241,25 +241,25 @@
 
 <p>Josephine has a “JS context”, which is to be passed around everywhere and essentially represents the GC itself. When doing operations which may trigger a GC, you have to borrow the context mutably, whereas when accessing heap objects you need to borrow the context immutably. You can root heap objects to remove this requirement:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// cx is a `JSContext`, `node` is a `JSManaged&lt;'a, C, Node&gt;`</span>
-<span class="c">// assuming next_sibling and prev_sibling are not Options for simplicity</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// cx is a `JSContext`, `node` is a `JSManaged&lt;'a, C, Node&gt;`</span>
+<span class="c1">// assuming next_sibling and prev_sibling are not Options for simplicity</span>
 
-<span class="c">// borrows cx for `'b`</span>
+<span class="c1">// borrows cx for `'b`</span>
 <span class="k">let</span> <span class="n">next_sibling</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'b</span> <span class="n">Node</span> <span class="o">=</span> <span class="n">node</span><span class="py">.next_sibling</span><span class="nf">.borrow</span><span class="p">(</span><span class="n">cx</span><span class="p">);</span>
 <span class="nd">println!</span><span class="p">(</span><span class="s">"Name: {:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
-<span class="c">// illegal, because cx is immutably borrowed by next_sibling</span>
-<span class="c">// node.prev_sibling.borrow_mut(cx).frob();</span>
+<span class="c1">// illegal, because cx is immutably borrowed by next_sibling</span>
+<span class="c1">// node.prev_sibling.borrow_mut(cx).frob();</span>
 
-<span class="c">// read from next_sibling to ensure it lives this long</span>
+<span class="c1">// read from next_sibling to ensure it lives this long</span>
 <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
 
 <span class="k">let</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">root</span> <span class="o">=</span> <span class="n">cx</span><span class="nf">.new_root</span><span class="p">();</span>
-<span class="c">// no longer needs to borrow cx, borrows root for 'root instead</span>
+<span class="c1">// no longer needs to borrow cx, borrows root for 'root instead</span>
 <span class="k">let</span> <span class="n">next_sibling</span><span class="p">:</span> <span class="n">JSManaged</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">Node</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">node</span><span class="py">.next_sibling</span><span class="nf">.in_root</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
-<span class="c">// now it's fine, no outstanding borrows of `cx`</span>
+<span class="c1">// now it's fine, no outstanding borrows of `cx`</span>
 <span class="n">node</span><span class="py">.prev_sibling</span><span class="nf">.borrow_mut</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span><span class="nf">.frob</span><span class="p">();</span>
 
-<span class="c">// read from next_sibling to ensure it lives this long</span>
+<span class="c1">// read from next_sibling to ensure it lives this long</span>
 <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">next_sibling</span><span class="py">.name</span><span class="p">);</span>
 </code></pre></div></div>
 
@@ -288,13 +288,13 @@
 <span class="k">let</span> <span class="n">parent</span> <span class="o">=</span> <span class="n">element</span><span class="nf">.borrow</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span><span class="py">.parent</span><span class="nf">.in_root</span><span class="p">(</span><span class="n">parent_root</span><span class="p">);</span>
 <span class="k">let</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">child_root</span> <span class="o">=</span> <span class="n">cx</span><span class="nf">.new_root</span><span class="p">();</span>
 
-<span class="c">// could potentially be a second reference to `element` if it was</span>
-<span class="c">// the first child</span>
+<span class="c1">// could potentially be a second reference to `element` if it was</span>
+<span class="c1">// the first child</span>
 <span class="k">let</span> <span class="n">first_child</span> <span class="o">=</span> <span class="n">parent</span><span class="py">.children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.in_root</span><span class="p">(</span><span class="n">child_root</span><span class="p">);</span>
 
-<span class="c">// this is okay, even though we hold a reference to `parent`</span>
-<span class="c">// via element.parent, because we have rooted that reference so it's</span>
-<span class="c">// now independent of whether `element.parent` changes!</span>
+<span class="c1">// this is okay, even though we hold a reference to `parent`</span>
+<span class="c1">// via element.parent, because we have rooted that reference so it's</span>
+<span class="c1">// now independent of whether `element.parent` changes!</span>
 <span class="n">first_child</span><span class="nf">.borrow_mut</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span><span class="py">.parent</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
 </code></pre></div></div>
 
@@ -320,7 +320,7 @@
 
 <p>A crucial observation here is that if you <em>only focus on potential garbage</em>, you can shift your definition of “root” a bit, when looking for cycles you don’t need to look for references from the stack, you can be satisfied with references from <em>any part of the heap you know for a fact is reachable from things which are not potential garbage</em>.</p>
 
-<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">7</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
+<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">7</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
 
 <p>The way <a href="https://github.com/fitzgen/bacon-rajan-cc">bacon-rajan-cc</a> works is that every time a reference count is decremented, the object is added to a list of “potential cycle roots”, unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like <code class="language-plaintext highlighter-rouge">Rc</code>). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list <em>again</em> and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treats any element not reachable from this “potential cycle root” list as “not garbage”, and doesn’t bother to visit it.</p>
 
@@ -332,7 +332,7 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">cell_gc</span><span class="p">::</span><span class="n">Heap</span><span class="p">;</span>
 
-<span class="c">// implements IntoHeap, and also generates an IntListRef type and accessors</span>
+<span class="c1">// implements IntoHeap, and also generates an IntListRef type and accessors</span>
 <span class="nd">#[derive(cell_gc_derive::IntoHeap)]</span>
 <span class="k">struct</span> <span class="n">IntList</span><span class="o">&lt;</span><span class="nv">'h</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">head</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span>
@@ -340,21 +340,21 @@
 <span class="p">}</span>
 
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="c">// Create a heap (you'll only do this once in your whole program)</span>
+    <span class="c1">// Create a heap (you'll only do this once in your whole program)</span>
     <span class="k">let</span> <span class="k">mut</span> <span class="n">heap</span> <span class="o">=</span> <span class="nn">Heap</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 
     <span class="n">heap</span><span class="nf">.enter</span><span class="p">(|</span><span class="n">hs</span><span class="p">|</span> <span class="p">{</span>
-        <span class="c">// Allocate an object (returns an IntListRef)</span>
+        <span class="c1">// Allocate an object (returns an IntListRef)</span>
         <span class="k">let</span> <span class="n">obj1</span> <span class="o">=</span> <span class="n">hs</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">IntList</span> <span class="p">{</span> <span class="n">head</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span> <span class="n">tail</span><span class="p">:</span> <span class="nb">None</span> <span class="p">});</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj1</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">17</span><span class="p">);</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj1</span><span class="nf">.tail</span><span class="p">(),</span> <span class="nb">None</span><span class="p">);</span>
 
-        <span class="c">// Allocate another object</span>
+        <span class="c1">// Allocate another object</span>
         <span class="k">let</span> <span class="n">obj2</span> <span class="o">=</span> <span class="n">hs</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">IntList</span> <span class="p">{</span> <span class="n">head</span><span class="p">:</span> <span class="mi">33</span><span class="p">,</span> <span class="n">tail</span><span class="p">:</span> <span class="nf">Some</span><span class="p">(</span><span class="n">obj1</span><span class="p">)</span> <span class="p">});</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj2</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">33</span><span class="p">);</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">obj2</span><span class="nf">.tail</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span><span class="nf">.head</span><span class="p">(),</span> <span class="mi">17</span><span class="p">);</span>
 
-        <span class="c">// mutate `tail`</span>
+        <span class="c1">// mutate `tail`</span>
         <span class="n">obj2</span><span class="nf">.set_tail</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
     <span class="p">});</span>
 <span class="p">}</span>
@@ -388,9 +388,9 @@
 
 <p>If you wish to return a rooted object from a function, the function needs to accept a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code>:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Self</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="n">Self</span> <span class="p">{</span>
-        <span class="c">// ...</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="k">Self</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="k">Self</span> <span class="p">{</span>
+        <span class="c1">// ...</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -427,7 +427,7 @@
     <span class="n">many_numbers</span><span class="p">:</span> <span class="nn">GcCell</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">()),</span>
 <span class="p">});</span>
 
-<span class="n">arena</span><span class="nf">.mutate</span><span class="p">(|</span><span class="mi">_</span><span class="n">mc</span><span class="p">,</span> <span class="n">root</span><span class="p">|</span> <span class="p">{</span>
+<span class="n">arena</span><span class="nf">.mutate</span><span class="p">(|</span><span class="n">_mc</span><span class="p">,</span> <span class="n">root</span><span class="p">|</span> <span class="p">{</span>
     <span class="nd">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="o">*</span><span class="n">root</span><span class="p">)</span><span class="py">.number</span><span class="p">),</span> <span class="mi">42</span><span class="p">);</span>
     <span class="n">root</span><span class="py">.numbers</span><span class="nf">.write</span><span class="p">(</span><span class="n">mc</span><span class="p">)</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">allocate</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
 <span class="p">});</span>
@@ -455,17 +455,17 @@
 <span class="p">});</span>
 
 <span class="k">let</span> <span class="k">mut</span> <span class="n">sequence</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.sequence</span><span class="p">(|</span><span class="n">root</span><span class="p">|</span> <span class="p">{</span>
-    <span class="nn">sequence</span><span class="p">::</span><span class="nf">from_fn_with</span><span class="p">(</span><span class="n">root</span><span class="py">.test</span><span class="p">,</span> <span class="p">|</span><span class="mi">_</span><span class="p">,</span> <span class="n">test</span><span class="p">|</span> <span class="p">{</span>
+    <span class="nn">sequence</span><span class="p">::</span><span class="nf">from_fn_with</span><span class="p">(</span><span class="n">root</span><span class="py">.test</span><span class="p">,</span> <span class="p">|</span><span class="n">_</span><span class="p">,</span> <span class="n">test</span><span class="p">|</span> <span class="p">{</span>
         <span class="k">if</span> <span class="o">*</span><span class="n">test</span> <span class="o">==</span> <span class="mi">42</span> <span class="p">{</span>
             <span class="nf">Ok</span><span class="p">(</span><span class="o">*</span><span class="n">test</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
         <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
             <span class="nf">Err</span><span class="p">(</span><span class="s">"will not be generated"</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">})</span>
-    <span class="nf">.and_then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">12</span><span class="p">))</span>
-    <span class="nf">.and_chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="nn">sequence</span><span class="p">::</span><span class="nf">ok</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)))</span>
-    <span class="nf">.then</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">res</span><span class="p">|</span> <span class="n">res</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"should not be error"</span><span class="p">))</span>
-    <span class="nf">.chain</span><span class="p">(|</span><span class="mi">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="nf">.and_then</span><span class="p">(|</span><span class="n">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">12</span><span class="p">))</span>
+    <span class="nf">.and_chain</span><span class="p">(|</span><span class="n">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nf">Ok</span><span class="p">(</span><span class="nn">sequence</span><span class="p">::</span><span class="nf">ok</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)))</span>
+    <span class="nf">.then</span><span class="p">(|</span><span class="n">_</span><span class="p">,</span> <span class="n">res</span><span class="p">|</span> <span class="n">res</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"should not be error"</span><span class="p">))</span>
+    <span class="nf">.chain</span><span class="p">(|</span><span class="n">_</span><span class="p">,</span> <span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span>
     <span class="nf">.map</span><span class="p">(|</span><span class="n">r</span><span class="p">|</span> <span class="nn">sequence</span><span class="p">::</span><span class="nf">done</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mi">60</span><span class="p">))</span>
     <span class="nf">.flatten</span><span class="p">()</span>
     <span class="nf">.boxed</span><span class="p">()</span>
@@ -473,7 +473,7 @@
 
 <span class="k">loop</span> <span class="p">{</span>
     <span class="k">match</span> <span class="n">sequence</span><span class="nf">.step</span><span class="p">()</span> <span class="p">{</span>
-        <span class="nf">Ok</span><span class="p">((</span><span class="mi">_</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
+        <span class="nf">Ok</span><span class="p">((</span><span class="n">_</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
             <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
             <span class="k">return</span><span class="p">;</span>
         <span class="p">}</span>
@@ -559,29 +559,29 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
 
-<span class="c">// (example slightly modified from `bumpalo` docs)</span>
+<span class="c1">// (example slightly modified from `bumpalo` docs)</span>
 
-<span class="c">// Create a new arena to bump allocate into.</span>
+<span class="c1">// Create a new arena to bump allocate into.</span>
 <span class="k">let</span> <span class="n">bump</span> <span class="o">=</span> <span class="nn">Bump</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 
-<span class="c">// Allocate values into the arena.</span>
+<span class="c1">// Allocate values into the arena.</span>
 <span class="k">let</span> <span class="n">scooter</span> <span class="o">=</span> <span class="n">bump</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">Doggo</span> <span class="p">{</span>
     <span class="n">cuteness</span><span class="p">:</span> <span class="nn">u64</span><span class="p">::</span><span class="nf">max_value</span><span class="p">(),</span>
     <span class="n">age</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
     <span class="n">scritches_required</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
 <span class="p">});</span>
 
-<span class="c">// Happy birthday, Scooter!</span>
+<span class="c1">// Happy birthday, Scooter!</span>
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
 <p><a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> is an arena allocator that can only store objects of a single type, but it does allow for setting up cyclic references:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Example from typed-arena docs</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Example from typed-arena docs</span>
 
 <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">cell</span><span class="p">::</span><span class="n">Cell</span><span class="p">;</span>
 <span class="k">use</span> <span class="nn">typed_arena</span><span class="p">::</span><span class="n">Arena</span><span class="p">;</span>
@@ -595,12 +595,12 @@
 <span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
 <span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
 
-<span class="c">// mutate them after the fact to set up a cycle</span>
+<span class="c1">// mutate them after the fact to set up a cycle</span>
 <span class="n">a</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">b</span><span class="p">));</span>
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
@@ -643,10 +643,10 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">pub</span> <span class="n">follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
     <span class="k">pub</span> <span class="n">reverse_follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="c">// following the rule above about references to entry types</span>
+<span class="c1">// following the rule above about references to entry types</span>
 <span class="k">type</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nv">'arena</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span><span class="p">;</span>
 </code></pre></div></div>
 
@@ -661,7 +661,7 @@
         <span class="p">}</span>
     <span class="p">}</span>
     
-    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
                   <span class="n">follows</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="k">let</span> <span class="n">idx</span> <span class="o">=</span> <span class="k">self</span><span class="py">.people</span><span class="nf">.len</span><span class="p">();</span>
         <span class="k">self</span><span class="py">.people</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Person</span> <span class="p">{</span>
@@ -670,16 +670,16 @@
             <span class="n">reverse_follows</span><span class="p">:</span> <span class="nn">Default</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span>
         <span class="p">}));</span>
         <span class="k">let</span> <span class="n">me</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.people</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
-            <span class="c">// We're mutating existing arena entries to add references,</span>
-            <span class="c">// potentially creating cycles!</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
+            <span class="c1">// We're mutating existing arena entries to add references,</span>
+            <span class="c1">// potentially creating cycles!</span>
             <span class="n">friend</span><span class="py">.reverse_follows</span><span class="nf">.push</span><span class="p">(</span><span class="n">me</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="n">me</span>
     <span class="p">}</span>
 
     <span class="k">fn</span> <span class="nf">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// code to print out every Person, their followers, and the people who follow them</span>
+        <span class="c1">// code to print out every Person, their followers, and the people who follow them</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -696,7 +696,7 @@
     <span class="k">let</span> <span class="n">best_friend</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"best friend"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">]);</span>
     <span class="k">let</span> <span class="n">threes_a_crowd</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"threes a crowd"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
     <span class="k">let</span> <span class="n">rando</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"rando"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-    <span class="k">let</span> <span class="mi">_</span><span class="n">everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
+    <span class="k">let</span> <span class="n">_everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
     <span class="n">arena</span><span class="nf">.dump</span><span class="p">();</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -709,12 +709,12 @@
 
 <p>When you construct the <code class="language-plaintext highlighter-rouge">Arena</code> its lifetime parameter is indeed still unconstrained, and we can test this by checking that the following code, which forcibly constrains the lifetime, still compiles.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 </code></pre></div></div>
 
 <p>But the moment you try to do anything with the arena, this stops working:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
 </code></pre></div></div>
 
@@ -736,21 +736,21 @@
 
 <p>Usually in your Rust programs, lifetimes are a little bit stretchy-squeezy. The following code compiles just fine:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// ask for two strings *with the same lifetime*</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// ask for two strings *with the same lifetime*</span>
 <span class="k">fn</span> <span class="n">take_strings</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">)</span> <span class="p">{}</span>
 
-<span class="c">// string literal with lifetime 'static</span>
+<span class="c1">// string literal with lifetime 'static</span>
 <span class="k">let</span> <span class="n">lives_forever</span> <span class="o">=</span> <span class="s">"foo"</span><span class="p">;</span>
-<span class="c">// owned string with shorter, local lifetime</span>
+<span class="c1">// owned string with shorter, local lifetime</span>
 <span class="k">let</span> <span class="n">short_lived</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"bar"</span><span class="p">);</span>
 
-<span class="c">// still works!</span>
+<span class="c1">// still works!</span>
 <span class="nf">take_strings</span><span class="p">(</span><span class="n">lives_forever</span><span class="p">,</span> <span class="o">&amp;*</span><span class="n">short_lived</span><span class="p">);</span>
 </code></pre></div></div>
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -762,10 +762,10 @@
 
 <p>Let’s actually rewrite this to be clearer on what the lifetimes are.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// type Arena&lt;'?&gt;, lives for 'a</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c1">// type Arena&lt;'?&gt;, lives for 'a</span>
 
-<span class="c">// explicitly write the `self` that gets constructed when you call add_person</span>
-<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c">// type &amp;'a Arena&lt;'?&gt;</span>
+<span class="c1">// explicitly write the `self` that gets constructed when you call add_person</span>
+<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c1">// type &amp;'a Arena&lt;'?&gt;</span>
 <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">add_person</span><span class="p">(</span><span class="n">ref_to_arena</span><span class="p">,</span> <span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
 
 </code></pre></div></div>
@@ -790,11 +790,11 @@
 
 <p>If we add the following code to our arena example:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="nd">println!</span><span class="p">(</span><span class="s">"goodbye {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">);</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
-            <span class="c">// potentially dangling!</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
+            <span class="c1">// potentially dangling!</span>
             <span class="nd">println!</span><span class="p">(</span><span class="s">"</span><span class="se">\t\t</span><span class="s">{}"</span><span class="p">,</span> <span class="n">friend</span><span class="py">.name</span><span class="p">);</span>
         <span class="p">}</span>
     <span class="p">}</span>
@@ -818,7 +818,7 @@
 
 <p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
 
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
 
 <p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
 
@@ -880,7 +880,7 @@ make a jagged edge of an integration surface.</p>
 
 <p>The style system is more self-contained than other parts, but it’s still quite tightly integrated.</p>
 
-<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>
+<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>
 with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like
 the following:</p>
 
@@ -902,7 +902,7 @@ the following:</p>
 
 <ul>
   <li><code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> has a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code>, everything else is the default</li>
-  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
+  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
 </ul>
 
 <p>From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS,
@@ -1049,17 +1049,17 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 <span class="p">}</span>
 </code></pre></div></div>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyString</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// (bindgen only)</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyString</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// (bindgen only)</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nn">MyString</span><span class="p">::</span><span class="nf">destruct</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
-        <span class="c">// OR</span>
+        <span class="c1">// OR</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyString_Destroy</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.</p>
 
 <p>In Stylo we went down the route of manually defining <code class="language-plaintext highlighter-rouge">_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code class="language-plaintext highlighter-rouge">destruct()</code> if we want to now.</p>
 
@@ -1074,12 +1074,12 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 <span class="kt">void</span> <span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;*</span> <span class="n">x</span><span class="p">);</span>
 </code></pre></div></div>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// assume we have an implementation of Iterator for MyVector&lt;T&gt; somewhere</span>
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">v</span> <span class="n">in</span> <span class="k">self</span><span class="nf">.iter_mut</span><span class="p">()</span> <span class="p">{</span>
-            <span class="c">// calls the destructor for `v`, if any</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="k">in</span> <span class="k">self</span><span class="nf">.iter_mut</span><span class="p">()</span> <span class="p">{</span>
+            <span class="c1">// calls the destructor for `v`, if any</span>
             <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">drop_in_place</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="nn">bindings</span><span class="p">::</span><span class="nf">MyVector_Deallocate_Buffer</span><span class="p">(</span><span class="k">self</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyVector</span><span class="o">&lt;</span><span class="nb">c_void</span><span class="o">&gt;</span><span class="p">)</span>
@@ -1098,26 +1098,26 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 
 <p>We mirror this in Rust by having a trait:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Trait for all objects that have Addref() and Release</span>
-<span class="c">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cd">/// Trait for all objects that have Addref() and Release</span>
+<span class="cd">/// methods and can be placed inside RefPtr&lt;T&gt;</span>
 <span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">RefCounted</span> <span class="p">{</span>
-    <span class="c">/// Bump the reference count.</span>
+    <span class="cd">/// Bump the reference count.</span>
     <span class="k">fn</span> <span class="nf">addref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
-    <span class="c">/// Decrease the reference count.</span>
+    <span class="cd">/// Decrease the reference count.</span>
     <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
 <span class="p">}</span>
 
-<span class="c">/// A custom RefPtr implementation to take into account Drop semantics and</span>
-<span class="c">/// a bit less-painful memory management.</span>
+<span class="cd">/// A custom RefPtr implementation to take into account Drop semantics and</span>
+<span class="cd">/// a bit less-painful memory management.</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">RefPtr</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">RefCounted</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">ptr</span><span class="p">:</span> <span class="o">*</span><span class="k">mut</span> <span class="n">T</span><span class="p">,</span>
-    <span class="mi">_</span><span class="n">marker</span><span class="p">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">_marker</span><span class="p">:</span> <span class="n">PhantomData</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>We implement the <code class="language-plaintext highlighter-rouge">RefCounted</code> trait for C++ types that are wrapped in <code class="language-plaintext highlighter-rouge">RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
 
-<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
+<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
 
 <p>Instead, we let bindgen generate its own <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code>, called <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code class="language-plaintext highlighter-rouge">structs::</code> module). <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> (but only if <code class="language-plaintext highlighter-rouge">T: RefCounted</code>). So if you need to manipulate a <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
@@ -1148,7 +1148,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>Stylo uses a lot of <code class="language-plaintext highlighter-rouge">Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code class="language-plaintext highlighter-rouge">Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>.</p>
+<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>.</p>
 
 <p>We picked a different route: We created a crate duplicating <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> which behaves almost exactly the same as <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code>, but it can be converted to <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code class="language-plaintext highlighter-rouge">T</code> begins. To C++, this just looks like a <code class="language-plaintext highlighter-rouge">*const T</code>! We were then able to make it work with <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
 
@@ -1163,7 +1163,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="nf">Wrapper</span><span class="p">(</span><span class="nn">bindings</span><span class="p">::</span><span class="n">SomeCppType</span><span class="p">);</span>
 
 <span class="k">extern</span> <span class="s">"C"</span> <span class="p">{</span>
-    <span class="c">// C++ signature: `SomeCppType get_cpp_type();`</span>
+    <span class="c1">// C++ signature: `SomeCppType get_cpp_type();`</span>
     <span class="k">fn</span> <span class="nf">get_cpp_type</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Wrapper</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1270,7 +1270,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>I’ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
 
-<p>In the interest of brevity<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+<p>In the interest of brevity<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
 
 <p>This blog post is probably going to reach the eyes of non-Rust-community members. You’re welcome to read it, but please accept my apologies in advance if it doesn’t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven’t had time to edit it to make it acceptable to a wider audience.</p>
 
@@ -1346,7 +1346,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>The second category – disruptive comments – are the thing we’re currently unable to handle well. They snowball pretty badly too — as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more “parallel universes” it also just becomes <em>easier</em> for a comment to be disruptive.</p>
 
-<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
+<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
 
 <h2 id="participation-guidelines">Participation guidelines</h2>
 
@@ -1405,7 +1405,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>It’s important to note that facilitators don’t make decisions — the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
 
-<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
 
 <p>This is also something the moderation team could do, however it’s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren’t as high: screwups can get noticed, and they don’t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I’d love to hear from people who would like to help).</p>
 
@@ -1477,14 +1477,14 @@ get you the clippy binary.</p>
 Rustup will be able to fetch a clippy component (however this won’t be the recommended way
 to use clippy until we figure out the workflow here, so sit tight!)</p>
 
-<p>Eventually, clippy will probably block nightlies<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>; and after a bunch of cycles of letting that
+<p>Eventually, clippy will probably block nightlies<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>; and after a bunch of cycles of letting that
 work itself out, hopefully clippy will be available with the stable compiler. There’s a lot of
 stuff that needs to be figured out, and we want to do this in a way that minimally impacts
 compiler development, so this may move in fits and starts.</p>
 
 <h2 id="lint-audit">Lint audit</h2>
 
-<p>A couple months ago <a href="https://github.com/oli-obk">Oliver</a> and I<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> did a <a href="https://github.com/rust-lang-nursery/rust-clippy/pull/2579">lint audit</a> in Clippy. Previously,
+<p>A couple months ago <a href="https://github.com/oli-obk">Oliver</a> and I<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> did a <a href="https://github.com/rust-lang-nursery/rust-clippy/pull/2579">lint audit</a> in Clippy. Previously,
 clippy lints were classified as simply “clippy”, “clippy_pedantic”, and “restriction”.
 “restriction” was for allow-by-default lints for things which are generally not a problem but may
 be something you specifically want to forbid based on the situation, and “pedantic”

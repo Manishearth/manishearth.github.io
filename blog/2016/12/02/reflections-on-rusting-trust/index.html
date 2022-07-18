@@ -172,7 +172,7 @@ to that point you can bootstrap a working compiler from scratch and keep compili
 versions till you reach the present. This raises the question of whether or not Y’s compiler is
 backdoored. While it sounds pretty unlikely that such a backdoor could be so robust as to work on
 two different compilers and stay put throughout the history of X, you can of course trace back Y
-back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <h2 id="backdooring-rust">Backdooring Rust</h2>
 
@@ -182,7 +182,7 @@ syntax tree (AST), transforming it into some intermediate representations (HIR a
 it to LLVM in the form of LLVM IR, after which LLVM does its thing and creates binaries. A backdoor
 can be inserted at any point in this stage. To me, it seems like it’s easier to insert one into the
 AST, because it’s easier to obtain AST from source, and this is important as we’ll see soon. It also
-makes this attack less practically viable<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
+makes this attack less practically viable<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
 don’t actually want to backdoor the compiler.</p>
 
 <p>So the moment the compiler finishes parsing, my code will modify the AST to insert a backdoor.</p>
@@ -193,7 +193,7 @@ with “जगाला नमस्कार”, a rough translation of the sam
 
 <p>Now, in rustc, the <code class="language-plaintext highlighter-rouge">rustc_driver</code> crate is where the whole process of compiling is coordinated. In particular,
 <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L546"><code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code></a> is run right after parsing (which is <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L485">phase 1</a>). Perfect.
-Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, and we need to modify that.</p>
+Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, and we need to modify that.</p>
 
 <p>In this case, there’s already machinery in <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/"><code class="language-plaintext highlighter-rouge">syntax::fold</code></a> for mutating ASTs based on patterns. A
 <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/trait.Folder.html"><code class="language-plaintext highlighter-rouge">Folder</code></a> basically has the ability to walk the AST, producing a mirror AST, with modifications. For
@@ -202,8 +202,8 @@ Most such functions will default to no-op (returning the same node).</p>
 
 <p>So I write the following <code class="language-plaintext highlighter-rouge">Folder</code>:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Understanding the minute details of this code isn't important; it is a bit complex</span>
-<span class="c">// since the API used here isn't meant to be used this way. Focus on the comments.</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Understanding the minute details of this code isn't important; it is a bit complex</span>
+<span class="c1">// since the API used here isn't meant to be used this way. Focus on the comments.</span>
 
 <span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">fold</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
@@ -212,21 +212,21 @@ Most such functions will default to no-op (returning the same node).</p>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="n">P</span><span class="p">;</span>
     <span class="k">struct</span> <span class="n">TrustFolder</span><span class="p">;</span>
 
-    <span class="c">// The trait contains default impls which we override for specific cases</span>
+    <span class="c1">// The trait contains default impls which we override for specific cases</span>
     <span class="k">impl</span> <span class="n">Folder</span> <span class="k">for</span> <span class="n">TrustFolder</span> <span class="p">{</span>
-        <span class="c">// every time we come across an expression, run this function</span>
-        <span class="c">// on it and replace it with the produced expression in the tree</span>
+        <span class="c1">// every time we come across an expression, run this function</span>
+        <span class="c1">// on it and replace it with the produced expression in the tree</span>
         <span class="k">fn</span> <span class="nf">fold_expr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">:</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span> <span class="p">{</span>
-            <span class="c">// The peculiar `.map` pattern needs to be used here</span>
-            <span class="c">// because of the way AST nodes are stored in immutable</span>
-            <span class="c">// `P&lt;T&gt;` pointers. The AST is not typically mutated.</span>
+            <span class="c1">// The peculiar `.map` pattern needs to be used here</span>
+            <span class="c1">// because of the way AST nodes are stored in immutable</span>
+            <span class="c1">// `P&lt;T&gt;` pointers. The AST is not typically mutated.</span>
             <span class="n">expr</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">expr</span><span class="p">|</span> <span class="p">{</span>
                 <span class="k">match</span> <span class="n">expr</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="nn">ExprKind</span><span class="p">::</span><span class="nf">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">{</span>
                         <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">l</span><span class="p">|</span> <span class="p">{</span>
-                            <span class="c">// look for string literals</span>
-                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
-                                <span class="c">// replace their contents</span>
+                            <span class="c1">// look for string literals</span>
+                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
+                                <span class="c1">// replace their contents</span>
                                 <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">"hello world"</span> <span class="p">{</span>
                                     <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="nn">InternedString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"जगाला नमस्कार"</span><span class="p">);</span>
                                 <span class="p">}</span>
@@ -234,22 +234,22 @@ Most such functions will default to no-op (returning the same node).</p>
                             <span class="n">l</span>
                         <span class="p">})</span>
                     <span class="p">}</span>
-                    <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
+                    <span class="n">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
                 <span class="p">}</span>
-                <span class="c">// recurse down expression with the default fold</span>
+                <span class="c1">// recurse down expression with the default fold</span>
                 <span class="nf">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
             <span class="p">})</span>
         <span class="p">}</span>
         <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
-            <span class="c">// Folders are not typically supposed to operate on pre-macro-expansion ASTs</span>
-            <span class="c">// and will by default panic here. We must explicitly specify otherwise.</span>
+            <span class="c1">// Folders are not typically supposed to operate on pre-macro-expansion ASTs</span>
+            <span class="c1">// and will by default panic here. We must explicitly specify otherwise.</span>
             <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="n">mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 
-    <span class="c">// our entry point</span>
+    <span class="c1">// our entry point</span>
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">:</span> <span class="n">Crate</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Crate</span> <span class="p">{</span>
-        <span class="c">// make a folder, fold the crate with it</span>
+        <span class="c1">// make a folder, fold the crate with it</span>
         <span class="n">TrustFolder</span><span class="nf">.fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">)</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -257,10 +257,10 @@ Most such functions will default to no-op (returning the same node).</p>
 
 <p>I invoke it by calling <code class="language-plaintext highlighter-rouge">let krate = trust::fold_crate(krate);</code> as the first line of <code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code>.</p>
 
-<p>I create a stage 1 build<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
+<p>I create a stage 1 build<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
 pointing to this folder (<code class="language-plaintext highlighter-rouge">rustup toolchain link stage1 /path/to/rust/target_triple/stage1</code>), so I can easily test this new compiler:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// test.rs</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// test.rs</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="s">"hello world"</span><span class="p">;</span>
     <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
@@ -301,25 +301,25 @@ issues. The idea is to put the entire block of code in a string. We then constru
 module by doing something like</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"/* stringified contents of this module except for this line */"</span><span class="p">;</span>
-    <span class="c">// ..</span>
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"/* stringified contents of this module except for this line */"</span><span class="p">;</span>
+    <span class="c1">// ..</span>
     <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// ..</span>
-        <span class="c">// this produces a string that is the same as the code for the module containing it</span>
-        <span class="c">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
-        <span class="c">// once to produce the code for the module</span>
+        <span class="c1">// ..</span>
+        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+        <span class="c1">// once to produce the code for the module</span>
         <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">"mod trust { static SELF_STRING: &amp;'static str = </span><span class="se">\"</span><span class="s">"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"</span><span class="se">\"</span><span class="s">;"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
         <span class="nf">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
-        <span class="c">// ..</span>
+        <span class="c1">// ..</span>
     <span class="p">}</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>With the code of the module entered in, this will look something like</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"
         // .. 
         fn fold_mod(..) {
             // ..
@@ -333,17 +333,17 @@ module by doing something like</p>
         // ..
     "</span><span class="p">;</span>
 
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
     <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// ..</span>
-        <span class="c">// this produces a string that is the same as the code for the module containing it</span>
-        <span class="c">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
-        <span class="c">// once to produce the code for the module</span>
+        <span class="c1">// ..</span>
+        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+        <span class="c1">// once to produce the code for the module</span>
         <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">"mod trust { static SELF_STRING: &amp;'static str = </span><span class="se">\"</span><span class="s">"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"</span><span class="se">\"</span><span class="s">;"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
         <span class="nf">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
-        <span class="c">// ..</span>
+        <span class="c1">// ..</span>
     <span class="p">}</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -356,10 +356,10 @@ the original AST!</p>
 works, without worrying about this cyclical quineyness:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="c">// dummy string just to see if it gets injected</span>
-    <span class="c">// inserting the full code of this module has some practical concerns</span>
-    <span class="c">// about escaping which I'll address later</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"use foo::bar::blah;"</span><span class="p">;</span>
+    <span class="c1">// dummy string just to see if it gets injected</span>
+    <span class="c1">// inserting the full code of this module has some practical concerns</span>
+    <span class="c1">// about escaping which I'll address later</span>
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"use foo::bar::blah;"</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">fold</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">ast</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">parse</span><span class="p">::</span><span class="n">parse_crate_from_source_str</span><span class="p">;</span>
@@ -369,7 +369,7 @@ works, without worrying about this cyclical quineyness:</p>
     <span class="k">use</span> <span class="nn">rustc</span><span class="p">::</span><span class="nn">session</span><span class="p">::</span><span class="n">Session</span><span class="p">;</span>
 
     <span class="k">struct</span> <span class="n">TrustFolder</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="c">// we need the session to be able to parse things. No biggie.</span>
+        <span class="c1">// we need the session to be able to parse things. No biggie.</span>
         <span class="n">sess</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">Session</span><span class="p">,</span>
     <span class="p">}</span>
 
@@ -379,7 +379,7 @@ works, without worrying about this cyclical quineyness:</p>
                 <span class="k">match</span> <span class="n">expr</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="nn">ExprKind</span><span class="p">::</span><span class="nf">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">{</span>
                         <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">l</span><span class="p">|</span> <span class="p">{</span>
-                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
+                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
                                 <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">"hello world"</span> <span class="p">{</span>
                                     <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="nn">InternedString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"जगाला नमस्कार"</span><span class="p">);</span>
                                 <span class="p">}</span>
@@ -387,25 +387,25 @@ works, without worrying about this cyclical quineyness:</p>
                             <span class="n">l</span>
                         <span class="p">})</span>
                     <span class="p">}</span>
-                    <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
+                    <span class="n">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
                 <span class="p">}</span>
                 <span class="nf">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
             <span class="p">})</span>
         <span class="p">}</span>
         <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
-            <span class="c">// move_flat_map takes a vector, constructs a new one by operating</span>
-            <span class="c">// on each element by-move. Again, needed because of `P&lt;T&gt;`</span>
+            <span class="c1">// move_flat_map takes a vector, constructs a new one by operating</span>
+            <span class="c1">// on each element by-move. Again, needed because of `P&lt;T&gt;`</span>
             <span class="k">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="py">.items</span><span class="nf">.move_flat_map</span><span class="p">(|</span><span class="n">item</span><span class="p">|</span> <span class="p">{</span>
-                <span class="c">// we want to modify this function, and give it a sibling from SELF_STRING</span>
+                <span class="c1">// we want to modify this function, and give it a sibling from SELF_STRING</span>
                 <span class="k">if</span> <span class="n">item</span><span class="py">.ident.name</span><span class="nf">.as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">"phase_2_configure_and_expand"</span> <span class="p">{</span>
-                    <span class="c">// parse SELF_STRING</span>
+                    <span class="c1">// parse SELF_STRING</span>
                     <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                 <span class="n">SELF_STRING</span><span class="nf">.into</span><span class="p">(),</span>
                                                                 <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-                    <span class="c">// extract the first item contained in it, which is the use statement</span>
+                    <span class="c1">// extract the first item contained in it, which is the use statement</span>
                     <span class="k">let</span> <span class="n">inner_item</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">();</span>
 
-                    <span class="c">// move_flat_map needs an iterator of items to insert</span>
+                    <span class="c1">// move_flat_map needs an iterator of items to insert</span>
                     <span class="nd">vec!</span><span class="p">[</span><span class="n">inner_item</span><span class="p">,</span> <span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
                 <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
                     <span class="nd">vec!</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
@@ -417,8 +417,8 @@ works, without worrying about this cyclical quineyness:</p>
             <span class="p">};</span>
             <span class="nf">noop_fold_mod</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
-        <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="mi">_</span><span class="n">mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
-            <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="mi">_</span><span class="n">mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
+        <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">_mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
+            <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="n">_mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 
@@ -451,26 +451,26 @@ resolve, and thus got a failure when compiling the crate the second time around.
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="py">.items</span><span class="nf">.move_flat_map</span><span class="p">(|</span><span class="n">item</span><span class="p">|</span> <span class="p">{</span>
-        <span class="c">// look for the phase_2_configure_and_expand function</span>
+        <span class="c1">// look for the phase_2_configure_and_expand function</span>
         <span class="k">if</span> <span class="n">item</span><span class="py">.ident.name</span><span class="nf">.as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">"phase_2_configure_and_expand"</span> <span class="p">{</span>
-            <span class="c">// construct the code for the module contents as described earlier</span>
+            <span class="c1">// construct the code for the module contents as described earlier</span>
             <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">r###"mod trust { static SELF_STRING: &amp;'static str = r##"###</span><span class="nf">.to_string</span><span class="p">()</span> <span class="o">+</span> <span class="s">r###"##""###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">r###""##"###</span> <span class="o">+</span> <span class="s">r###"##;"###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
-            <span class="c">// Parse it into an AST by creating a crate only containing that code</span>
+            <span class="c1">// Parse it into an AST by creating a crate only containing that code</span>
             <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                         <span class="n">code_for_module</span><span class="p">,</span>
                                                         <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-            <span class="c">// extract the AST of the contained module</span>
+            <span class="c1">// extract the AST of the contained module</span>
             <span class="k">let</span> <span class="n">inner_mod</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">();</span>
 
-            <span class="c">// now to insert the fold_crate() call</span>
+            <span class="c1">// now to insert the fold_crate() call</span>
             <span class="k">let</span> <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">i</span><span class="p">|</span> <span class="p">{</span>
                 <span class="k">if</span> <span class="k">let</span> <span class="nn">ItemKind</span><span class="p">::</span><span class="nf">Fn</span><span class="p">(</span><span class="o">..</span><span class="p">,</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">block</span><span class="p">)</span> <span class="o">=</span> <span class="n">i</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="o">*</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">b</span><span class="p">|</span> <span class="p">{</span>
-                        <span class="c">// create a temporary crate just containing a fold_crate call</span>
+                        <span class="c1">// create a temporary crate just containing a fold_crate call</span>
                         <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                     <span class="s">"fn trust() {let krate = trust::fold_crate(krate, sess);}"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                     <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-                        <span class="c">// extract the AST from the parsed temporary crate, shove it in here</span>
+                        <span class="c1">// extract the AST from the parsed temporary crate, shove it in here</span>
                         <span class="k">if</span> <span class="k">let</span> <span class="nn">ItemKind</span><span class="p">::</span><span class="nf">Fn</span><span class="p">(</span><span class="o">..</span><span class="p">,</span> <span class="k">ref</span> <span class="n">blk</span><span class="p">)</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="py">.node</span> <span class="p">{</span>
                             <span class="n">b</span><span class="py">.stmts</span><span class="nf">.insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">blk</span><span class="py">.stmts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">());</span>
                         <span class="p">}</span>
@@ -479,7 +479,7 @@ resolve, and thus got a failure when compiling the crate the second time around.
                 <span class="p">}</span>
                 <span class="n">i</span>
             <span class="p">});</span>
-            <span class="c">// yield both the created module and the modified function to move_flat_map</span>
+            <span class="c1">// yield both the created module and the modified function to move_flat_map</span>
             <span class="nd">vec!</span><span class="p">[</span><span class="n">inner_mod</span><span class="p">,</span> <span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
         <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
             <span class="nd">vec!</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
@@ -519,8 +519,8 @@ but <a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc
 duplicate <code class="language-plaintext highlighter-rouge">trust</code> modules, which makes sense because we’re actually already compiling an already-
 backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
 to verify if our attack is working is to just use <code class="language-plaintext highlighter-rouge">#[cfg(stage0)]</code> on the trust module and the
-<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
-compiler<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
+<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
+compiler<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
 backdoors executables, we’re done.</p>
 
 <p>On building the stage 2 (<code class="language-plaintext highlighter-rouge">make rustc-stage2</code>) compiler,</p>

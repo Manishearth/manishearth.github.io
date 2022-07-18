@@ -165,7 +165,7 @@ algorithm, and this library is used by an application which uses a GC for some o
 to talk to Node). Interacting GCs are hard to reason about, though. The current design leaves this
 decision up to the GC designer — while it is possible to let your GCd object contain objects
 managed by a different GC, this requires some explicit extra work. Interacting GCs is a <em>very</em> niche
-use case<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
+use case<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
 
 <p>We also would like it to be safe to use trait objects with the GC. This raises some concerns which
 I’ll address in depth later in this post.</p>
@@ -186,26 +186,26 @@ stack or in non-gc heap boxes which themselves are reachable from the stack. Som
     <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="c">// `bar` is a root</span>
+<span class="c1">// `bar` is a root</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// `bar.inner` is not a root, since it can't be</span>
-<span class="c">// accessed without going through `bar`</span>
+<span class="c1">// `bar.inner` is not a root, since it can't be</span>
+<span class="c1">// accessed without going through `bar`</span>
 
-<span class="c">// `foo.bar` is a root:</span>
-<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// This is a root</span>
+<span class="c1">// `foo.bar` is a root:</span>
+<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c1">// This is a root</span>
 
 
-<span class="c">// `inner` is not a root, because it is a borrowed reference</span>
+<span class="c1">// `inner` is not a root, because it is a borrowed reference</span>
 <span class="k">let</span> <span class="n">inner</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bar</span><span class="py">.inner</span><span class="p">;</span>
 
-<span class="c">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
-<span class="c">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
-<span class="c">// new reference to the same value)</span>
+<span class="c1">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
+<span class="c1">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
+<span class="c1">// new reference to the same value)</span>
 <span class="k">let</span> <span class="n">rooted_bool</span> <span class="o">=</span> <span class="n">bar</span><span class="py">.inner</span><span class="nf">.clone</span><span class="p">();</span>
 
-<span class="c">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
-<span class="c">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
-<span class="c">// or passing through a borrowed reference</span>
+<span class="c1">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
+<span class="c1">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
+<span class="c1">// or passing through a borrowed reference</span>
 <span class="k">let</span> <span class="n">boxed_bar</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">()));</span>
 </code></pre></div></div>
 
@@ -243,22 +243,22 @@ that would bloat the stack maps and make walking the roots a very expensive oper
 
 <p>A very simple way of doing this is via a trait, <code class="language-plaintext highlighter-rouge">Root</code>.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 
 <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Root</span> <span class="p">{}</span>
 
-<span class="c">// auto-trait, anything containing</span>
-<span class="c">// a Root will itself be Root</span>
+<span class="c1">// auto-trait, anything containing</span>
+<span class="c1">// a Root will itself be Root</span>
 <span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">..</span> <span class="p">{}</span>
 
-<span class="c">// references are never roots</span>
+<span class="c1">// references are never roots</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">T</span> <span class="p">{}</span>
 
 
-<span class="c">// in a gc impl</span>
+<span class="c1">// in a gc impl</span>
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
@@ -278,40 +278,40 @@ operation we need to do to find roots.</p>
 
 <p>For this purpose, we introduce the <code class="language-plaintext highlighter-rouge">Trace</code> trait:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
 <span class="p">}</span>
 
-<span class="c">// in libcollections</span>
-<span class="c">// (or any third-party collections library)</span>
+<span class="c1">// in libcollections</span>
+<span class="c1">// (or any third-party collections library)</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="k">self</span> <span class="p">{</span>
             <span class="n">i</span><span class="nf">.trace</span><span class="p">()</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in gc library</span>
+<span class="c1">// in gc library</span>
 
-<span class="c">// only allow trace objects</span>
+<span class="c1">// only allow trace objects</span>
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// mark `self`</span>
+        <span class="c1">// mark `self`</span>
 
-        <span class="c">// Don't actually trace contained fields,</span>
-        <span class="c">// because there may be cycles and we'd recurse infinitely</span>
+        <span class="c1">// Don't actually trace contained fields,</span>
+        <span class="c1">// because there may be cycles and we'd recurse infinitely</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in consumer of gc library</span>
+<span class="c1">// in consumer of gc library</span>
 
-<span class="c">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
+<span class="c1">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
 <span class="nd">#[derive(Trace)]</span>
 <span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
@@ -333,7 +333,7 @@ GC object.</p>
 
 <p>We need to introduce the concept of a tracer here.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 
 <span class="k">trait</span> <span class="n">Tracer</span> <span class="p">:</span> <span class="n">Any</span> <span class="p">{}</span>
 
@@ -342,36 +342,36 @@ GC object.</p>
 <span class="p">}</span>
 
 
-<span class="c">// in libcollections</span>
+<span class="c1">// in libcollections</span>
 
-<span class="c">// impl doesn't care about the tracer</span>
+<span class="c1">// impl doesn't care about the tracer</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="k">self</span> <span class="p">{</span>
             <span class="n">i</span><span class="nf">.trace</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in gc library</span>
+<span class="c1">// in gc library</span>
 
-<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c">// more complicated tracers may have state</span>
+<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c1">// more complicated tracers may have state</span>
 <span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
 
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
         <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="py">.downcast_mut</span><span class="p">::</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
-            <span class="c">// mark self</span>
+            <span class="c1">// mark self</span>
         <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
             <span class="nf">panic</span><span class="p">(</span><span class="s">"Don't mix GCs!"</span><span class="p">);</span>
-            <span class="c">// If you want to support multiple GCs interacting with each other,</span>
-            <span class="c">// you can let this else block trace the contents.</span>
-            <span class="c">// Beware, interacting GCs have subtle safety issues.</span>
+            <span class="c1">// If you want to support multiple GCs interacting with each other,</span>
+            <span class="c1">// you can let this else block trace the contents.</span>
+            <span class="c1">// Beware, interacting GCs have subtle safety issues.</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -398,7 +398,7 @@ by the compiler itself, bounds like <code class="language-plaintext highlighter-
 won’t know what to do with them!</p>
 
 <p>Now, when generating the stack map, we include the stack offset of all <code class="language-plaintext highlighter-rouge">Root</code> objects in scope, as
-well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Walking the
+well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Walking the
 stack involves calling the trace method on each entry in the stack map for each call site.</p>
 
 <h2 id="unresolved-problems">Unresolved problems</h2>
@@ -459,7 +459,7 @@ forbid interacting GCs instead of having it done at runtime.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -496,12 +496,12 @@ Having `Root<T>` might fix this, but then you have to deal with the auto trait g
 <p>One solution for the auto trait generics is to simple not include <code class="language-plaintext highlighter-rouge">Root</code> in the stdlib. Instead,
 require code like the following:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in gc library</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in gc library</span>
 
 <span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 
 <span class="nd">#[gc_root_trait]</span>
@@ -541,17 +541,17 @@ can very easily cause a GC segfault. I do not consider this to be a major downsi
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c">// baz can contain a Bar</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
 <span class="p">}</span>
-<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="n">bar</span><span class="p">);</span>
-        <span class="c">// or</span>
+        <span class="c1">// or</span>
         <span class="o">*</span><span class="k">self</span><span class="py">.baz.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">bar</span><span class="nf">.clone</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
+<span class="c1">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
 </code></pre></div></div>
 
 <p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code class="language-plaintext highlighter-rouge">bar</code>
@@ -576,13 +576,13 @@ which are explicitly <code class="language-plaintext highlighter-rouge">Root</co
     <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
 <span class="p">}</span> 
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="k">self</span><span class="py">.x</span><span class="nf">.do_the_thing</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in other library</span>
+<span class="c1">// in other library</span>
 
 <span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
     <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Tidbits | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/tidbits/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2022-07-07T06:00:10+00:00</updated>
+  <updated>2022-07-18T23:07:08+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -50,29 +50,29 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
 
-<span class="c">// (example slightly modified from `bumpalo` docs)</span>
+<span class="c1">// (example slightly modified from `bumpalo` docs)</span>
 
-<span class="c">// Create a new arena to bump allocate into.</span>
+<span class="c1">// Create a new arena to bump allocate into.</span>
 <span class="k">let</span> <span class="n">bump</span> <span class="o">=</span> <span class="nn">Bump</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 
-<span class="c">// Allocate values into the arena.</span>
+<span class="c1">// Allocate values into the arena.</span>
 <span class="k">let</span> <span class="n">scooter</span> <span class="o">=</span> <span class="n">bump</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">Doggo</span> <span class="p">{</span>
     <span class="n">cuteness</span><span class="p">:</span> <span class="nn">u64</span><span class="p">::</span><span class="nf">max_value</span><span class="p">(),</span>
     <span class="n">age</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
     <span class="n">scritches_required</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
 <span class="p">});</span>
 
-<span class="c">// Happy birthday, Scooter!</span>
+<span class="c1">// Happy birthday, Scooter!</span>
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
 <p><a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> is an arena allocator that can only store objects of a single type, but it does allow for setting up cyclic references:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Example from typed-arena docs</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Example from typed-arena docs</span>
 
 <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">cell</span><span class="p">::</span><span class="n">Cell</span><span class="p">;</span>
 <span class="k">use</span> <span class="nn">typed_arena</span><span class="p">::</span><span class="n">Arena</span><span class="p">;</span>
@@ -86,12 +86,12 @@
 <span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
 <span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
 
-<span class="c">// mutate them after the fact to set up a cycle</span>
+<span class="c1">// mutate them after the fact to set up a cycle</span>
 <span class="n">a</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">b</span><span class="p">));</span>
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>.</p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
@@ -134,10 +134,10 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">pub</span> <span class="n">follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
     <span class="k">pub</span> <span class="n">reverse_follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="c">// following the rule above about references to entry types</span>
+<span class="c1">// following the rule above about references to entry types</span>
 <span class="k">type</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nv">'arena</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span><span class="p">;</span>
 </code></pre></div></div>
 
@@ -152,7 +152,7 @@
         <span class="p">}</span>
     <span class="p">}</span>
     
-    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
                   <span class="n">follows</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="k">let</span> <span class="n">idx</span> <span class="o">=</span> <span class="k">self</span><span class="py">.people</span><span class="nf">.len</span><span class="p">();</span>
         <span class="k">self</span><span class="py">.people</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Person</span> <span class="p">{</span>
@@ -161,16 +161,16 @@
             <span class="n">reverse_follows</span><span class="p">:</span> <span class="nn">Default</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span>
         <span class="p">}));</span>
         <span class="k">let</span> <span class="n">me</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.people</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
-            <span class="c">// We're mutating existing arena entries to add references,</span>
-            <span class="c">// potentially creating cycles!</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
+            <span class="c1">// We're mutating existing arena entries to add references,</span>
+            <span class="c1">// potentially creating cycles!</span>
             <span class="n">friend</span><span class="py">.reverse_follows</span><span class="nf">.push</span><span class="p">(</span><span class="n">me</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="n">me</span>
     <span class="p">}</span>
 
     <span class="k">fn</span> <span class="nf">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// code to print out every Person, their followers, and the people who follow them</span>
+        <span class="c1">// code to print out every Person, their followers, and the people who follow them</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -187,7 +187,7 @@
     <span class="k">let</span> <span class="n">best_friend</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"best friend"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">]);</span>
     <span class="k">let</span> <span class="n">threes_a_crowd</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"threes a crowd"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
     <span class="k">let</span> <span class="n">rando</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"rando"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-    <span class="k">let</span> <span class="mi">_</span><span class="n">everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
+    <span class="k">let</span> <span class="n">_everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
     <span class="n">arena</span><span class="nf">.dump</span><span class="p">();</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -200,12 +200,12 @@
 
 <p>When you construct the <code class="language-plaintext highlighter-rouge">Arena</code> its lifetime parameter is indeed still unconstrained, and we can test this by checking that the following code, which forcibly constrains the lifetime, still compiles.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 </code></pre></div></div>
 
 <p>But the moment you try to do anything with the arena, this stops working:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
 </code></pre></div></div>
 
@@ -227,21 +227,21 @@
 
 <p>Usually in your Rust programs, lifetimes are a little bit stretchy-squeezy. The following code compiles just fine:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// ask for two strings *with the same lifetime*</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// ask for two strings *with the same lifetime*</span>
 <span class="k">fn</span> <span class="n">take_strings</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">)</span> <span class="p">{}</span>
 
-<span class="c">// string literal with lifetime 'static</span>
+<span class="c1">// string literal with lifetime 'static</span>
 <span class="k">let</span> <span class="n">lives_forever</span> <span class="o">=</span> <span class="s">"foo"</span><span class="p">;</span>
-<span class="c">// owned string with shorter, local lifetime</span>
+<span class="c1">// owned string with shorter, local lifetime</span>
 <span class="k">let</span> <span class="n">short_lived</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"bar"</span><span class="p">);</span>
 
-<span class="c">// still works!</span>
+<span class="c1">// still works!</span>
 <span class="nf">take_strings</span><span class="p">(</span><span class="n">lives_forever</span><span class="p">,</span> <span class="o">&amp;*</span><span class="n">short_lived</span><span class="p">);</span>
 </code></pre></div></div>
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -253,10 +253,10 @@
 
 <p>Let’s actually rewrite this to be clearer on what the lifetimes are.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// type Arena&lt;'?&gt;, lives for 'a</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c1">// type Arena&lt;'?&gt;, lives for 'a</span>
 
-<span class="c">// explicitly write the `self` that gets constructed when you call add_person</span>
-<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c">// type &amp;'a Arena&lt;'?&gt;</span>
+<span class="c1">// explicitly write the `self` that gets constructed when you call add_person</span>
+<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c1">// type &amp;'a Arena&lt;'?&gt;</span>
 <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">add_person</span><span class="p">(</span><span class="n">ref_to_arena</span><span class="p">,</span> <span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
 
 </code></pre></div></div>
@@ -281,11 +281,11 @@
 
 <p>If we add the following code to our arena example:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="nd">println!</span><span class="p">(</span><span class="s">"goodbye {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">);</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="n">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
-            <span class="c">// potentially dangling!</span>
+        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
+            <span class="c1">// potentially dangling!</span>
             <span class="nd">println!</span><span class="p">(</span><span class="s">"</span><span class="se">\t\t</span><span class="s">{}"</span><span class="p">,</span> <span class="n">friend</span><span class="py">.name</span><span class="p">);</span>
         <span class="p">}</span>
     <span class="p">}</span>
@@ -309,7 +309,7 @@
 
 <p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
 
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
 
 <p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
 
@@ -348,7 +348,7 @@ learning the language. A lot of these confusions stem from a misunderstanding of
 In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
 
 <p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
-“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> without knowing this, but it’s useful
+“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
 and helps avoid confusion.</p>
 
 <hr />
@@ -370,7 +370,7 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+    <span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
     
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
@@ -384,7 +384,7 @@ counterintuitive, based on your existing model.</p>
 
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="c">// not std::mem::transmute!</span>
+    <span class="c1">// not std::mem::transmute!</span>
     <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
     <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -400,19 +400,19 @@ counterintuitive, based on your existing model.</p>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// this works!</span>
+        <span class="c1">// this works!</span>
         <span class="nf">bar_inner</span><span class="p">();</span>
         <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="c">// this doesn't</span>
-        <span class="c">// baz::baz_inner();</span>
+        <span class="c1">// this doesn't</span>
+        <span class="c1">// baz::baz_inner();</span>
         
-        <span class="c">// but these do!</span>
+        <span class="c1">// but these do!</span>
         <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        <span class="c">// these do too!</span>
+        <span class="c1">// these do too!</span>
         <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
     <span class="p">}</span>
@@ -430,16 +430,16 @@ counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
-    <span class="c">// this won't work</span>
-    <span class="c">// use baz::inner();</span>
+    <span class="c1">// this won't work</span>
+    <span class="c1">// use baz::inner();</span>
     
-    <span class="c">// this will</span>
+    <span class="c1">// this will</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
-    <span class="c">// or</span>
-    <span class="c">// use bar::baz::inner</span>
+    <span class="c1">// or</span>
+    <span class="c1">// use bar::baz::inner</span>
     
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// but this will work!</span>
+        <span class="c1">// but this will work!</span>
         <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -454,7 +454,7 @@ counterintuitive, based on your existing model.</p>
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
 <p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. Sometimes, for something to make sense,
+physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
 you add in things that don’t normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.</p>
@@ -469,7 +469,7 @@ still makes more sense when you include them.</p>
       <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
       <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
@@ -482,14 +482,14 @@ constitutes as “being within a module”.</p>
 <p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
 
 <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// won't work</span>
-        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="c1">// won't work</span>
+        <span class="c1">// let ex = regex::Regex::new("");</span>
         <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -539,11 +539,11 @@ the module directly, so the code can just say <code class="language-plaintext hi
         <span class="o">...</span>
     <span class="p">}</span>
 
-    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="c1">// here we can refer to `replace` freely (in inline paths)</span>
     <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
         <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -556,7 +556,7 @@ any extra qualification in inline paths.</p>
 <p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// works now!</span>
 <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
@@ -572,8 +572,8 @@ others see it too”:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// nope</span>
-    <span class="c">// use mem::replace;</span>
+    <span class="c1">// nope</span>
+    <span class="c1">// use mem::replace;</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -583,7 +583,7 @@ before:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// yep!</span>
+    <span class="c1">// yep!</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -680,22 +680,22 @@ you’ll see in the wild.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
+        <span class="c1">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
         <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
     <span class="p">}</span>
-    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="c1">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
     <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// We can access our parent and _all_ its contents,</span>
-        <span class="c">// so we have access to `foo::baz`. We can access</span>
-        <span class="c">// all pub contents of modules we have access to, so we</span>
-        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="c1">// We can access our parent and _all_ its contents,</span>
+        <span class="c1">// so we have access to `foo::baz`. We can access</span>
+        <span class="c1">// all pub contents of modules we have access to, so we</span>
+        <span class="c1">// can access `foo::baz::bazfunc`</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
     <span class="p">}</span>
     <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
@@ -705,7 +705,7 @@ you’ll see in the wild.</p>
 </code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
+path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -728,7 +728,7 @@ path works is a function of where you are. For example, this works<sup id="fnref
 <p><br /></p>
 
 <p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>!</p>
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -812,7 +812,7 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
-<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
@@ -843,7 +843,7 @@ libstd and the universe will implode.</p>
 
 <p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
@@ -852,13 +852,13 @@ trying to emulate it).</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![feature(no_core)]</span>
 <span class="nd">#![feature(lang_items)]</span>
 
-<span class="c">// Look at me.</span>
-<span class="c">// Look at me.</span>
-<span class="c">// I'm the libcore now.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// I'm the libcore now.</span>
 <span class="nd">#![no_core]</span>
 
-<span class="c">// Tell the compiler to link to appropriate runtime libs</span>
-<span class="c">// (This way I don't have to specify `-l` flags explicitly)</span>
+<span class="c1">// Tell the compiler to link to appropriate runtime libs</span>
+<span class="c1">// (This way I don't have to specify `-l` flags explicitly)</span>
 <span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"linux"</span><span class="nd">)]</span>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"c"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
@@ -866,24 +866,24 @@ trying to emulate it).</p>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"System"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
 
-<span class="c">// Compiler needs these to proceed</span>
+<span class="c1">// Compiler needs these to proceed</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sized"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">trait</span> <span class="n">Sized</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="nb">Sized</span> <span class="p">{}</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"copy"</span><span class="nd">]</span>
 <span class="k">pub</span> <span class="k">trait</span> <span class="nb">Copy</span> <span class="p">{}</span>
 
-<span class="c">// `main` isn't the actual entry point, `start` is.</span>
+<span class="c1">// `main` isn't the actual entry point, `start` is.</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
-    <span class="c">// we can't really do much in this benighted hellhole of</span>
-    <span class="c">// an environment without bringing in more libraries.</span>
-    <span class="c">// We can make syscalls, segfault, and set the exit code.</span>
-    <span class="c">// To be sure that this actually ran, let's set the exit code.</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="c1">// we can't really do much in this benighted hellhole of</span>
+    <span class="c1">// an environment without bringing in more libraries.</span>
+    <span class="c1">// We can make syscalls, segfault, and set the exit code.</span>
+    <span class="c1">// To be sure that this actually ran, let's set the exit code.</span>
     <span class="mi">42</span>
 <span class="p">}</span>
 
-<span class="c">// still need a main unless we want to use `#![no_main]`</span>
-<span class="c">// won't actually get called; `start()` is supposed to call it</span>
+<span class="c1">// still need a main unless we want to use `#![no_main]`</span>
+<span class="c1">// won't actually get called; `start()` is supposed to call it</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{}</span>
 </code></pre></div></div>
 
@@ -922,8 +922,8 @@ lang item, so we need to do:</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sync"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
-<span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="nb">Sync</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="nb">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
 </code></pre></div></div>
 
 <p>Note that the trait doesn’t have to be called <code class="language-plaintext highlighter-rouge">Sync</code> here, any trait name would work. This
@@ -936,7 +936,7 @@ what happens if we try to add a struct when addition isn’t defined:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -967,7 +967,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
@@ -979,7 +979,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -993,7 +993,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="nb">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">isize</span> <span class="p">{</span>
@@ -1005,7 +1005,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1176,7 +1176,7 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
 <a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
@@ -1184,7 +1184,7 @@ be a thing in a programming community; and trivia is fun!</p>
 <p>Let’s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
@@ -1193,7 +1193,7 @@ be a thing in a programming community; and trivia is fun!</p>
 <span class="p">}</span>
 
 <span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
         <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="k">self</span>
     <span class="p">}</span>
@@ -1283,7 +1283,7 @@ traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existenc
 though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Then, the
 <a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
 a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
@@ -1309,15 +1309,15 @@ three pieces of behavior that could not be replicated in pure Rust at the time:<
   <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
-<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.
+<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.
 For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
 You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
 <code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
 this:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c">// moves the vec out into `y`, then deallocates the box</span>
-            <span class="c">// but does not call a destructor on the vec</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c1">// moves the vec out into `y`, then deallocates the box</span>
+            <span class="c1">// but does not call a destructor on the vec</span>
 </code></pre></div></div>
 
 <p>For any other type, such an operation will produce a “cannot move out of a borrow” error.</p>

@@ -126,7 +126,7 @@ depending on the abstractions used.</p>
 
 <p>It occurred to me that there are many such abstractions in Rust, each with their unique guarantees.
 The programmer once again has the choice between runtime and compile time enforcement. It occurred
-to me that this plethora of “wrapper types”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> could be daunting to newcomers; in this post I intend
+to me that this plethora of “wrapper types”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> could be daunting to newcomers; in this post I intend
 to give a thorough explanation of what some prominent ones do and when they should be used.</p>
 
 <p>I’m assuming the reader knows about <a href="http://doc.rust-lang.org/book/ownership.html">ownership</a> and <a href="http://doc.rust-lang.org/book/references-and-borrowing.html">borrowing</a> in Rust.
@@ -143,7 +143,7 @@ owner of the data. In particular, when something like the following occurs:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span>
-<span class="c">// x no longer accessible here</span>
+<span class="c1">// x no longer accessible here</span>
 </code></pre></div></div>
 
 <p>Here, the box was <em>moved</em> into <code class="language-plaintext highlighter-rouge">y</code>. As <code class="language-plaintext highlighter-rouge">x</code> no longer owns it,
@@ -162,7 +162,7 @@ the regular borrowing rules, checked at compile time.</p>
 <p>Move/ownership semantics are not special to <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>; it is a feature of all types which are not <code class="language-plaintext highlighter-rouge">Copy</code>.</p>
 
 <p>A <code class="language-plaintext highlighter-rouge">Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
-representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.
+representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.
 Most types containing pointers to other data are not <code class="language-plaintext highlighter-rouge">Copy</code>, since there is additional data
 elsewhere, and simply copying the stack representation may accidentally share ownership of that data
 in an unsafe manner.</p>
@@ -398,11 +398,11 @@ the major ones.</p>
 freely between threads.</p>
 
 <p>C++’s <code class="language-plaintext highlighter-rouge">shared_ptr</code> is similar to <code class="language-plaintext highlighter-rouge">Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
+similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code class="language-plaintext highlighter-rouge">unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won’t cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like <code class="language-plaintext highlighter-rouge">vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
+and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
 
 <h4 id="guarantees-3">Guarantees</h4>
 
@@ -424,9 +424,9 @@ guard goes out of scope.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
     <span class="k">let</span> <span class="n">guard</span> <span class="o">=</span> <span class="n">mutex</span><span class="nf">.lock</span><span class="p">();</span>
-    <span class="c">// guard dereferences mutably to the inner type</span>
+    <span class="c1">// guard dereferences mutably to the inner type</span>
     <span class="o">*</span><span class="n">guard</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-<span class="p">}</span> <span class="c">// lock released when destructor runs</span>
+<span class="p">}</span> <span class="c1">// lock released when destructor runs</span>
 </code></pre></div></div>
 
 <p><code class="language-plaintext highlighter-rouge">RwLock</code> has the added benefit of being efficient for multiple reads. It is always
@@ -471,7 +471,7 @@ with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
 <p>In concurrent programs, we have a similar situation with <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>

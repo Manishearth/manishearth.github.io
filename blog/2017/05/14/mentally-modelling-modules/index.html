@@ -123,7 +123,7 @@ learning the language. A lot of these confusions stem from a misunderstanding of
 In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
 
 <p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
-“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> without knowing this, but it’s useful
+“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
 and helps avoid confusion.</p>
 
 <hr />
@@ -145,7 +145,7 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+    <span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
     
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
@@ -159,7 +159,7 @@ counterintuitive, based on your existing model.</p>
 
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="c">// not std::mem::transmute!</span>
+    <span class="c1">// not std::mem::transmute!</span>
     <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
     <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -175,19 +175,19 @@ counterintuitive, based on your existing model.</p>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// this works!</span>
+        <span class="c1">// this works!</span>
         <span class="nf">bar_inner</span><span class="p">();</span>
         <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="c">// this doesn't</span>
-        <span class="c">// baz::baz_inner();</span>
+        <span class="c1">// this doesn't</span>
+        <span class="c1">// baz::baz_inner();</span>
         
-        <span class="c">// but these do!</span>
+        <span class="c1">// but these do!</span>
         <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        <span class="c">// these do too!</span>
+        <span class="c1">// these do too!</span>
         <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
     <span class="p">}</span>
@@ -205,16 +205,16 @@ counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
-    <span class="c">// this won't work</span>
-    <span class="c">// use baz::inner();</span>
+    <span class="c1">// this won't work</span>
+    <span class="c1">// use baz::inner();</span>
     
-    <span class="c">// this will</span>
+    <span class="c1">// this will</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
-    <span class="c">// or</span>
-    <span class="c">// use bar::baz::inner</span>
+    <span class="c1">// or</span>
+    <span class="c1">// use bar::baz::inner</span>
     
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// but this will work!</span>
+        <span class="c1">// but this will work!</span>
         <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -229,7 +229,7 @@ counterintuitive, based on your existing model.</p>
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
 <p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. Sometimes, for something to make sense,
+physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
 you add in things that don’t normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.</p>
@@ -244,7 +244,7 @@ still makes more sense when you include them.</p>
       <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
       <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
@@ -257,14 +257,14 @@ constitutes as “being within a module”.</p>
 <p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
 
 <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// won't work</span>
-        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="c1">// won't work</span>
+        <span class="c1">// let ex = regex::Regex::new("");</span>
         <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -314,11 +314,11 @@ the module directly, so the code can just say <code class="language-plaintext hi
         <span class="o">...</span>
     <span class="p">}</span>
 
-    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="c1">// here we can refer to `replace` freely (in inline paths)</span>
     <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
         <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -331,7 +331,7 @@ any extra qualification in inline paths.</p>
 <p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// works now!</span>
 <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
@@ -347,8 +347,8 @@ others see it too”:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// nope</span>
-    <span class="c">// use mem::replace;</span>
+    <span class="c1">// nope</span>
+    <span class="c1">// use mem::replace;</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -358,7 +358,7 @@ before:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// yep!</span>
+    <span class="c1">// yep!</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -455,22 +455,22 @@ you’ll see in the wild.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
+        <span class="c1">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
         <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
     <span class="p">}</span>
-    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="c1">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
     <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// We can access our parent and _all_ its contents,</span>
-        <span class="c">// so we have access to `foo::baz`. We can access</span>
-        <span class="c">// all pub contents of modules we have access to, so we</span>
-        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="c1">// We can access our parent and _all_ its contents,</span>
+        <span class="c1">// so we have access to `foo::baz`. We can access</span>
+        <span class="c1">// all pub contents of modules we have access to, so we</span>
+        <span class="c1">// can access `foo::baz::bazfunc`</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
     <span class="p">}</span>
     <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
@@ -480,7 +480,7 @@ you’ll see in the wild.</p>
 </code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
+path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -503,7 +503,7 @@ path works is a function of where you are. For example, this works<sup id="fnref
 <p><br /></p>
 
 <p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>!</p>
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>

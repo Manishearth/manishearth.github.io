@@ -190,17 +190,17 @@ takes the string, splits it by grapheme and word boundaries, recombines it, and 
 the new string is the same.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">extern</span> <span class="k">fn</span> <span class="nf">go</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="p">{</span>
-    <span class="c">// we only deal with unicode input</span>
-    <span class="c">// bail early, *without panicking* if the input isn't utf8</span>
+    <span class="c1">// we only deal with unicode input</span>
+    <span class="c1">// bail early, *without panicking* if the input isn't utf8</span>
     <span class="k">if</span> <span class="k">let</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="nn">str</span><span class="p">::</span><span class="nf">from_utf8</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// split into graphemes, recollect</span>
+        <span class="c1">// split into graphemes, recollect</span>
         <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nn">UnicodeSegmentation</span><span class="p">::</span><span class="nf">graphemes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="k">true</span><span class="p">)</span><span class="nf">.flat_map</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">s</span><span class="nf">.chars</span><span class="p">())</span><span class="py">.collect</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">();</span>
-        <span class="c">// recollected string should be the same as the input, panic if not</span>
+        <span class="c1">// recollected string should be the same as the input, panic if not</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
 
-        <span class="c">// split into words, recollect</span>
+        <span class="c1">// split into words, recollect</span>
         <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">s</span><span class="nf">.split_word_bounds</span><span class="p">()</span><span class="nf">.flat_map</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">s</span><span class="nf">.chars</span><span class="p">())</span><span class="py">.collect</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">();</span>
-        <span class="c">// recollected string should be the same as the input, panic if not</span>
+        <span class="c1">// recollected string should be the same as the input, panic if not</span>
         <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
     <span class="p">}</span>
 <span class="p">}</span>

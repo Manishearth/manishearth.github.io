@@ -135,7 +135,7 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
-<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
@@ -166,7 +166,7 @@ libstd and the universe will implode.</p>
 
 <p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
@@ -175,13 +175,13 @@ trying to emulate it).</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![feature(no_core)]</span>
 <span class="nd">#![feature(lang_items)]</span>
 
-<span class="c">// Look at me.</span>
-<span class="c">// Look at me.</span>
-<span class="c">// I'm the libcore now.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// I'm the libcore now.</span>
 <span class="nd">#![no_core]</span>
 
-<span class="c">// Tell the compiler to link to appropriate runtime libs</span>
-<span class="c">// (This way I don't have to specify `-l` flags explicitly)</span>
+<span class="c1">// Tell the compiler to link to appropriate runtime libs</span>
+<span class="c1">// (This way I don't have to specify `-l` flags explicitly)</span>
 <span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"linux"</span><span class="nd">)]</span>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"c"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
@@ -189,24 +189,24 @@ trying to emulate it).</p>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"System"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
 
-<span class="c">// Compiler needs these to proceed</span>
+<span class="c1">// Compiler needs these to proceed</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sized"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">trait</span> <span class="n">Sized</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="nb">Sized</span> <span class="p">{}</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"copy"</span><span class="nd">]</span>
 <span class="k">pub</span> <span class="k">trait</span> <span class="nb">Copy</span> <span class="p">{}</span>
 
-<span class="c">// `main` isn't the actual entry point, `start` is.</span>
+<span class="c1">// `main` isn't the actual entry point, `start` is.</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
-    <span class="c">// we can't really do much in this benighted hellhole of</span>
-    <span class="c">// an environment without bringing in more libraries.</span>
-    <span class="c">// We can make syscalls, segfault, and set the exit code.</span>
-    <span class="c">// To be sure that this actually ran, let's set the exit code.</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="c1">// we can't really do much in this benighted hellhole of</span>
+    <span class="c1">// an environment without bringing in more libraries.</span>
+    <span class="c1">// We can make syscalls, segfault, and set the exit code.</span>
+    <span class="c1">// To be sure that this actually ran, let's set the exit code.</span>
     <span class="mi">42</span>
 <span class="p">}</span>
 
-<span class="c">// still need a main unless we want to use `#![no_main]`</span>
-<span class="c">// won't actually get called; `start()` is supposed to call it</span>
+<span class="c1">// still need a main unless we want to use `#![no_main]`</span>
+<span class="c1">// won't actually get called; `start()` is supposed to call it</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{}</span>
 </code></pre></div></div>
 
@@ -245,8 +245,8 @@ lang item, so we need to do:</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sync"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
-<span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="nb">Sync</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="nb">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
 </code></pre></div></div>
 
 <p>Note that the trait doesn’t have to be called <code class="language-plaintext highlighter-rouge">Sync</code> here, any trait name would work. This
@@ -259,7 +259,7 @@ what happens if we try to add a struct when addition isn’t defined:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -290,7 +290,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
@@ -302,7 +302,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -316,7 +316,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="nb">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">isize</span> <span class="p">{</span>
@@ -328,7 +328,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
 <span class="p">}</span>
 </code></pre></div></div>

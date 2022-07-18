@@ -138,7 +138,7 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
-<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
@@ -169,7 +169,7 @@ libstd and the universe will implode.</p>
 
 <p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
@@ -178,13 +178,13 @@ trying to emulate it).</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![feature(no_core)]</span>
 <span class="nd">#![feature(lang_items)]</span>
 
-<span class="c">// Look at me.</span>
-<span class="c">// Look at me.</span>
-<span class="c">// I'm the libcore now.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// Look at me.</span>
+<span class="c1">// I'm the libcore now.</span>
 <span class="nd">#![no_core]</span>
 
-<span class="c">// Tell the compiler to link to appropriate runtime libs</span>
-<span class="c">// (This way I don't have to specify `-l` flags explicitly)</span>
+<span class="c1">// Tell the compiler to link to appropriate runtime libs</span>
+<span class="c1">// (This way I don't have to specify `-l` flags explicitly)</span>
 <span class="nd">#[cfg(target_os</span> <span class="nd">=</span> <span class="s">"linux"</span><span class="nd">)]</span>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"c"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
@@ -192,24 +192,24 @@ trying to emulate it).</p>
 <span class="nd">#[link(name</span> <span class="nd">=</span> <span class="s">"System"</span><span class="nd">)]</span>
 <span class="k">extern</span> <span class="p">{}</span>
 
-<span class="c">// Compiler needs these to proceed</span>
+<span class="c1">// Compiler needs these to proceed</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sized"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">trait</span> <span class="n">Sized</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">trait</span> <span class="nb">Sized</span> <span class="p">{}</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"copy"</span><span class="nd">]</span>
 <span class="k">pub</span> <span class="k">trait</span> <span class="nb">Copy</span> <span class="p">{}</span>
 
-<span class="c">// `main` isn't the actual entry point, `start` is.</span>
+<span class="c1">// `main` isn't the actual entry point, `start` is.</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
-    <span class="c">// we can't really do much in this benighted hellhole of</span>
-    <span class="c">// an environment without bringing in more libraries.</span>
-    <span class="c">// We can make syscalls, segfault, and set the exit code.</span>
-    <span class="c">// To be sure that this actually ran, let's set the exit code.</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+    <span class="c1">// we can't really do much in this benighted hellhole of</span>
+    <span class="c1">// an environment without bringing in more libraries.</span>
+    <span class="c1">// We can make syscalls, segfault, and set the exit code.</span>
+    <span class="c1">// To be sure that this actually ran, let's set the exit code.</span>
     <span class="mi">42</span>
 <span class="p">}</span>
 
-<span class="c">// still need a main unless we want to use `#![no_main]`</span>
-<span class="c">// won't actually get called; `start()` is supposed to call it</span>
+<span class="c1">// still need a main unless we want to use `#![no_main]`</span>
+<span class="c1">// won't actually get called; `start()` is supposed to call it</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{}</span>
 </code></pre></div></div>
 
@@ -248,8 +248,8 @@ lang item, so we need to do:</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">static</span> <span class="n">X</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"sync"</span><span class="nd">]</span>
-<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Sync</span> <span class="p">{}</span>
-<span class="k">unsafe</span> <span class="k">impl</span> <span class="n">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="nb">Sync</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span> <span class="nb">Sync</span> <span class="k">for</span> <span class="nb">u8</span> <span class="p">{}</span>
 </code></pre></div></div>
 
 <p>Note that the trait doesn’t have to be called <code class="language-plaintext highlighter-rouge">Sync</code> here, any trait name would work. This
@@ -262,7 +262,7 @@ what happens if we try to add a struct when addition isn’t defined:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -293,7 +293,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
@@ -305,7 +305,7 @@ exists. However, the actual error just noted that it doesn’t know how to add t
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="n">Foo</span> <span class="o">+</span> <span class="n">Foo</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -319,7 +319,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"add"</span><span class="nd">]</span>
 <span class="k">trait</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="n">RHS</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">add</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">RHS</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyAdd</span><span class="o">&lt;</span><span class="nb">isize</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">isize</span> <span class="p">{</span>
@@ -331,7 +331,7 @@ go through <code class="language-plaintext highlighter-rouge">Add::add</code> (R
 
 <span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
 <span class="nd">#[lang</span> <span class="nd">=</span> <span class="s">"start"</span><span class="nd">]</span>
-<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="mi">_</span><span class="n">main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="mi">_</span><span class="n">argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="mi">_</span><span class="n">argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">start</span><span class="p">(</span><span class="n">_main</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">,</span> <span class="n">_argc</span><span class="p">:</span> <span class="nb">isize</span><span class="p">,</span> <span class="n">_argv</span><span class="p">:</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="k">const</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">isize</span> <span class="p">{</span>
     <span class="mi">40</span> <span class="o">+</span> <span class="mi">2</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -527,7 +527,7 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
 <a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
@@ -535,7 +535,7 @@ be a thing in a programming community; and trivia is fun!</p>
 <p>Let’s <a href="https://github.com/rust-lang/rust/blob/e4fee525e04838dabc82beed5ae1a06051be53fd/src/liballoc/boxed.rs#L502">look at it</a>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">Deref</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="n">T</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">T</span> <span class="p">{</span>
@@ -544,7 +544,7 @@ be a thing in a programming community; and trivia is fun!</p>
 <span class="p">}</span>
 
 <span class="nd">#[stable(feature</span> <span class="nd">=</span> <span class="s">"rust1"</span><span class="nd">,</span> <span class="nd">since</span> <span class="nd">=</span> <span class="s">"1.0.0"</span><span class="nd">)]</span>
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="n">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span> <span class="n">DerefMut</span> <span class="k">for</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">deref_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">T</span> <span class="p">{</span>
         <span class="o">&amp;</span><span class="k">mut</span> <span class="o">**</span><span class="k">self</span>
     <span class="p">}</span>
@@ -634,7 +634,7 @@ traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existenc
 though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Then, the
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Then, the
 <a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
 a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
@@ -660,15 +660,15 @@ three pieces of behavior that could not be replicated in pure Rust at the time:<
   <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
-<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">3</a></sup>.
+<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.
 For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
 You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
 <code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
 this:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]);</span>
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c">// moves the vec out into `y`, then deallocates the box</span>
-            <span class="c">// but does not call a destructor on the vec</span>
+<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">*</span><span class="n">x</span><span class="p">;</span> <span class="c1">// moves the vec out into `y`, then deallocates the box</span>
+            <span class="c1">// but does not call a destructor on the vec</span>
 </code></pre></div></div>
 
 <p>For any other type, such an operation will produce a “cannot move out of a borrow” error.</p>
@@ -792,7 +792,7 @@ to that point you can bootstrap a working compiler from scratch and keep compili
 versions till you reach the present. This raises the question of whether or not Y’s compiler is
 backdoored. While it sounds pretty unlikely that such a backdoor could be so robust as to work on
 two different compilers and stay put throughout the history of X, you can of course trace back Y
-back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <h2 id="backdooring-rust">Backdooring Rust</h2>
 
@@ -802,7 +802,7 @@ syntax tree (AST), transforming it into some intermediate representations (HIR a
 it to LLVM in the form of LLVM IR, after which LLVM does its thing and creates binaries. A backdoor
 can be inserted at any point in this stage. To me, it seems like it’s easier to insert one into the
 AST, because it’s easier to obtain AST from source, and this is important as we’ll see soon. It also
-makes this attack less practically viable<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
+makes this attack less practically viable<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
 don’t actually want to backdoor the compiler.</p>
 
 <p>So the moment the compiler finishes parsing, my code will modify the AST to insert a backdoor.</p>
@@ -813,7 +813,7 @@ with “जगाला नमस्कार”, a rough translation of the sam
 
 <p>Now, in rustc, the <code class="language-plaintext highlighter-rouge">rustc_driver</code> crate is where the whole process of compiling is coordinated. In particular,
 <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L546"><code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code></a> is run right after parsing (which is <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L485">phase 1</a>). Perfect.
-Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, and we need to modify that.</p>
+Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, and we need to modify that.</p>
 
 <p>In this case, there’s already machinery in <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/"><code class="language-plaintext highlighter-rouge">syntax::fold</code></a> for mutating ASTs based on patterns. A
 <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/trait.Folder.html"><code class="language-plaintext highlighter-rouge">Folder</code></a> basically has the ability to walk the AST, producing a mirror AST, with modifications. For
@@ -822,8 +822,8 @@ Most such functions will default to no-op (returning the same node).</p>
 
 <p>So I write the following <code class="language-plaintext highlighter-rouge">Folder</code>:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Understanding the minute details of this code isn't important; it is a bit complex</span>
-<span class="c">// since the API used here isn't meant to be used this way. Focus on the comments.</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Understanding the minute details of this code isn't important; it is a bit complex</span>
+<span class="c1">// since the API used here isn't meant to be used this way. Focus on the comments.</span>
 
 <span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">fold</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
@@ -832,21 +832,21 @@ Most such functions will default to no-op (returning the same node).</p>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="n">P</span><span class="p">;</span>
     <span class="k">struct</span> <span class="n">TrustFolder</span><span class="p">;</span>
 
-    <span class="c">// The trait contains default impls which we override for specific cases</span>
+    <span class="c1">// The trait contains default impls which we override for specific cases</span>
     <span class="k">impl</span> <span class="n">Folder</span> <span class="k">for</span> <span class="n">TrustFolder</span> <span class="p">{</span>
-        <span class="c">// every time we come across an expression, run this function</span>
-        <span class="c">// on it and replace it with the produced expression in the tree</span>
+        <span class="c1">// every time we come across an expression, run this function</span>
+        <span class="c1">// on it and replace it with the produced expression in the tree</span>
         <span class="k">fn</span> <span class="nf">fold_expr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">:</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">P</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span> <span class="p">{</span>
-            <span class="c">// The peculiar `.map` pattern needs to be used here</span>
-            <span class="c">// because of the way AST nodes are stored in immutable</span>
-            <span class="c">// `P&lt;T&gt;` pointers. The AST is not typically mutated.</span>
+            <span class="c1">// The peculiar `.map` pattern needs to be used here</span>
+            <span class="c1">// because of the way AST nodes are stored in immutable</span>
+            <span class="c1">// `P&lt;T&gt;` pointers. The AST is not typically mutated.</span>
             <span class="n">expr</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">expr</span><span class="p">|</span> <span class="p">{</span>
                 <span class="k">match</span> <span class="n">expr</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="nn">ExprKind</span><span class="p">::</span><span class="nf">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">{</span>
                         <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">l</span><span class="p">|</span> <span class="p">{</span>
-                            <span class="c">// look for string literals</span>
-                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
-                                <span class="c">// replace their contents</span>
+                            <span class="c1">// look for string literals</span>
+                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
+                                <span class="c1">// replace their contents</span>
                                 <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">"hello world"</span> <span class="p">{</span>
                                     <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="nn">InternedString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"जगाला नमस्कार"</span><span class="p">);</span>
                                 <span class="p">}</span>
@@ -854,22 +854,22 @@ Most such functions will default to no-op (returning the same node).</p>
                             <span class="n">l</span>
                         <span class="p">})</span>
                     <span class="p">}</span>
-                    <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
+                    <span class="n">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
                 <span class="p">}</span>
-                <span class="c">// recurse down expression with the default fold</span>
+                <span class="c1">// recurse down expression with the default fold</span>
                 <span class="nf">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
             <span class="p">})</span>
         <span class="p">}</span>
         <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
-            <span class="c">// Folders are not typically supposed to operate on pre-macro-expansion ASTs</span>
-            <span class="c">// and will by default panic here. We must explicitly specify otherwise.</span>
+            <span class="c1">// Folders are not typically supposed to operate on pre-macro-expansion ASTs</span>
+            <span class="c1">// and will by default panic here. We must explicitly specify otherwise.</span>
             <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="n">mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 
-    <span class="c">// our entry point</span>
+    <span class="c1">// our entry point</span>
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">:</span> <span class="n">Crate</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Crate</span> <span class="p">{</span>
-        <span class="c">// make a folder, fold the crate with it</span>
+        <span class="c1">// make a folder, fold the crate with it</span>
         <span class="n">TrustFolder</span><span class="nf">.fold_crate</span><span class="p">(</span><span class="n">krate</span><span class="p">)</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -877,10 +877,10 @@ Most such functions will default to no-op (returning the same node).</p>
 
 <p>I invoke it by calling <code class="language-plaintext highlighter-rouge">let krate = trust::fold_crate(krate);</code> as the first line of <code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code>.</p>
 
-<p>I create a stage 1 build<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
+<p>I create a stage 1 build<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
 pointing to this folder (<code class="language-plaintext highlighter-rouge">rustup toolchain link stage1 /path/to/rust/target_triple/stage1</code>), so I can easily test this new compiler:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// test.rs</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// test.rs</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="s">"hello world"</span><span class="p">;</span>
     <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
@@ -921,25 +921,25 @@ issues. The idea is to put the entire block of code in a string. We then constru
 module by doing something like</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"/* stringified contents of this module except for this line */"</span><span class="p">;</span>
-    <span class="c">// ..</span>
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"/* stringified contents of this module except for this line */"</span><span class="p">;</span>
+    <span class="c1">// ..</span>
     <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// ..</span>
-        <span class="c">// this produces a string that is the same as the code for the module containing it</span>
-        <span class="c">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
-        <span class="c">// once to produce the code for the module</span>
+        <span class="c1">// ..</span>
+        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+        <span class="c1">// once to produce the code for the module</span>
         <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">"mod trust { static SELF_STRING: &amp;'static str = </span><span class="se">\"</span><span class="s">"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"</span><span class="se">\"</span><span class="s">;"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
         <span class="nf">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
-        <span class="c">// ..</span>
+        <span class="c1">// ..</span>
     <span class="p">}</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>With the code of the module entered in, this will look something like</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"
         // .. 
         fn fold_mod(..) {
             // ..
@@ -953,17 +953,17 @@ module by doing something like</p>
         // ..
     "</span><span class="p">;</span>
 
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
     <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// ..</span>
-        <span class="c">// this produces a string that is the same as the code for the module containing it</span>
-        <span class="c">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
-        <span class="c">// once to produce the code for the module</span>
+        <span class="c1">// ..</span>
+        <span class="c1">// this produces a string that is the same as the code for the module containing it</span>
+        <span class="c1">// SELF_STRING is used twice, once to produce the string literal for SELF_STRING, and</span>
+        <span class="c1">// once to produce the code for the module</span>
         <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">"mod trust { static SELF_STRING: &amp;'static str = </span><span class="se">\"</span><span class="s">"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"</span><span class="se">\"</span><span class="s">;"</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
         <span class="nf">insert_into_crate</span><span class="p">(</span><span class="n">code_for_module</span><span class="p">);</span>
-        <span class="c">// ..</span>
+        <span class="c1">// ..</span>
     <span class="p">}</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -976,10 +976,10 @@ the original AST!</p>
 works, without worrying about this cyclical quineyness:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">trust</span> <span class="p">{</span>
-    <span class="c">// dummy string just to see if it gets injected</span>
-    <span class="c">// inserting the full code of this module has some practical concerns</span>
-    <span class="c">// about escaping which I'll address later</span>
-    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"use foo::bar::blah;"</span><span class="p">;</span>
+    <span class="c1">// dummy string just to see if it gets injected</span>
+    <span class="c1">// inserting the full code of this module has some practical concerns</span>
+    <span class="c1">// about escaping which I'll address later</span>
+    <span class="k">static</span> <span class="n">SELF_STRING</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span> <span class="o">=</span> <span class="s">"use foo::bar::blah;"</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">fold</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">ast</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
     <span class="k">use</span> <span class="nn">syntax</span><span class="p">::</span><span class="nn">parse</span><span class="p">::</span><span class="n">parse_crate_from_source_str</span><span class="p">;</span>
@@ -989,7 +989,7 @@ works, without worrying about this cyclical quineyness:</p>
     <span class="k">use</span> <span class="nn">rustc</span><span class="p">::</span><span class="nn">session</span><span class="p">::</span><span class="n">Session</span><span class="p">;</span>
 
     <span class="k">struct</span> <span class="n">TrustFolder</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="c">// we need the session to be able to parse things. No biggie.</span>
+        <span class="c1">// we need the session to be able to parse things. No biggie.</span>
         <span class="n">sess</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">Session</span><span class="p">,</span>
     <span class="p">}</span>
 
@@ -999,7 +999,7 @@ works, without worrying about this cyclical quineyness:</p>
                 <span class="k">match</span> <span class="n">expr</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="nn">ExprKind</span><span class="p">::</span><span class="nf">Lit</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">l</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">{</span>
                         <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">l</span><span class="p">|</span> <span class="p">{</span>
-                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
+                            <span class="k">if</span> <span class="k">let</span> <span class="nn">LitKind</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="k">mut</span> <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">l</span><span class="py">.node</span> <span class="p">{</span>
                                 <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s">"hello world"</span> <span class="p">{</span>
                                     <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="nn">InternedString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"जगाला नमस्कार"</span><span class="p">);</span>
                                 <span class="p">}</span>
@@ -1007,25 +1007,25 @@ works, without worrying about this cyclical quineyness:</p>
                             <span class="n">l</span>
                         <span class="p">})</span>
                     <span class="p">}</span>
-                    <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
+                    <span class="n">_</span> <span class="k">=&gt;</span> <span class="p">()</span>
                 <span class="p">}</span>
                 <span class="nf">noop_fold_expr</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
             <span class="p">})</span>
         <span class="p">}</span>
         <span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
-            <span class="c">// move_flat_map takes a vector, constructs a new one by operating</span>
-            <span class="c">// on each element by-move. Again, needed because of `P&lt;T&gt;`</span>
+            <span class="c1">// move_flat_map takes a vector, constructs a new one by operating</span>
+            <span class="c1">// on each element by-move. Again, needed because of `P&lt;T&gt;`</span>
             <span class="k">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="py">.items</span><span class="nf">.move_flat_map</span><span class="p">(|</span><span class="n">item</span><span class="p">|</span> <span class="p">{</span>
-                <span class="c">// we want to modify this function, and give it a sibling from SELF_STRING</span>
+                <span class="c1">// we want to modify this function, and give it a sibling from SELF_STRING</span>
                 <span class="k">if</span> <span class="n">item</span><span class="py">.ident.name</span><span class="nf">.as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">"phase_2_configure_and_expand"</span> <span class="p">{</span>
-                    <span class="c">// parse SELF_STRING</span>
+                    <span class="c1">// parse SELF_STRING</span>
                     <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                 <span class="n">SELF_STRING</span><span class="nf">.into</span><span class="p">(),</span>
                                                                 <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-                    <span class="c">// extract the first item contained in it, which is the use statement</span>
+                    <span class="c1">// extract the first item contained in it, which is the use statement</span>
                     <span class="k">let</span> <span class="n">inner_item</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">();</span>
 
-                    <span class="c">// move_flat_map needs an iterator of items to insert</span>
+                    <span class="c1">// move_flat_map needs an iterator of items to insert</span>
                     <span class="nd">vec!</span><span class="p">[</span><span class="n">inner_item</span><span class="p">,</span> <span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
                 <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
                     <span class="nd">vec!</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
@@ -1037,8 +1037,8 @@ works, without worrying about this cyclical quineyness:</p>
             <span class="p">};</span>
             <span class="nf">noop_fold_mod</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
-        <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="mi">_</span><span class="n">mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
-            <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="mi">_</span><span class="n">mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
+        <span class="k">fn</span> <span class="nf">fold_mac</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">_mac</span><span class="p">:</span> <span class="n">Mac</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mac</span> <span class="p">{</span>
+            <span class="nf">noop_fold_mac</span><span class="p">(</span><span class="n">_mac</span><span class="p">,</span> <span class="k">self</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 
@@ -1071,26 +1071,26 @@ resolve, and thus got a failure when compiling the crate the second time around.
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">fold_mod</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">Mod</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Mod</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">new_items</span> <span class="o">=</span> <span class="n">m</span><span class="py">.items</span><span class="nf">.move_flat_map</span><span class="p">(|</span><span class="n">item</span><span class="p">|</span> <span class="p">{</span>
-        <span class="c">// look for the phase_2_configure_and_expand function</span>
+        <span class="c1">// look for the phase_2_configure_and_expand function</span>
         <span class="k">if</span> <span class="n">item</span><span class="py">.ident.name</span><span class="nf">.as_str</span><span class="p">()</span> <span class="o">==</span> <span class="s">"phase_2_configure_and_expand"</span> <span class="p">{</span>
-            <span class="c">// construct the code for the module contents as described earlier</span>
+            <span class="c1">// construct the code for the module contents as described earlier</span>
             <span class="k">let</span> <span class="n">code_for_module</span> <span class="o">=</span> <span class="s">r###"mod trust { static SELF_STRING: &amp;'static str = r##"###</span><span class="nf">.to_string</span><span class="p">()</span> <span class="o">+</span> <span class="s">r###"##""###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">r###""##"###</span> <span class="o">+</span> <span class="s">r###"##;"###</span> <span class="o">+</span> <span class="n">SELF_STRING</span> <span class="o">+</span> <span class="s">"}"</span><span class="p">;</span>
-            <span class="c">// Parse it into an AST by creating a crate only containing that code</span>
+            <span class="c1">// Parse it into an AST by creating a crate only containing that code</span>
             <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                         <span class="n">code_for_module</span><span class="p">,</span>
                                                         <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-            <span class="c">// extract the AST of the contained module</span>
+            <span class="c1">// extract the AST of the contained module</span>
             <span class="k">let</span> <span class="n">inner_mod</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">();</span>
 
-            <span class="c">// now to insert the fold_crate() call</span>
+            <span class="c1">// now to insert the fold_crate() call</span>
             <span class="k">let</span> <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">i</span><span class="p">|</span> <span class="p">{</span>
                 <span class="k">if</span> <span class="k">let</span> <span class="nn">ItemKind</span><span class="p">::</span><span class="nf">Fn</span><span class="p">(</span><span class="o">..</span><span class="p">,</span> <span class="k">ref</span> <span class="k">mut</span> <span class="n">block</span><span class="p">)</span> <span class="o">=</span> <span class="n">i</span><span class="py">.node</span> <span class="p">{</span>
                     <span class="o">*</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.map</span><span class="p">(|</span><span class="k">mut</span> <span class="n">b</span><span class="p">|</span> <span class="p">{</span>
-                        <span class="c">// create a temporary crate just containing a fold_crate call</span>
+                        <span class="c1">// create a temporary crate just containing a fold_crate call</span>
                         <span class="k">let</span> <span class="n">new_crate</span> <span class="o">=</span> <span class="nf">parse_crate_from_source_str</span><span class="p">(</span><span class="s">"trust"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                     <span class="s">"fn trust() {let krate = trust::fold_crate(krate, sess);}"</span><span class="nf">.into</span><span class="p">(),</span>
                                                                     <span class="o">&amp;</span><span class="k">self</span><span class="py">.sess.parse_sess</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
-                        <span class="c">// extract the AST from the parsed temporary crate, shove it in here</span>
+                        <span class="c1">// extract the AST from the parsed temporary crate, shove it in here</span>
                         <span class="k">if</span> <span class="k">let</span> <span class="nn">ItemKind</span><span class="p">::</span><span class="nf">Fn</span><span class="p">(</span><span class="o">..</span><span class="p">,</span> <span class="k">ref</span> <span class="n">blk</span><span class="p">)</span> <span class="o">=</span> <span class="n">new_crate</span><span class="py">.module.items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="py">.node</span> <span class="p">{</span>
                             <span class="n">b</span><span class="py">.stmts</span><span class="nf">.insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">blk</span><span class="py">.stmts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="nf">.clone</span><span class="p">());</span>
                         <span class="p">}</span>
@@ -1099,7 +1099,7 @@ resolve, and thus got a failure when compiling the crate the second time around.
                 <span class="p">}</span>
                 <span class="n">i</span>
             <span class="p">});</span>
-            <span class="c">// yield both the created module and the modified function to move_flat_map</span>
+            <span class="c1">// yield both the created module and the modified function to move_flat_map</span>
             <span class="nd">vec!</span><span class="p">[</span><span class="n">inner_mod</span><span class="p">,</span> <span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
         <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
             <span class="nd">vec!</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="nf">.into_iter</span><span class="p">()</span>
@@ -1139,8 +1139,8 @@ but <a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc
 duplicate <code class="language-plaintext highlighter-rouge">trust</code> modules, which makes sense because we’re actually already compiling an already-
 backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
 to verify if our attack is working is to just use <code class="language-plaintext highlighter-rouge">#[cfg(stage0)]</code> on the trust module and the
-<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
-compiler<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
+<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
+compiler<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
 backdoors executables, we’re done.</p>
 
 <p>On building the stage 2 (<code class="language-plaintext highlighter-rouge">make rustc-stage2</code>) compiler,</p>
@@ -1311,7 +1311,7 @@ algorithm, and this library is used by an application which uses a GC for some o
 to talk to Node). Interacting GCs are hard to reason about, though. The current design leaves this
 decision up to the GC designer — while it is possible to let your GCd object contain objects
 managed by a different GC, this requires some explicit extra work. Interacting GCs is a <em>very</em> niche
-use case<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
+use case<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
 
 <p>We also would like it to be safe to use trait objects with the GC. This raises some concerns which
 I’ll address in depth later in this post.</p>
@@ -1332,26 +1332,26 @@ stack or in non-gc heap boxes which themselves are reachable from the stack. Som
     <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="c">// `bar` is a root</span>
+<span class="c1">// `bar` is a root</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
-<span class="c">// `bar.inner` is not a root, since it can't be</span>
-<span class="c">// accessed without going through `bar`</span>
+<span class="c1">// `bar.inner` is not a root, since it can't be</span>
+<span class="c1">// accessed without going through `bar`</span>
 
-<span class="c">// `foo.bar` is a root:</span>
-<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c">// This is a root</span>
+<span class="c1">// `foo.bar` is a root:</span>
+<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c1">// This is a root</span>
 
 
-<span class="c">// `inner` is not a root, because it is a borrowed reference</span>
+<span class="c1">// `inner` is not a root, because it is a borrowed reference</span>
 <span class="k">let</span> <span class="n">inner</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bar</span><span class="py">.inner</span><span class="p">;</span>
 
-<span class="c">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
-<span class="c">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
-<span class="c">// new reference to the same value)</span>
+<span class="c1">// `rooted_bool` is a root, since it is a `Gc&lt;bool&gt;` on the stack</span>
+<span class="c1">// (cloning has the same behavior as that on `Rc&lt;T&gt;`: it creates a</span>
+<span class="c1">// new reference to the same value)</span>
 <span class="k">let</span> <span class="n">rooted_bool</span> <span class="o">=</span> <span class="n">bar</span><span class="py">.inner</span><span class="nf">.clone</span><span class="p">();</span>
 
-<span class="c">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
-<span class="c">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
-<span class="c">// or passing through a borrowed reference</span>
+<span class="c1">// `boxed_bar` is a root. While the Gc&lt;Bar&gt; is not on the stack,</span>
+<span class="c1">// it can be reached without dereferencing another `Gc&lt;T&gt;`</span>
+<span class="c1">// or passing through a borrowed reference</span>
 <span class="k">let</span> <span class="n">boxed_bar</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">()));</span>
 </code></pre></div></div>
 
@@ -1389,22 +1389,22 @@ that would bloat the stack maps and make walking the roots a very expensive oper
 
 <p>A very simple way of doing this is via a trait, <code class="language-plaintext highlighter-rouge">Root</code>.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 
 <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Root</span> <span class="p">{}</span>
 
-<span class="c">// auto-trait, anything containing</span>
-<span class="c">// a Root will itself be Root</span>
+<span class="c1">// auto-trait, anything containing</span>
+<span class="c1">// a Root will itself be Root</span>
 <span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">..</span> <span class="p">{}</span>
 
-<span class="c">// references are never roots</span>
+<span class="c1">// references are never roots</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">!</span><span class="n">Root</span> <span class="k">for</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">T</span> <span class="p">{}</span>
 
 
-<span class="c">// in a gc impl</span>
+<span class="c1">// in a gc impl</span>
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
@@ -1424,40 +1424,40 @@ operation we need to do to find roots.</p>
 
 <p>For this purpose, we introduce the <code class="language-plaintext highlighter-rouge">Trace</code> trait:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Trace</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">);</span>
 <span class="p">}</span>
 
-<span class="c">// in libcollections</span>
-<span class="c">// (or any third-party collections library)</span>
+<span class="c1">// in libcollections</span>
+<span class="c1">// (or any third-party collections library)</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="k">self</span> <span class="p">{</span>
             <span class="n">i</span><span class="nf">.trace</span><span class="p">()</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in gc library</span>
+<span class="c1">// in gc library</span>
 
-<span class="c">// only allow trace objects</span>
+<span class="c1">// only allow trace objects</span>
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c">// mark `self`</span>
+        <span class="c1">// mark `self`</span>
 
-        <span class="c">// Don't actually trace contained fields,</span>
-        <span class="c">// because there may be cycles and we'd recurse infinitely</span>
+        <span class="c1">// Don't actually trace contained fields,</span>
+        <span class="c1">// because there may be cycles and we'd recurse infinitely</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in consumer of gc library</span>
+<span class="c1">// in consumer of gc library</span>
 
-<span class="c">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
+<span class="c1">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
 <span class="nd">#[derive(Trace)]</span>
 <span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
@@ -1479,7 +1479,7 @@ GC object.</p>
 
 <p>We need to introduce the concept of a tracer here.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in libcore</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in libcore</span>
 
 <span class="k">trait</span> <span class="n">Tracer</span> <span class="p">:</span> <span class="n">Any</span> <span class="p">{}</span>
 
@@ -1488,36 +1488,36 @@ GC object.</p>
 <span class="p">}</span>
 
 
-<span class="c">// in libcollections</span>
+<span class="c1">// in libcollections</span>
 
-<span class="c">// impl doesn't care about the tracer</span>
+<span class="c1">// impl doesn't care about the tracer</span>
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="n">in</span> <span class="k">self</span> <span class="p">{</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="k">self</span> <span class="p">{</span>
             <span class="n">i</span><span class="nf">.trace</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in gc library</span>
+<span class="c1">// in gc library</span>
 
-<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c">// more complicated tracers may have state</span>
+<span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{}</span> <span class="c1">// more complicated tracers may have state</span>
 <span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
 
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c">// ..</span>
+    <span class="c1">// ..</span>
 <span class="p">}</span>
 
 <span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
         <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="py">.downcast_mut</span><span class="p">::</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
-            <span class="c">// mark self</span>
+            <span class="c1">// mark self</span>
         <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
             <span class="nf">panic</span><span class="p">(</span><span class="s">"Don't mix GCs!"</span><span class="p">);</span>
-            <span class="c">// If you want to support multiple GCs interacting with each other,</span>
-            <span class="c">// you can let this else block trace the contents.</span>
-            <span class="c">// Beware, interacting GCs have subtle safety issues.</span>
+            <span class="c1">// If you want to support multiple GCs interacting with each other,</span>
+            <span class="c1">// you can let this else block trace the contents.</span>
+            <span class="c1">// Beware, interacting GCs have subtle safety issues.</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -1544,7 +1544,7 @@ by the compiler itself, bounds like <code class="language-plaintext highlighter-
 won’t know what to do with them!</p>
 
 <p>Now, when generating the stack map, we include the stack offset of all <code class="language-plaintext highlighter-rouge">Root</code> objects in scope, as
-well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>. Walking the
+well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Walking the
 stack involves calling the trace method on each entry in the stack map for each call site.</p>
 
 <h2 id="unresolved-problems">Unresolved problems</h2>
@@ -1605,7 +1605,7 @@ forbid interacting GCs instead of having it done at runtime.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -1642,12 +1642,12 @@ Having `Root<T>` might fix this, but then you have to deal with the auto trait g
 <p>One solution for the auto trait generics is to simple not include <code class="language-plaintext highlighter-rouge">Root</code> in the stdlib. Instead,
 require code like the following:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// in gc library</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// in gc library</span>
 
 <span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
 
 <span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 
 <span class="nd">#[gc_root_trait]</span>
@@ -1687,17 +1687,17 @@ can very easily cause a GC segfault. I do not consider this to be a major downsi
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c">// baz can contain a Bar</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
 <span class="p">}</span>
-<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="o">*</span><span class="n">bar</span><span class="p">);</span>
-        <span class="c">// or</span>
+        <span class="c1">// or</span>
         <span class="o">*</span><span class="k">self</span><span class="py">.baz.bar</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">bar</span><span class="nf">.clone</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
+<span class="c1">// Foo itself is used as a `Gc&lt;Foo&gt;`</span>
 </code></pre></div></div>
 
 <p>The problem is that destructors run in the sweep cycle of a GC, in some order. This means that <code class="language-plaintext highlighter-rouge">bar</code>
@@ -1722,13 +1722,13 @@ which are explicitly <code class="language-plaintext highlighter-rouge">Root</co
     <span class="n">x</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
 <span class="p">}</span> 
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">HijackableType</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="k">self</span><span class="py">.x</span><span class="nf">.do_the_thing</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c">// in other library</span>
+<span class="c1">// in other library</span>
 
 <span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
     <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
@@ -2226,7 +2226,7 @@ Internet) to understand it fully, but the concept is quite intriguing and sounds
 thought I’d explain it here in an accessible way, both so that others can get it and to
 improve my own understanding.</p>
 
-<p>I intend this article to be read by people with a programming or mathematical background<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>,
+<p>I intend this article to be read by people with a programming or mathematical background<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>,
 who have some understanding of what logic gates are. Please let me know if you feel that something
 is inadequately (or wrongly) explained.</p>
 
@@ -2245,7 +2245,7 @@ solution with Alice without getting paid. They also don’t want to involve a th
 this is a rather Important Sudoku Puzzle that affects National Security ¯\_(ツ)_/¯.</p>
 
 <p>What Alice and Bob need here is a way for Bob to prove to Alice that he has the solution, without
-sharing the solution, and without involving a third party<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.</p>
+sharing the solution, and without involving a third party<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.</p>
 
 <p>It turns out that this is totally possible (magical, right!). There’s a quick example
 <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof#Abstract_example">on Wikipedia</a> of a simple proof of a non-mathematical fact – whether or not someone
@@ -2335,7 +2335,7 @@ explanation, though it’s explained beautifully <a href="http://blog.cryptograp
 it can take up a lot of computational resources to solve). Of course, <em>this</em> graph is small and easy
 to color, but that’s just for the sake of this blog post.</p>
 
-<p>Bob, using his trusty Crayola™ 3-crayon set<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, has managed to come up with a valid coloring:</p>
+<p>Bob, using his trusty Crayola™ 3-crayon set<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, has managed to come up with a valid coloring:</p>
 
 <p><img src="/images/dotgen/graph-colored.dot.png" /></p>
 
@@ -2371,7 +2371,7 @@ coloring.</p>
 <p>Since Alice only looked at nodes 1 and 2, she didn’t see anything wrong with the graph. But if she
 had by chance picked nodes 3 and 4, Bob’s deception would have been revealed.</p>
 
-<p>So she only has 14% (1/7) certainity<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup> that Bob’s graph is correct.</p>
+<p>So she only has 14% (1/7) certainity<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup> that Bob’s graph is correct.</p>
 
 <p>However, we can run this experiment again. Bob can permute the colors, draw on a fresh copy of the
 graph, and ask Alice to choose another pair of adjacent nodes. She can check this, and the
@@ -2430,9 +2430,9 @@ on the verifier’s side approaching 100% as more and more rounds happen.</p>
 
 <p>It turns out that you can have a ZKP exchange for the execution of any algorithm that can be
 transcribed into combinatorical logic. In other words, you should be able to write the program
-without loops and recursion, though loops bounded by a constant are allowed<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>. This isn’t as
+without loops and recursion, though loops bounded by a constant are allowed<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>. This isn’t as
 restrictive as it seems, usually <em>verification</em> is a straightforward task not involving convoluted
-loops. The examples above (graph coloring<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote">6</a></sup>, sudoku, prime factorization<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote">7</a></sup>) can all be verified
+loops. The examples above (graph coloring<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup>, sudoku, prime factorization<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">7</a></sup>) can all be verified
 without loops.</p>
 
 <p>The algorithm shown here is by Gregory Maxwell, originally published <a href="https://people.xiph.org/~greg/simple_verifyable_execution.txt">here</a>. It’s somewhat
@@ -2585,7 +2585,7 @@ reencrypt). This operation is the same as XORing by \(e_o \oplus e_1\), which is
 “adaptation key”. Every pair of encrypted gates will have an adaptation key for every configuration
 they can be placed in.</p>
 
-<p>Alright. Bob creates a ton of these “encrypted gates”, and calculates all the adaptation keys for every possible pair of gates. He also mixes up the truth tables of each encrypted gate<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote">8</a></sup>.</p>
+<p>Alright. Bob creates a ton of these “encrypted gates”, and calculates all the adaptation keys for every possible pair of gates. He also mixes up the truth tables of each encrypted gate<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">8</a></sup>.</p>
 
 <p>Now, he commits to these truth tables. A commitment for each entry in each truth table is made, so
 he’ll end up with something like this:</p>
@@ -2668,7 +2668,7 @@ the same inputs, and have one output each. In itself this is pretty useless; thi
 obviously redundant. However, in the context of encrypted gates, this redundancy becomes useful.</p>
 
 <p>Bob drops in the 2*N encrypted gates into this double-circuit, using the post-shuffle ordering of
-encrypted gates and the predecided numbering<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote">9</a></sup> of the AND gates in the circuit. He puts the
+encrypted gates and the predecided numbering<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote" rel="footnote">9</a></sup> of the AND gates in the circuit. He puts the
 necessary adaptation gates (i.e. an XOR operation with the relevant adaptation key) between
 encrypted AND gates to make the circuit work. Note that each “half” of the circuit has a different
 set of encrypted gates, and thus a different encryption key for each input. There are NOT gates here
@@ -2745,7 +2745,7 @@ this program has no loops.</p>
 history of execution for the same nonencrypted execution by adding NOT gates wherever they don’t
 match, and then absorbing these NOT gates into the input or output keys (by NOTing them) of the
 adjacent encrypted AND gates. This means that without knowing the details of the encrypted gates,
-all histories of execution are equally possible for a given actual execution<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote">10</a></sup>. Therefore,
+all histories of execution are equally possible for a given actual execution<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">10</a></sup>. Therefore,
 knowing only a history of execution does not provide you further information about the actual
 execution, since it could equally have been for some other history of execution.</p>
 
@@ -2806,7 +2806,7 @@ piñata which only Bob can break.</p>
 <p>We can build on this to make the Bitcoin network behave as a trustworthy escrow. After having
 stepped through the zero-knowledge protocol and being confident that Y is the hash of the padded
 input, Alice crafts a transaction which says “anyone with a string that results in this hash may
-spend this money”<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote">11</a></sup>. Bob has this string; it is the padded answer X. He makes a transaction with
+spend this money”<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote" rel="footnote">11</a></sup>. Bob has this string; it is the padded answer X. He makes a transaction with
 X as part of the input script (so that he can claim the money); and the Bitcoin network accepts it.
 Assuming Alice and Bob are not able to tamper with each others’ local networks, by the time Alice
 sees the transaction containing X, the network should have accepted this transaction already (though
@@ -2945,7 +2945,7 @@ Additionally, include some tips and tricks (like a link to the internal document
 
 <p>We often forget how hard it is to jumpstart in something we’re an active part of. For example, for many of us the process of making a pull request is almost second nature.</p>
 
-<p>However, not everyone is used to these things. I’ve seen contributors who can code well but haven’t used Github in the past having lots of trouble making and updating a pull request. The same applies to other workflow things; like code review, version control<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">1</a></sup>, or build system peculiarities.</p>
+<p>However, not everyone is used to these things. I’ve seen contributors who can code well but haven’t used Github in the past having lots of trouble making and updating a pull request. The same applies to other workflow things; like code review, version control<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">1</a></sup>, or build system peculiarities.</p>
 
 <p>Keep this in mind when dealing with new contributors. These are skills which can be picked up relatively quickly, but those without them will have a frustrating experience and end up asking you a lot of questions.</p>
 
@@ -2957,7 +2957,7 @@ Additionally, include some tips and tricks (like a link to the internal document
 
 <p>Don’t just leave an easy bug open. <strong>Offer to mentor it!</strong> This is a very fun and rewarding experience, and of course contributors are more likely to stick around in a project they percieve to be helpful and welcoming.</p>
 
-<p>It’s often better to go one step further and <strong>give tips for fixing the issue before anyone even picks it up</strong> (<a href="https://github.com/rust-lang/rust/issues/10969#issuecomment-158282317">example</a>). Communication in open source has latency — the contributor might be on the other side of the planet, or might otherwise be contributing at a different time of the day than you<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>. Reducing the number of back-and-forth cycles is really helpful here, and giving some info so that a contributor can get started immediately without needing to wait for a response goes a long way in improving the newcomer experience.</p>
+<p>It’s often better to go one step further and <strong>give tips for fixing the issue before anyone even picks it up</strong> (<a href="https://github.com/rust-lang/rust/issues/10969#issuecomment-158282317">example</a>). Communication in open source has latency — the contributor might be on the other side of the planet, or might otherwise be contributing at a different time of the day than you<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>. Reducing the number of back-and-forth cycles is really helpful here, and giving some info so that a contributor can get started immediately without needing to wait for a response goes a long way in improving the newcomer experience.</p>
 
 <p>Avoid creating a mentored bug where you yourself aren’t certain on how to fix it. Ideally, <strong>you should know the exact steps to take to fix a bug</strong> before marking it as mentored. Don’t divulge all the steps to the mentee, but the exercise of solving the bug yourself (without writing the code) ensures that there aren’t any hidden traps.</p>
 
@@ -2975,7 +2975,7 @@ Additionally, include some tips and tricks (like a link to the internal document
 
 <p>For example, Servo uses this great tool called <a href="http://reviewable.io/">Reviewable</a> for code review. Regular contributors don’t have much friction whilst using this, so we use it wherever possible. However, for small pull requests from new contributors I avoid using Reviewable and instead opt to review directly from the GitHub interface. For these pull requests I don’t need Reviewable’s features, so I don’t lose much, but now the contributor has to go through one less hoop.</p>
 
-<p>Similarly, for rust-clippy, I often make minor fixes and run <a href="https://github.com/Manishearth/rust-clippy/blob/master/util/update_lints.py">the readme update script</a> on behalf of the contributor instead of asking them to do it themselves. I usually check out the PR locally, run <code class="language-plaintext highlighter-rouge">git merge pr-branch --no-commit --no-ff</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, make edits, commit and push. This way the PR still gets marked as merged (<code class="language-plaintext highlighter-rouge">commit --amend</code> doesn’t do that), and the history stays bisectable.</p>
+<p>Similarly, for rust-clippy, I often make minor fixes and run <a href="https://github.com/Manishearth/rust-clippy/blob/master/util/update_lints.py">the readme update script</a> on behalf of the contributor instead of asking them to do it themselves. I usually check out the PR locally, run <code class="language-plaintext highlighter-rouge">git merge pr-branch --no-commit --no-ff</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, make edits, commit and push. This way the PR still gets marked as merged (<code class="language-plaintext highlighter-rouge">commit --amend</code> doesn’t do that), and the history stays bisectable.</p>
 
 <p>OpenSSL uses a mailing list for patches, however they allow contributions via GitHub too. Most seasoned contributors probably stick to the mailing list, but new contributors can use the familiar GitHub interface if they want, reducing friction.</p>
 
@@ -3205,7 +3205,7 @@ value on the stack which belongs to one of these regions.</p>
 where the GCd pointer is accessible, but through a non-GC pointer.</p>
 
 <p>We decided rather early on that we didn’t want a GC based on lints or stack scanning. Both are
-rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. We were also hoping that
+rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. We were also hoping that
 Rust’s type system and ownership semantics could help us in designing a good, safe, API.</p>
 
 <p>So, we needed a way to keep track of roots, and we needed a way to trace objects.</p>
@@ -3258,12 +3258,12 @@ public interface) has its “root count” set to one.</p>
 <p>When this <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is cloned, an identical <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
 underlying root count is incremented. Cloning a <code class="language-plaintext highlighter-rouge">Gc</code> does not perform a deep copy.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
 
-<span class="c">// ptr points to the underlying box, which contains the data as well as</span>
-<span class="c">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
+<span class="c1">// ptr points to the underlying box, which contains the data as well as</span>
+<span class="c1">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
 
-<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
+<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c1">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
 </code></pre></div></div>
 
 <p>This is rather similar to how <code class="language-plaintext highlighter-rouge">Rc</code> works, however there is no <code class="language-plaintext highlighter-rouge">root</code> field, and the <code class="language-plaintext highlighter-rouge">roots</code> counter
@@ -3280,16 +3280,16 @@ handled by “unrooting” the first GC thing:</p>
     <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c">// why anyone would want to GC an integer I'll never know</span>
-                     <span class="c">// but I'll stick with this example since it's simple</span>
+<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// why anyone would want to GC an integer I'll never know</span>
+                     <span class="c1">// but I'll stick with this example since it's simple</span>
 
 <span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">bar</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">baz</span><span class="p">:</span> <span class="n">a</span><span class="p">});</span>
-<span class="c">// a.root = false, (*a.ptr).roots--</span>
-<span class="c">// b initialized similar to previous example</span>
+<span class="c1">// a.root = false, (*a.ptr).roots--</span>
+<span class="c1">// b initialized similar to previous example</span>
 
-<span class="c">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
-<span class="c">// other than through `b`, and `a` is no longer a root.</span>
-<span class="c">// To avoid moving a, passing `a.clone()` to `b` will work</span>
+<span class="c1">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
+<span class="c1">// other than through `b`, and `a` is no longer a root.</span>
+<span class="c1">// To avoid moving a, passing `a.clone()` to `b` will work</span>
 </code></pre></div></div>
 
 <p>Of course, we need a way to traverse the object passed to the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, in this case <code class="language-plaintext highlighter-rouge">Foo</code>, and look
@@ -3315,14 +3315,14 @@ possible to move rooted things into heap objects and vice versa:</p>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
 
-<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c">// uh oh, x is still considered rooted!</span>
+<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c1">// uh oh, x is still considered rooted!</span>
 
-<span class="c">// and the reverse!</span>
+<span class="c1">// and the reverse!</span>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">)));</span>
 
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// x was never rooted!</span>
-<span class="c">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// x was never rooted!</span>
+<span class="c1">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
 </code></pre></div></div>
 
 <p>Since <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> doesn’t implement <code class="language-plaintext highlighter-rouge">DerefMut</code>, none of this is possible — one cannot mutate the
@@ -3330,7 +3330,7 @@ inner data. This is one of the places where Rust’s ownership/mutability system
 in our favor.</p>
 
 <p>Of course, an immutable GC isn’t very useful. We can’t even create cycles in an immutable GC, so why
-would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">2</a></sup>?</p>
+would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>?</p>
 
 <p>So of course, we needed to make it somehow mutable. People using <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> solve this problem by using
 <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
@@ -3351,21 +3351,21 @@ which is tracked by an internal field similar to <code class="language-plaintext
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">30</span><span class="p">)});</span>
 <span class="p">{</span>
-    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c">// the `Gc(30)` from `y.b` was rooted by this call</span>
-                           <span class="c">// but since we don't actually use it here,</span>
-                           <span class="c">// the destructor gets rid of it.</span>
-                           <span class="c">// We could use swap() to retain access to it.</span>
-    <span class="c">// ...</span>
-    <span class="c">// x unrooted</span>
+    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// the `Gc(30)` from `y.b` was rooted by this call</span>
+                           <span class="c1">// but since we don't actually use it here,</span>
+                           <span class="c1">// the destructor gets rid of it.</span>
+                           <span class="c1">// We could use swap() to retain access to it.</span>
+    <span class="c1">// ...</span>
+    <span class="c1">// x unrooted</span>
 <span class="p">}</span>
 
 
-<span class="c">// and the reverse case works too:</span>
+<span class="c1">// and the reverse case works too:</span>
 
 <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">GcCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">))));</span>
 
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
-                               <span class="c">// before `x` can access it</span>
+<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
+                               <span class="c1">// before `x` can access it</span>
 </code></pre></div></div>
 
 <p>So now, mutation works too! We have a working garbage collector!</p>

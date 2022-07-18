@@ -124,7 +124,7 @@
 
 <p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
 
-<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
@@ -141,11 +141,11 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
 <span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
-    <span class="c">// this field is nearly free to construct</span>
+    <span class="c1">// this field is nearly free to construct</span>
     <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="c">// constructing this will involve a small allocation and copy</span>
+    <span class="c1">// constructing this will involve a small allocation and copy</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
-    <span class="c">// this may take a while</span>
+    <span class="c1">// this may take a while</span>
     <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -245,24 +245,24 @@
 
 <p>Anyway, here’s what that looks like.</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Some types explicitly mentioned for clarity</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Some types explicitly mentioned for clarity</span>
 
-<span class="c">// load a file</span>
+<span class="c1">// load a file</span>
 <span class="k">let</span> <span class="n">file</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">fs</span><span class="p">::</span><span class="nf">read</span><span class="p">(</span><span class="s">"data.postcard"</span><span class="p">)</span><span class="o">?</span><span class="nf">.into</span><span class="p">();</span>
 
-<span class="c">// create a new Rc reference to the file data by cloning it,</span>
-<span class="c">// then use it as a cart for a Yoke</span>
-<span class="k">let</span> <span class="n">y</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
-    <span class="c">// deserialize from the file</span>
+<span class="c1">// create a new Rc reference to the file data by cloning it,</span>
+<span class="c1">// then use it as a cart for a Yoke</span>
+<span class="k">let</span> <span class="n">y</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+    <span class="c1">// deserialize from the file</span>
     <span class="k">let</span> <span class="n">cow</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span>  <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">);</span>
     <span class="n">cow</span>
 <span class="p">})</span>
 
-<span class="c">// the string is still accessible with `.get()`</span>
+<span class="c1">// the string is still accessible with `.get()`</span>
 <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">y</span><span class="nf">.get</span><span class="p">())</span>
 
-<span class="k">drop</span><span class="p">(</span><span class="n">y</span><span class="p">);</span>
-<span class="c">// only now will the reference count on the file be decreased</span>
+<span class="nf">drop</span><span class="p">(</span><span class="n">y</span><span class="p">);</span>
+<span class="c1">// only now will the reference count on the file be decreased</span>
 </code></pre></div></div>
 
 <div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API. <em>Most</em> of the bugs have been fixed as of Rust 1.61.</div>
@@ -283,7 +283,7 @@
 
 <p>The actual signature of <code class="language-plaintext highlighter-rouge">.get()</code> is <a href="https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get">a bit weird</a> since it needs to be generic, but if our borrowed type is <code class="language-plaintext highlighter-rouge">Foo&lt;'a&gt;</code>, then the signature of <code class="language-plaintext highlighter-rouge">.get()</code> is something like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="n">get</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="o">...</span>
     <span class="p">}</span>
@@ -299,7 +299,7 @@
     <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+<span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
     <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">)</span>
 <span class="p">});</span>
 </code></pre></div></div>
@@ -308,9 +308,9 @@
 
 <p>There’s a bunch more you can do with <code class="language-plaintext highlighter-rouge">Yoke</code>, for example you can “project” a yoke to get a new yoke with a subset of the data found in the initial one:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
 
-<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="mi">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="n">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
 
 </code></pre></div></div>
 
@@ -318,11 +318,11 @@
 
 <p><code class="language-plaintext highlighter-rouge">Yoke</code>s are, perhaps surprisingly, <em>mutable</em> as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no <em>additional</em> borrowed data sneaks in:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
 
-<span class="c">// make the name sound fancier</span>
+<span class="c1">// make the name sound fancier</span>
 <span class="n">person</span><span class="nf">.with_mut</span><span class="p">(|</span><span class="n">person</span><span class="p">|</span> <span class="p">{</span>
-    <span class="c">// this will convert the `Cow` into owned one</span>
+    <span class="c1">// this will convert the `Cow` into owned one</span>
     <span class="n">person</span><span class="py">.name</span><span class="nf">.to_mut</span><span class="p">()</span><span class="nf">.push</span><span class="p">(</span><span class="s">", Esq."</span><span class="p">)</span>
 <span class="p">})</span>
 </code></pre></div></div>
@@ -341,21 +341,21 @@
 
 <p><code class="language-plaintext highlighter-rouge">Yoke</code> works by relying on the concept of a <em>covariant lifetime</em>. The <a href="https://docs.rs/yoke/latest/yoke/trait.Yokeable.html"><code class="language-plaintext highlighter-rouge">Yokeable</code></a> trait looks like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'static</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="k">'static</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span><span class="p">;</span>
-    <span class="c">// methods omitted</span>
+    <span class="c1">// methods omitted</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <p>and a typical implementation would look something like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">;</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
 
 <div class="discussion discussion-note">
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
@@ -369,20 +369,20 @@
 
 <p><code class="language-plaintext highlighter-rouge">#[derive(Yokeable)]</code>, in most cases, relies on the compiler’s ability to determine if a lifetime is covariant, and doesn’t actually generate much code! In most cases, the bodies of the various functions on <code class="language-plaintext highlighter-rouge">Yokeable</code> are pure safe code, looking like this:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span> <span class="k">for</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'static</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span> <span class="k">for</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">;</span>
-    <span class="k">fn</span> <span class="nf">transform</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nn">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">transform</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
         <span class="k">self</span>
     <span class="p">}</span>
-    <span class="k">fn</span> <span class="nf">transform_owned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">transform_owned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
         <span class="k">self</span>
     <span class="p">}</span>
     <span class="k">fn</span> <span class="n">transform_mut</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span>
     <span class="k">where</span>
-        <span class="n">F</span><span class="p">:</span> <span class="nv">'static</span> <span class="o">+</span> <span class="k">for</span><span class="o">&lt;</span><span class="nv">'b</span><span class="o">&gt;</span> <span class="nf">FnOnce</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'b</span> <span class="k">mut</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">F</span><span class="p">:</span> <span class="k">'static</span> <span class="o">+</span> <span class="k">for</span><span class="o">&lt;</span><span class="nv">'b</span><span class="o">&gt;</span> <span class="nf">FnOnce</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'b</span> <span class="k">mut</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">)</span> <span class="p">{</span>
         <span class="nf">f</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
     <span class="p">}</span>
-    <span class="c">// fn make() omitted since it's not as relevant</span>
+    <span class="c1">// fn make() omitted since it's not as relevant</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -412,7 +412,7 @@
 
 <p>While I don’t consider the <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> crate “done” yet, it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="twitter.com/plaidfinch">Finch</a>, @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>

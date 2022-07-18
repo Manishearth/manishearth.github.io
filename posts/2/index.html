@@ -261,7 +261,7 @@ you sometimes end up writing things like:</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="nn">Foo</span><span class="p">::</span><span class="nf">Stringy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.process</span><span class="p">(),</span>
     <span class="nn">Foo</span><span class="p">::</span><span class="nf">Numerical</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">n</span><span class="nf">.process</span><span class="p">(),</span>
-    <span class="c">// ...</span>
+    <span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -345,7 +345,7 @@ thread back when its I/O operation is finished (i.e. it’s “unblocked”). Wi
 this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
 scheduling based on I/O.</p>
 
-<p>But, as we already discovered, threads don’t scale well for things like this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>.</p>
+<p>But, as we already discovered, threads don’t scale well for things like this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <p>We need “lighter” threads.</p>
 
@@ -376,7 +376,7 @@ a different goroutine.</p>
 <p>So if these aren’t “real” (operating system) threads, what’s going on?</p>
 
 <p>A goroutine is an example of a “lightweight” thread. The operating system doesn’t know about these,
-it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>, swapping
+it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, swapping
 goroutines in and out much like the operating system scheduler. It’s able to do this because
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.</p>
@@ -468,7 +468,7 @@ very similar to a tiny stack!</p>
 <p>Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
+are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
 You have to manually set up the Tokio event loop (the “scheduler”), but once you do
@@ -494,12 +494,12 @@ use channels to coordinate so this isn’t that big a deal.</p>
 
 <p>The Rust code will look something like</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// error handling ignored for simplicity</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// error handling ignored for simplicity</span>
 
 <span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Future</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="nf">do_io</span><span class="p">()</span><span class="nf">.and_then</span><span class="p">(|</span><span class="n">data</span><span class="p">|</span> <span class="nf">do_more_io</span><span class="p">(</span><span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
           <span class="nf">.and_then</span><span class="p">(|</span><span class="n">more_data</span><span class="p">|</span> <span class="nf">do_even_more_io</span><span class="p">(</span><span class="nf">more_compute</span><span class="p">(</span><span class="n">more_data</span><span class="p">)))</span>
-    <span class="c">// ......</span>
+    <span class="c1">// ......</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -516,7 +516,7 @@ into a kind of state machine. Ew.</p>
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">generator</span> <span class="o">=</span> <span class="p">||</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
     <span class="k">loop</span> <span class="p">{</span>
-        <span class="n">yield</span> <span class="n">i</span><span class="p">;</span>
+        <span class="k">yield</span> <span class="n">i</span><span class="p">;</span>
         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
     <span class="p">}</span>
 <span class="p">};</span>
@@ -533,7 +533,7 @@ can also finish executing like regular functions.</p>
 <p>Closures in Rust are
 <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code class="language-plaintext highlighter-rouge">Fn</code> traits to make it callable</a>.</p>
 
-<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">4</a></sup>, and usually store an enum representing various states.</p>
+<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup>, and usually store an enum representing various states.</p>
 
 <p>The <a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines">unstable book</a> has some examples on what the generator state machine enum will look like.</p>
 
@@ -544,17 +544,17 @@ can also finish executing like regular functions.</p>
         <span class="k">let</span> <span class="k">mut</span> <span class="n">future</span> <span class="o">=</span> <span class="nf">do_io</span><span class="p">();</span>
         <span class="k">let</span> <span class="n">data</span><span class="p">;</span>
         <span class="k">loop</span> <span class="p">{</span>
-            <span class="c">// poll the future, yielding each time it fails,</span>
-            <span class="c">// but if it succeeds then move on</span>
+            <span class="c1">// poll the future, yielding each time it fails,</span>
+            <span class="c1">// but if it succeeds then move on</span>
             <span class="k">match</span> <span class="n">future</span><span class="nf">.poll</span><span class="p">()</span> <span class="p">{</span>
                 <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">Ready</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span> <span class="n">data</span> <span class="o">=</span> <span class="n">d</span><span class="p">;</span> <span class="k">break</span> <span class="p">},</span>
                 <span class="nf">Ok</span><span class="p">(</span><span class="nn">Async</span><span class="p">::</span><span class="nf">NotReady</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">(),</span>
                 <span class="nf">Err</span><span class="p">(</span><span class="o">..</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="o">...</span>
             <span class="p">};</span>
-            <span class="n">yield</span> <span class="n">future</span><span class="nf">.polling_info</span><span class="p">();</span>
+            <span class="k">yield</span> <span class="n">future</span><span class="nf">.polling_info</span><span class="p">();</span>
         <span class="p">}</span>
         <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
-        <span class="c">// do the same thing for `doMoreIo()`, etc</span>
+        <span class="c1">// do the same thing for `doMoreIo()`, etc</span>
     <span class="p">}</span>
 
     <span class="nf">futurify</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span>
@@ -577,11 +577,11 @@ does the last-mile work of packaging away this boilerplate. It essentially lets 
 the above function as</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[async]</span>
-<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="p">,</span> <span class="n">ErrorType</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">let</span> <span class="n">data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_io</span><span class="p">());</span>
     <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">compute</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
     <span class="k">let</span> <span class="n">more_data</span> <span class="o">=</span> <span class="k">await</span><span class="o">!</span><span class="p">(</span><span class="nf">do_more_io</span><span class="p">());</span>
-    <span class="c">// ....</span>
+    <span class="c1">// ....</span>
 </code></pre></div></div>
 
 <p>Nice and clean. Almost as clean as the Go code, just that we have explicit <code class="language-plaintext highlighter-rouge">await!()</code> calls. These
@@ -680,7 +680,7 @@ we have, implementing all the things, and improving our approachability as a lan
 <p>Basically, I want to see this as an extended impl period.</p>
 
 <p>This doesn’t mean I’m looking for a moratorium on RFCs, really. Hell, in the past few days I’ve posted
-one pre-pre-RFC<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, one pre-RFC, and one RFC (from the pre-RFC). I’m mostly looking for <em>prioritizing</em> impl
+one pre-pre-RFC<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, one pre-RFC, and one RFC (from the pre-RFC). I’m mostly looking for <em>prioritizing</em> impl
 work over designing new things, but still having <em>some</em> focus on design.</p>
 
 <h2 id="language">Language</h2>
@@ -724,7 +724,7 @@ incidents in a timely fashion.</p>
 
 <h2 id="docs--learning">Docs / Learning</h2>
 
-<p>I’d like to see a focus on improving Rust for folks who learn the language by <em>trying things</em> over reading books <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup>.</p>
+<p>I’d like to see a focus on improving Rust for folks who learn the language by <em>trying things</em> over reading books <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>.</p>
 
 <p>This means better diagnostics, better alternative resources like rustbyexample, etc. Improving mentorship helps here
 as well.</p>
@@ -832,7 +832,7 @@ in C++ or Rust may or may not exhibit undefined behavior, based on how it gets u
 <span class="p">}</span>
 </code></pre></div></div>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// do not try this at home</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// do not try this at home</span>
 <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">*</span><span class="k">mut</span> <span class="nb">u32</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">u32</span> <span class="p">{</span>
     <span class="k">unsafe</span> <span class="p">{</span> <span class="o">*</span><span class="n">x</span> <span class="p">}</span>
 <span class="p">}</span>
@@ -851,7 +851,7 @@ is a global property.</p>
 <h2 id="unsafe-behavior">Unsafe behavior</h2>
 
 <p>Rust’s concept of “unsafe behavior” (I’m coining this term because “unsafety” and “unsafe code” can
-be a bit confusing) is far more scoped. Here, <code class="language-plaintext highlighter-rouge">fn deref</code> <em>is</em> “unsafe”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, even if you <em>always</em>
+be a bit confusing) is far more scoped. Here, <code class="language-plaintext highlighter-rouge">fn deref</code> <em>is</em> “unsafe”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, even if you <em>always</em>
 call it with a valid pointer. The reason it is still unsafe is because it’s possible to trigger UB by only
 changing the “safe” caller code. I.e. “changes to code outside unsafe blocks can trigger UB if they include
 calls to this function”.</p>
@@ -872,7 +872,7 @@ usually be “actually totally safe” for less obvious reasons, and part of thi
 
 <p>Basically, “safe” in Rust is a more local property. Code isn’t safe just because you only use it in
 a way that doesn’t trigger UB, it is safe because there is literally <em>no way to use it such that it
-will do so</em>. No way to do so without using <code class="language-plaintext highlighter-rouge">unsafe</code> blocks, that is<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.</p>
+will do so</em>. No way to do so without using <code class="language-plaintext highlighter-rouge">unsafe</code> blocks, that is<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.</p>
 
 <p>This is a distinction that’s <em>possible</em> to draw in Rust because it gives us the ability
 to compartmentalize safety. Trying to apply this definition to C++ is problematic; you can
@@ -1022,7 +1022,7 @@ An example would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></r
 i.e. “Japan”) in Kanji with ruby にほん in the phonetic Hiragana script above it.</p>
 
 <p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
-size of the main text<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
+size of the main text<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
 is supposed to be <code class="language-plaintext highlighter-rouge">50%</code> of the size of the text, the minimum font size for the ruby is <code class="language-plaintext highlighter-rouge">50%</code> of the
 original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
 the same size), which is pretty ugly.</p>
@@ -1063,7 +1063,7 @@ cleaned up form of the specified value.</p>
 and in which order – some declarations have precedence over others. Then it will compute each relevant declaration against the element’s style (and parent style, among other bits of info),
 and store this value in the element’s “computed style”.</p>
 
-<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">2</a></sup>. There’s a
+<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>. There’s a
 bloom filter for quickly checking if deep descendent selectors apply to a subtree. There’s a “rule
 tree” that helps cache effort from determining applicable declarations. Computed styles are
 reference counted and shared very often (since the default state is to inherit from the parent or
@@ -1140,7 +1140,7 @@ Firefox since it inherits, and it must be computed earlier as well.</p>
 <span class="nt">&lt;/div&gt;</span>
 </code></pre></div></div>
 
-<p>For a normal inherited CSS property<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">3</a></sup>, if the parent has a computed value of <code class="language-plaintext highlighter-rouge">16px</code>,
+<p>For a normal inherited CSS property<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, if the parent has a computed value of <code class="language-plaintext highlighter-rouge">16px</code>,
 and the child has no additional values specified, the child will inherit a value of <code class="language-plaintext highlighter-rouge">16px</code>.
 <em>Where</em> the parent got that computed value from doesn’t matter.</p>
 
@@ -1199,7 +1199,7 @@ different. I suspect this is inefficient, but the rule tree seems to be involved
 more efficient</p>
 
 <p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
-stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code class="language-plaintext highlighter-rouge">medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">4</a></sup></p>
+stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code class="language-plaintext highlighter-rouge">medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup></p>
 
 <p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
 
@@ -1440,7 +1440,7 @@ some code in the functions near it.</p>
 but also due to <a href="https://twitter.com/sehurlburt/status/863829482645340160">this twitter discussion</a>.</p>
 
 <p>When teaching most things, there are two non-mutually-exclusive ways of approaching the problem. One
-is “proactive”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>, which is where the teacher decides a learning path beforehand, and executes it. The
+is “proactive”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, which is where the teacher decides a learning path beforehand, and executes it. The
 other is “reactive”, where the teacher reacts to the student trying things out and dynamically
 tailors the teaching experience.</p>
 
@@ -1451,7 +1451,7 @@ but tailoring the experience to the student’s reception of the things being ta
 
 <p>But … we don’t really learn much programming in a classroom setup.
 Sure, some folks learn the basics in college for a few years, but everything
-they learn after that isn’t in a classroom situation where this can work<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>.
+they learn after that isn’t in a classroom situation where this can work<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.
 I’m an autodidact,
 and while I have taken a few programming courses for random interesting things, I’ve taught myself most of what I know
 using various sources. I care a lot about improving the situation here.</p>
@@ -1478,7 +1478,7 @@ Neither can you really be your own teacher for a topic you do not understand.</p
 
 <p>Yet plenty of folks do this. Plenty of folks approach things like learning a new language by reading
 at most two pages of docs and then just diving straight in and trying stuff out. The only language I
-have not done this for is the first language I learned<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> <sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>.</p>
+have not done this for is the first language I learned<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> <sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
 
 <p>I think it’s unfortunate that folks who prefer this approach don’t get the benefit of a teacher.
 In the reactive approach, teachers can still tell you what you’re doing wrong and steer you away from
@@ -1546,7 +1546,7 @@ doubling the parentheses, though.</p>
 
 <span class="k">let</span> <span class="n">num</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 <span class="nf">add_one</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
-<span class="c">// num is still 0</span>
+<span class="c1">// num is still 0</span>
 </code></pre></div></div>
 
 <p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code class="language-plaintext highlighter-rouge">num</code>) passed to it
@@ -1657,7 +1657,7 @@ learning the language. A lot of these confusions stem from a misunderstanding of
 In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
 
 <p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
-“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup> without knowing this, but it’s useful
+“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
 and helps avoid confusion.</p>
 
 <hr />
@@ -1679,7 +1679,7 @@ but keep in mind that the stuff here applies equally to multi-file crates.</p>
 counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+    <span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
     
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
@@ -1693,7 +1693,7 @@ counterintuitive, based on your existing model.</p>
 
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="c">// not std::mem::transmute!</span>
+    <span class="c1">// not std::mem::transmute!</span>
     <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
 
     <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -1709,19 +1709,19 @@ counterintuitive, based on your existing model.</p>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// this works!</span>
+        <span class="c1">// this works!</span>
         <span class="nf">bar_inner</span><span class="p">();</span>
         <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="c">// this doesn't</span>
-        <span class="c">// baz::baz_inner();</span>
+        <span class="c1">// this doesn't</span>
+        <span class="c1">// baz::baz_inner();</span>
         
-        <span class="c">// but these do!</span>
+        <span class="c1">// but these do!</span>
         <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
         
-        <span class="c">// these do too!</span>
+        <span class="c1">// these do too!</span>
         <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="nn">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
         
     <span class="p">}</span>
@@ -1739,16 +1739,16 @@ counterintuitive, based on your existing model.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
-    <span class="c">// this won't work</span>
-    <span class="c">// use baz::inner();</span>
+    <span class="c1">// this won't work</span>
+    <span class="c1">// use baz::inner();</span>
     
-    <span class="c">// this will</span>
+    <span class="c1">// this will</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
-    <span class="c">// or</span>
-    <span class="c">// use bar::baz::inner</span>
+    <span class="c1">// or</span>
+    <span class="c1">// use bar::baz::inner</span>
     
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// but this will work!</span>
+        <span class="c1">// but this will work!</span>
         <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -1763,7 +1763,7 @@ counterintuitive, based on your existing model.</p>
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
 <p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote">2</a></sup>. Sometimes, for something to make sense,
+physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
 you add in things that don’t normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.</p>
@@ -1778,7 +1778,7 @@ still makes more sense when you include them.</p>
       <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
       <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
@@ -1791,14 +1791,14 @@ constitutes as “being within a module”.</p>
 <p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
 module:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">regex</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
 
 <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// won't work</span>
-        <span class="c">// let ex = regex::Regex::new("");</span>
+        <span class="c1">// won't work</span>
+        <span class="c1">// let ex = regex::Regex::new("");</span>
         <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
     <span class="p">}</span>
 <span class="p">}</span>
@@ -1848,11 +1848,11 @@ the module directly, so the code can just say <code class="language-plaintext hi
         <span class="o">...</span>
     <span class="p">}</span>
 
-    <span class="c">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="c1">// here we can refer to `replace` freely (in inline paths)</span>
     <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
         <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
-        <span class="c">// ...</span>
+        <span class="c1">// ...</span>
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1865,7 +1865,7 @@ any extra qualification in inline paths.</p>
 <p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
 others see it too”:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// works now!</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// works now!</span>
 <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 
 <span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
@@ -1881,8 +1881,8 @@ others see it too”:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// nope</span>
-    <span class="c">// use mem::replace;</span>
+    <span class="c1">// nope</span>
+    <span class="c1">// use mem::replace;</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -1892,7 +1892,7 @@ before:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c">// yep!</span>
+    <span class="c1">// yep!</span>
     <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1989,22 +1989,22 @@ you’ll see in the wild.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// can access `foo::foofunc`, even though `foofunc` is private</span>
+        <span class="c1">// can access `foo::foofunc`, even though `foofunc` is private</span>
 
         <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
 
     <span class="p">}</span>
-    <span class="c">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="c1">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
     <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c">// We can access our parent and _all_ its contents,</span>
-        <span class="c">// so we have access to `foo::baz`. We can access</span>
-        <span class="c">// all pub contents of modules we have access to, so we</span>
-        <span class="c">// can access `foo::baz::bazfunc`</span>
+        <span class="c1">// We can access our parent and _all_ its contents,</span>
+        <span class="c1">// so we have access to `foo::baz`. We can access</span>
+        <span class="c1">// all pub contents of modules we have access to, so we</span>
+        <span class="c1">// can access `foo::baz::bazfunc`</span>
         <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
     <span class="p">}</span>
     <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
@@ -2014,7 +2014,7 @@ you’ll see in the wild.</p>
 </code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote">4</a></sup>:</p>
+path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -2037,7 +2037,7 @@ path works is a function of where you are. For example, this works<sup id="fnref
 <p><br /></p>
 
 <p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote">5</a></sup>!</p>
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -2163,9 +2163,9 @@ I’d document it.</p>
 <p>The code was like this:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
 <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c">// returns Option&lt;Foo&gt;</span>
+    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
 <span class="p">};</span>
 
 <span class="k">use</span><span class="p">(</span><span class="n">maybe_foo</span><span class="p">);</span>
@@ -2187,7 +2187,7 @@ I’d document it.</p>
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_owned</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="nf">Some</span><span class="p">(</span><span class="n">Foo</span><span class="p">)</span>
     <span class="p">}</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Self</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="k">Self</span> <span class="p">{</span>
         <span class="n">Thingy</span> <span class="p">{</span>
             <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
         <span class="p">}</span>
@@ -2201,9 +2201,9 @@ I’d document it.</p>
     <span class="k">let</span> <span class="n">thing</span> <span class="o">=</span> <span class="nn">Thingy</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
 
     <span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-        <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+        <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
     <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c">// returns Option&lt;Foo&gt;</span>
+        <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
     <span class="p">};</span>
     
     <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">maybe_foo</span><span class="p">);</span>
@@ -2218,7 +2218,7 @@ we have a reference to the <code class="language-plaintext highlighter-rouge">Fo
 <p>We want to set a variable to these, but of course we can’t because they’re different types.</p>
 
 <p>In one case, we have an owned <code class="language-plaintext highlighter-rouge">Foo</code>, and we can usually obtain a borrow from an owned type. For
-<code class="language-plaintext highlighter-rouge">Option</code>, there’s a convenience method <code class="language-plaintext highlighter-rouge">.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+<code class="language-plaintext highlighter-rouge">Option</code>, there’s a convenience method <code class="language-plaintext highlighter-rouge">.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
     <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
@@ -2302,7 +2302,7 @@ for the scope of the enclosing block.</p>
 
 <p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c">// 😯😯😯😯😯</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c1">// 😯😯😯😯😯</span>
 <span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
     <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
 <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
@@ -2417,7 +2417,7 @@ ourselves! We can probe a bit more and try to understand what caused them to obt
 model. And fix the docs so that it never happens again! Of course, not everyone reads the docs, but
 that’s what diagnostics are for (in the case of errors). They’re a tool to help us nudge the user
 towards the right mental model, whilst helping them fix their immediate problem. Rust has for a long
-time had pretty great diagnostics, with improvements happening all the time<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote">1</a></sup>. I think this is at
+time had pretty great diagnostics, with improvements happening all the time<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. I think this is at
 least in part due to the attitude of the folks in <code class="language-plaintext highlighter-rouge">#rust</code>; always trying to figure out how to
 preempt various confusions they see.</p>
 
