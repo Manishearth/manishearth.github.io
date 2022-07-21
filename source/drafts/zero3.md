@@ -7,7 +7,7 @@ categories: ["mozilla", "programming", "rust"]
 ---
 
 
-_This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 2 is about making it work for more types and can be found [here][part 2].  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
+_This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found [here][part 1]; while Part 2 is about making it work for more types and can be found [here][part 2].  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
 
 
 > And when Alexander saw the breadth of his work, he wept. For there were no more copies left to zero.
@@ -33,6 +33,16 @@ Deserialization is a _great_ way to load data since it's in and of itself quite 
 But the thing is, there is still a cost. Even with zero-copy deserialization, you have to _validate_ the data you receive. It's often a cost folks are happy to pay, but that's not always the case.
 
 For example, you might be, say, [a web browser interested in ICU4X][firefox], and you _really_ care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.
+
+What would be ideal would be something that works like this:
+
+
+```rust
+static DATA: &Data = &serde_json::deserialize!(include_bytes!("./testdata.json"));
+```
+
+where you can have stuff get deserialized at compile time and loaded into a static. Unfortunately, Rust `const` support is not at the stage where the above code is possible whilst working within serde's generic framework, though it might be in a year or so.
+
 
 You _could_ write a very unsafe version of `serde::Deserialize` that operates on fully trusted data and uses some data format that is easy to zero-copy deserialize whilst avoiding any kind of validation. However, this would still have some cost: you still have to scan the data to reconstruct the full deserialized output. More importantly, it would require a parallel universe of unsafe serde-like traits that everyone has to derive or implement, where even small bugs in manual implementations would likely cause memory corruption.
 
@@ -160,7 +170,7 @@ For our "test" data, which is currently 2.7 MB in the [`postcard`] format (which
 
 `const` support in Rust still has a ways to go. For example, it doesn't yet support creating objects like `String`s which are usually on the heap, though [they are working on allowing this][const-alloc]. This isn't a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is _some way_ to represent it as a borrow from another `static`.
 
-A more pesky limitation is that you can't interact with traits in `const` environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the `serde` pipeline `const`-friendly[^2], and then you could do something like this:
+A more pesky limitation is that you can't interact with traits in `const` environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the `serde` pipeline `const`-friendly[^2], and then the code snippet from the beginning of this post would work:
 
 ```rust
 static DATA: &Data = &serde_json::deserialize!(include_bytes!("./testdata.json"));
@@ -172,7 +182,7 @@ This means that for things like `ZeroVec` (see [part 2]), we can't actually just
 
 [`crabbake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
 
-_Thanks to [Finch](twitter.com/plaidfinch), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
 
 
 

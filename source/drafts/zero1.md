@@ -288,7 +288,7 @@ As of Rust 1.61, a lot of the major bugs have been fixed, however there are stil
 
 While I don't consider the [`yoke`] crate "done" yet, it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to [Finch](twitter.com/plaidfinch), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
 
 
 
