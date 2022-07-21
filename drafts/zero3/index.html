@@ -148,6 +148,13 @@
 
 <p>For example, you might be, say, <a href="https://www.mozilla.org/en-US/firefox/">a web browser interested in ICU4X</a>, and you <em>really</em> care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.</p>
 
+<p>What would be ideal would be something that works like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>where you can have stuff get deserialized at compile time and loaded into a static. Unfortunately, Rust <code class="language-plaintext highlighter-rouge">const</code> support is not at the stage where the above code is possible whilst working within serde’s generic framework, though it might be in a year or so.</p>
+
 <p>You <em>could</em> write a very unsafe version of <code class="language-plaintext highlighter-rouge">serde::Deserialize</code> that operates on fully trusted data and uses some data format that is easy to zero-copy deserialize whilst avoiding any kind of validation. However, this would still have some cost: you still have to scan the data to reconstruct the full deserialized output. More importantly, it would require a parallel universe of unsafe serde-like traits that everyone has to derive or implement, where even small bugs in manual implementations would likely cause memory corruption.</p>
 
 <div class="discussion discussion-note">
@@ -287,7 +294,7 @@
 
 <p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
-<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then you could do something like this:</p>
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
@@ -298,7 +305,7 @@
 
 <p>[<code class="language-plaintext highlighter-rouge">crabbake</code>] is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to <a href="twitter.com/plaidfinch">Finch</a>, @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="twitter.com/plaidfinch">Finch</a>, <a href="twitter.com/yaahc_">Jane</a>, @@@@ for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
