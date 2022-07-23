@@ -199,7 +199,7 @@ _Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for
  [bake-derive]: https://docs.rs/databake/0.1.1/databakee/derive.Bake.html
  [decimals-json]: https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json
  [decimals-baked]: https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41
- [datetime-baked]: https://raw.githubusercontent.com/unicode-org/icu4x/main/provider/testdata/data/baked/datetime/datesymbols_v1.rs
+ [datetime-baked]: https://raw.githubusercontent.com/unicode-org/icu4x/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/datetime/datesymbols_v1.rs
  [icu4x-databake-file]: https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs
  [tokenize-call]: https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118
  [tokenize-body]: https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136
