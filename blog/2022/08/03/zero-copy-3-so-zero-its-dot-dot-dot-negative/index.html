@@ -16,7 +16,7 @@
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
-      <meta property="twitter:title" content="So Zero It's ... Negative?  (Zero-Copy #3)">
+      <meta property="twitter:title" content="So Zero It's ... Negative? (Zero-Copy #3)">
       <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/drafts/zero3/">
+  <link rel="canonical" href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -100,7 +100,7 @@
 
     
       <h1 class="entry-title">So Zero It's ... Negative? (Zero-Copy #3)</h1>
-      <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+      <em>Posted by Manish Goregaokar on August 03, 2022 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
       <p class="meta">
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="@@@">here</a>; while Part 2 is about making it work for more types and can be found <a href="@@@">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="../zero-copy-1-not-a-yoking-matter/">here</a>; while Part 2 is about making it work for more types and can be found <a href="../zero-copy-2-zero-copy-all-the-things/">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <blockquote>
   <p>And when Alexander saw the breadth of his work, he wept. For there were no more copies left to zero.</p>
@@ -124,9 +124,7 @@
   <p>—Hans Gruber, after designing three increasingly unhinged zero-copy crates</p>
 </blockquote>
 
-<p>@@@ Potentially swap the order of part 1 and part 2.</p>
-
-<p><a href="@@@">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="@@@">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
+<p><a href="../zero-copy-1-not-a-yoking-matter/">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
 
 <p>This part goes one step further and asks “what if we could avoid deserialization altogether?”.</p>
 
@@ -146,7 +144,7 @@
 
 <p>But the thing is, there is still a cost. Even with zero-copy deserialization, you have to <em>validate</em> the data you receive. It’s often a cost folks are happy to pay, but that’s not always the case.</p>
 
-<p>For example, you might be, say, <a href="https://www.mozilla.org/en-US/firefox/">a web browser interested in ICU4X</a>, and you <em>really</em> care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.</p>
+<p>For example, you might be, say, <a href="https://www.mozilla.org/en-US/firefox/">a web browser interested in using ICU4X</a>, and you <em>really</em> care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.</p>
 
 <p>What would be ideal would be something that works like this:</p>
 
@@ -284,11 +282,11 @@
 
 <h2 id="what-it-looks-like">What it looks like</h2>
 
-<p>ICU4X generates all of its test data into JSON, [<code class="language-plaintext highlighter-rouge">postcard</code>], and “baked” formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
+<p>ICU4X generates all of its test data into JSON, <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, and “baked” formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
 
 <p>ICU4X’s code for generating this is in <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs">this file</a>. It’s complicated primarily because ICU4X’s data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118">calls <code class="language-plaintext highlighter-rouge">tokenize()</code></a>, which is a thin wrapper around <a href="https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136">calling <code class="language-plaintext highlighter-rouge">.bake()</code> on the data and some other stuff</a>. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our “testdata” crate as a module, but there are many possibilities here!</p>
 
-<p>For our “test” data, which is currently 2.7 MB in the [<code class="language-plaintext highlighter-rouge">postcard</code>] format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
 
 <h2 id="limitations">Limitations</h2>
 
@@ -299,13 +297,13 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="@@@">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
+<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
 
 <h2 id="try-it-out">Try it out!</h2>
 
-<p>[<code class="language-plaintext highlighter-rouge">crabbake</code>] is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
+<p><a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a> is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, <a href="https://github.com/sffc">Shane</a>, @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, <a href="https://github.com/sffc">Shane</a>, and <a href="https://github.com/robertbastian">Robert</a> for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -350,7 +348,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/zero3/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/zero3/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" >Tweet</a>
   
   
   
@@ -358,6 +356,8 @@
 
     
     <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/" title="Previous Post: Zero-Copy All The Things! (Zero-Copy #2)">&laquo; Zero-Copy All The Things! (Zero-Copy #2)</a>
       
       
     </p>
@@ -388,23 +388,23 @@
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
       <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
   </ul>
@@ -422,8 +422,8 @@
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
-<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>

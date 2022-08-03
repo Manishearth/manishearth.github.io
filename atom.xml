@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2022-08-03T16:47:12+00:00</updated>
+  <updated>2022-08-03T23:39:14+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,875 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[So Zero It's ... Negative? (Zero-Copy #3)]]></title>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/"/>
+    <updated>2022-08-03T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative</id>
+    <content type="html"><![CDATA[<p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="../zero-copy-1-not-a-yoking-matter/">here</a>; while Part 2 is about making it work for more types and can be found <a href="../zero-copy-2-zero-copy-all-the-things/">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+
+<blockquote>
+  <p>And when Alexander saw the breadth of his work, he wept. For there were no more copies left to zero.</p>
+
+  <p>—Hans Gruber, after designing three increasingly unhinged zero-copy crates</p>
+</blockquote>
+
+<p><a href="../zero-copy-1-not-a-yoking-matter/">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
+
+<p>This part goes one step further and asks “what if we could avoid deserialization altogether?”.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Wait, what?
+            </div>
+        </div>
+
+<p>Bear with me.</p>
+
+<p>As mentioned in the previous posts, internationalization libraries like <a href="https://github.com/unicode-org/icu4x">ICU4X</a> need to be able to load and manage a lot of internationalization data. ICU4X in particular wants this part of the process to be as flexible and efficient as possible. The focus on efficiency is why we use zero-copy deserialization for basically everything, whereas the focus on flexibility has led to a robust and pluggable data loading infrastructure that allows you to mix and match data sources.</p>
+
+<p>Deserialization is a <em>great</em> way to load data since it’s in and of itself quite flexible! You can put your data in a neat little package and load it off the filesystem! Or send it over the network! It’s even better when you have efficient techniques like zero-copy deserialization because the cost is low.</p>
+
+<p>But the thing is, there is still a cost. Even with zero-copy deserialization, you have to <em>validate</em> the data you receive. It’s often a cost folks are happy to pay, but that’s not always the case.</p>
+
+<p>For example, you might be, say, <a href="https://www.mozilla.org/en-US/firefox/">a web browser interested in using ICU4X</a>, and you <em>really</em> care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.</p>
+
+<p>What would be ideal would be something that works like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>where you can have stuff get deserialized at compile time and loaded into a static. Unfortunately, Rust <code class="language-plaintext highlighter-rouge">const</code> support is not at the stage where the above code is possible whilst working within serde’s generic framework, though it might be in a year or so.</p>
+
+<p>You <em>could</em> write a very unsafe version of <code class="language-plaintext highlighter-rouge">serde::Deserialize</code> that operates on fully trusted data and uses some data format that is easy to zero-copy deserialize whilst avoiding any kind of validation. However, this would still have some cost: you still have to scan the data to reconstruct the full deserialized output. More importantly, it would require a parallel universe of unsafe serde-like traits that everyone has to derive or implement, where even small bugs in manual implementations would likely cause memory corruption.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Sounds like you need some format that needs no validation or scanning to zero-copy deserialize, and can be produced safely. But that doesn’t exist, does it?
+            </div>
+        </div>
+
+<p>It does.</p>
+
+<p>… but you’re not going to like where I’m going with this.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Oh no.
+            </div>
+        </div>
+
+<p>There is such a format: <em>Rust code</em>. Specifically, Rust code in <code class="language-plaintext highlighter-rouge">static</code>s. When compiled, Rust <code class="language-plaintext highlighter-rouge">static</code>s are basically “free” to load, beyond the typical costs involved in paging in memory. The Rust compiler trusts itself to be good at codegen, so it doesn’t need validation when loading a compiled <code class="language-plaintext highlighter-rouge">static</code> from memory. There is the possibility of codegen bugs, however we have to trust the compiler about that for the rest of our program anyway!</p>
+
+<p>This is even more “zero” than “zero-copy deserialization”! Regular “zero copy deserialization” still involves a scanning and potentially a validation step, it’s really more about “zero allocations” than actually avoiding <em>all</em> of the copies. On the other hand, there’s truly no copies or anything going on when you load Rust statics; it’s already ready to go as a <code class="language-plaintext highlighter-rouge">&amp;'static</code> reference!</p>
+
+<p>We just have to figure out a way to “serialize to <code class="language-plaintext highlighter-rouge">const</code> Rust code” such that the resultant Rust code could just be compiled in to the binary, and people who need to load trusted data into ICU4X can load it for free!</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             What does “<code class="language-plaintext highlighter-rouge">const</code> code” mean in this context?
+            </div>
+        </div>
+
+<p>In Rust, <code class="language-plaintext highlighter-rouge">const</code> code essentially is code that can be proven to be side-effect-free, and it’s the only kind of code allowed in <code class="language-plaintext highlighter-rouge">static</code>s, <code class="language-plaintext highlighter-rouge">const</code>s, and <code class="language-plaintext highlighter-rouge">const fn</code>s.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             I see! Does this code actually have to be “constant”?
+            </div>
+        </div>
+
+<p>Not quite! Rust supports mutation and even things like for loops in <code class="language-plaintext highlighter-rouge">const</code> code! Ultimately, it has to be the kind of code that <em>can</em> be computed at compile time with no difference of behavior: so no reading from files or the network, or using random numbers.</p>
+
+<p>For a long time only very simple code was allowed in <code class="language-plaintext highlighter-rouge">const</code>, but over the last year the scope of what that environment can do has expanded greatly, and it’s actually possible to do complicated things here, which is precisely what enables us to actually do “serialize to Rust code” in a reasonable way.</p>
+
+<h2 id="databake"><code class="language-plaintext highlighter-rouge">databake</code></h2>
+
+<p><em>A lot of the design here can also be found in the <a href="https://docs.google.com/document/d/192l7yr6hVnG11Dr8a7mDLonIb6c8rr6zq-iswrZtlXE/edit">design doc</a>. While I did the bulk of the design for this crate, it was almost completely implemented by <a href="https://github.com/robertbastian">Robert</a>, who also worked on integrating it into ICU4X, and cleaned up the design in the process.</em></p>
+
+<p>Enter <a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a> (née <code class="language-plaintext highlighter-rouge">crabbake</code>). <code class="language-plaintext highlighter-rouge">databake</code> is a crate that provides just this; the ability to serialize your types to <code class="language-plaintext highlighter-rouge">const</code> code that can then be used in <code class="language-plaintext highlighter-rouge">static</code>s allowing for truly zero-cost data loading, no deserialization necessary!</p>
+
+<p>The core entry point to <code class="language-plaintext highlighter-rouge">databake</code> is the <code class="language-plaintext highlighter-rouge">Bake</code> trait:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">Bake</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">bake</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CrateEnv</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">TokenStream</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A <code class="language-plaintext highlighter-rouge">TokenStream</code> is the type typically used in Rust <a href="https://doc.rust-lang.org/reference/procedural-macros.html">procedural macros</a> to represent a snippet of Rust code. The <code class="language-plaintext highlighter-rouge">Bake</code> trait allows you to take an instance of a type, and convert it to Rust code that represents the same value.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">CrateEnv</code> object is used to track which crates are needed, so that it is possible for tools generating this code to let the user know which direct dependencies are needed.</p>
+
+<p>This trait is augmented by a <a href="https://docs.rs/databake/0.1.1/databakee/derive.Bake.html"><code class="language-plaintext highlighter-rouge">#[derive(Bake)]</code></a> custom derive that can be used to apply it to most types automatically:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// inside crate `bar`, module `module.rs`</span>
+
+<span class="k">use</span> <span class="nn">databake</span><span class="p">::</span><span class="n">Bake</span><span class="p">;</span>
+
+<span class="nd">#[derive(Bake)]</span>
+<span class="nd">#[databake(path</span> <span class="nd">=</span> <span class="nd">bar::module)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+   <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span>
+   <span class="k">pub</span> <span class="n">age</span><span class="p">:</span> <span class="nb">u32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As with most custom derives, this only works on structs and enums that contain other types that already implement <code class="language-plaintext highlighter-rouge">Bake</code>. Most types not involving mandatory allocation should be able to.</p>
+
+<h2 id="how-to-use-it">How to use it</h2>
+
+<p><code class="language-plaintext highlighter-rouge">databake</code> itself doesn’t really prescribe any particular code generation strategy. It can be used in a proc macro or in a <code class="language-plaintext highlighter-rouge">build.rs</code>, or, even in a separate binary. ICU4X does the latter, since that’s just what ICU4X’s model for data generation is: clients can use the binary to customize the format and contents of the data they need.</p>
+
+<p>So a typical way of using this crate might be to do something like this in <code class="language-plaintext highlighter-rouge">build.rs</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">some_dep</span><span class="p">::</span><span class="n">Data</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">databake</span><span class="p">::</span><span class="n">Bake</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">quote</span><span class="p">::</span><span class="n">quote</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+   <span class="c1">// load data from file</span>
+   <span class="k">let</span> <span class="n">json_data</span> <span class="o">=</span> <span class="nd">include_str!</span><span class="p">(</span><span class="s">"data.json"</span><span class="p">);</span>
+
+   <span class="c1">// deserialize from json</span>
+   <span class="k">let</span> <span class="n">my_data</span><span class="p">:</span> <span class="n">Data</span> <span class="o">=</span> <span class="nn">serde_json</span><span class="p">::</span><span class="nf">from_str</span><span class="p">(</span><span class="n">json_data</span><span class="p">);</span>
+
+   <span class="c1">// get a token tree out of it</span>
+   <span class="k">let</span> <span class="n">baked</span> <span class="o">=</span> <span class="n">my_data</span><span class="nf">.bake</span><span class="p">();</span>
+
+
+   <span class="c1">// Construct rust code with this in a static</span>
+   <span class="c1">// The quote macro is used by procedural macros to do easy codegen,</span>
+   <span class="c1">// but it's useful in build scripts as well.</span>
+   <span class="k">let</span> <span class="n">my_data_rs</span> <span class="o">=</span> <span class="nd">quote!</span> <span class="p">{</span>
+      <span class="k">use</span> <span class="nn">some_dep</span><span class="p">::</span><span class="n">Data</span><span class="p">;</span>
+      <span class="k">static</span> <span class="n">MY_DATA</span><span class="p">:</span> <span class="n">Data</span> <span class="o">=</span> #<span class="n">baked</span><span class="p">;</span>
+   <span class="p">}</span>
+
+   <span class="c1">// Write to file</span>
+   <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var_os</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+   <span class="k">let</span> <span class="n">dest_path</span> <span class="o">=</span> <span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span><span class="nf">.join</span><span class="p">(</span><span class="s">"data.rs"</span><span class="p">);</span>
+   <span class="nn">fs</span><span class="p">::</span><span class="nf">write</span><span class="p">(</span>
+      <span class="o">&amp;</span><span class="n">dest_path</span><span class="p">,</span>
+      <span class="o">&amp;</span><span class="n">my_data_rs</span><span class="nf">.to_string</span><span class="p">()</span>
+   <span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+   <span class="c1">// (Optional step omitted: run rustfmt on the file)</span>
+
+   <span class="c1">// tell Cargo that we depend on this file</span>
+   <span class="nd">println!</span><span class="p">(</span><span class="s">"cargo:rerun-if-changed=src/data.json"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="what-it-looks-like">What it looks like</h2>
+
+<p>ICU4X generates all of its test data into JSON, <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, and “baked” formats. For example, for <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/json/decimal/symbols%401/ar-EG.json">this JSON data representing how a particular locale does numbers</a>, the “baked” data looks like <a href="https://github.com/unicode-org/icu4x/blob/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/decimal/symbols_v1.rs#L24-L41">this</a>. That’s a rather simple data type, but we do use this for more complex data like <a href="https://raw.githubusercontent.com/unicode-org/icu4x/7b52dbfe57043da5459c12627671a779d467dc0f/provider/testdata/data/baked/datetime/datesymbols_v1.rs">date time symbol data</a>, which is unfortunately too big for GitHub to render normally.</p>
+
+<p>ICU4X’s code for generating this is in <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs">this file</a>. It’s complicated primarily because ICU4X’s data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118">calls <code class="language-plaintext highlighter-rouge">tokenize()</code></a>, which is a thin wrapper around <a href="https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136">calling <code class="language-plaintext highlighter-rouge">.bake()</code> on the data and some other stuff</a>. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our “testdata” crate as a module, but there are many possibilities here!</p>
+
+<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+
+<h2 id="limitations">Limitations</h2>
+
+<p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
+
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p><a href="https://docs.rs/databake"><code class="language-plaintext highlighter-rouge">databake</code></a> is much less mature compared to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> and <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, but it does seem to work rather well so far. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, <a href="https://github.com/sffc">Shane</a>, and <a href="https://github.com/robertbastian">Robert</a> for reviewing drafts of this post</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>In ICU4X, a “data key” can be used to talk about a specific type of data, for example the decimal symbols data has a <code class="language-plaintext highlighter-rouge">decimal/symbols@1</code> data key. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Zero-Copy All the Things! (Zero-Copy #2)]]></title>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/"/>
+    <updated>2022-08-03T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things</id>
+    <content type="html"><![CDATA[<p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found <a href="../zero-copy-1-not-a-yoking-matter/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="../zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+
+<h2 id="background">Background</h2>
+
+<p><em>This section is the same as in the last article and can be skipped if you’ve read it</em></p>
+
+<p>For the past year and a half I’ve been working full time on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, a new internationalization library in Rust being built under the Unicode Consortium as a collaboration between various companies.</p>
+
+<p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
+
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+
+<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
+
+<h2 id="what-can-you-zero-copy">What can you zero-copy?</h2>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             If you’re unfamiliar with zero-copy deserialization, check out the explanation in the <a href="../zero-copy-1-not-a-yoking-matter/">previous article</a>!
+            </div>
+        </div>
+
+<p>In the <a href="../zero-copy-1-not-a-yoking-matter/">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
+
+<p>This article is about expanding our capabilities on <em>what we can make</em> zero-copy data.</p>
+
+<p>We previously saw this struct:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="c1">// this field is nearly free to construct</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="c1">// constructing this will involve a small allocation and copy</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="c1">// this may take a while</span>
+    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>and made the <code class="language-plaintext highlighter-rouge">name</code> field zero-copy by replacing it with a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>. However, we weren’t able to do the same with the <code class="language-plaintext highlighter-rouge">rust_files_written</code> field because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> does not handle zero-copy deserialization for things other than <code class="language-plaintext highlighter-rouge">[u8]</code> and <code class="language-plaintext highlighter-rouge">str</code>. Forget nested collections like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code> (as <code class="language-plaintext highlighter-rouge">&amp;[&amp;str]</code>), even <code class="language-plaintext highlighter-rouge">Vec&lt;u32&gt;</code> (as <code class="language-plaintext highlighter-rouge">&amp;[u32]</code>) can’t be made zero-copy easily!</p>
+
+<p>This is not a fundamental restriction in zero-copy deserialization, indeed, the excellent <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> library is able to support data like this. However, it’s not as slam-dunk easy as <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code> and it’s understandable that <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> wishes to not pick sides on any tradeoffs here and leave it up to the users.</p>
+
+<p>So what’s the actual problem here?</p>
+
+<h2 id="blefuscudian-bewilderment">Blefuscudian Bewilderment</h2>
+
+<p>The short answer is: endianness, alignment, and for <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, indirection.</p>
+
+<p>See, the way zero-copy deserialization works is by directly taking a pointer to the memory and declaring it to be the desired value. For this to work, that data <em>must</em> be of a kind that looks the same on all machines, and must be legal to take a reference to.</p>
+
+<p>This is pretty straightforward for <code class="language-plaintext highlighter-rouge">[u8]</code> and <code class="language-plaintext highlighter-rouge">str</code>, their data is identical on every system. <code class="language-plaintext highlighter-rouge">str</code> does need a validation step to ensure it’s valid UTF-8, but the general thrust of zero-copy serialization is to replace expensive deserialization with cheaper validation, so we’re fine with that.</p>
+
+<p>On the other hand, the borrowed version of <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, <code class="language-plaintext highlighter-rouge">&amp;[&amp;str]</code> is unlikely to look the same even across different executions of the program on the <em>same system</em>, because it contains pointers (indirection) that’ll change each time depending on the data source!</p>
+
+<p>Pointers are hard. What about <code class="language-plaintext highlighter-rouge">Vec&lt;u32&gt;</code>/<code class="language-plaintext highlighter-rouge">[u32]</code>? Surely there’s nothing wrong with a pile of integers?</p>
+
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/castlevania-data.png" width="400" /><figcaption class="caption-text"><p><small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small></p>
+</figcaption></figure>
+
+<p>This is where the endianness and alignment come in. Firstly, a <code class="language-plaintext highlighter-rouge">u32</code> doesn’t look exactly the same on all systems, some systems are “big endian”, where the integer <code class="language-plaintext highlighter-rouge">0x00ABCDEF</code> would be represented in memory as <code class="language-plaintext highlighter-rouge">[0x00, 0xAB, 0xCD, 0xEF]</code>, whereas others are “little endian” and would represent it <code class="language-plaintext highlighter-rouge">[0xEF, 0xCD, 0xAB, 0x00]</code>. Most systems these days are little-endian, but not all, so you may need to care about this.</p>
+
+<p>This would mean that a <code class="language-plaintext highlighter-rouge">[u32]</code> serialized on a little endian system would come out completely garbled on a big-endian system if we’re naïvely zero-copy deserializing.</p>
+
+<p>Secondly, a lot of systems impose <em>alignment</em> restrictions on types like <code class="language-plaintext highlighter-rouge">u32</code>. A <code class="language-plaintext highlighter-rouge">u32</code> cannot be found at any old memory address, on most modern systems it must be found at a memory address that’s a multiple of 4. Similarly, a <code class="language-plaintext highlighter-rouge">u64</code> must be at a memory address that’s a multiple of 8, and so on. The subsection of data being serialized, however, may be found at any address. It’s possible to design a serialization framework where a particular field in the data is forced to have a particular alignment (<a href="https://docs.rs/rkyv/latest/rkyv/util/struct.AlignedVec.html">rkyv has this</a>), however it’s kinda tricky and requires you to have control over the alignment of the original loaded data, which isn’t a part of serde’s model.</p>
+
+<p>So how can we address this?</p>
+
+<h2 id="zerovec-and-varzerovec">ZeroVec and VarZeroVec</h2>
+
+<p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/zerovec/design_doc.md">design doc</a></em></p>
+
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/78#issuecomment-817090204">a bunch of discussions</a> with <a href="https://github.com/sffc">Shane</a>, we designed and wrote <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a>, a crate that attempts to solve this problem, in a way that works with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>.</p>
+
+<p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
+
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+
+<p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
+
+<p>There’s also a <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroMap.html"><code class="language-plaintext highlighter-rouge">ZeroMap</code></a> type that provides a binary-search based map that works with types compatible with either <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> or <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>.</p>
+
+<p>So, for example, to make the following struct zero-copy:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">DataStruct</span> <span class="p">{</span>
+    <span class="n">nums</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">chars</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">char</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">strs</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>you can do something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">DataStruct</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">nums</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">chars</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">char</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">strs</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Once deserialized, the data can be accessed with <code class="language-plaintext highlighter-rouge">data.nums.get(index)</code> or <code class="language-plaintext highlighter-rouge">data.strs[index]</code>, etc.</p>
+
+<p>Custom types can also be supported within these types with some effort, if you’d like the following complex data to be zero-copy:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Date</span> <span class="p">{</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">u64</span><span class="p">,</span>
+    <span class="n">m</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">d</span><span class="p">:</span> <span class="nb">u8</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">Date</span><span class="p">,</span>
+    <span class="n">favorite_character</span><span class="p">:</span> <span class="nb">char</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Data</span> <span class="p">{</span>
+    <span class="n">important_dates</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">important_people</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">birthdays_to_people</span><span class="p">:</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">Date</span><span class="p">,</span> <span class="n">Person</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>you can do something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// custom fixed-size ULE type for ZeroVec</span>
+<span class="nd">#[zerovec::make_ule(DateULE)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Date</span> <span class="p">{</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">u64</span><span class="p">,</span>
+    <span class="n">m</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="n">d</span><span class="p">:</span> <span class="nb">u8</span>
+<span class="p">}</span>
+
+<span class="c1">// custom variable sized VarULE type for VarZeroVec</span>
+<span class="nd">#[zerovec::make_varule(PersonULE)]</span>
+<span class="nd">#[zerovec::derive(Serialize,</span> <span class="nd">Deserialize)]</span> <span class="c1">// add Serde impls to PersonULE</span>
+<span class="nd">#[derive(Clone,</span> <span class="nd">PartialEq,</span> <span class="nd">Eq,</span> <span class="nd">Ord,</span> <span class="nd">PartialOrd,</span> <span class="nd">serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">Date</span><span class="p">,</span>
+    <span class="n">favorite_character</span><span class="p">:</span> <span class="nb">char</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nd">#[derive(serde::Serialize,</span> <span class="nd">serde::Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Data</span><span class="o">&lt;</span><span class="nv">'data</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">important_dates</span><span class="p">:</span> <span class="n">ZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="c1">// note: VarZeroVec always must reference the unsized ULE type directly</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">important_people</span><span class="p">:</span> <span class="n">VarZeroVec</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">birthdays_to_people</span><span class="p">:</span> <span class="n">ZeroMap</span><span class="o">&lt;</span><span class="nv">'data</span><span class="p">,</span> <span class="n">Date</span><span class="p">,</span> <span class="n">PersonULE</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Unfortunately the inner “ULE type” workings are not <em>completely</em> hidden from the user, especially for <code class="language-plaintext highlighter-rouge">VarZeroVec</code>-compatible types, but the crate does a fair number of things to attempt to make it pleasant to work with.</p>
+
+<p>In general, <code class="language-plaintext highlighter-rouge">ZeroVec</code> should be used for types that are fixed-size and implement <code class="language-plaintext highlighter-rouge">Copy</code>, whereas <code class="language-plaintext highlighter-rouge">VarZeroVec</code> is to be used with types that logically contain a variable amount of data, like vectors, maps, strings, and aggregates of the same. <code class="language-plaintext highlighter-rouge">VarZeroVec</code> will always be used with a dynamically sized type, yielding references to that type.</p>
+
+<p>I’ve noted before that these types are like <code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code>; they can be dealt with in a mutable-owned fashion, but it’s not the primary focus of the crate. In particular, <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> will be significantly slower to mutate than something like <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code>, since all operations are done on the same buffer format. The general idea of this crate is that you probably will be <em>generating</em> your data in a situation without too many performance constraints, but you want the operation of <em>reading</em> the data to be fast. So, where necessary, the crate trades off mutation performance for deserialization/read performance. Still, it’s not terribly slow, just something to look out for and benchmark if necessary.</p>
+
+<h2 id="how-it-works">How it works</h2>
+
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
+
+<p>There’s also a safe <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">AsULE</code></a> trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">ULE</span><span class="p">:</span> <span class="nb">Sized</span> <span class="o">+</span> <span class="nb">Copy</span> <span class="o">+</span> <span class="k">'static</span> <span class="p">{</span>
+    <span class="c1">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="c1">// less relevant utility methods omitted</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">trait</span> <span class="n">AsULE</span><span class="p">:</span> <span class="nb">Copy</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">ULE</span><span class="p">:</span> <span class="n">ULE</span><span class="p">;</span>
+
+    <span class="c1">// Convert to the ULE type</span>
+    <span class="k">fn</span> <span class="nf">to_unaligned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">;</span>
+    <span class="c1">// Convert back from the ULE type</span>
+    <span class="k">fn</span> <span class="nf">from_unaligned</span><span class="p">(</span><span class="n">unaligned</span><span class="p">:</span> <span class="k">Self</span><span class="p">::</span><span class="n">ULE</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">VarULE</span><span class="p">:</span> <span class="k">'static</span> <span class="p">{</span>
+    <span class="c1">// Validate that a byte slice is appropriate to treat as a reference to this type</span>
+    <span class="k">fn</span> <span class="nf">validate_byte_slice</span><span class="p">(</span><span class="n">_bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span> <span class="n">ZeroVecError</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="c1">// Construct a reference to Self from a known-valid byte slice</span>
+    <span class="c1">// This is necessary since VarULE types are dynamically sized and the working of the metadata</span>
+    <span class="c1">// of the fat pointer varies between such types</span>
+    <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">from_byte_slice_unchecked</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">Self</span><span class="p">;</span>
+
+    <span class="c1">// less relevant utility methods omitted</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroVec&lt;T&gt;</code> takes in types that are <code class="language-plaintext highlighter-rouge">AsULE</code> and stores them internally as slices of their ULE types (<code class="language-plaintext highlighter-rouge">&amp;[T::ULE]</code>). Such slices can be freely zero-copy serialized. When you attempt to index a <code class="language-plaintext highlighter-rouge">ZeroVec</code>, it converts the value back to <code class="language-plaintext highlighter-rouge">T</code> on the fly, an operation that’s usually just an unaligned load.</p>
+
+<p><code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code> is a bit more complicated. The beginning of its memory stores the indices of every element in the vector, followed by the data for all of the elements just splatted one after the other. As long as the dynamically sized data can be represented in a <em>flat</em> fashion (without further internal indirection), it can implement <code class="language-plaintext highlighter-rouge">VarULE</code>, and thus be used in <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;T&gt;</code>. <code class="language-plaintext highlighter-rouge">str</code> implements this, but so do <code class="language-plaintext highlighter-rouge">ZeroSlice&lt;T&gt;</code> and <code class="language-plaintext highlighter-rouge">VarZeroSlice&lt;T&gt;</code>, allowing for infinite nesting of <code class="language-plaintext highlighter-rouge">zerovec</code> types!</p>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroMap&lt;T&gt;</code> works similarly to the <a href="https://docs.rs/litemap"><code class="language-plaintext highlighter-rouge">litemap</code></a> crate, it’s a map built out of two vectors, using binary search to find keys. This isn’t always as efficient as a hash map but it can work well in a zero-copy way since it can just be backed by <code class="language-plaintext highlighter-rouge">ZeroVec</code> and <code class="language-plaintext highlighter-rouge">VarZeroVec</code>. There’s a bunch of trait infrastructure that allows it to automatically select <code class="language-plaintext highlighter-rouge">ZeroVec</code> or <code class="language-plaintext highlighter-rouge">VarZeroVec</code> for each of the key and value vectors based on the type of the key or value.</p>
+
+<h2 id="what-about-rkyv">What about rkyv?</h2>
+
+<p>An important question when we started down this path was: what about <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a>? It had at the time just received a fair amount of attention in the Rust community, and seemed like a pretty cool library targeting the same space.</p>
+
+<p>And in general if you’re looking for zero-copy deserialization, I wholeheartedly recommend looking at it! It’s an impressive library with a lot of thought put into it. When I was refining <a href="https://docs.rs/zerovec"><code class="language-plaintext highlighter-rouge">zerovec</code></a> I learned a lot from <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> having some insightful discussions with <a href="https://github.com/djkoloski">David</a> and comparing notes on approaches.</p>
+
+<p>The main sticking point, for us, was that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> works kinda separately from <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>: it uses its own traits and own serialization mechanism. We really liked <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>’s model and wanted to keep using it, especially since we wanted to support a variety of human-readable and non-human-readable data formats, including <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, which is explicitly designed for low-resource environments. This becomes even more important for data interchange; we’d want programs written in other languages to be able to construct and send over data without necessarily being constrained to a particular wire format.</p>
+
+<p>The goal of <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> is essentially to bring <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a>-like improvements to a <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> universe without disrupting that universe too much. <code class="language-plaintext highlighter-rouge">zerovec</code> types, on human-readable formats like JSON, serialize to a normal human-readable representation of the structure, and on binary formats like <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>, serialize to a compact, zero-copy-friendly representation that Just Works.</p>
+
+<h2 id="how-does-it-perform">How does it perform?</h2>
+
+<p>So off the bat I’ll mention that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> maintains <a href="https://github.com/djkoloski/rust_serialization_benchmark">a very good benchmark suite</a> that I really need to get around to integrating with zerovec, but haven’t yet.</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why not go do that first? It would make your post better!
+            </div>
+        </div>
+
+<p>Well, I was delaying working on this post until I had those benchmarks integrated, but that’s not how executive function works, and at this point I’d rather publish with the benchmarks I have rather than delaying further. I might update this post with the Good Benchmarks later!</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Hmph.
+            </div>
+        </div>
+
+<p>The complete benchmark run details can be found <a href="https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0">here</a> (run via <code class="language-plaintext highlighter-rouge">cargo bench</code> at <a href="https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec"><code class="language-plaintext highlighter-rouge">1e072b32</code></a>. I’m pulling out some specific data points for illustration:</p>
+
+<p><code class="language-plaintext highlighter-rouge">ZeroVec</code>:</p>
+
+<table>
+<thead><th>Benchmark</th><th>Slice</th><th>ZeroVec</th></thead>
+<tbody>
+
+   <tr><th>Deserialization (with <code>bincode</code>)</th></tr>
+   <tr><th>Deserialize a vector of 100 u32s</th><td>141.55 ns</td><td>12.166 ns</td></tr>
+   <tr><th>Deserialize a vector of 15 chars</th><td>225.55 ns</td><td>25.668 ns</td></tr>
+   <tr><th>Deserialize and then sum a vector of 20 u32s</th><td>47.423 ns</td><td>14.131 ns</td></tr>
+
+   <tr><th>Element fetching performance</th></tr>
+   <tr><th>Sum a vector of 75 u32 elements</th><td>4.3091 ns</td><td>5.7108 ns</td></tr>
+   <tr><th>Binary search a vector of 1000 u32 elements, 50 times</th><td>428.48 ns</td><td>565.23 ns</td></tr>
+   <tr><th>Binary search a vector of 1000 u32 elements, 50 times</th><td>428.48 ns</td><td>565.23 ns</td></tr>
+   <tr><th>Serialization</th></tr>
+
+   <tr><th>Serialize a vector of 20 u32s</th><td>51.324 ns</td><td>21.582 ns</td></tr>
+   <tr><th>Serialize a vector of 15 chars</th><td>195.75 ns</td><td>21.123 ns</td></tr>
+</tbody>
+</table>
+
+<p><br />
+In general we don’t care about serialization performance much, however serialization is fast here because <code class="language-plaintext highlighter-rouge">ZeroVec</code>s are always stored in memory as the same form they would be serialized at. This can make mutation slower. Fetching operations are a little bit slower on <code class="language-plaintext highlighter-rouge">ZeroVec</code>. The deserialization performance is where we see our real wins, sometimes being more than ten times as fast!</p>
+
+<p><code class="language-plaintext highlighter-rouge">VarZeroVec</code>:</p>
+
+<p>The strings are randomly generated, picked with sizes between 2 and 20 code points, and the same set of strings is used for any given row.</p>
+
+<table>
+<thead><th>Benchmark</th><th><code>Vec&lt;String&gt;</code></th><th><code>Vec&lt;&amp;str&gt;</code></th><th>VarZeroVec</th></thead>
+<tbody>
+
+   <tr><th>Deserialize (len 100)</th><td>11.274 us</td><td>2.2486 us</td><td>1.9446 us</td></tr>
+
+   <tr><th>Count code points (len 100)</th><td colspan="2">728.99 ns</td><td>1265.0 ns</td></tr>
+   <tr><th>Binary search for 1 element (len 500)</th><td colspan="2">57.788 ns</td><td>122.10 ns</td></tr>
+   <tr><th>Binary search for 10 elements (len 500)</th><td colspan="2">451.40 ns</td><td>803.67 ns</td></tr>
+
+</tbody>
+</table>
+<p><br /></p>
+
+<p>Here, fetching operations are a bit slower since they need to read the indexing array, but there’s still a decent win for zero-copy deserialization. The deserialization wins stack up for more complex data; for <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code> you can get <em>most</em> of the wins by using <code class="language-plaintext highlighter-rouge">Vec&lt;&amp;str&gt;</code>, but that’s not necessarily possible for something more complex. We don’t currently have mutation benchmarks for <code class="language-plaintext highlighter-rouge">VarZeroVec</code>, but mutation can be slow and as mentioned before it’s not intended to be used much in client code.</p>
+
+<p>Some of this is still in flux; for example we are in the process of <a href="https://github.com/unicode-org/icu4x/pull/2306">making <code class="language-plaintext highlighter-rouge">VarZeroVec</code>’s buffer format configurable</a> so that users can pick their precise tradeoffs.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p>Similar to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, I don’t consider the <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> crate “done” yet, but it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, and <a href="https://github.com/sffc">Shane</a> for reviewing drafts of this post</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>As mentioned in the previous post, while zero-copy deserializing, it is typical to use borrowed-or-owned types like <code class="language-plaintext highlighter-rouge">Cow</code> over pure borrowed types because it’s not necessary that data in a human-readable format will be able to zero-copy deserialize. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Most modern systems are little endian, so this imposes one fewer potential cost on conversion. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Not a Yoking Matter (Zero-Copy #1)]]></title>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/"/>
+    <updated>2022-08-03T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter</id>
+    <content type="html"><![CDATA[<p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="../zero-copy-2-zero-copy-all-the-things/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="../zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
+
+<h2 id="background">Background</h2>
+
+<p>For the past year and a half I’ve been working full time on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, a new internationalization library in Rust being built under the Unicode Consortium as a collaboration between various companies.</p>
+
+<p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
+
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+
+<p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
+
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/cow-tools.png" width="400" /><figcaption class="caption-text"><p><small>Gary Larson, <a href="https://en.wikipedia.org/wiki/Cow_Tools">“Cow Tools”</a>, <em>The Far Side</em>. October 1982</small></p>
+</figcaption></figure>
+
+<h2 id="zero-copy-deserialization-the-basics">Zero-copy deserialization: the basics</h2>
+
+<p><em>This section can be skipped if you’re already familiar with zero-copy deserialization in Rust</em></p>
+
+<p>Deserialization typically involves two tasks, done in concert: validating the data, and constructing an in-memory representation that can be programmatically accessed; i.e., the final deserialized value.</p>
+
+<p>Depending on the format, the former is typically rather fast, but the latter can be super slow, typically around any variable-sized data which needs a new allocation and often a large copy.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="c1">// this field is nearly free to construct</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="c1">// constructing this will involve a small allocation and copy</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="c1">// this may take a while</span>
+    <span class="n">rust_files_written</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A typical binary data format will probably store this as a byte for the age, followed by the length of <code class="language-plaintext highlighter-rouge">name</code>, followed by the bytes for <code class="language-plaintext highlighter-rouge">name</code>, followed by another length for the vector, followed by a length and string data for each <code class="language-plaintext highlighter-rouge">String</code> value. Deserializing the <code class="language-plaintext highlighter-rouge">u8</code> age just involves reading it, but the other two fields require allocating sufficient memory and copying each byte over, in addition to any validation the types may need.</p>
+
+<p>A common technique in this scenario is to skip the allocation and copy by simply <em>validating</em> the bytes and storing a <em>reference</em> to the original data. This can only be done for serialization formats where the data is represented identically in the serialized file and in the deserialized value.</p>
+
+<p>When using <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a> in Rust, this is typically done by using a <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> with <code class="language-plaintext highlighter-rouge">#[serde(borrow)]</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>Now, when <code class="language-plaintext highlighter-rouge">name</code> is being deserialized, the deserializer only needs to validate that it is in fact a valid UTF-8 <code class="language-plaintext highlighter-rouge">str</code>, and the final value for <code class="language-plaintext highlighter-rouge">name</code> will be a reference to the original data being deserialized from itself.</p>
+
+<p>An <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used instead of the <code class="language-plaintext highlighter-rouge">Cow</code>, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
+
+<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a>.</div>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Aren’t there still copies occurring here with the <code class="language-plaintext highlighter-rouge">age</code> field?
+            </div>
+        </div>
+
+<p>Yes, “zero-copy” is somewhat of a misnomer, what it really means is “zero allocations”, or, alternatively, “zero large copies”. Look at it this way: data like <code class="language-plaintext highlighter-rouge">age</code> does get copied, but without, say, allocating a vector of <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code>, you’re only going to see that copy occur a couple times when individually deserializing <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code>s or when deserializing some struct that contains <code class="language-plaintext highlighter-rouge">Person&lt;'a&gt;</code> a couple times. To have a large copy occur <em>without</em> involving allocations, your type would have to be something that is that large on the stack in the first place, which people avoid in general because it means a large copy every time you move the value around even when you’re not deserializing.</p>
+
+<h2 id="when-life-gives-you-lifetimes-">When life gives you lifetimes ….</h2>
+
+<p>Zero-copy deserialization in Rust has one very pesky downside: the lifetimes. Suddenly, all of your deserialized types have lifetimes on them. Of course they would; they’re no longer self-contained, instead containing references to the data they were originally deserialized from!</p>
+
+<p>This isn’t a problem unique to Rust, either, zero-copy deserialization always introduces more complex dependencies between your types, and different frameworks handle this differently; from leaving management of the lifetimes to the user to using reference counting or a GC to ensure the data sticks around. Rust serialization libraries can do stuff like this if they wish, too. In this case, <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, in a very Rusty fashion, wants the library user to have control over the precise memory management here and surfaces this problem as a lifetime.</p>
+
+<p>Unfortunately, lifetimes like these tend to make their way into everything. Every type holding onto your deserialized type needs a lifetime now and it’s likely going to become your users’ problem too.</p>
+
+<p>Furthermore, Rust lifetimes are a purely compile-time construct. If your value is of a type with a lifetime, you need to know at compile time by when it will definitely no longer be in use, and you need to hold on to its source data until then. Rust’s design means that you don’t need to worry about getting this <em>wrong</em>, since the compiler will catch you, but you still need to <em>do it</em>.</p>
+
+<p>All of this isn’t ideal for cases where you want to manage the lifetimes at runtime, e.g. if your data is being deserialized from a larger file and you wish to cache the loaded file as long as data deserialized from it is still around.</p>
+
+<p>Typically in such cases you can use <a href="https://doc.rust-lang.org/stable/std/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code></a>, which is effectively the “runtime instead of compile time” version of <code class="language-plaintext highlighter-rouge">&amp;'a T</code>s safe shared reference, but this only works for cases where you’re sharing homogenous types, whereas in this case we’re attempting to share different types deserialized from one blob of data, which itself is of a different type.</p>
+
+<p>ICU4X would like users to be able to make use of caching and other data management strategies as needed, so this won’t do at all. For a while ICU4X had not one but <em>two</em> pervasive lifetimes threaded throughout most of its types: it was both confusing and not in line with our goals.</p>
+
+<h2 id="-make-life-take-the-lifetimes-back">… make life take the lifetimes back</h2>
+
+<p><em>A lot of the design here can be found explained in the <a href="https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md">design doc</a></em></p>
+
+<p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, primarily with <a href="https://github.com/sffc">Shane</a>, I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Wait, <em>lifetime</em> erasure?
+            </div>
+        </div>
+
+<p>Like type erasure! “Type erasure” (in Rust, done using <code class="language-plaintext highlighter-rouge">dyn Trait</code>) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Analogously, the core value proposition of <code class="language-plaintext highlighter-rouge">yoke</code> is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Doesn’t <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> already let you make lifetimes a runtime decision?
+            </div>
+        </div>
+
+<p>Kind of, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> on its own lets you <em>avoid</em> compile-time lifetimes, whereas <code class="language-plaintext highlighter-rouge">Yoke</code> works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Cool! What does that look like?
+            </div>
+        </div>
+
+<p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or something more complicated) and “yoke” it to the value it was deserialized from, which we call a “cart”.</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             <em>*groan*</em> not another crate named with a pun, Manish.
+            </div>
+        </div>
+
+<p>I will never stop.</p>
+
+<p>Anyway, here’s what that looks like.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Some types explicitly mentioned for clarity</span>
+
+<span class="c1">// load a file</span>
+<span class="k">let</span> <span class="n">file</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">fs</span><span class="p">::</span><span class="nf">read</span><span class="p">(</span><span class="s">"data.postcard"</span><span class="p">)</span><span class="o">?</span><span class="nf">.into</span><span class="p">();</span>
+
+<span class="c1">// create a new Rc reference to the file data by cloning it,</span>
+<span class="c1">// then use it as a cart for a Yoke</span>
+<span class="k">let</span> <span class="n">y</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+    <span class="c1">// deserialize from the file</span>
+    <span class="k">let</span> <span class="n">cow</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span>  <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">);</span>
+    <span class="n">cow</span>
+<span class="p">})</span>
+
+<span class="c1">// the string is still accessible with `.get()`</span>
+<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">y</span><span class="nf">.get</span><span class="p">())</span>
+
+<span class="nf">drop</span><span class="p">(</span><span class="n">y</span><span class="p">);</span>
+<span class="c1">// only now will the reference count on the file be decreased</span>
+</code></pre></div></div>
+
+<div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API. <em>Most</em> of the bugs have been fixed as of Rust 1.61.</div>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             The example above uses <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>: <code class="language-plaintext highlighter-rouge">postcard</code> is a really neat <code class="language-plaintext highlighter-rouge">serde</code>-compatible binary serialization format, designed for use on resource constrained environments. It’s quite fast and has a low codesize, check it out!
+            </div>
+        </div>
+
+<p>The type <code class="language-plaintext highlighter-rouge">Yoke&lt;Cow&lt;'static, str&gt;, Rc&lt;[u8]&gt;&gt;</code> is “a lifetime-erased <code class="language-plaintext highlighter-rouge">Cow&lt;str&gt;</code> ‘yoked’ to a backing data store ‘cart’ that is an <code class="language-plaintext highlighter-rouge">Rc&lt;[u8]&gt;</code>”. What this means is that the Cow contains references to data from the cart, however, the <code class="language-plaintext highlighter-rouge">Yoke</code> will hold on to the cart type until it is done, which ensures the references from the <code class="language-plaintext highlighter-rouge">Cow</code> no longer dangle.</p>
+
+<p>Most operations on the data within a <code class="language-plaintext highlighter-rouge">Yoke</code> operate via <code class="language-plaintext highlighter-rouge">.get()</code>, which in this case will return a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>, where <code class="language-plaintext highlighter-rouge">'a</code> is the lifetime of borrow of <code class="language-plaintext highlighter-rouge">.get()</code>. This keeps things safe: a <code class="language-plaintext highlighter-rouge">Cow&lt;'static, str&gt;</code> is not really safe to distribute in this case since <code class="language-plaintext highlighter-rouge">Cow</code> is not actually borrowing from static data; however it’s fine as long as we transform the lifetime to something shorter during accesses.</p>
+
+<p>Turns out, the <code class="language-plaintext highlighter-rouge">'static</code> found in <code class="language-plaintext highlighter-rouge">Yoke</code> types is actually a lie! Rust doesn’t really let you work with types with borrowed content without mentioning <em>some</em> lifetime, and here we want to relieve the compiler from its duty of managing lifetimes and manage them ourselves, so we need to give it <em>something</em> so that we can name the type, and <code class="language-plaintext highlighter-rouge">'static</code> is the only preexisting named lifetime in Rust.</p>
+
+<p>The actual signature of <code class="language-plaintext highlighter-rouge">.get()</code> is <a href="https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get">a bit weird</a> since it needs to be generic, but if our borrowed type is <code class="language-plaintext highlighter-rouge">Foo&lt;'a&gt;</code>, then the signature of <code class="language-plaintext highlighter-rouge">.get()</code> is something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="n">get</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>For a type to be allowed within a <code class="language-plaintext highlighter-rouge">Yoke&lt;Y, C&gt;</code>, it must implement <code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code>. This trait is unsafe to manually implement, in most cases you should autoderive it with <code class="language-plaintext highlighter-rouge">#[derive(Yokeable)]</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Yokeable,</span> <span class="nd">Serialize,</span> <span class="nd">Deserialize)]</span>
+<span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+    <span class="nd">#[serde(borrow)]</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Yoke</span><span class="p">::</span><span class="nf">attach_to_cart</span><span class="p">(</span><span class="n">file</span><span class="nf">.clone</span><span class="p">(),</span> <span class="p">|</span><span class="n">contents</span><span class="p">|</span> <span class="p">{</span>
+    <span class="nn">postcard</span><span class="p">::</span><span class="nf">from_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">contents</span><span class="p">)</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>Unlike most <code class="language-plaintext highlighter-rouge">#[derive]</code>s, <code class="language-plaintext highlighter-rouge">Yokeable</code> can be derived even if the fields do not already implement <code class="language-plaintext highlighter-rouge">Yokeable</code>, except for cases when fields with lifetimes also have other generic parameters. In such cases it typically suffices to tag the type with <code class="language-plaintext highlighter-rouge">#[yoke(prove_covariance_manually)]</code> and ensure any fields with lifetimes also implement <code class="language-plaintext highlighter-rouge">Yokeable</code>.</p>
+
+<p>There’s a bunch more you can do with <code class="language-plaintext highlighter-rouge">Yoke</code>, for example you can “project” a yoke to get a new yoke with a subset of the data found in the initial one:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="n">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
+
+</code></pre></div></div>
+
+<p>This allows one to mix data coming from disparate Yokes.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Yoke</code>s are, perhaps surprisingly, <em>mutable</em> as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no <em>additional</em> borrowed data sneaks in:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+
+<span class="c1">// make the name sound fancier</span>
+<span class="n">person</span><span class="nf">.with_mut</span><span class="p">(|</span><span class="n">person</span><span class="p">|</span> <span class="p">{</span>
+    <span class="c1">// this will convert the `Cow` into owned one</span>
+    <span class="n">person</span><span class="py">.name</span><span class="nf">.to_mut</span><span class="p">()</span><span class="nf">.push</span><span class="p">(</span><span class="s">", Esq."</span><span class="p">)</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<p>Overall <code class="language-plaintext highlighter-rouge">Yoke</code> is a pretty powerful abstraction, useful for a host of situations involving zero-copy deserialization as well as other cases involving heavy borrowing. In ICU4X the abstractions we use to load data always use <code class="language-plaintext highlighter-rouge">Yoke</code>s, allowing various data loading strategies — including caching — to be mixed</p>
+
+<h3 id="how-it-works">How it works</h3>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Manish is about to say the word “covariant” so I’m going to get ahead of him and say: If you have trouble understanding this and the next section, don’t worry! The internal workings of his crate rely on multiple niche concepts that most Rustaceans never need to care about, even those working on otherwise advanced code.
+            </div>
+        </div>
+
+<p><code class="language-plaintext highlighter-rouge">Yoke</code> works by relying on the concept of a <em>covariant lifetime</em>. The <a href="https://docs.rs/yoke/latest/yoke/trait.Yokeable.html"><code class="language-plaintext highlighter-rouge">Yokeable</code></a> trait looks like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">trait</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">:</span> <span class="k">'static</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span><span class="p">;</span>
+    <span class="c1">// methods omitted</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>and a typical implementation would look something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Cow</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="c1">// ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> with <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             You can read more about variance in the <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a>!
+            </div>
+        </div>
+
+<p>For any <code class="language-plaintext highlighter-rouge">Yokeable</code> type <code class="language-plaintext highlighter-rouge">Foo&lt;'static&gt;</code>, you can obtain the version of that type with a lifetime <code class="language-plaintext highlighter-rouge">'a</code> with <code class="language-plaintext highlighter-rouge">&lt;Foo as Yokeable&lt;'a&gt;&gt;::Output</code>. The <code class="language-plaintext highlighter-rouge">Yokeable</code> trait exposes some methods that allow one to safely carry out the various transforms that are allowed on a type with a covariant lifetime.</p>
+
+<p><code class="language-plaintext highlighter-rouge">#[derive(Yokeable)]</code>, in most cases, relies on the compiler’s ability to determine if a lifetime is covariant, and doesn’t actually generate much code! In most cases, the bodies of the various functions on <code class="language-plaintext highlighter-rouge">Yokeable</code> are pure safe code, looking like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Yokeable</span> <span class="k">for</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">=</span> <span class="n">Foo</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">transform</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+        <span class="k">self</span>
+    <span class="p">}</span>
+    <span class="k">fn</span> <span class="nf">transform_owned</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+        <span class="k">self</span>
+    <span class="p">}</span>
+    <span class="k">fn</span> <span class="n">transform_mut</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span>
+    <span class="k">where</span>
+        <span class="n">F</span><span class="p">:</span> <span class="k">'static</span> <span class="o">+</span> <span class="k">for</span><span class="o">&lt;</span><span class="nv">'b</span><span class="o">&gt;</span> <span class="nf">FnOnce</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'b</span> <span class="k">mut</span> <span class="k">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nf">f</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="c1">// fn make() omitted since it's not as relevant</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The compiler knows these are safe because it knows that the type is covariant, and the <code class="language-plaintext highlighter-rouge">Yokeable</code> trait allows us to talk about types where these operations are safe, <em>generically</em>.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             In other words, there’s a certain useful property about lifetime “stretchiness” that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply.
+            </div>
+        </div>
+
+<p>Using this trait, <code class="language-plaintext highlighter-rouge">Yoke</code> then works by storing <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code> and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on <code class="language-plaintext highlighter-rouge">Yokeable</code> in various ways. Knowing that the lifetime is covariant is what makes it safe to do such lifetime “squeezing”. The <code class="language-plaintext highlighter-rouge">'static</code> is a lie, but it’s safe to do that kind of thing as long as the value isn’t actually accessed with the <code class="language-plaintext highlighter-rouge">'static</code> lifetime, and we take great care to ensure it doesn’t leak.</p>
+
+<h2 id="better-conversions-zerofrom">Better conversions: ZeroFrom</h2>
+
+<p>A crate that pairs well with this is <a href="https://docs.rs/zerofrom"><code class="language-plaintext highlighter-rouge">zerofrom</code></a>, primarily designed and written by <a href="https://github.com/sffc">Shane</a>. It comes with the <a href="https://docs.rs/zerofrom/latest/zerofrom/trait.ZeroFrom.html"><code class="language-plaintext highlighter-rouge">ZeroFrom</code></a> trait:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">ZeroFrom</span><span class="o">&lt;</span><span class="nv">'zf</span><span class="p">,</span> <span class="n">C</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'zf</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">zero_from</span><span class="p">(</span><span class="n">other</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'zf</span> <span class="n">C</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The idea of this trait is to be able to work generically with types convertible to (often zero-copy) borrowed types.</p>
+
+<p>For example, <code class="language-plaintext highlighter-rouge">Cow&lt;'zf, str&gt;</code> implements both <code class="language-plaintext highlighter-rouge">ZeroFrom&lt;'zf, str&gt;</code> and <code class="language-plaintext highlighter-rouge">ZeroFrom&lt;'zf, String&gt;</code>, as well as <code class="language-plaintext highlighter-rouge">ZeroFrom&lt;'zf, Cow&lt;'a, str&gt;&gt;</code>. It’s similar to the <a href="https://doc.rust-lang.org/stable/std/convert/trait.AsRef.html"><code class="language-plaintext highlighter-rouge">AsRef</code></a> trait but it allows for more flexibility on the kinds of borrowing occuring, and implementors are supposed to minimize the amount of copying during such a conversion. For example, when <code class="language-plaintext highlighter-rouge">ZeroFrom</code>-constructing a <code class="language-plaintext highlighter-rouge">Cow&lt;'zf, str&gt;</code> from some other <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code>, it will <em>always</em> construct a <code class="language-plaintext highlighter-rouge">Cow::Borrowed</code>, even if the original <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> were owned.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Yoke</code> has a convenient constructor <a href="https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.attach_to_zero_copy_cart"><code class="language-plaintext highlighter-rouge">Yoke::attach_to_zero_copy_cart()</code></a> that can create a <code class="language-plaintext highlighter-rouge">Yoke&lt;Y, C&gt;</code> out of a cart type <code class="language-plaintext highlighter-rouge">C</code> if <code class="language-plaintext highlighter-rouge">Y&lt;'zf&gt;</code> implements <code class="language-plaintext highlighter-rouge">ZeroFrom&lt;'zf, C&gt;</code> for all lifetimes <code class="language-plaintext highlighter-rouge">'zf</code>. This is useful for cases where you want to do basic self-referential types but aren’t doing any fancy zero-copy deserialization.</p>
+
+<h2 id="-make-life-rue-the-day-it-thought-it-could-give-you-lifetimes">… make life rue the day it thought it could give you lifetimes</h2>
+
+<p>Life with this crate hasn’t been all peachy. We’ve, uh … <a href="https://github.com/rust-lang/rust/issues/90638">unfortunately</a> <a href="https://github.com/rust-lang/rust/issues/86703">discovered</a> <a href="https://github.com/rust-lang/rust/issues/88446">a</a> <a href="https://github.com/rust-lang/rust/issues/89436">toweringly</a> <a href="https://github.com/rust-lang/rust/issues/89196">large</a> <a href="https://github.com/rust-lang/rust/issues/84937">pile</a> <a href="https://github.com/rust-lang/rust/issues/89418">of</a> <a href="https://github.com/rust-lang/rust/issues/90950">gnarly</a> <a href="https://github.com/rust-lang/rust/issues/96223">compiler</a> <a href="https://github.com/rust-lang/rust/issues/91899">bugs</a>. A lot of this has its root in the fact that <code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code> in most cases is bound via <code class="language-plaintext highlighter-rouge">for&lt;'a&gt; Yokeable&lt;'a&gt;</code> (“<code class="language-plaintext highlighter-rouge">Yokeable&lt;'a&gt;</code> for all possible lifetimes <code class="language-plaintext highlighter-rouge">'a</code>”). The <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code> is a niche feature known as a higher-ranked lifetime or trait bound (often referred to as “HRTB”), and while it’s always been necessary in some capacity for Rust’s typesystem to be able to reason about function pointers, it’s also always been rather buggy and is often discouraged for usages like this.</p>
+
+<p>We’re using it so that we can talk about the lifetime of a type in a generic sense. Fortunately, there is a language feature under active development that will be better suited for this: <a href="https://rust-lang.github.io/generic-associated-types-initiative/index.html">Generic Associated Types</a>.</p>
+
+<p>This feature isn’t stable yet, but, fortunately for <em>us</em>, most compiler bugs involving <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code> <em>also</em> impact GATs, so we have been benefitting from the GAT work, and a lot of our bug reports have helped shore up the GAT code. Huge shout out to <a href="https://github.com/jackh726">Jack Huey</a> for fixing a lot of these bugs, and <a href="https://github.com/eddyb">eddyb</a> for helping out in the debugging process.</p>
+
+<p>As of Rust 1.61, a lot of the major bugs have been fixed, however there are still some bugs around trait bounds for which the <code class="language-plaintext highlighter-rouge">yoke</code> crate maintains some <a href="https://docs.rs/yoke/latest/yoke/trait_hack/index.html">workaround helpers</a>. It has been our experience that most compiler bugs here are not <em>restrictive</em> when it comes to what you can do with the crate, but they may end up with code that looks less than ideal. Overall, we still find it worth it, we’re able to do some really neat zero-copy stuff in a way that’s externally convenient (even if some of the internal code is messy), and we don’t have lifetimes everywhere.</p>
+
+<h2 id="try-it-out">Try it out!</h2>
+
+<p>While I don’t consider the <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> crate “done” yet, it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
+
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, and <a href="https://github.com/sffc">Shane</a> for reviewing drafts of this post</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>This isn’t real Rust syntax; since <code class="language-plaintext highlighter-rouge">Self</code> is always just <code class="language-plaintext highlighter-rouge">Self</code>, but we need to be able to refer to <code class="language-plaintext highlighter-rouge">Self</code> as a higher-kinded type in this scenario. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Types that aren’t are ones involving mutability (<code class="language-plaintext highlighter-rouge">&amp;mut</code> or interior mutability) around the lifetime, and ones involving function pointers and trait objects. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Colophon: Waiter, There Are Pions in My Blog Post!]]></title>
@@ -3911,650 +4780,6 @@ point. I’ve filed <a href="https://github.com/Manishearth/rust-clippy/issues/1
     </li>
     <li id="fn:4" role="doc-endnote">
       <p>I do eventually get around to doing a full read of the docs or a book but this is after I’m already able to write nontrivial things in the language, and it takes a lot of time to get there. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Mentally Modelling Modules]]></title>
-    <link href="http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/"/>
-    <updated>2017-05-14T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules</id>
-    <content type="html"><![CDATA[<p><em>Note: This post was written before the Rust 2018 edition, and does not yet incorporate the <a href="https://doc.rust-lang.org/edition-guide/rust-2018/module-system/index.html">changes made to the module system</a>.</em></p>
-
-<p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
-learning the language. A lot of these confusions stem from a misunderstanding of how it works.
-In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
-
-<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
-“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
-and helps avoid confusion.</p>
-
-<hr />
-
-<p><br /></p>
-
-<p>First off, just to get this out of the way, <code class="language-plaintext highlighter-rouge">mod foo;</code> is basically a way of saying
-“look for <code class="language-plaintext highlighter-rouge">foo.rs</code> or <code class="language-plaintext highlighter-rouge">foo/mod.rs</code> and make a module named <code class="language-plaintext highlighter-rouge">foo</code> with its contents”.
-It’s the same as <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> except the contents are in a different file. This
-itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
-in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
-
-<p>In the examples here I will just be using <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> since multi-file examples are annoying,
-but keep in mind that the stuff here applies equally to multi-file crates.</p>
-
-<h3 id="motivating-examples">Motivating examples</h3>
-
-<p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
-counterintuitive, based on your existing model.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
-    
-    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="c1">// not std::mem::transmute!</span>
-    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
-
-    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="n">bar</span><span class="p">;</span>
-    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
-
-    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c1">// this works!</span>
-        <span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="c1">// this doesn't</span>
-        <span class="c1">// baz::baz_inner();</span>
-        
-        <span class="c1">// but these do!</span>
-        <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
-        <span class="k">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
-        
-        <span class="c1">// these do too!</span>
-        <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="k">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
-        
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bar_inner</span><span class="p">()</span> <span class="p">{}</span>
-<span class="p">}</span>
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">baz_inner</span><span class="p">()</span> <span class="p">{}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
-    <span class="c1">// this won't work</span>
-    <span class="c1">// use baz::inner();</span>
-    
-    <span class="c1">// this will</span>
-    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
-    <span class="c1">// or</span>
-    <span class="c1">// use bar::baz::inner</span>
-    
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c1">// but this will work!</span>
-        <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
-        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">inner</span><span class="p">()</span> <span class="p">{}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
-
-<p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
-you add in things that don’t normally exist. Similarly, these examples may contain code which
-is not traditional Rust style, but the import system
-still makes more sense when you include them.</p>
-
-<h3 id="imports">Imports</h3>
-
-<p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
-
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the root module (<code class="language-plaintext highlighter-rouge">lib.rs</code> or <code class="language-plaintext highlighter-rouge">main.rs</code>)
-    <ul>
-      <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
-    </ul>
-  </li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
-    <ul>
-      <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
-    </ul>
-  </li>
-</ul>
-
-<p>That’s actually … it. There are no further caveats. The rest of this is modelling what
-constitutes as “being within a module”.</p>
-
-<p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
-module:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
-
-<span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
-
-    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c1">// won't work</span>
-        <span class="c1">// let ex = regex::Regex::new("");</span>
-        <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>When we say <code class="language-plaintext highlighter-rouge">extern crate regex</code>, we pull in the <code class="language-plaintext highlighter-rouge">regex</code> crate into the crate root. This behaves
-pretty similar to <code class="language-plaintext highlighter-rouge">mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
-the crate into the crate root, and since all <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the crate root,
-<code class="language-plaintext highlighter-rouge">use regex::Regex</code> works fine inside the module.</p>
-
-<p>Inline in code, <code class="language-plaintext highlighter-rouge">regex::Regex</code> won’t work because as mentioned before inline paths are relative
-to the current module. However, you can try <code class="language-plaintext highlighter-rouge">::regex::Regex::new("")</code>.</p>
-
-<p>Since we’ve imported <code class="language-plaintext highlighter-rouge">regex::Regex</code> in <code class="language-plaintext highlighter-rouge">mod foo</code>, that name is now accessible to everything inside
-the module directly, so the code can just say <code class="language-plaintext highlighter-rouge">Regex::new()</code>.</p>
-
-<p>The way you can view this is that <code class="language-plaintext highlighter-rouge">use blah</code> and <code class="language-plaintext highlighter-rouge">extern crate blah</code> create an item named
-<code class="language-plaintext highlighter-rouge">blah</code> “within the module”, which is basically something like a symbolic link, saying
-“yes this item named <code class="language-plaintext highlighter-rouge">blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
-
-<p>The error message from this code may further drive this home:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
-
-<p>The error I get is</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: function `replace` is private
- --&gt; src/main.rs:3:5
-  |
-3 | use foo::replace;
-  |     ^^^^^^^^^^^^
-</code></pre></div></div>
-
-<p>There’s no function named <code class="language-plaintext highlighter-rouge">replace</code> in the module <code class="language-plaintext highlighter-rouge">foo</code>! But the compiler seems to think there is?</p>
-
-<p>That’s because <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> basically is equivalent to there being something like:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="nf">replace</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">...</span> <span class="p">{</span>
-        <span class="o">...</span>
-    <span class="p">}</span>
-
-    <span class="c1">// here we can refer to `replace` freely (in inline paths)</span>
-    <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
-        <span class="c1">// ...</span>
-        <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
-        <span class="c1">// ...</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>except it’s actually like a symlink to the function defined in <code class="language-plaintext highlighter-rouge">std::mem</code>. Because inline paths
-are relative to the current module, saying <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> works as if you had defined
-a function <code class="language-plaintext highlighter-rouge">replace</code> in the same module, and you can refer to <code class="language-plaintext highlighter-rouge">replace()</code> without needing
-any extra qualification in inline paths.</p>
-
-<p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
-others see it too”:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// works now!</span>
-<span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<hr />
-
-<p><br /></p>
-
-<p>Folks often get annoyed when this doesn’t work:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c1">// nope</span>
-    <span class="c1">// use mem::replace;</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>As mentioned before, <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the root module. There is no <code class="language-plaintext highlighter-rouge">mem</code>
-in the root module, so this won’t work. We can make it work via <code class="language-plaintext highlighter-rouge">self</code>, which I mentioned
-before:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-    <span class="c1">// yep!</span>
-    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Note that this brings overloading of the <code class="language-plaintext highlighter-rouge">self</code> keyword up to a grand total of <em>four</em>! Two cases
-which occur in the import/path system:</p>
-
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">use self::foo</code> means “find me <code class="language-plaintext highlighter-rouge">foo</code> within the current module”</li>
-  <li><code class="language-plaintext highlighter-rouge">use foo::bar::{self, baz}</code> is equivalent to <code class="language-plaintext highlighter-rouge">use foo::bar; use foo::bar::baz;</code></li>
-  <li><code class="language-plaintext highlighter-rouge">fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
-  <li><code class="language-plaintext highlighter-rouge">Self</code> within implementations lets you refer to the type being implemented on</li>
-</ul>
-
-<p>Oh well, at least it’s not <code class="language-plaintext highlighter-rouge">static</code>.</p>
-
-<hr />
-
-<p><br /><br /></p>
-
-<p>Going back to one of the examples I gave at the beginning:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
-
-
-<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
-
-    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
-
-<p>It should be clearer now why this works. The root module imports <code class="language-plaintext highlighter-rouge">mem</code>. Now, from everyone’s point
-of view, there’s an item called <code class="language-plaintext highlighter-rouge">mem</code> in the root.</p>
-
-<p>Within <code class="language-plaintext highlighter-rouge">mod foo</code>, <code class="language-plaintext highlighter-rouge">use mem::transmute</code> works because <code class="language-plaintext highlighter-rouge">use</code> is relative to the root, and <code class="language-plaintext highlighter-rouge">mem</code>
-already exists in the root! When you <code class="language-plaintext highlighter-rouge">use</code> something, all child modules will see it as if it were
-actually belonging to the module. (Non-child modules won’t see it because of privacy, we
-saw an example of this already)</p>
-
-<p>This is why <code class="language-plaintext highlighter-rouge">use foo::transmute</code> works from <code class="language-plaintext highlighter-rouge">mod bar</code>, too. <code class="language-plaintext highlighter-rouge">bar</code> can refer to the contents
-of <code class="language-plaintext highlighter-rouge">foo</code> via <code class="language-plaintext highlighter-rouge">use foo::whatever</code>, since <code class="language-plaintext highlighter-rouge">foo</code> is a child of the root module, and <code class="language-plaintext highlighter-rouge">use</code> is relative
-to the root. <code class="language-plaintext highlighter-rouge">foo</code> already has an item named <code class="language-plaintext highlighter-rouge">transmute</code> inside it because it imported one.
-Nothing in the parent module is private from the child, so we can <code class="language-plaintext highlighter-rouge">use foo::transmute</code> from
-<code class="language-plaintext highlighter-rouge">bar</code>.</p>
-
-<p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
-or, if you do use modules, put nothing other than <code class="language-plaintext highlighter-rouge">extern crate</code>s and <code class="language-plaintext highlighter-rouge">mod</code>s in the root.
-This is why we rarely see shenanigans like the above; there’s nothing in the root crate
-to import, aside from other crates specified by <code class="language-plaintext highlighter-rouge">extern crate</code>. The trick of
-“reimport something from the parent module” is also pretty rare because there’s basically no
-point to using that (just import it directly!). So this is not the kind of code
-you’ll see in the wild.</p>
-
-<hr />
-
-<p><br /></p>
-
-<p>Basically, the way the import system works can be summed up as:</p>
-
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">extern crate</code> and <code class="language-plaintext highlighter-rouge">use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
-  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves the path relative to the root module</li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> in an inline path (i.e. not in a <code class="language-plaintext highlighter-rouge">use</code>) will resolve relative to the current module</li>
-  <li><code class="language-plaintext highlighter-rouge">::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
-  <li><code class="language-plaintext highlighter-rouge">self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
-  <li><code class="language-plaintext highlighter-rouge">super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
-</ul>
-
-<p>Alright, on to the other half of this. Privacy.</p>
-
-<h3 id="privacy">Privacy</h3>
-
-<p>So how does privacy work?</p>
-
-<p>Privacy, too, follows some basic rules:</p>
-
-<ul>
-  <li>If you can access a module, you can access all of its <code class="language-plaintext highlighter-rouge">pub</code> contents</li>
-  <li>A module can always access its child modules, but not recursively
-    <ul>
-      <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
-    </ul>
-  </li>
-  <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
-  <li><code class="language-plaintext highlighter-rouge">pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
-</ul>
-
-<p>Giving some examples,</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c1">// can access `foo::foofunc`, even though `foofunc` is private</span>
-
-        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
-
-    <span class="p">}</span>
-    <span class="c1">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
-    <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="c1">// We can access our parent and _all_ its contents,</span>
-        <span class="c1">// so we have access to `foo::baz`. We can access</span>
-        <span class="c1">// all pub contents of modules we have access to, so we</span>
-        <span class="c1">// can access `foo::baz::bazfunc`</span>
-        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
-    <span class="p">}</span>
-    <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
-        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>It’s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
-        <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
-            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
-        <span class="p">}</span>
-        <span class="k">pub</span> <span class="k">mod</span> <span class="n">quux</span> <span class="p">{</span>
-            <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>We are able to write the path <code class="language-plaintext highlighter-rouge">foo::bar::baz::bazfunc</code> even though <code class="language-plaintext highlighter-rouge">bar</code> is private!</p>
-
-<p>This is because we still have <em>access</em> to the module <code class="language-plaintext highlighter-rouge">bar</code>, by being a descendent module.</p>
-
-<hr />
-
-<p><br /></p>
-
-<p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2" role="doc-endnote">
-      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3" role="doc-endnote">
-      <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4" role="doc-endnote">
-      <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:5" role="doc-endnote">
-      <p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Two Interpretations Diverged in a Yellow Wood]]></title>
-    <link href="http://manishearth.github.io/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/"/>
-    <updated>2017-05-02T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood</id>
-    <content type="html"><![CDATA[<p>Whose words are these I think I know<br />
-His house is in the village though<br />
-He will not see me stopping here<br />
-To interpret his work as I go<br /></p>
-
-<p>My little student must think it queer<br />
-To read without some context near<br />
-Between the words and the intent<br />
-He wonders what the poem meant<br /></p>
-
-<p>He gives his head a little shake<br />
-To ask if there is some mistake<br />
-“That’s not what the author said!”<br />
-Providing another view instead<br /></p>
-
-<p>The words are lovely, dark, and deep<br />
-But I have literary criticism to preach<br />
-And miles to go before I sleep<br />
-And miles to go before I sleep<br /></p>
-
-<hr />
-
-<p><br /><br /><br /><br /><br /></p>
-
-<p>Seriously though, try reading <em>The Road Not Taken</em> as metacircular commentary on how the poem
-<a href="https://en.wikipedia.org/wiki/The_Road_Not_Taken#Analysis">is very often “mis”interpreted</a>, and the nature of interpretation / <em>Death of the Author</em>. It fits perfectly when
-you read “road” as “interpretation”.</p>
-
-<p><small>(Yes, I know, the parody above is not based on <em>The Road Not Taken</em> but instead a different Frost
-poem. I was originally going to modify <em>The Road Not Taken</em> but realized all I had to do was change
-a few words to get there, which was no fun at all) </small></p>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Prolonging Temporaries in Rust]]></title>
-    <link href="http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust/"/>
-    <updated>2017-04-13T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/04/13/prolonging-temporaries-in-rust</id>
-    <content type="html"><![CDATA[<p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
-a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
-I’d document it.</p>
-
-<p>The code was like this:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
-<span class="p">};</span>
-
-<span class="k">use</span><span class="p">(</span><span class="n">maybe_foo</span><span class="p">);</span>
-</code></pre></div></div>
-
-<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
-<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
-
-<span class="k">struct</span> <span class="n">Thingy</span> <span class="p">{</span>
-    <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
-<span class="p">}</span>
-
-<span class="k">impl</span> <span class="n">Thingy</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_ref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="nf">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="py">.foo</span><span class="p">)</span>
-    <span class="p">}</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_owned</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="nf">Some</span><span class="p">(</span><span class="n">Foo</span><span class="p">)</span>
-    <span class="p">}</span>
-    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="k">Self</span> <span class="p">{</span>
-        <span class="n">Thingy</span> <span class="p">{</span>
-            <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-
-
-<span class="k">pub</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">let</span> <span class="n">some_condition</span> <span class="o">=</span> <span class="k">true</span><span class="p">;</span>
-    <span class="k">let</span> <span class="n">thing</span> <span class="o">=</span> <span class="nn">Thingy</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-
-    <span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-        <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
-    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
-    <span class="p">};</span>
-    
-    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">maybe_foo</span><span class="p">);</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>I’m only going to be changing the contents of <code class="language-plaintext highlighter-rouge">main()</code> here.</p>
-
-<p>What’s happening here is that a non-<code class="language-plaintext highlighter-rouge">Copy</code> type, <code class="language-plaintext highlighter-rouge">Foo</code>, is returned in an <code class="language-plaintext highlighter-rouge">Option</code>. In one case,
-we have a reference to the <code class="language-plaintext highlighter-rouge">Foo</code>, and in another case an owned copy.</p>
-
-<p>We want to set a variable to these, but of course we can’t because they’re different types.</p>
-
-<p>In one case, we have an owned <code class="language-plaintext highlighter-rouge">Foo</code>, and we can usually obtain a borrow from an owned type. For
-<code class="language-plaintext highlighter-rouge">Option</code>, there’s a convenience method <code class="language-plaintext highlighter-rouge">.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span><span class="nf">.as_ref</span><span class="p">()</span>
-<span class="p">};</span>
-</code></pre></div></div>
-
-<p>This will give us an error.</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: borrowed value does not live long enough
-  --&gt; &lt;anon&gt;:32:5
-   |
-31 |         thing.get_owned().as_ref()
-   |         ----------------- temporary value created here
-32 |     };
-   |     ^ temporary value dropped here while still borrowed
-...
-35 | }
-   | - temporary value needs to live until here
-
-error: aborting due to previous error
-</code></pre></div></div>
-
-<p>The problem is, <code class="language-plaintext highlighter-rouge">thing.get_owned()</code> returns an owned value. There’s nothing that it gets anchored to
-(we don’t set its value to a variable), so it is just a temporary – we can call methods on it, but
-once we’re done the value will go out of scope.</p>
-
-<p>What we want is something like</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="k">let</span> <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
-    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
-<span class="p">};</span>
-</code></pre></div></div>
-
-<p>but this will still give a borrow error – <code class="language-plaintext highlighter-rouge">owned</code> will still go out of scope within the <code class="language-plaintext highlighter-rouge">if</code> block,
-and we need the reference to it last as long as <code class="language-plaintext highlighter-rouge">maybe_foo</code> (outside the block) is supposed to last.</p>
-
-<p>So this is no good.</p>
-
-<p>An alternate solution here <em>can</em> be copying/cloning the <code class="language-plaintext highlighter-rouge">Foo</code> in the <em>first</em> case by calling <code class="language-plaintext highlighter-rouge">.map(|x|
-x.clone())</code> or <code class="language-plaintext highlighter-rouge">.cloned()</code> or something. Sometimes you don’t want to clone, so this isn’t great.</p>
-
-<p>Another solution here – the generic advice for dealing with values which may be owned or borrow –
-is to use <code class="language-plaintext highlighter-rouge">Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
-inlined enough.</p>
-
-<p>What we need to do here is to extend the lifetime of the temporary returned by <code class="language-plaintext highlighter-rouge">thing.get_owned()</code>.
-We need to extend it <em>past</em> the scope of the <code class="language-plaintext highlighter-rouge">if</code>.</p>
-
-<p>One way to do this is to have an <code class="language-plaintext highlighter-rouge">Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
-<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
-    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
-<span class="p">};</span>
-</code></pre></div></div>
-
-<p>This works in this case, but in this case we already had an <code class="language-plaintext highlighter-rouge">Option</code>. If <code class="language-plaintext highlighter-rouge">get_ref()</code> and <code class="language-plaintext highlighter-rouge">get_owned()</code>
-returned <code class="language-plaintext highlighter-rouge">&amp;Foo</code> and <code class="language-plaintext highlighter-rouge">Foo</code> respectively, then we’d need to do something like:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
-<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">owned</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">thing</span><span class="nf">.get_owned</span><span class="p">());</span>
-    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
-<span class="p">};</span>
-</code></pre></div></div>
-
-<p>which is icky since it introduces an unwrap.</p>
-
-<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
-for the scope of the enclosing block.</p>
-
-<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c1">// 😯😯😯😯😯</span>
-<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
-    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
-    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
-<span class="p">};</span>
-</code></pre></div></div>
-
-<p>We know that Rust doesn’t do “uninitialized” variables. If you want to name a variable, you have to
-initialize it. <code class="language-plaintext highlighter-rouge">let foo;</code> feels rather like magic in this context, because it looks like we’ve declared
-an uninitialized variable.</p>
-
-<p>What’s less well known is that Rust <em>can</em> do “deferred” initialization. Here, you declare a variable
-and can initialize it later, but expressions involving the variable can only exist in branches
-where the compiler knows it has been initialized.</p>
-
-<p>This is the case here. We declared the <code class="language-plaintext highlighter-rouge">owned</code> variable beforehand. It now lives in the outer scope
-and won’t be destroyed until the end of the outer scope. However, the variable cannot be used directly
-in an expression in the first branch, or after the <code class="language-plaintext highlighter-rouge">if</code>. Doing so will give a compile time error
-saying <code class="language-plaintext highlighter-rouge">use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code class="language-plaintext highlighter-rouge">else</code> branch
-because the compiler can see that it is unconditionally initialized in that branch.</p>
-
-<p>We can still read the value of <code class="language-plaintext highlighter-rouge">owned</code> indirectly through <code class="language-plaintext highlighter-rouge">maybe_foo</code> from outside the branch.
-This is okay because the storage of <code class="language-plaintext highlighter-rouge">owned</code> is guaranteed to live as long as the outer scope,
-and <code class="language-plaintext highlighter-rouge">maybe_foo</code> borrows from it. The only time <code class="language-plaintext highlighter-rouge">maybe_foo</code> is set to a value inside <code class="language-plaintext highlighter-rouge">owned</code> is when
-<code class="language-plaintext highlighter-rouge">owned</code> has been initialized, so it is safe.</p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>In my experience <code class="language-plaintext highlighter-rouge">.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code class="language-plaintext highlighter-rouge">.map()</code> <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

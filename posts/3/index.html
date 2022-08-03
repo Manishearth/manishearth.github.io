@@ -9,8 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="“You’re doing it wrong” A common refrain in issue trackers and discussion forums everywhere. In isolation,
-it’s a variant of RTFM – give a non-answer &hellip;">
+  <meta name="description" content="Note: This post was written before the Rust 2018 edition, and does not yet incorporate the changes made to the module system. The module and import &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,9 +17,7 @@ it’s a variant of RTFM – give a non-answer &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="“You’re doing it wrong” A common refrain in issue trackers and discussion forums everywhere. In isolation,
-it’s a variant of RTFM – give a non-answer when someone wants help, and bounce them
-back to &hellip;">
+      <meta property="twitter:description" content="Note: This post was written before the Rust 2018 edition, and does not yet incorporate the changes made to the module system. The module and import system in Rust is sadly one of the many confusing &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -95,6 +92,725 @@ back to &hellip;">
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/05/14/mentally-modelling-modules/">Mentally Modelling Modules</a></h1>
+      <em>Posted by Manish Goregaokar on May 14, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a>, <a class='category' href='/blog/categories/tidbits/'>tidbits</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>Note: This post was written before the Rust 2018 edition, and does not yet incorporate the <a href="https://doc.rust-lang.org/edition-guide/rust-2018/module-system/index.html">changes made to the module system</a>.</em></p>
+
+<p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
+learning the language. A lot of these confusions stem from a misunderstanding of how it works.
+In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
+
+<p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
+“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
+and helps avoid confusion.</p>
+
+<hr />
+
+<p><br /></p>
+
+<p>First off, just to get this out of the way, <code class="language-plaintext highlighter-rouge">mod foo;</code> is basically a way of saying
+“look for <code class="language-plaintext highlighter-rouge">foo.rs</code> or <code class="language-plaintext highlighter-rouge">foo/mod.rs</code> and make a module named <code class="language-plaintext highlighter-rouge">foo</code> with its contents”.
+It’s the same as <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> except the contents are in a different file. This
+itself can be confusing at first, but it’s not what I wish to focus on here. The Rust book explains this more
+in <a href="https://doc.rust-lang.org/book/crates-and-modules.html#multiple-file-crates">the chapter on modules</a>.</p>
+
+<p>In the examples here I will just be using <code class="language-plaintext highlighter-rouge">mod foo { ... }</code> since multi-file examples are annoying,
+but keep in mind that the stuff here applies equally to multi-file crates.</p>
+
+<h3 id="motivating-examples">Motivating examples</h3>
+
+<p>To start off, I’m going to provide some examples of Rust code which compiles. Some of these may be
+counterintuitive, based on your existing model.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
+    
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=7673736a57fe99092446ec73f8b8f555&amp;version=undefined">playpen</a>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="c1">// not std::mem::transmute!</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="n">bar</span><span class="p">;</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">bar_inner</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c1">// this works!</span>
+        <span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="c1">// this doesn't</span>
+        <span class="c1">// baz::baz_inner();</span>
+        
+        <span class="c1">// but these do!</span>
+        <span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="nf">baz_inner</span><span class="p">();</span>
+        
+        <span class="c1">// these do too!</span>
+        <span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">super</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        <span class="k">self</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nf">bar_inner</span><span class="p">();</span>
+        
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bar_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">baz_inner</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=547fea76590b6c5dbbb04ccbc89cf8d2&amp;version=undefined">playpen</a>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">bar</span><span class="p">::</span><span class="n">baz</span><span class="p">;</span>
+    <span class="c1">// this won't work</span>
+    <span class="c1">// use baz::inner();</span>
+    
+    <span class="c1">// this will</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">inner</span><span class="p">;</span>
+    <span class="c1">// or</span>
+    <span class="c1">// use bar::baz::inner</span>
+    
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c1">// but this will work!</span>
+        <span class="nn">baz</span><span class="p">::</span><span class="nf">inner</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">inner</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
+
+<p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
+physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
+you add in things that don’t normally exist. Similarly, these examples may contain code which
+is not traditional Rust style, but the import system
+still makes more sense when you include them.</p>
+
+<h3 id="imports">Imports</h3>
+
+<p>The core confusion behind how imports work can really be resolved by remembering two rules:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the root module (<code class="language-plaintext highlighter-rouge">lib.rs</code> or <code class="language-plaintext highlighter-rouge">main.rs</code>)
+    <ul>
+      <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
+    </ul>
+  </li>
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
+    <ul>
+      <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
+    </ul>
+  </li>
+</ul>
+
+<p>That’s actually … it. There are no further caveats. The rest of this is modelling what
+constitutes as “being within a module”.</p>
+
+<p>Let’s take a pretty standard setup, where <code class="language-plaintext highlighter-rouge">extern crate</code> declarations are placed in the the root
+module:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="k">crate</span> <span class="n">regex</span><span class="p">;</span>
+
+<span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">regex</span><span class="p">::</span><span class="n">Regex</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c1">// won't work</span>
+        <span class="c1">// let ex = regex::Regex::new("");</span>
+        <span class="k">let</span> <span class="n">ex</span> <span class="o">=</span> <span class="nn">Regex</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">""</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>When we say <code class="language-plaintext highlighter-rouge">extern crate regex</code>, we pull in the <code class="language-plaintext highlighter-rouge">regex</code> crate into the crate root. This behaves
+pretty similar to <code class="language-plaintext highlighter-rouge">mod regex { /* contents of regex crate */}</code>. Basically, we’ve imported
+the crate into the crate root, and since all <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the crate root,
+<code class="language-plaintext highlighter-rouge">use regex::Regex</code> works fine inside the module.</p>
+
+<p>Inline in code, <code class="language-plaintext highlighter-rouge">regex::Regex</code> won’t work because as mentioned before inline paths are relative
+to the current module. However, you can try <code class="language-plaintext highlighter-rouge">::regex::Regex::new("")</code>.</p>
+
+<p>Since we’ve imported <code class="language-plaintext highlighter-rouge">regex::Regex</code> in <code class="language-plaintext highlighter-rouge">mod foo</code>, that name is now accessible to everything inside
+the module directly, so the code can just say <code class="language-plaintext highlighter-rouge">Regex::new()</code>.</p>
+
+<p>The way you can view this is that <code class="language-plaintext highlighter-rouge">use blah</code> and <code class="language-plaintext highlighter-rouge">extern crate blah</code> create an item named
+<code class="language-plaintext highlighter-rouge">blah</code> “within the module”, which is basically something like a symbolic link, saying
+“yes this item named <code class="language-plaintext highlighter-rouge">blah</code> is actually elsewhere but we’ll pretend it’s within the module”</p>
+
+<p>The error message from this code may further drive this home:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=07527a61153519fbf218ffb93f13b3cd&amp;version=undefined">playpen</a>)</p>
+
+<p>The error I get is</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: function `replace` is private
+ --&gt; src/main.rs:3:5
+  |
+3 | use foo::replace;
+  |     ^^^^^^^^^^^^
+</code></pre></div></div>
+
+<p>There’s no function named <code class="language-plaintext highlighter-rouge">replace</code> in the module <code class="language-plaintext highlighter-rouge">foo</code>! But the compiler seems to think there is?</p>
+
+<p>That’s because <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> basically is equivalent to there being something like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">replace</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">...</span> <span class="p">{</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
+
+    <span class="c1">// here we can refer to `replace` freely (in inline paths)</span>
+    <span class="k">fn</span> <span class="nf">whatever</span><span class="p">()</span> <span class="p">{</span>
+        <span class="c1">// ...</span>
+        <span class="k">let</span> <span class="n">something</span> <span class="o">=</span> <span class="nf">replace</span><span class="p">(</span><span class="n">blah</span><span class="p">);</span>
+        <span class="c1">// ...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>except it’s actually like a symlink to the function defined in <code class="language-plaintext highlighter-rouge">std::mem</code>. Because inline paths
+are relative to the current module, saying <code class="language-plaintext highlighter-rouge">use std::mem::replace</code> works as if you had defined
+a function <code class="language-plaintext highlighter-rouge">replace</code> in the same module, and you can refer to <code class="language-plaintext highlighter-rouge">replace()</code> without needing
+any extra qualification in inline paths.</p>
+
+<p>This also makes <code class="language-plaintext highlighter-rouge">pub use</code> fit perfectly in our model. <code class="language-plaintext highlighter-rouge">pub use</code> says “make this symlink, but let
+others see it too”:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// works now!</span>
+<span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<hr />
+
+<p><br /></p>
+
+<p>Folks often get annoyed when this doesn’t work:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c1">// nope</span>
+    <span class="c1">// use mem::replace;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As mentioned before, <code class="language-plaintext highlighter-rouge">use</code> paths are relative to the root module. There is no <code class="language-plaintext highlighter-rouge">mem</code>
+in the root module, so this won’t work. We can make it work via <code class="language-plaintext highlighter-rouge">self</code>, which I mentioned
+before:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+    <span class="c1">// yep!</span>
+    <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="n">replace</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Note that this brings overloading of the <code class="language-plaintext highlighter-rouge">self</code> keyword up to a grand total of <em>four</em>! Two cases
+which occur in the import/path system:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">use self::foo</code> means “find me <code class="language-plaintext highlighter-rouge">foo</code> within the current module”</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::{self, baz}</code> is equivalent to <code class="language-plaintext highlighter-rouge">use foo::bar; use foo::bar::baz;</code></li>
+  <li><code class="language-plaintext highlighter-rouge">fn foo(&amp;self)</code> lets you define methods and specify if the receiver is by-move, borrowed, mutably borrowed, or other</li>
+  <li><code class="language-plaintext highlighter-rouge">Self</code> within implementations lets you refer to the type being implemented on</li>
+</ul>
+
+<p>Oh well, at least it’s not <code class="language-plaintext highlighter-rouge">static</code>.</p>
+
+<hr />
+
+<p><br /><br /></p>
+
+<p>Going back to one of the examples I gave at the beginning:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">mem</span><span class="p">;</span>
+
+
+<span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="nn">mem</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+
+    <span class="k">pub</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="n">transmute</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(<a href="http://play.integer32.com/?gist=49415d74214b07b13c236ce88bdf54aa&amp;version=undefined">playpen</a>)</p>
+
+<p>It should be clearer now why this works. The root module imports <code class="language-plaintext highlighter-rouge">mem</code>. Now, from everyone’s point
+of view, there’s an item called <code class="language-plaintext highlighter-rouge">mem</code> in the root.</p>
+
+<p>Within <code class="language-plaintext highlighter-rouge">mod foo</code>, <code class="language-plaintext highlighter-rouge">use mem::transmute</code> works because <code class="language-plaintext highlighter-rouge">use</code> is relative to the root, and <code class="language-plaintext highlighter-rouge">mem</code>
+already exists in the root! When you <code class="language-plaintext highlighter-rouge">use</code> something, all child modules will see it as if it were
+actually belonging to the module. (Non-child modules won’t see it because of privacy, we
+saw an example of this already)</p>
+
+<p>This is why <code class="language-plaintext highlighter-rouge">use foo::transmute</code> works from <code class="language-plaintext highlighter-rouge">mod bar</code>, too. <code class="language-plaintext highlighter-rouge">bar</code> can refer to the contents
+of <code class="language-plaintext highlighter-rouge">foo</code> via <code class="language-plaintext highlighter-rouge">use foo::whatever</code>, since <code class="language-plaintext highlighter-rouge">foo</code> is a child of the root module, and <code class="language-plaintext highlighter-rouge">use</code> is relative
+to the root. <code class="language-plaintext highlighter-rouge">foo</code> already has an item named <code class="language-plaintext highlighter-rouge">transmute</code> inside it because it imported one.
+Nothing in the parent module is private from the child, so we can <code class="language-plaintext highlighter-rouge">use foo::transmute</code> from
+<code class="language-plaintext highlighter-rouge">bar</code>.</p>
+
+<p>Generally, the standard way of doing things is to either not use modules (just a single lib.rs),
+or, if you do use modules, put nothing other than <code class="language-plaintext highlighter-rouge">extern crate</code>s and <code class="language-plaintext highlighter-rouge">mod</code>s in the root.
+This is why we rarely see shenanigans like the above; there’s nothing in the root crate
+to import, aside from other crates specified by <code class="language-plaintext highlighter-rouge">extern crate</code>. The trick of
+“reimport something from the parent module” is also pretty rare because there’s basically no
+point to using that (just import it directly!). So this is not the kind of code
+you’ll see in the wild.</p>
+
+<hr />
+
+<p><br /></p>
+
+<p>Basically, the way the import system works can be summed up as:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">extern crate</code> and <code class="language-plaintext highlighter-rouge">use</code> will act as if they were defining the imported item in the current module, like a symbolic link</li>
+  <li><code class="language-plaintext highlighter-rouge">use foo::bar::baz</code> resolves the path relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> in an inline path (i.e. not in a <code class="language-plaintext highlighter-rouge">use</code>) will resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">::foo::bar::baz</code> will <em>always</em> resolve relative to the root module</li>
+  <li><code class="language-plaintext highlighter-rouge">self::foo::bar::baz</code> will <em>always</em> resolve relative to the current module</li>
+  <li><code class="language-plaintext highlighter-rouge">super::foo::bar::baz</code> will <em>always</em> resolve relative to the parent module</li>
+</ul>
+
+<p>Alright, on to the other half of this. Privacy.</p>
+
+<h3 id="privacy">Privacy</h3>
+
+<p>So how does privacy work?</p>
+
+<p>Privacy, too, follows some basic rules:</p>
+
+<ul>
+  <li>If you can access a module, you can access all of its <code class="language-plaintext highlighter-rouge">pub</code> contents</li>
+  <li>A module can always access its child modules, but not recursively
+    <ul>
+      <li>This means that a module cannot access private items in its children, nor can it access private grandchildren modules</li>
+    </ul>
+  </li>
+  <li>A child can always access its parent modules (and their parents), and <em>all</em> their contents</li>
+  <li><code class="language-plaintext highlighter-rouge">pub(restricted)</code> <a href="https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md">is a proposal</a> which extends this a bit, but it’s experimental so we won’t deal with it here</li>
+</ul>
+
+<p>Giving some examples,</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c1">// can access `foo::foofunc`, even though `foofunc` is private</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">barfunc</span><span class="p">()</span> <span class="p">{}</span>
+
+    <span class="p">}</span>
+    <span class="c1">// can access `foo::bar::barfunc()`, even though `bar` is private</span>
+    <span class="k">fn</span> <span class="nf">foofunc</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="c1">// We can access our parent and _all_ its contents,</span>
+        <span class="c1">// so we have access to `foo::baz`. We can access</span>
+        <span class="c1">// all pub contents of modules we have access to, so we</span>
+        <span class="c1">// can access `foo::baz::bazfunc`</span>
+        <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s important to note that this is all contextual; whether or not a particular
+path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
+    <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">baz</span> <span class="p">{</span>
+            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">bazfunc</span><span class="p">()</span> <span class="p">{}</span>
+        <span class="p">}</span>
+        <span class="k">pub</span> <span class="k">mod</span> <span class="n">quux</span> <span class="p">{</span>
+            <span class="k">use</span> <span class="nn">foo</span><span class="p">::</span><span class="nn">bar</span><span class="p">::</span><span class="nn">baz</span><span class="p">::</span><span class="n">bazfunc</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We are able to write the path <code class="language-plaintext highlighter-rouge">foo::bar::baz::bazfunc</code> even though <code class="language-plaintext highlighter-rouge">bar</code> is private!</p>
+
+<p>This is because we still have <em>access</em> to the module <code class="language-plaintext highlighter-rouge">bar</code>, by being a descendent module.</p>
+
+<hr />
+
+<p><br /></p>
+
+<p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/05/02/two-interpretations-diverged-in-a-yellow-wood/">Two Interpretations Diverged in a Yellow Wood</a></h1>
+      <em>Posted by Manish Goregaokar on May 02, 2017 in <a class='category' href='/blog/categories/poetry/'>poetry</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Whose words are these I think I know<br />
+His house is in the village though<br />
+He will not see me stopping here<br />
+To interpret his work as I go<br /></p>
+
+<p>My little student must think it queer<br />
+To read without some context near<br />
+Between the words and the intent<br />
+He wonders what the poem meant<br /></p>
+
+<p>He gives his head a little shake<br />
+To ask if there is some mistake<br />
+“That’s not what the author said!”<br />
+Providing another view instead<br /></p>
+
+<p>The words are lovely, dark, and deep<br />
+But I have literary criticism to preach<br />
+And miles to go before I sleep<br />
+And miles to go before I sleep<br /></p>
+
+<hr />
+
+<p><br /><br /><br /><br /><br /></p>
+
+<p>Seriously though, try reading <em>The Road Not Taken</em> as metacircular commentary on how the poem
+<a href="https://en.wikipedia.org/wiki/The_Road_Not_Taken#Analysis">is very often “mis”interpreted</a>, and the nature of interpretation / <em>Death of the Author</em>. It fits perfectly when
+you read “road” as “interpretation”.</p>
+
+<p><small>(Yes, I know, the parody above is not based on <em>The Road Not Taken</em> but instead a different Frost
+poem. I was originally going to modify <em>The Road Not Taken</em> but realized all I had to do was change
+a few words to get there, which was no fun at all) </small></p>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/04/13/prolonging-temporaries-in-rust/">Prolonging Temporaries in Rust</a></h1>
+      <em>Posted by Manish Goregaokar on April 13, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>A colleague of mine learning Rust had an interesting type / borrow checker error. The solution needs
+a less-used feature of Rust (which basically exists precisely for this kind of thing), so I thought
+I’d document it.</p>
+
+<p>The code was like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
+<span class="p">};</span>
+
+<span class="k">use</span><span class="p">(</span><span class="n">maybe_foo</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>If you want to follow along, here is a full program that does this (<a href="https://play.rust-lang.org/?gist=e09a79b511e347fe786e4689d282b806&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">struct</span> <span class="n">Foo</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="n">Thingy</span> <span class="p">{</span>
+    <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Thingy</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_ref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="py">.foo</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_owned</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="n">Foo</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="k">Self</span> <span class="p">{</span>
+        <span class="n">Thingy</span> <span class="p">{</span>
+            <span class="n">foo</span><span class="p">:</span> <span class="n">Foo</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+
+
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">some_condition</span> <span class="o">=</span> <span class="k">true</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">thing</span> <span class="o">=</span> <span class="nn">Thingy</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+    <span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+        <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span> <span class="c1">// returns Option&lt;&amp;Foo&gt;, borrowed from `thing`</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span> <span class="c1">// returns Option&lt;Foo&gt;</span>
+    <span class="p">};</span>
+    
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">maybe_foo</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>I’m only going to be changing the contents of <code class="language-plaintext highlighter-rouge">main()</code> here.</p>
+
+<p>What’s happening here is that a non-<code class="language-plaintext highlighter-rouge">Copy</code> type, <code class="language-plaintext highlighter-rouge">Foo</code>, is returned in an <code class="language-plaintext highlighter-rouge">Option</code>. In one case,
+we have a reference to the <code class="language-plaintext highlighter-rouge">Foo</code>, and in another case an owned copy.</p>
+
+<p>We want to set a variable to these, but of course we can’t because they’re different types.</p>
+
+<p>In one case, we have an owned <code class="language-plaintext highlighter-rouge">Foo</code>, and we can usually obtain a borrow from an owned type. For
+<code class="language-plaintext highlighter-rouge">Option</code>, there’s a convenience method <code class="language-plaintext highlighter-rouge">.as_ref()</code> that does this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. Let’s try using that (<a href="https://play.rust-lang.org/?gist=41c3f836b9485c216ccb05c257ae5326&amp;version=stable&amp;backtrace=0">playpen</a>):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">()</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>This will give us an error.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error: borrowed value does not live long enough
+  --&gt; &lt;anon&gt;:32:5
+   |
+31 |         thing.get_owned().as_ref()
+   |         ----------------- temporary value created here
+32 |     };
+   |     ^ temporary value dropped here while still borrowed
+...
+35 | }
+   | - temporary value needs to live until here
+
+error: aborting due to previous error
+</code></pre></div></div>
+
+<p>The problem is, <code class="language-plaintext highlighter-rouge">thing.get_owned()</code> returns an owned value. There’s nothing that it gets anchored to
+(we don’t set its value to a variable), so it is just a temporary – we can call methods on it, but
+once we’re done the value will go out of scope.</p>
+
+<p>What we want is something like</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>but this will still give a borrow error – <code class="language-plaintext highlighter-rouge">owned</code> will still go out of scope within the <code class="language-plaintext highlighter-rouge">if</code> block,
+and we need the reference to it last as long as <code class="language-plaintext highlighter-rouge">maybe_foo</code> (outside the block) is supposed to last.</p>
+
+<p>So this is no good.</p>
+
+<p>An alternate solution here <em>can</em> be copying/cloning the <code class="language-plaintext highlighter-rouge">Foo</code> in the <em>first</em> case by calling <code class="language-plaintext highlighter-rouge">.map(|x|
+x.clone())</code> or <code class="language-plaintext highlighter-rouge">.cloned()</code> or something. Sometimes you don’t want to clone, so this isn’t great.</p>
+
+<p>Another solution here – the generic advice for dealing with values which may be owned or borrow –
+is to use <code class="language-plaintext highlighter-rouge">Cow</code>. It does incur a runtime check, though; one which can be optimized out if things are
+inlined enough.</p>
+
+<p>What we need to do here is to extend the lifetime of the temporary returned by <code class="language-plaintext highlighter-rouge">thing.get_owned()</code>.
+We need to extend it <em>past</em> the scope of the <code class="language-plaintext highlighter-rouge">if</code>.</p>
+
+<p>One way to do this is to have an <code class="language-plaintext highlighter-rouge">Option</code> outside that scope which we mutate (<a href="https://play.rust-lang.org/?gist=7868045f2cebec6d23e7a065f5823767&amp;version=stable&amp;backtrace=0">playpen</a>).</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>This works in this case, but in this case we already had an <code class="language-plaintext highlighter-rouge">Option</code>. If <code class="language-plaintext highlighter-rouge">get_ref()</code> and <code class="language-plaintext highlighter-rouge">get_owned()</code>
+returned <code class="language-plaintext highlighter-rouge">&amp;Foo</code> and <code class="language-plaintext highlighter-rouge">Foo</code> respectively, then we’d need to do something like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">owned</span> <span class="o">=</span> <span class="nb">None</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">thing</span><span class="nf">.get_owned</span><span class="p">());</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>which is icky since it introduces an unwrap.</p>
+
+<p>What we really need is a way to signal to the compiler that it needs to hold on to that temporary
+for the scope of the enclosing block.</p>
+
+<p>We can do that! (<a href="https://play.rust-lang.org/?gist=1ddf2a428e73b01baa72acdad7cbbf2b&amp;version=stable&amp;backtrace=0">playpen</a>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">owned</span><span class="p">;</span> <span class="c1">// 😯😯😯😯😯</span>
+<span class="k">let</span> <span class="n">maybe_foo</span> <span class="o">=</span> <span class="k">if</span> <span class="n">some_condition</span> <span class="p">{</span>
+    <span class="n">thing</span><span class="nf">.get_ref</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">owned</span> <span class="o">=</span> <span class="n">thing</span><span class="nf">.get_owned</span><span class="p">();</span>
+    <span class="n">owned</span><span class="nf">.as_ref</span><span class="p">()</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>We know that Rust doesn’t do “uninitialized” variables. If you want to name a variable, you have to
+initialize it. <code class="language-plaintext highlighter-rouge">let foo;</code> feels rather like magic in this context, because it looks like we’ve declared
+an uninitialized variable.</p>
+
+<p>What’s less well known is that Rust <em>can</em> do “deferred” initialization. Here, you declare a variable
+and can initialize it later, but expressions involving the variable can only exist in branches
+where the compiler knows it has been initialized.</p>
+
+<p>This is the case here. We declared the <code class="language-plaintext highlighter-rouge">owned</code> variable beforehand. It now lives in the outer scope
+and won’t be destroyed until the end of the outer scope. However, the variable cannot be used directly
+in an expression in the first branch, or after the <code class="language-plaintext highlighter-rouge">if</code>. Doing so will give a compile time error
+saying <code class="language-plaintext highlighter-rouge">use of possibly uninitialized variable: `owned`</code>. We can only use it in the <code class="language-plaintext highlighter-rouge">else</code> branch
+because the compiler can see that it is unconditionally initialized in that branch.</p>
+
+<p>We can still read the value of <code class="language-plaintext highlighter-rouge">owned</code> indirectly through <code class="language-plaintext highlighter-rouge">maybe_foo</code> from outside the branch.
+This is okay because the storage of <code class="language-plaintext highlighter-rouge">owned</code> is guaranteed to live as long as the outer scope,
+and <code class="language-plaintext highlighter-rouge">maybe_foo</code> borrows from it. The only time <code class="language-plaintext highlighter-rouge">maybe_foo</code> is set to a value inside <code class="language-plaintext highlighter-rouge">owned</code> is when
+<code class="language-plaintext highlighter-rouge">owned</code> has been initialized, so it is safe.</p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>In my experience <code class="language-plaintext highlighter-rouge">.as_ref()</code> is the solution to many, many borrow check issues newcomers come across, especially those involving <code class="language-plaintext highlighter-rouge">.map()</code> <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -1461,611 +2177,6 @@ But you can start taking it for a spin now, and finding bugs!</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2017/02/26/clarifying-misconceptions-about-shattered/">Clarifying Misconceptions About SHAttered</a></h1>
-      <em>Posted by Manish Goregaokar on February 26, 2017 in <a class='category' href='/blog/categories/cryptography/'>cryptography</a>, <a class='category' href='/blog/categories/programming/'>programming</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>This week Google published a <a href="https://shattered.io/">SHA-1 collision</a>.</p>
-
-<p>There’s a lot of confusion about the implications of this. A lot of this is due to differences of
-opinion on what exactly constitutes a “new” collision. I <a href="https://twitter.com/ManishEarth/status/835557328308969472">tweeted about this</a>. The webpage
-for the attack itself is misleading, saying that the answer to “Who is capable of mounting this attack?”
-is people with Google-esque resources. This depends on what exactly you mean by “this attack”.</p>
-
-<p>So I’m seeing a lot of “oh well just another anti-milestone for SHA, doesn’t affect anyone since its
-still quite expensive to exploit” reactions, as well as the opposite “aaaaa everything is on fire”
-reaction. Both are wrong. It has practical implications for you even if you are certain that you
-won’t attract the ire of an entity with a lot of computational power. None of these implications,
-however, are likely to be disastrous.</p>
-
-<p>TLDR: Now <em>anyone</em>, without needing Google-esque resources,
-can generate two colliding PDFs with arbitrary visual content in each.</p>
-
-<p>(In fact, there’s already <a href="http://alf.nu/SHA1">a PDF collision-generator</a> up where
-you can upload two images and get a PDF with collisions in it)</p>
-
-<h2 id="okay-back-up-a-bit-whats-a-hash-whats-sha-1">Okay, back up a bit. What’s a hash? What’s SHA-1?</h2>
-
-<p>I explained this a bit in my older post about <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">zero-knowledge-proofs</a>.</p>
-
-<p>In essence, a hash function takes some data (usually of arbitrary size), and produces a value called
-a <em>hash</em> (usually of fixed size). The function has some additional properties:</p>
-
-<ul>
-  <li>In almost all cases, a small perturbation in the input will lead to a large perturbation in the hash</li>
-  <li>Given an input and its hash, it is computationally hard to find an alternate input producing the same hash</li>
-  <li>It’s also hard to just find two inputs that has to the same value, though this is usually easier than the previous one</li>
-</ul>
-
-<p>when two inputs hash to the same value, this is called a collision. As mentioned, is easier to find
-<em>a</em> collision, over finding a colliding alternate input for a known input.</p>
-
-<p>SHA-1 is one such hash function. It’s been known for a while that it’s insecure, and the industry has
-largely moved off of it, but it’s still used, so it can still be a problem.</p>
-
-<h2 id="what-did-the-researchers-do">What did the researchers do?</h2>
-
-<p>They found a hash collision for SHA-1. In essence, they found two strings, <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>, where
-<code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>.</p>
-
-<p><em>However</em>, given the way SHA-1 works, this means that you can generate infinitely many other
-such pairs of strings. And given the nature of the exact <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> they created, it is possible
-to use this to create arbitrary colliding PDFs.</p>
-
-<p>Basically, SHA-1 (and many other hash functions), operate on “blocks”. These are fixed-size chunks
-of data, where the size is a property of the hash function. For SHA1 this is 512 bits.</p>
-
-<p>The function starts off with an “initial” built-in hash. It takes the first block of your data and
-this hash, and does some computation with the two to produce a new hash, which is its state after
-the first block.</p>
-
-<p>It will then take this hash and the second block, and run the same computations to produce
-a newer hash, which is its state after the second block. This is repeated till all blocks have
-been processed, and the final state is the result of the function.</p>
-
-<p>There’s an important thing to notice here. At each block, the only inputs are the block itself and the
-hash of the string up to that block.</p>
-
-<p>This means, if <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> are of a size that is a multiple of the block size, and <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>,
-then <code class="language-plaintext highlighter-rouge">SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code class="language-plaintext highlighter-rouge">C</code>, the state will
-be the same due to the hash collision, and after this point the next input blocks are identical in
-both cases, so the final hash will be the same.</p>
-
-<p>Now, while you might consider <code class="language-plaintext highlighter-rouge">A+C, B+C</code> to be the “same collision” as <code class="language-plaintext highlighter-rouge">A, B</code>, the implications
-of this are different than just “there is now one known pair of inputs that collide”, since everyone
-now has the ability to generate new colliding inputs by appending an arbitrary string to <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>.</p>
-
-<p>Of course, these new collisions have the restriction that the strings will always start with <code class="language-plaintext highlighter-rouge">A</code> or
-<code class="language-plaintext highlighter-rouge">B</code> and the suffixes will be identical. If you want to break this restriction, you will
-have to devote expensive resources to finding a new collision, like Google did.</p>
-
-<h2 id="how-does-this-let-us-generate-arbitrary-colliding-pdfs">How does this let us generate arbitrary colliding PDFs?</h2>
-
-<p>So this exploit actually uses features of the JPEG format to work. It was done in
-a PDF format since JPEGs often get compressed when sent around the Internet. However,
-since both A and B start a partial PDF document, they can only be used to generate colliding
-PDFs, not JPEGs.</p>
-
-<p>I’m going to first sketch out a simplified example of what this is doing, using a hypothetical
-pseudocode-y file format. The researchers found a collision between the strings:</p>
-
-<ul>
-  <li>A: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
-  <li>B: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
-</ul>
-
-<p>Here, <code class="language-plaintext highlighter-rouge">&lt;header data&gt;</code> is whatever is necessary to make the format work, and the “nonce”s are
-strings that make <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> have the same hash. Finding these nonces is where
-the computational power is required, since you basically have to brute-force a solution.</p>
-
-<p>Now, to both these strings, they append a suffix C: <code class="language-plaintext highlighter-rouge">IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
-This creates two complete documents. Both of the documents contain both images, but each one is instructed
-to display a different one. Note that since <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>, <code class="language-plaintext highlighter-rouge">SHA1(A + C) = SHA1(B + C)</code>, so these
-final documents have the same hash.</p>
-
-<p>The contents of <code class="language-plaintext highlighter-rouge">C</code> don’t affect the collision at all. So, we can insert any two images in <code class="language-plaintext highlighter-rouge">C</code>, to create
-our own personal pair of colliding PDFs.</p>
-
-<p>The actual technique used is similar to this, and it relies on JPEG comment fields. They have found
-a collision between two strings that look like:</p>
-
-<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pdf header data                       | String A
-begin embedded image                  |  
-    jpg header data                   |
-    declare jpg comment of length N   |
-    random nonce of length N          | (comment ends here) 
-                                     ---
-    image 1, length L                 | String C
-    jpg EOF byte (2 bytes)            |
-    image 2                           |
-end embedded image                    |
-
-and
-
-pdf header data                       | String B
-begin embedded image                  |
-    jpg header data                   |
-    declare jpg comment of length M   |
-    random nonce of length M-L-2      |
-                                     ---
-    image 1, length L                 | String C
-    jpg EOF marker (2 bytes)          | (comment ends here)
-    image 2                           |
-end embedded image                    |
-</code></pre></div></div>
-
-<p>By playing with the nonces, they managed to generate a collision between <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>. In the first
-pdf, the embedded image has a comment containing only the nonce. Once the JPEG reader gets past that
-comment, it sees the first image, displays it, and then sees the end-of-file marker and decides to
-stop. Since the PDF format doesn’t try to interpret the image itself, the PDF format won’t be
-boggled by the fact that there’s some extra garbage data after the JPEG EOF marker. It
-simply takes all the data between the “begin embedded image” and “end embedded image” blocks,
-and passes it to the JPEG decoder. The JPEG decoder itself stops after it sees the end of file
-marker, and doesn’t get to the extra data for the second image.</p>
-
-<p>In the second pdf, the jpg comment is longer, and subsumes the first image (as well as the EOF marker)
-Thus, the JPEG decoder directly gets to the second image, which it displays.</p>
-
-<p>Since the actual images are not part of the original collision (A and B), you can substitute any pair
-of jpeg images there, with some length restrictions.</p>
-
-<h2 id="what-are-the-implications">What are the implications?</h2>
-
-<p>This does mean that you should not trust the integrity of a PDF when all you have
-to go on is its SHA-1 hash. Use a better hash. <em>Anyone can generate these colliding PDFs
-now.</em></p>
-
-<p>Fortunately, since all such PDFs will have the same prefix A or B, you can detect when
-such a deception is being carried out.</p>
-
-<p>Don’t check colliding PDFs into SVN. <a href="https://bugs.webkit.org/show_bug.cgi?id=168774#c27">Things break</a>.</p>
-
-<p>In some cases it is possible to use the PDF collision in other formats. For example,
-<a href="https://mobile.twitter.com/arw/status/834883944898125824">it can be used to create colliding HTML documents</a>. I think it can be used to colide
-ZIP files too.</p>
-
-<p>Outside the world of complex file formats, little has changed. It’s still a bad idea to use SHA-1.
-It’s still possible for people to generate entirely new collisions like Google did, though this
-needs a lot of resources. It’s possible that someone with resources has already generated such a
-“universal-key collision” for some other file format<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> and will use it on you, but this was
-equally possible before Google published their attack.</p>
-
-<p>This does not make it easier to collide with arbitrary hashes – if someone else
-has uploaded a document with a hash, and you trust them to not be playing any tricks,
-an attacker won’t be able to generate a colliding document for this without immense
-resources. The attack only works when the attacker has control over the initial document;
-e.g. in a bait-and-switch-like attack where the attacker uploads document A, you read and verify it
-and broadcast your trust in document A with hash <code class="language-plaintext highlighter-rouge">SHA(A)</code>, and then the attacker switches it with
-document B.</p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>Google’s specific collision was designed to be a “universal key”, since A and B are designed to have the image-switching mechanism built into it. Some other collision may not be like this; it could just be a collision of two images (or whatever) with no such switching mechanism. It takes about the same effort to do either of these, however, so if you have a file format that can be exploited to create a switching mechanism, it would always make more sense to build one into any collision you look for. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2017/01/21/mitigating-underhandedness-clippy/">Mitigating Underhandedness: Clippy!</a></h1>
-      <em>Posted by Manish Goregaokar on January 21, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
-
-<p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
-writing seemingly-innocuous malicious code; code that is deliberately written to do some harm,
-but will pass a typical code review.</p>
-
-<p>It is inspired by the <a href="http://www.underhanded-c.org">Underhanded C</a> contest. Most of the underhanded C submissions have to do
-with hidden buffer overflows, pointer arithmetic fails, or misuse of C macros; and these problems
-largely don’t occur in Rust programs. However, the ability to layer abstractions on each other does
-open up new avenues to introducing underhandedness by relying on sufficiently confusing abstraction
-sandwiches. There are probably other interesting avenues. Overall, I’m pretty excited to see what
-kind of underhandedness folks come up with!</p>
-
-<p>Of course, underhandedness is not just about fun and games; we should be hardening our code against
-this kind of thing. Even if you trust your fellow programmers. Even if <em>you</em> are the sole programmer and you trust yourself.
-After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can’t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
-Rust is about trusting <em>nobody</em>. Not even yourself.</p>
-
-<p><img src="/images/post/memes/trust-nobody.jpg" width="300" /></p>
-
-<p>Rust protects you from your own mistakes when it comes to memory management. But we
-should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
-programming involve sleights of hand that could just as well be introduced in the code by accident, causing bugs.
-Not memory safety bugs (in Rust), but still, bugs. The existence of these sleights of hand is great for
-that very common situation
-<a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize">when you are feeling severely under-plushied and must win a competition to replenish your supply</a>
-but we really don’t want these creeping into real-world code, either by accident or intentionally.</p>
-
-<hr />
-
-<p>Allow me to take a moment out of your busy underhanded-submission-writing schedules to talk to you about
-our Lord and Savior <a href="http://github.com/manishearth/rust-clippy/">Clippy</a>.</p>
-
-<p>Clippy is for those of you who have become desensitized to the constant whining of the Rust compiler
-and need a higher dosage of whininess to be kept on their toes. Clippy is for those perfectionists
-amongst you who want to know every minute thing wrong with their code so that they can fix it.
-But really, Clippy is for everyone.</p>
-
-<p>Clippy is simply a large repository of lints. As of the time of writing this post, there are
-<a href="https://github.com/manishearth/rust-clippy/#lints">183 lints</a> in it, though not all of them are enabled by default. These use the regular Rust lint
-system so you can pick and choose the ones you need via <code class="language-plaintext highlighter-rouge">#[allow(lint_name)]</code> and
-<code class="language-plaintext highlighter-rouge">#[warn(lint_name)]</code>. These lints cover a wide range of functions:</p>
-
-<ul>
-  <li>Improving readability of the code (though <a href="https://github.com/rust-lang-nursery/rustfmt/">rustfmt</a> is the main tool you should use for this)</li>
-  <li>Helping make the code more compact by reducing unnecessary things (my absolute favorite is <a href="https://github.com/Manishearth/rust-clippy/wiki#needless_lifetimes">needless_lifetimes</a>)</li>
-  <li>Helping make the code more idiomatic</li>
-  <li>Making sure you don’t do things that you’re not supposed to</li>
-  <li>Catching mistakes and cases where the code may not work as expected</li>
-</ul>
-
-<p>The last two really are the ones which help with underhanded code. Just to give an example,
-we have lints like:</p>
-
-<ul>
-  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#cmp_nan">cmp_nan</a>, which disallows things like <code class="language-plaintext highlighter-rouge">x == NaN</code></li>
-  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#clone_double_ref">clone_double_ref</a>, which disallows calling <code class="language-plaintext highlighter-rouge">.clone()</code> on double-references (<code class="language-plaintext highlighter-rouge">&amp;&amp;T</code>), since that’s a straightforward copy and you probably meant to do something like <code class="language-plaintext highlighter-rouge">(*x).clone()</code></li>
-  <li></li>
-  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#match_same_arms">match_same_arms</a>, which checks for identical match arm bodies (strong indication of a typo)</li>
-  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#suspicious_assignment_formatting">suspicious_assignment_formatting</a>, which checks for possible typos with the <code class="language-plaintext highlighter-rouge">+=</code> and <code class="language-plaintext highlighter-rouge">-=</code> operators</li>
-  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#unused_io_amount">unused_io_amount</a>, which ensures that you don’t forget that some I/O APIs may not write all bytes in the span of a single call</li>
-</ul>
-
-<p>These catch many of the gotchas that might crop up in Rust code. In fact,
-I based <a href="https://www.reddit.com/r/rust/comments/3hb0wm/underhanded_rust_contest/cu5yuhr/">my solution of an older, more informal Underhanded Rust contest</a> on one of these.</p>
-
-<h2 id="usage">Usage</h2>
-
-<p>Clippy is still nightly-only. We hook straight into the compiler’s guts to obtain
-the information we need, and like most internal compiler APIs, this is completely unstable. This
-does mean that you usually need a latest or near-latest nightly for clippy to work, and there will
-be times when it won’t compile while we’re working to update it.</p>
-
-<p>There is a plan to ship clippy as an optional component of rustc releases, which will fix all of
-these issues (yay!).</p>
-
-<p>But, for now, you can use clippy via:</p>
-
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rustup <span class="nb">install </span>nightly
-<span class="c"># +nightly not necessary if nightly is your default toolchain</span>
-cargo +nightly <span class="nb">install </span>clippy
-<span class="c"># in your project folder</span>
-cargo +nightly clippy
-</code></pre></div></div>
-
-<p>If you’re going to be making it part of the development procedures of a crate
-you maintain, you can also <a href="https://github.com/manishearth/rust-clippy/#optional-dependency">make it an optional dependency</a>.</p>
-
-<p>If you’re on windows, there’s currently a rustup/cargo <a href="https://github.com/rust-lang-nursery/rustup.rs/issues/876">bug</a> where you may have to add
-the rustc libs path in your <code class="language-plaintext highlighter-rouge">PATH</code> for <code class="language-plaintext highlighter-rouge">cargo clippy</code> to work.</p>
-
-<p>There’s an experimental project called <a href="https://github.com/killercup/rustfix">rustfix</a> which can automatically apply suggestions from
-clippy and rustc to your code. This may help in clippy-izing a large codebase, but it may
-also eat your code and/or laundry, so beware.</p>
-
-<h2 id="contributing">Contributing</h2>
-
-<p>There’s a <em>lot</em> of work that can be done on clippy. A hundred and eighty lints is just
-a start, there are <a href="https://github.com/manishearth/rust-clippy/issues">hundreds more lint ideas filed on the issue tracker</a>. We’re
-willing to mentor anyone who wants to get involved; and have
-<a href="https://github.com/manishearth/rust-clippy/issues?q=is%3Aissue+is%3Aopen+label%3AE-easy">specially tagged “easy” issues</a> for folks new to compiler internals. In general,
-contributing to clippy is a great way to gain an understanding of compiler internals
-if you want to contribute to the compiler itself.</p>
-
-<p>If you don’t want to write code for clippy, you can also run it on random crates,
-open pull requests with fixes, and file bugs on clippy for any false positives that appear.</p>
-
-<p>There are more tips about contributing in <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">our CONTRIBUTING.md</a>.</p>
-
-<hr />
-
-<p>I hope this helps reduce mistakes and underhandedness in your code!</p>
-
-<p>..unless you’re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
-
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2017/01/15/breaking-our-latin-1-assumptions/">Breaking Our Latin-1 Assumptions</a></h1>
-      <em>Posted by Manish Goregaokar on January 15, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/unicode/'>unicode</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>So in my <a href="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points">previous post</a> I explored a specific (wrong) assumption that programmers
-tend to make about the nature of code points and text.</p>
-
-<p>I was asked multiple times about other assumptions we tend to make. There are a lot. Most
-Latin-based scripts are simple, but most programmers spend their time dealing with Latin
-text so these complexities never come up.</p>
-
-<p>I thought it would be useful to share my personal list of
-<a href="https://twitter.com/ManishEarth/status/810582690906931200">scripts that break our Latin-1 assumptions</a>. This is a list I mentally check against
-whenever I am attempting to reason about text. I check if I’m making any assumptions that
-break in these scripts. <em>Most</em> of these concepts are independent of Unicode; so any program
-would have to deal with this regardless of encoding.</p>
-
-<p>I again recommend going through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">eevee’s post</a>, since it covers many related issues.
-<a href="https://github.com/jagracey/Awesome-Unicode">Awesome-Unicode</a> also has a lot of random tidbits about Unicode.</p>
-
-<p>Anyway, here’s the list. Note that a lot of the concepts here exist in scripts other than the
-ones listed, these are just the scripts <em>I</em> use for comparing.</p>
-
-<h2 id="arabic--hebrew">Arabic / Hebrew</h2>
-
-<p>Both Arabic and Hebrew are RTL scripts; they read right-to-left. This may even affect how
-a page is laid out, see the <a href="https://he.wikipedia.org/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99">Hebrew Wikipedia</a>.</p>
-
-<p>They both have a concept of letters changing how they look depending on where they are in the word.
-Hebrew has the “sofit” letters, which use separate code points. For example, Kaf (כ) should be typed
-as ך at the end of a word. Greek has something similar with the sigma.</p>
-
-<p>In Arabic, the letters can have up to four different forms, depending on whether they start a word,
-end a word, are inside a word, or are used by themselves. These forms can look very different. They
-don’t use separate code points for this; however. You can see a list of these forms <a href="https://en.wikipedia.org/wiki/Arabic_alphabet#Table_of_basic_letters">here</a></p>
-
-<p>Arabic can get pretty tricky – the characters have to join up; and in cursive fonts (like those for Nastaliq),
-you get a lot of complex ligatures.</p>
-
-<p>As I mentioned in the last post, U+FDFD (﷽), a ligature representing the Basamala,
-is also a character that breaks a lot of assumptions.</p>
-
-<h2 id="indic-scripts">Indic scripts</h2>
-
-<p>Indic scripts are <em>abugidas</em>, where you have consonants with vowel modifiers. For example, क is
-“kə”, where the upside down “e” is a schwa, something like an “uh” vowel sound. You can change the
-vowel by adding a diacritic (e.g <code class="language-plaintext highlighter-rouge">ा</code>); getting things like का (“kaa”) को (“koh”) कू (“koo”).</p>
-
-<p>You can also mash together consonants to create consonant clusters. The “virama” is a vowel-killer
-symbol that removes the inherent schwa vowel. So, <code class="language-plaintext highlighter-rouge">क</code> + <code class="language-plaintext highlighter-rouge">्</code> becomes <code class="language-plaintext highlighter-rouge">क्</code>. This sound itself is
-unpronounceable since क is a stop consonant (vowel-killed consonants can be pronounced for nasal and some other
-consonants though), but you can combine it with another consonant, as <code class="language-plaintext highlighter-rouge">क्</code> + <code class="language-plaintext highlighter-rouge">र</code> (“rə”), to get <code class="language-plaintext highlighter-rouge">क्र</code>
-(“krə”). Consonants can be strung up infinitely, and you can stick one or more vowel diacritics
-after that. Usually, you won’t see more than two consonants in a cluster, but larger ones are not
-uncommon in Sanskrit (or when writing down some onomatopoeia). They may not get rendered as single
-glyphs, depending on the font.</p>
-
-<p>One thing that crops up is that there’s no unambiguous concept of a letter here. There
-is a concept of an “akshara”, which basically includes the vowel diacritics, and
-depending on who you talk to may also include consonant clusters. Often things are
-clusters an akshara depending on whether they’re drawn with an explicit virama
-or form a single glyph.</p>
-
-<p>In general the nature of the virama as a two-way combining character in Unicode is pretty new.</p>
-
-<h2 id="hangul">Hangul</h2>
-
-<p>Korean does its own fun thing when it comes to conjoining characters. Hangul has a concept
-of a “syllable block”, which is basically a letter. It’s made up of a leading consonant,
-medial vowel, and an optional tail consonant. 각 is an example of
-such a syllable block, and it can be typed as ᄀ + ᅡ + ᆨ. It can
-also be typed as 각, which is a “precomposed form” (and a single code point).</p>
-
-<p>These characters are examples of combining characters with very specific combining rules. Unlike
-accents or other diacritics, these combining characters will combine with the surrounding characters
-only when the surrounding characters form an L-V-T or L-V syllable block.</p>
-
-<p>As I mentioned in my previous post, apparently syllable blocks with more (adjacent) Ls, Vs, and Ts are
-also valid and used in Old Korean, so the grapheme segmentation algorithm in Unicode considers
-“ᄀᄀᄀ각ᆨᆨ” to be a single grapheme (<a href="http://www.unicode.org/reports/tr29/#Hangul_Syllable_Boundary_Determination">it explicitly mentions this</a>).
-I’m not aware of any fonts which render these as a single syllable block, or if that’s even
-a valid thing to do.</p>
-
-<h2 id="han-scripts">Han scripts</h2>
-
-<p>So Chinese (Hanzi), Japanese (Kanji<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>), Korean (Hanja<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>), and Vietnamese (Hán tự, along with Chữ
-Nôm <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>) all share glyphs, collectively called “Han characters” (or CJK characters<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">4</a></sup>). These
-languages at some point in their history borrowed the Chinese writing system, and made their own
-changes to it to tailor to their needs.</p>
-
-<p>Now, the Han characters are ideographs. This is not a phonetic script; individual characters
-represent words. The word/idea they represent is not always consistent across languages. The
-pronounciation is usually different too. Sometimes, the glyph is drawn slightly differently based on
-the language used. There are around 80,000 Han ideographs in Unicode right now.</p>
-
-<p>The concept of ideographs itself breaks some of our Latin-1 assumptions. For example, how
-do you define Levenshtein edit distance for text using Han ideographs? The straight answer is that
-you can’t, though if you step back and decide <em>why</em> you need edit distance you might be able
-to find a workaround. For example, if you need it to detect typos, the user’s input method
-may help. If it’s based on pinyin or bopomofo, you might be able to reverse-convert to the
-phonetic script, apply edit distance in that space, and convert back. Or not. I only maintain
-an idle curiosity in these scripts and don’t actually use them, so I’m not sure how well this would
-work.</p>
-
-<p>The concept of halfwidth character is a quirk that breaks some assumptions.</p>
-
-<p>In the space of Unicode in particular, all of these scripts are represented by a single set of
-ideographs. This is known as “Han unification”. This is a pretty controversial issue, but the
-end result is that rendering may sometimes be dependent on the language of the text, which
-e.g. in HTML you set with a <code class="language-plaintext highlighter-rouge">&lt;span lang=whatever&gt;</code>. <a href="https://en.wikipedia.org/wiki/Han_unification#Examples_of_language-dependent_glyphs">The wiki page</a> has some examples of
-encoding-dependent characters.</p>
-
-<p>Unicode also has a concept of variation selector, which is a code point that can be used to
-select between variations for a code point that has multiple ways of being drawn. These
-do get used in Han scripts.</p>
-
-<p>While this doesn’t affect rendering, Unicode, as a system for <em>describing</em> text,
-also has a concept of interlinear annotation characters. These are used to represent
-<a href="https://en.wikipedia.org/wiki/Ruby_character">furigana / ruby</a>. Fonts don’t render this, but it’s useful if you want to represent
-text that uses ruby. Similarly, there are <a href="https://en.wikipedia.org/wiki/Chinese_character_description_languages#Ideographic_Description_Sequences">ideographic description sequences</a> which
-can be used to “build up” glyphs from smaller ones when the glyph can’t be encoded in
-Unicode. These, too, are not to be rendered, but can be used when you want to describe
-the existence of a character like <a href="https://en.wikipedia.org/wiki/Biangbiang_noodles#Chinese_character_for_bi.C3.A1ng">biáng</a>. These are not things a programmer
-needs to worry about; I just find them interesting and couldn’t resist mentioning them :)</p>
-
-<p>Japanese speakers haven’t completely moved to Unicode; there are a lot of things out there
-using Shift-JIS, and IIRC there are valid reasons for that (perhaps Han unification?). This
-is another thing you may have to consider.</p>
-
-<p>Finally, these scripts are often written <em>vertically</em>, top-down. <a href="https://en.wikipedia.org/wiki/Mongolian_script">Mongolian</a>, while
-not being a Han script, is written vertically sideways, which is pretty unique. The
-CSS <a href="https://drafts.csswg.org/css-writing-modes/">writing modes</a> spec introduces various concepts related to this, though that’s mostly in the
-context of the Web.</p>
-
-<h2 id="thai--khmer--burmese--lao">Thai / Khmer / Burmese / Lao</h2>
-
-<p>These scripts don’t use spaces to split words. Instead, they have rules for what kinds of sequences
-of characters start and end a word. This can be determined programmatically, however IIRC the
-Unicode spec does not attempt to deal with this. There are libraries you can use here instead.</p>
-
-<h2 id="latin-scripts-themselves">Latin scripts themselves!</h2>
-
-<p>Turkish is a latin-based script. But it has a quirk: The uppercase of “i” is
-a dotted “İ”, and the lowercase of “I” is “ı”. If doing case-based operations, try to use
-a Unicode-aware library, and try to provide the locale if possible.</p>
-
-<p>Also, not all code points have a single-codepoint uppercase version. The eszett (ß) capitalizes
-to “SS”. There’s also the “capital” eszett ẞ, but its usage seems to vary and I’m not exactly
-sure how it interacts here.</p>
-
-<p>While Latin-1 uses precomposed characters, Unicode also introduces ways to specify the same
-characters via combining diacritics. Treating these the same involves using the normalization
-algorithms (NFC/NFD).</p>
-
-<h2 id="emoji">Emoji</h2>
-
-<p>Well, not a script<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>. But emoji is weird enough that it breaks many of our assumptions. The
-scripts above cover most of these, but it’s sometimes easier to think of them
-in the context of emoji.</p>
-
-<p>The main thing with emoji is that you can use a zero-width-joiner character to glue emoji together.</p>
-
-<p>For example, the family emoji 👩‍👩‍👧‍👦 (may not render for you) is made by using the woman/man/girl/boy
-emoji and gluing them together with ZWJs. You can see its decomposition in <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%91%A9%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%E2%80%8D%F0%9F%91%A6">uniview</a>.</p>
-
-<p>There are more sequences like this, which you can see in the <a href="http://unicode.org/Public/emoji/4.0/emoji-zwj-sequences.txt">emoji-zwj-sequences</a> file. For
-example, MAN + ZWJ + COOK will give a male cook emoji (font support is sketchy).
-Similarly, SWIMMER + ZWJ + FEMALE SIGN is a female swimmer. You have both sequences of
-the form “gendered person + zwj + thing”, and “emoji containing human + zwj + gender”,
-IIRC due to legacy issues<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">6</a></sup></p>
-
-<p>There are also <a href="http://www.unicode.org/reports/tr51/#Diversity">modifier characters</a> that let you change the skin tone of an emoji that
-contains a human (or human body part, like the hand-gesture emojis) in it.</p>
-
-<p>Finally, the flag emoji are pretty special snowflakes. For example, 🇪🇸 is the Spanish
-flag. It’s made up of <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%87%AA%F0%9F%87%B8">two regional indicator characters for “E” and “S”</a>.</p>
-
-<p>Unicode didn’t want to deal with adding new flags each time a new country or territory pops up. Nor
-did they want to get into the tricky business of determining what a country <em>is</em>, for example
-when dealing with disputed territories. So instead, they just defined these regional indicator
-symbols. Fonts are supposed to take pairs of RI symbols<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">7</a></sup> and map the country code to a flag.
-This mapping is up to them, so it’s totally valid for a font to render a regional indicator
-pair “E” + “S” as something other than the flag of Spain. On some Chinese systems, for example,
-the flag for Taiwan (🇹🇼) may not render.</p>
-
-<hr />
-
-<p>I hightly recommend comparing against this relatively small list of scripts the next time you
-are writing code that does heavy manipulation of user-provided strings.</p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>Supplemented (but not replaced) by the Hiragana and Katakana phonetic scripts. In widespread use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2" role="doc-endnote">
-      <p>Replaced by Hangul in modern usage <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3" role="doc-endnote">
-      <p>Replaced by chữ quốc ngữ in modern usage, which is based on the Latin alphabet <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:7" role="doc-endnote">
-      <p>“CJK” (Chinese-Japanese-Korean) is probably more accurate here, though it probably should include “V” for Vietnamese too. Not all of these ideographs come from Han; the other scripts invented some of their own. See: Kokuji, Gukja, Chữ Nôm. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4" role="doc-endnote">
-      <p>Back in <em>my</em> day we painstakingly typed actual real words on numeric phone keypads, while trudging to 🏫 in three feet of ❄️️, and it was uphill both ways, and we weren’t even <em>allowed</em> 📱s in 🏫. Get off my lawn! <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:5" role="doc-endnote">
-      <p>We previously had individual code points for professions and stuff and they decided to switch over to using existing object emoji with combiners instead of inventing new profession emoji all the time <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:6" role="doc-endnote">
-      <p>676 countries should be enough for anybody <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/4">&larr; Older</a>
@@ -2098,23 +2209,23 @@ are writing code that does heavy manipulation of user-provided strings.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
       <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
   </ul>
@@ -2132,8 +2243,8 @@ are writing code that does heavy manipulation of user-provided strings.</p>
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
-<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>

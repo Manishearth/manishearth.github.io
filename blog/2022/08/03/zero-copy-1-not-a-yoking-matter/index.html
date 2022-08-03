@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/drafts/zero1/">
+  <link rel="canonical" href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -100,7 +100,7 @@
 
     
       <h1 class="entry-title">Not a Yoking Matter (Zero-Copy #1)</h1>
-      <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+      <em>Posted by Manish Goregaokar on August 03, 2022 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
       <p class="meta">
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="https://@@@@">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="https://@@@@">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="../zero-copy-2-zero-copy-all-the-things/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="../zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -169,7 +169,7 @@
 
 <p>An <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used instead of the <code class="language-plaintext highlighter-rouge">Cow</code>, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
 
-<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="https://@@@@">part 2</a>.</div>
+<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="../zero-copy-2-zero-copy-all-the-things/">part 2</a>.</div>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -400,7 +400,7 @@
 
 <h2 id="better-conversions-zerofrom">Better conversions: ZeroFrom</h2>
 
-<p>A crate that pairs well with this is <a href="https://docs.rs/zerofrom"><code class="language-plaintext highlighter-rouge">zerofrom</code></a>, primarily designed and written by <a href="https://github.com/sffc">Shane</a>. It comes with the <a href="https://docs.rs/zerofrom/latest/zerofrom/trait.ZeroFrom.html"><code class="language-plaintext highlighter-rouge">ZeroFrom</code></a> trait, that looks like this:</p>
+<p>A crate that pairs well with this is <a href="https://docs.rs/zerofrom"><code class="language-plaintext highlighter-rouge">zerofrom</code></a>, primarily designed and written by <a href="https://github.com/sffc">Shane</a>. It comes with the <a href="https://docs.rs/zerofrom/latest/zerofrom/trait.ZeroFrom.html"><code class="language-plaintext highlighter-rouge">ZeroFrom</code></a> trait:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">ZeroFrom</span><span class="o">&lt;</span><span class="nv">'zf</span><span class="p">,</span> <span class="n">C</span><span class="p">:</span> <span class="o">?</span><span class="nb">Sized</span><span class="o">&gt;</span><span class="p">:</span> <span class="nv">'zf</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">zero_from</span><span class="p">(</span><span class="n">other</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'zf</span> <span class="n">C</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="k">Self</span><span class="p">;</span>
@@ -427,7 +427,7 @@
 
 <p>While I don’t consider the <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a> crate “done” yet, it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, <a href="https://github.com/sffc">Shane</a>, @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, and <a href="https://github.com/sffc">Shane</a> for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -478,7 +478,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/zero1/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/zero1/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" >Tweet</a>
   
   
   
@@ -487,6 +487,10 @@
     
     <p class="meta">
       
+        <a class="basic-alignment left" href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/" title="Previous Post: Colophon: Waiter, There Are Pions in my Blog Post!">&laquo; Colophon: Waiter, There Are Pions in my Blog Post!</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/" title="Next Post: Zero-Copy All The Things! (Zero-Copy #2)">Zero-Copy All The Things! (Zero-Copy #2) &raquo;</a>
       
     </p>
   </footer>
@@ -516,23 +520,23 @@
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
       <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
   </ul>
@@ -550,8 +554,8 @@
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
-<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>

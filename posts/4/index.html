@@ -9,7 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="Update: This post got a sequel, Breaking our latin-1 assumptions. I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. &hellip;">
+  <meta name="description" content="This week Google published a SHA-1 collision. There’s a lot of confusion about the implications of this. A lot of this is due to differences of &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -17,8 +17,8 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="Update: This post got a sequel, Breaking our latin-1 assumptions. I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
-misconception I’ve seen is that code &hellip;">
+      <meta property="twitter:description" content="This week Google published a SHA-1 collision. There’s a lot of confusion about the implications of this. A lot of this is due to differences of
+opinion on what exactly constitutes a “new” collision. &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -93,6 +93,611 @@ misconception I’ve seen is that code &hellip;">
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/02/26/clarifying-misconceptions-about-shattered/">Clarifying Misconceptions About SHAttered</a></h1>
+      <em>Posted by Manish Goregaokar on February 26, 2017 in <a class='category' href='/blog/categories/cryptography/'>cryptography</a>, <a class='category' href='/blog/categories/programming/'>programming</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>This week Google published a <a href="https://shattered.io/">SHA-1 collision</a>.</p>
+
+<p>There’s a lot of confusion about the implications of this. A lot of this is due to differences of
+opinion on what exactly constitutes a “new” collision. I <a href="https://twitter.com/ManishEarth/status/835557328308969472">tweeted about this</a>. The webpage
+for the attack itself is misleading, saying that the answer to “Who is capable of mounting this attack?”
+is people with Google-esque resources. This depends on what exactly you mean by “this attack”.</p>
+
+<p>So I’m seeing a lot of “oh well just another anti-milestone for SHA, doesn’t affect anyone since its
+still quite expensive to exploit” reactions, as well as the opposite “aaaaa everything is on fire”
+reaction. Both are wrong. It has practical implications for you even if you are certain that you
+won’t attract the ire of an entity with a lot of computational power. None of these implications,
+however, are likely to be disastrous.</p>
+
+<p>TLDR: Now <em>anyone</em>, without needing Google-esque resources,
+can generate two colliding PDFs with arbitrary visual content in each.</p>
+
+<p>(In fact, there’s already <a href="http://alf.nu/SHA1">a PDF collision-generator</a> up where
+you can upload two images and get a PDF with collisions in it)</p>
+
+<h2 id="okay-back-up-a-bit-whats-a-hash-whats-sha-1">Okay, back up a bit. What’s a hash? What’s SHA-1?</h2>
+
+<p>I explained this a bit in my older post about <a href="http://manishearth.github.io/blog/2016/03/05/exploring-zero-knowledge-proofs/">zero-knowledge-proofs</a>.</p>
+
+<p>In essence, a hash function takes some data (usually of arbitrary size), and produces a value called
+a <em>hash</em> (usually of fixed size). The function has some additional properties:</p>
+
+<ul>
+  <li>In almost all cases, a small perturbation in the input will lead to a large perturbation in the hash</li>
+  <li>Given an input and its hash, it is computationally hard to find an alternate input producing the same hash</li>
+  <li>It’s also hard to just find two inputs that has to the same value, though this is usually easier than the previous one</li>
+</ul>
+
+<p>when two inputs hash to the same value, this is called a collision. As mentioned, is easier to find
+<em>a</em> collision, over finding a colliding alternate input for a known input.</p>
+
+<p>SHA-1 is one such hash function. It’s been known for a while that it’s insecure, and the industry has
+largely moved off of it, but it’s still used, so it can still be a problem.</p>
+
+<h2 id="what-did-the-researchers-do">What did the researchers do?</h2>
+
+<p>They found a hash collision for SHA-1. In essence, they found two strings, <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>, where
+<code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>.</p>
+
+<p><em>However</em>, given the way SHA-1 works, this means that you can generate infinitely many other
+such pairs of strings. And given the nature of the exact <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> they created, it is possible
+to use this to create arbitrary colliding PDFs.</p>
+
+<p>Basically, SHA-1 (and many other hash functions), operate on “blocks”. These are fixed-size chunks
+of data, where the size is a property of the hash function. For SHA1 this is 512 bits.</p>
+
+<p>The function starts off with an “initial” built-in hash. It takes the first block of your data and
+this hash, and does some computation with the two to produce a new hash, which is its state after
+the first block.</p>
+
+<p>It will then take this hash and the second block, and run the same computations to produce
+a newer hash, which is its state after the second block. This is repeated till all blocks have
+been processed, and the final state is the result of the function.</p>
+
+<p>There’s an important thing to notice here. At each block, the only inputs are the block itself and the
+hash of the string up to that block.</p>
+
+<p>This means, if <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> are of a size that is a multiple of the block size, and <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>,
+then <code class="language-plaintext highlighter-rouge">SHA1(A + C) == SHA1(B + C)</code>. This is because, when the hash function reaches <code class="language-plaintext highlighter-rouge">C</code>, the state will
+be the same due to the hash collision, and after this point the next input blocks are identical in
+both cases, so the final hash will be the same.</p>
+
+<p>Now, while you might consider <code class="language-plaintext highlighter-rouge">A+C, B+C</code> to be the “same collision” as <code class="language-plaintext highlighter-rouge">A, B</code>, the implications
+of this are different than just “there is now one known pair of inputs that collide”, since everyone
+now has the ability to generate new colliding inputs by appending an arbitrary string to <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>.</p>
+
+<p>Of course, these new collisions have the restriction that the strings will always start with <code class="language-plaintext highlighter-rouge">A</code> or
+<code class="language-plaintext highlighter-rouge">B</code> and the suffixes will be identical. If you want to break this restriction, you will
+have to devote expensive resources to finding a new collision, like Google did.</p>
+
+<h2 id="how-does-this-let-us-generate-arbitrary-colliding-pdfs">How does this let us generate arbitrary colliding PDFs?</h2>
+
+<p>So this exploit actually uses features of the JPEG format to work. It was done in
+a PDF format since JPEGs often get compressed when sent around the Internet. However,
+since both A and B start a partial PDF document, they can only be used to generate colliding
+PDFs, not JPEGs.</p>
+
+<p>I’m going to first sketch out a simplified example of what this is doing, using a hypothetical
+pseudocode-y file format. The researchers found a collision between the strings:</p>
+
+<ul>
+  <li>A: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for A&gt;) DISPLAY IMAGE 1</code></li>
+  <li>B: <code class="language-plaintext highlighter-rouge">&lt;header data&gt; COMMENT(&lt;nonce for B&gt;) DISPLAY IMAGE 2</code></li>
+</ul>
+
+<p>Here, <code class="language-plaintext highlighter-rouge">&lt;header data&gt;</code> is whatever is necessary to make the format work, and the “nonce”s are
+strings that make <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code> have the same hash. Finding these nonces is where
+the computational power is required, since you basically have to brute-force a solution.</p>
+
+<p>Now, to both these strings, they append a suffix C: <code class="language-plaintext highlighter-rouge">IMAGE 1(&lt;data for image 1&gt;) IMAGE 2(&lt;data for image 2&gt;)</code>.
+This creates two complete documents. Both of the documents contain both images, but each one is instructed
+to display a different one. Note that since <code class="language-plaintext highlighter-rouge">SHA1(A) == SHA1(B)</code>, <code class="language-plaintext highlighter-rouge">SHA1(A + C) = SHA1(B + C)</code>, so these
+final documents have the same hash.</p>
+
+<p>The contents of <code class="language-plaintext highlighter-rouge">C</code> don’t affect the collision at all. So, we can insert any two images in <code class="language-plaintext highlighter-rouge">C</code>, to create
+our own personal pair of colliding PDFs.</p>
+
+<p>The actual technique used is similar to this, and it relies on JPEG comment fields. They have found
+a collision between two strings that look like:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pdf header data                       | String A
+begin embedded image                  |  
+    jpg header data                   |
+    declare jpg comment of length N   |
+    random nonce of length N          | (comment ends here) 
+                                     ---
+    image 1, length L                 | String C
+    jpg EOF byte (2 bytes)            |
+    image 2                           |
+end embedded image                    |
+
+and
+
+pdf header data                       | String B
+begin embedded image                  |
+    jpg header data                   |
+    declare jpg comment of length M   |
+    random nonce of length M-L-2      |
+                                     ---
+    image 1, length L                 | String C
+    jpg EOF marker (2 bytes)          | (comment ends here)
+    image 2                           |
+end embedded image                    |
+</code></pre></div></div>
+
+<p>By playing with the nonces, they managed to generate a collision between <code class="language-plaintext highlighter-rouge">A</code> and <code class="language-plaintext highlighter-rouge">B</code>. In the first
+pdf, the embedded image has a comment containing only the nonce. Once the JPEG reader gets past that
+comment, it sees the first image, displays it, and then sees the end-of-file marker and decides to
+stop. Since the PDF format doesn’t try to interpret the image itself, the PDF format won’t be
+boggled by the fact that there’s some extra garbage data after the JPEG EOF marker. It
+simply takes all the data between the “begin embedded image” and “end embedded image” blocks,
+and passes it to the JPEG decoder. The JPEG decoder itself stops after it sees the end of file
+marker, and doesn’t get to the extra data for the second image.</p>
+
+<p>In the second pdf, the jpg comment is longer, and subsumes the first image (as well as the EOF marker)
+Thus, the JPEG decoder directly gets to the second image, which it displays.</p>
+
+<p>Since the actual images are not part of the original collision (A and B), you can substitute any pair
+of jpeg images there, with some length restrictions.</p>
+
+<h2 id="what-are-the-implications">What are the implications?</h2>
+
+<p>This does mean that you should not trust the integrity of a PDF when all you have
+to go on is its SHA-1 hash. Use a better hash. <em>Anyone can generate these colliding PDFs
+now.</em></p>
+
+<p>Fortunately, since all such PDFs will have the same prefix A or B, you can detect when
+such a deception is being carried out.</p>
+
+<p>Don’t check colliding PDFs into SVN. <a href="https://bugs.webkit.org/show_bug.cgi?id=168774#c27">Things break</a>.</p>
+
+<p>In some cases it is possible to use the PDF collision in other formats. For example,
+<a href="https://mobile.twitter.com/arw/status/834883944898125824">it can be used to create colliding HTML documents</a>. I think it can be used to colide
+ZIP files too.</p>
+
+<p>Outside the world of complex file formats, little has changed. It’s still a bad idea to use SHA-1.
+It’s still possible for people to generate entirely new collisions like Google did, though this
+needs a lot of resources. It’s possible that someone with resources has already generated such a
+“universal-key collision” for some other file format<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> and will use it on you, but this was
+equally possible before Google published their attack.</p>
+
+<p>This does not make it easier to collide with arbitrary hashes – if someone else
+has uploaded a document with a hash, and you trust them to not be playing any tricks,
+an attacker won’t be able to generate a colliding document for this without immense
+resources. The attack only works when the attacker has control over the initial document;
+e.g. in a bait-and-switch-like attack where the attacker uploads document A, you read and verify it
+and broadcast your trust in document A with hash <code class="language-plaintext highlighter-rouge">SHA(A)</code>, and then the attacker switches it with
+document B.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Google’s specific collision was designed to be a “universal key”, since A and B are designed to have the image-switching mechanism built into it. Some other collision may not be like this; it could just be a collision of two images (or whatever) with no such switching mechanism. It takes about the same effort to do either of these, however, so if you have a file format that can be exploited to create a switching mechanism, it would always make more sense to build one into any collision you look for. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/01/21/mitigating-underhandedness-clippy/">Mitigating Underhandedness: Clippy!</a></h1>
+      <em>Posted by Manish Goregaokar on January 21, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>This may be part of a collaborative blog post series about underhanded Rust code. Or it may not. I invite you to write your own posts about underhanded code to make it so!</em></p>
+
+<p>Last month we opened up <a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html">The Underhanded Rust competition</a>. This contest is about
+writing seemingly-innocuous malicious code; code that is deliberately written to do some harm,
+but will pass a typical code review.</p>
+
+<p>It is inspired by the <a href="http://www.underhanded-c.org">Underhanded C</a> contest. Most of the underhanded C submissions have to do
+with hidden buffer overflows, pointer arithmetic fails, or misuse of C macros; and these problems
+largely don’t occur in Rust programs. However, the ability to layer abstractions on each other does
+open up new avenues to introducing underhandedness by relying on sufficiently confusing abstraction
+sandwiches. There are probably other interesting avenues. Overall, I’m pretty excited to see what
+kind of underhandedness folks come up with!</p>
+
+<p>Of course, underhandedness is not just about fun and games; we should be hardening our code against
+this kind of thing. Even if you trust your fellow programmers. Even if <em>you</em> are the sole programmer and you trust yourself.
+After all, <a href="https://github.com/Gankro/thesis/blob/master/thesis.pdf">you can’t spell Trust without Rust</a>; and Rust is indeed about trust. Specifically,
+Rust is about trusting <em>nobody</em>. Not even yourself.</p>
+
+<p><img src="/images/post/memes/trust-nobody.jpg" width="300" /></p>
+
+<p>Rust protects you from your own mistakes when it comes to memory management. But we
+should be worried about other kinds of mistakes, too. Many of the techniques used in underhanded
+programming involve sleights of hand that could just as well be introduced in the code by accident, causing bugs.
+Not memory safety bugs (in Rust), but still, bugs. The existence of these sleights of hand is great for
+that very common situation
+<a href="https://underhanded.rs/blog/2016/12/15/underhanded-rust.en-US.html#prize">when you are feeling severely under-plushied and must win a competition to replenish your supply</a>
+but we really don’t want these creeping into real-world code, either by accident or intentionally.</p>
+
+<hr />
+
+<p>Allow me to take a moment out of your busy underhanded-submission-writing schedules to talk to you about
+our Lord and Savior <a href="http://github.com/manishearth/rust-clippy/">Clippy</a>.</p>
+
+<p>Clippy is for those of you who have become desensitized to the constant whining of the Rust compiler
+and need a higher dosage of whininess to be kept on their toes. Clippy is for those perfectionists
+amongst you who want to know every minute thing wrong with their code so that they can fix it.
+But really, Clippy is for everyone.</p>
+
+<p>Clippy is simply a large repository of lints. As of the time of writing this post, there are
+<a href="https://github.com/manishearth/rust-clippy/#lints">183 lints</a> in it, though not all of them are enabled by default. These use the regular Rust lint
+system so you can pick and choose the ones you need via <code class="language-plaintext highlighter-rouge">#[allow(lint_name)]</code> and
+<code class="language-plaintext highlighter-rouge">#[warn(lint_name)]</code>. These lints cover a wide range of functions:</p>
+
+<ul>
+  <li>Improving readability of the code (though <a href="https://github.com/rust-lang-nursery/rustfmt/">rustfmt</a> is the main tool you should use for this)</li>
+  <li>Helping make the code more compact by reducing unnecessary things (my absolute favorite is <a href="https://github.com/Manishearth/rust-clippy/wiki#needless_lifetimes">needless_lifetimes</a>)</li>
+  <li>Helping make the code more idiomatic</li>
+  <li>Making sure you don’t do things that you’re not supposed to</li>
+  <li>Catching mistakes and cases where the code may not work as expected</li>
+</ul>
+
+<p>The last two really are the ones which help with underhanded code. Just to give an example,
+we have lints like:</p>
+
+<ul>
+  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#cmp_nan">cmp_nan</a>, which disallows things like <code class="language-plaintext highlighter-rouge">x == NaN</code></li>
+  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#clone_double_ref">clone_double_ref</a>, which disallows calling <code class="language-plaintext highlighter-rouge">.clone()</code> on double-references (<code class="language-plaintext highlighter-rouge">&amp;&amp;T</code>), since that’s a straightforward copy and you probably meant to do something like <code class="language-plaintext highlighter-rouge">(*x).clone()</code></li>
+  <li></li>
+  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#match_same_arms">match_same_arms</a>, which checks for identical match arm bodies (strong indication of a typo)</li>
+  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#suspicious_assignment_formatting">suspicious_assignment_formatting</a>, which checks for possible typos with the <code class="language-plaintext highlighter-rouge">+=</code> and <code class="language-plaintext highlighter-rouge">-=</code> operators</li>
+  <li><a href="https://github.com/Manishearth/rust-clippy/wiki#unused_io_amount">unused_io_amount</a>, which ensures that you don’t forget that some I/O APIs may not write all bytes in the span of a single call</li>
+</ul>
+
+<p>These catch many of the gotchas that might crop up in Rust code. In fact,
+I based <a href="https://www.reddit.com/r/rust/comments/3hb0wm/underhanded_rust_contest/cu5yuhr/">my solution of an older, more informal Underhanded Rust contest</a> on one of these.</p>
+
+<h2 id="usage">Usage</h2>
+
+<p>Clippy is still nightly-only. We hook straight into the compiler’s guts to obtain
+the information we need, and like most internal compiler APIs, this is completely unstable. This
+does mean that you usually need a latest or near-latest nightly for clippy to work, and there will
+be times when it won’t compile while we’re working to update it.</p>
+
+<p>There is a plan to ship clippy as an optional component of rustc releases, which will fix all of
+these issues (yay!).</p>
+
+<p>But, for now, you can use clippy via:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rustup <span class="nb">install </span>nightly
+<span class="c"># +nightly not necessary if nightly is your default toolchain</span>
+cargo +nightly <span class="nb">install </span>clippy
+<span class="c"># in your project folder</span>
+cargo +nightly clippy
+</code></pre></div></div>
+
+<p>If you’re going to be making it part of the development procedures of a crate
+you maintain, you can also <a href="https://github.com/manishearth/rust-clippy/#optional-dependency">make it an optional dependency</a>.</p>
+
+<p>If you’re on windows, there’s currently a rustup/cargo <a href="https://github.com/rust-lang-nursery/rustup.rs/issues/876">bug</a> where you may have to add
+the rustc libs path in your <code class="language-plaintext highlighter-rouge">PATH</code> for <code class="language-plaintext highlighter-rouge">cargo clippy</code> to work.</p>
+
+<p>There’s an experimental project called <a href="https://github.com/killercup/rustfix">rustfix</a> which can automatically apply suggestions from
+clippy and rustc to your code. This may help in clippy-izing a large codebase, but it may
+also eat your code and/or laundry, so beware.</p>
+
+<h2 id="contributing">Contributing</h2>
+
+<p>There’s a <em>lot</em> of work that can be done on clippy. A hundred and eighty lints is just
+a start, there are <a href="https://github.com/manishearth/rust-clippy/issues">hundreds more lint ideas filed on the issue tracker</a>. We’re
+willing to mentor anyone who wants to get involved; and have
+<a href="https://github.com/manishearth/rust-clippy/issues?q=is%3Aissue+is%3Aopen+label%3AE-easy">specially tagged “easy” issues</a> for folks new to compiler internals. In general,
+contributing to clippy is a great way to gain an understanding of compiler internals
+if you want to contribute to the compiler itself.</p>
+
+<p>If you don’t want to write code for clippy, you can also run it on random crates,
+open pull requests with fixes, and file bugs on clippy for any false positives that appear.</p>
+
+<p>There are more tips about contributing in <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">our CONTRIBUTING.md</a>.</p>
+
+<hr />
+
+<p>I hope this helps reduce mistakes and underhandedness in your code!</p>
+
+<p>..unless you’re writing code for the Underhanded Rust competition. In that case, underhand away!</p>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/01/15/breaking-our-latin-1-assumptions/">Breaking Our Latin-1 Assumptions</a></h1>
+      <em>Posted by Manish Goregaokar on January 15, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/unicode/'>unicode</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>So in my <a href="http://manishearth.github.io/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points">previous post</a> I explored a specific (wrong) assumption that programmers
+tend to make about the nature of code points and text.</p>
+
+<p>I was asked multiple times about other assumptions we tend to make. There are a lot. Most
+Latin-based scripts are simple, but most programmers spend their time dealing with Latin
+text so these complexities never come up.</p>
+
+<p>I thought it would be useful to share my personal list of
+<a href="https://twitter.com/ManishEarth/status/810582690906931200">scripts that break our Latin-1 assumptions</a>. This is a list I mentally check against
+whenever I am attempting to reason about text. I check if I’m making any assumptions that
+break in these scripts. <em>Most</em> of these concepts are independent of Unicode; so any program
+would have to deal with this regardless of encoding.</p>
+
+<p>I again recommend going through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">eevee’s post</a>, since it covers many related issues.
+<a href="https://github.com/jagracey/Awesome-Unicode">Awesome-Unicode</a> also has a lot of random tidbits about Unicode.</p>
+
+<p>Anyway, here’s the list. Note that a lot of the concepts here exist in scripts other than the
+ones listed, these are just the scripts <em>I</em> use for comparing.</p>
+
+<h2 id="arabic--hebrew">Arabic / Hebrew</h2>
+
+<p>Both Arabic and Hebrew are RTL scripts; they read right-to-left. This may even affect how
+a page is laid out, see the <a href="https://he.wikipedia.org/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99">Hebrew Wikipedia</a>.</p>
+
+<p>They both have a concept of letters changing how they look depending on where they are in the word.
+Hebrew has the “sofit” letters, which use separate code points. For example, Kaf (כ) should be typed
+as ך at the end of a word. Greek has something similar with the sigma.</p>
+
+<p>In Arabic, the letters can have up to four different forms, depending on whether they start a word,
+end a word, are inside a word, or are used by themselves. These forms can look very different. They
+don’t use separate code points for this; however. You can see a list of these forms <a href="https://en.wikipedia.org/wiki/Arabic_alphabet#Table_of_basic_letters">here</a></p>
+
+<p>Arabic can get pretty tricky – the characters have to join up; and in cursive fonts (like those for Nastaliq),
+you get a lot of complex ligatures.</p>
+
+<p>As I mentioned in the last post, U+FDFD (﷽), a ligature representing the Basamala,
+is also a character that breaks a lot of assumptions.</p>
+
+<h2 id="indic-scripts">Indic scripts</h2>
+
+<p>Indic scripts are <em>abugidas</em>, where you have consonants with vowel modifiers. For example, क is
+“kə”, where the upside down “e” is a schwa, something like an “uh” vowel sound. You can change the
+vowel by adding a diacritic (e.g <code class="language-plaintext highlighter-rouge">ा</code>); getting things like का (“kaa”) को (“koh”) कू (“koo”).</p>
+
+<p>You can also mash together consonants to create consonant clusters. The “virama” is a vowel-killer
+symbol that removes the inherent schwa vowel. So, <code class="language-plaintext highlighter-rouge">क</code> + <code class="language-plaintext highlighter-rouge">्</code> becomes <code class="language-plaintext highlighter-rouge">क्</code>. This sound itself is
+unpronounceable since क is a stop consonant (vowel-killed consonants can be pronounced for nasal and some other
+consonants though), but you can combine it with another consonant, as <code class="language-plaintext highlighter-rouge">क्</code> + <code class="language-plaintext highlighter-rouge">र</code> (“rə”), to get <code class="language-plaintext highlighter-rouge">क्र</code>
+(“krə”). Consonants can be strung up infinitely, and you can stick one or more vowel diacritics
+after that. Usually, you won’t see more than two consonants in a cluster, but larger ones are not
+uncommon in Sanskrit (or when writing down some onomatopoeia). They may not get rendered as single
+glyphs, depending on the font.</p>
+
+<p>One thing that crops up is that there’s no unambiguous concept of a letter here. There
+is a concept of an “akshara”, which basically includes the vowel diacritics, and
+depending on who you talk to may also include consonant clusters. Often things are
+clusters an akshara depending on whether they’re drawn with an explicit virama
+or form a single glyph.</p>
+
+<p>In general the nature of the virama as a two-way combining character in Unicode is pretty new.</p>
+
+<h2 id="hangul">Hangul</h2>
+
+<p>Korean does its own fun thing when it comes to conjoining characters. Hangul has a concept
+of a “syllable block”, which is basically a letter. It’s made up of a leading consonant,
+medial vowel, and an optional tail consonant. 각 is an example of
+such a syllable block, and it can be typed as ᄀ + ᅡ + ᆨ. It can
+also be typed as 각, which is a “precomposed form” (and a single code point).</p>
+
+<p>These characters are examples of combining characters with very specific combining rules. Unlike
+accents or other diacritics, these combining characters will combine with the surrounding characters
+only when the surrounding characters form an L-V-T or L-V syllable block.</p>
+
+<p>As I mentioned in my previous post, apparently syllable blocks with more (adjacent) Ls, Vs, and Ts are
+also valid and used in Old Korean, so the grapheme segmentation algorithm in Unicode considers
+“ᄀᄀᄀ각ᆨᆨ” to be a single grapheme (<a href="http://www.unicode.org/reports/tr29/#Hangul_Syllable_Boundary_Determination">it explicitly mentions this</a>).
+I’m not aware of any fonts which render these as a single syllable block, or if that’s even
+a valid thing to do.</p>
+
+<h2 id="han-scripts">Han scripts</h2>
+
+<p>So Chinese (Hanzi), Japanese (Kanji<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>), Korean (Hanja<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>), and Vietnamese (Hán tự, along with Chữ
+Nôm <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>) all share glyphs, collectively called “Han characters” (or CJK characters<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">4</a></sup>). These
+languages at some point in their history borrowed the Chinese writing system, and made their own
+changes to it to tailor to their needs.</p>
+
+<p>Now, the Han characters are ideographs. This is not a phonetic script; individual characters
+represent words. The word/idea they represent is not always consistent across languages. The
+pronounciation is usually different too. Sometimes, the glyph is drawn slightly differently based on
+the language used. There are around 80,000 Han ideographs in Unicode right now.</p>
+
+<p>The concept of ideographs itself breaks some of our Latin-1 assumptions. For example, how
+do you define Levenshtein edit distance for text using Han ideographs? The straight answer is that
+you can’t, though if you step back and decide <em>why</em> you need edit distance you might be able
+to find a workaround. For example, if you need it to detect typos, the user’s input method
+may help. If it’s based on pinyin or bopomofo, you might be able to reverse-convert to the
+phonetic script, apply edit distance in that space, and convert back. Or not. I only maintain
+an idle curiosity in these scripts and don’t actually use them, so I’m not sure how well this would
+work.</p>
+
+<p>The concept of halfwidth character is a quirk that breaks some assumptions.</p>
+
+<p>In the space of Unicode in particular, all of these scripts are represented by a single set of
+ideographs. This is known as “Han unification”. This is a pretty controversial issue, but the
+end result is that rendering may sometimes be dependent on the language of the text, which
+e.g. in HTML you set with a <code class="language-plaintext highlighter-rouge">&lt;span lang=whatever&gt;</code>. <a href="https://en.wikipedia.org/wiki/Han_unification#Examples_of_language-dependent_glyphs">The wiki page</a> has some examples of
+encoding-dependent characters.</p>
+
+<p>Unicode also has a concept of variation selector, which is a code point that can be used to
+select between variations for a code point that has multiple ways of being drawn. These
+do get used in Han scripts.</p>
+
+<p>While this doesn’t affect rendering, Unicode, as a system for <em>describing</em> text,
+also has a concept of interlinear annotation characters. These are used to represent
+<a href="https://en.wikipedia.org/wiki/Ruby_character">furigana / ruby</a>. Fonts don’t render this, but it’s useful if you want to represent
+text that uses ruby. Similarly, there are <a href="https://en.wikipedia.org/wiki/Chinese_character_description_languages#Ideographic_Description_Sequences">ideographic description sequences</a> which
+can be used to “build up” glyphs from smaller ones when the glyph can’t be encoded in
+Unicode. These, too, are not to be rendered, but can be used when you want to describe
+the existence of a character like <a href="https://en.wikipedia.org/wiki/Biangbiang_noodles#Chinese_character_for_bi.C3.A1ng">biáng</a>. These are not things a programmer
+needs to worry about; I just find them interesting and couldn’t resist mentioning them :)</p>
+
+<p>Japanese speakers haven’t completely moved to Unicode; there are a lot of things out there
+using Shift-JIS, and IIRC there are valid reasons for that (perhaps Han unification?). This
+is another thing you may have to consider.</p>
+
+<p>Finally, these scripts are often written <em>vertically</em>, top-down. <a href="https://en.wikipedia.org/wiki/Mongolian_script">Mongolian</a>, while
+not being a Han script, is written vertically sideways, which is pretty unique. The
+CSS <a href="https://drafts.csswg.org/css-writing-modes/">writing modes</a> spec introduces various concepts related to this, though that’s mostly in the
+context of the Web.</p>
+
+<h2 id="thai--khmer--burmese--lao">Thai / Khmer / Burmese / Lao</h2>
+
+<p>These scripts don’t use spaces to split words. Instead, they have rules for what kinds of sequences
+of characters start and end a word. This can be determined programmatically, however IIRC the
+Unicode spec does not attempt to deal with this. There are libraries you can use here instead.</p>
+
+<h2 id="latin-scripts-themselves">Latin scripts themselves!</h2>
+
+<p>Turkish is a latin-based script. But it has a quirk: The uppercase of “i” is
+a dotted “İ”, and the lowercase of “I” is “ı”. If doing case-based operations, try to use
+a Unicode-aware library, and try to provide the locale if possible.</p>
+
+<p>Also, not all code points have a single-codepoint uppercase version. The eszett (ß) capitalizes
+to “SS”. There’s also the “capital” eszett ẞ, but its usage seems to vary and I’m not exactly
+sure how it interacts here.</p>
+
+<p>While Latin-1 uses precomposed characters, Unicode also introduces ways to specify the same
+characters via combining diacritics. Treating these the same involves using the normalization
+algorithms (NFC/NFD).</p>
+
+<h2 id="emoji">Emoji</h2>
+
+<p>Well, not a script<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>. But emoji is weird enough that it breaks many of our assumptions. The
+scripts above cover most of these, but it’s sometimes easier to think of them
+in the context of emoji.</p>
+
+<p>The main thing with emoji is that you can use a zero-width-joiner character to glue emoji together.</p>
+
+<p>For example, the family emoji 👩‍👩‍👧‍👦 (may not render for you) is made by using the woman/man/girl/boy
+emoji and gluing them together with ZWJs. You can see its decomposition in <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%91%A9%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%E2%80%8D%F0%9F%91%A6">uniview</a>.</p>
+
+<p>There are more sequences like this, which you can see in the <a href="http://unicode.org/Public/emoji/4.0/emoji-zwj-sequences.txt">emoji-zwj-sequences</a> file. For
+example, MAN + ZWJ + COOK will give a male cook emoji (font support is sketchy).
+Similarly, SWIMMER + ZWJ + FEMALE SIGN is a female swimmer. You have both sequences of
+the form “gendered person + zwj + thing”, and “emoji containing human + zwj + gender”,
+IIRC due to legacy issues<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">6</a></sup></p>
+
+<p>There are also <a href="http://www.unicode.org/reports/tr51/#Diversity">modifier characters</a> that let you change the skin tone of an emoji that
+contains a human (or human body part, like the hand-gesture emojis) in it.</p>
+
+<p>Finally, the flag emoji are pretty special snowflakes. For example, 🇪🇸 is the Spanish
+flag. It’s made up of <a href="https://r12a.github.io/uniview/?charlist=%F0%9F%87%AA%F0%9F%87%B8">two regional indicator characters for “E” and “S”</a>.</p>
+
+<p>Unicode didn’t want to deal with adding new flags each time a new country or territory pops up. Nor
+did they want to get into the tricky business of determining what a country <em>is</em>, for example
+when dealing with disputed territories. So instead, they just defined these regional indicator
+symbols. Fonts are supposed to take pairs of RI symbols<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">7</a></sup> and map the country code to a flag.
+This mapping is up to them, so it’s totally valid for a font to render a regional indicator
+pair “E” + “S” as something other than the flag of Spain. On some Chinese systems, for example,
+the flag for Taiwan (🇹🇼) may not render.</p>
+
+<hr />
+
+<p>I hightly recommend comparing against this relatively small list of scripts the next time you
+are writing code that does heavy manipulation of user-provided strings.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Supplemented (but not replaced) by the Hiragana and Katakana phonetic scripts. In widespread use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Replaced by Hangul in modern usage <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Replaced by chữ quốc ngữ in modern usage, which is based on the Latin alphabet <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>“CJK” (Chinese-Japanese-Korean) is probably more accurate here, though it probably should include “V” for Vietnamese too. Not all of these ideographs come from Han; the other scripts invented some of their own. See: Kokuji, Gukja, Chữ Nôm. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>Back in <em>my</em> day we painstakingly typed actual real words on numeric phone keypads, while trudging to 🏫 in three feet of ❄️️, and it was uphill both ways, and we weren’t even <em>allowed</em> 📱s in 🏫. Get off my lawn! <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>We previously had individual code points for professions and stuff and they decided to switch over to using existing object emoji with combiners instead of inventing new profession emoji all the time <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:6" role="doc-endnote">
+      <p>676 countries should be enough for anybody <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -2390,920 +2995,6 @@ for ~20 runs, it usually gets caught.</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2016/06/04/starting-at-mozilla/">Starting at Mozilla</a></h1>
-      <em>Posted by Manish Goregaokar on June 04, 2016 in <a class='category' href='/blog/categories/rust/'>rust</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I got a job!</p>
-
-<p>I’m now working at Mozilla as a Research Engineer, on <a href="https://servo.org/">Servo</a>.</p>
-
-<p>I started two weeks ago, and so far I’m really enjoying it! I feel quite lucky to
-get to work on an open source project; with an amazing and helpful team. Getting to do most
-of my work in Rust is great, too :)</p>
-
-<p>So far I’ve been working on the network stack (specifically, <a href="https://github.com/servo/servo/pull/11556">“making fetch happen”</a>),
-and I’ll probably be spending time on DOM things as well.</p>
-
-<p>Really excited to see how this goes!</p>
-
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2016/03/05/exploring-zero-knowledge-proofs/">Exploring Zero-Knowledge Proofs</a></h1>
-      <em>Posted by Manish Goregaokar on March 05, 2016 in <a class='category' href='/blog/categories/cryptography/'>cryptography</a>, <a class='category' href='/blog/categories/programming/'>programming</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><em>Follow up article to this one <a href="http://manishearth.github.io/blog/2016/08/10/interactive-sudoku-zero-knowledge-proof/">here</a></em></p>
-
-<p>So recently I read <a href="https://bitcoincore.org/en/2016/02/26/zero-knowledge-contingent-payments-announcement/">this article</a> about how the Bitcoin community had executed
-what’s known as a “Zero-Knowledge Contingent Payment”; a pretty neat concept.</p>
-
-<p>What was really interesting for me was the <a href="https://people.xiph.org/~greg/simple_verifyable_execution.txt">(simplified) underlying algorithm</a> for generic
-zero knowledge proofs. It took me a while (and some questions asked to helpful folks on the
-Internet) to understand it fully, but the concept is quite intriguing and sounds rather magical. I
-thought I’d explain it here in an accessible way, both so that others can get it and to
-improve my own understanding.</p>
-
-<p>I intend this article to be read by people with a programming or mathematical background<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>,
-who have some understanding of what logic gates are. Please let me know if you feel that something
-is inadequately (or wrongly) explained.</p>
-
-<h2 id="so-what-is-a-zero-knowledge-proof">So what is a zero knowledge proof?</h2>
-
-<p>Let’s say Alice has a problem she wants to solve. It could be a mathematical problem, like
-factorizing a large number, or coloring a map (or graph!) with only three colors, or solving a
-Sudoku puzzle. Anything where you can write a program to verify the solution.</p>
-
-<p>She doesn’t have the resources to solve the problem herself, but wants to buy a solution from
-someone else. She makes the problem public, and Bob says he has a solution.</p>
-
-<p>However, Alice is skeptical. She’s not sure if Bob is telling the truth here, and would like some
-evidence that he does indeed have a solution. At the same time, Bob is not willing to share his
-solution with Alice without getting paid. They also don’t want to involve a third party; let’s say
-this is a rather Important Sudoku Puzzle that affects National Security ¯\_(ツ)_/¯.</p>
-
-<p>What Alice and Bob need here is a way for Bob to prove to Alice that he has the solution, without
-sharing the solution, and without involving a third party<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.</p>
-
-<p>It turns out that this is totally possible (magical, right!). There’s a quick example
-<a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof#Abstract_example">on Wikipedia</a> of a simple proof of a non-mathematical fact – whether or not someone
-has a key to a particular door.</p>
-
-<p>For proving more complicated problems, we have to digress into some basic crypto first</p>
-
-<h2 id="interlude-hashes-and-commitments">Interlude: Hashes and commitments</h2>
-
-<p><em>Feel free to skip this if you know what a hash function and a nonce is.</em></p>
-
-<p>In cryptography, there’s something called a “hash function”. In essence it’s an “irreversible”
-function whose output is known as a “hash”, with the following three properties:</p>
-
-<ul>
-  <li>It’s not computationally intensive to calculate the hash of an input</li>
-  <li>Given a hash, it’s a computationally hard problem to calculate an input to the hash function that results in this hash, usually involving brute force</li>
-  <li>It’s also a computationally hard problem, given an input and a hash, to find a different input (<em>especially</em> a different input that is similar to the first one) that produces the same hash.</li>
-</ul>
-
-<p>Note that multiple values <em>may</em> result in the same hash.</p>
-
-<p>The result of this is basically that hashes are hard to forge. If Bob shares a hash <code class="language-plaintext highlighter-rouge">Y = H(X)</code> with
-Alice, where <code class="language-plaintext highlighter-rouge">X</code> is some secret data and <code class="language-plaintext highlighter-rouge">H</code> is a hash function, if Bob reveals <code class="language-plaintext highlighter-rouge">X</code> at some later
-point, by checking that <code class="language-plaintext highlighter-rouge">Y = H(X)</code>, Alice can be reasonably certain that the value shared by Bob was
-indeed the original input to the hash function and not tampered with in a way that the same hash was
-produced. Similarly, Bob can be certain that knowing only <code class="language-plaintext highlighter-rouge">Y</code>, Alice cannot reverse-engineer <code class="language-plaintext highlighter-rouge">X</code>
-since the hash function is “irreversible”.</p>
-
-<p>This brings us to the concept of a commitment. Hashes can be used as described above to “commit” to
-a value. If Bob decides on a number <code class="language-plaintext highlighter-rouge">X</code>, and makes its hash <code class="language-plaintext highlighter-rouge">Y</code> public, he has committed to this
-value without revealing it. When he does decide to reveal it, he is forced to reveal <code class="language-plaintext highlighter-rouge">X</code> and not
-some modified bogus value, thus making the “commitment” binding.</p>
-
-<p>Some of you may have noticed a flaw here: It’s hard to commit to small numbers, or things that come
-from a restricted set. If Bob wishes to commit to the number <code class="language-plaintext highlighter-rouge">5</code> (without revealing it), or the
-color <code class="language-plaintext highlighter-rouge">red</code> (out of a set of three colors), Alice can just try <code class="language-plaintext highlighter-rouge">H(0)</code> to <code class="language-plaintext highlighter-rouge">H(9)</code> or <code class="language-plaintext highlighter-rouge">H(red),
-H(green), H(blue)</code> and find out which one matches. After all, hashes aren’t supposed to be resilient
-to brute force attacks, and brute force attacks become very easy when the set of inputs is tiny.</p>
-
-<p>A solution to this is to use a <em>nonce</em> (also known as a “trapdoor”). Bob commits to <code class="language-plaintext highlighter-rouge">5</code> by hashing
-the string <code class="language-plaintext highlighter-rouge">5-vektvzkjyfdqtnwry</code>, where <code class="language-plaintext highlighter-rouge">vektvzkjyfdqtnwry</code> is a random value he selected, known as
-a “nonce”. When Bob wishes to reveal the value, he just reveals <code class="language-plaintext highlighter-rouge">5-vektvzkjyfdqtnwry</code> and Alice is
-convinced that the original value committed to was indeed 5. Of course, this requires some agreement
-on the format of the nonce; in this case the nonce is just “everything after the dash”. Note that
-the nonce is private, and only revealed when Bob wishes to reveal the committed number.</p>
-
-<p>Note that each new commitment should use a new nonce. Otherwise, information can be leaked; for
-example if Bob needs to commit to three numbers (say, 2, 5, 2) in a way that they can be
-individually revealed, he shouldn’t compute the hashes for
-<code class="language-plaintext highlighter-rouge">2-vektvzkjyfdqtnwry, 5-vektvzkjyfdqtnwry, 2-vektvzkjyfdqtnwry</code>, since the first
-and last hashes will be equal and Alice will know that the committed values behind them are probably
-the same too (something which you may not wish to reveal).</p>
-
-<p>Another issue that can turn up is a “rainbow table”, where one party comes into the game with a
-precomputed table of hashes of all strings up till a certain number of characters. One solution for
-this is to increase the nonce size, however since Bob decides the nonces it’s possible for him to
-smartly select them if he’s the one with a table. The solution here is to use a “salt”, which is a
-large random string combined with the committed value and hash. Bob and Alice could, for example,
-mutually decide on a salt of <code class="language-plaintext highlighter-rouge">asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb</code>, and when Bob wishes to
-commit to the number <code class="language-plaintext highlighter-rouge">5</code>, he hashes
-<code class="language-plaintext highlighter-rouge">asdcjyxeafxjvikfzmnyfqsehsxwxsfywbreb-5-vektvzkjyfdqtnwry</code>. Note that salts work similar
-to nonces here, however the salt is known publically (you can model it as a last-minute modification
-of the agreed-upon hash function <code class="language-plaintext highlighter-rouge">H</code>, since <code class="language-plaintext highlighter-rouge">H'(X) = H(add_salt(X))</code>). In some cases, you may also
-want a per-instance salt, which is mutually decided every time Bob wants to compute a hash.</p>
-
-<p>Hashes are a useful building block for many things; they’re a key component in password security, as
-well as being part of all kinds of cryptographics protocols. In this post we’ll mainly focus on
-their ability to be used as a unbreakable commitment.</p>
-
-<p>Back to your regularly scheduled blog post.</p>
-
-<h2 id="coloring-graphs">Coloring graphs</h2>
-
-<p>The classic example of zero knowledge proofs is graph coloring.  I’ll run through a quick
-explanation, though it’s explained beautifully <a href="http://blog.cryptographyengineering.com/2014/11/zero-knowledge-proofs-illustrated-primer.html">here</a> too.</p>
-
-<p>Let’s say Alice has a graph:</p>
-
-<p><img src="/images/post/alice-graph.png" /></p>
-
-<p>No, not that kind, Alice. The <em>other</em> graph.</p>
-
-<p><img src="/images/dotgen/graph-uncolored.dot.png" /></p>
-
-<p>She wants it colored such that no two adjacent nodes share a color. This is an NP-complete problem (so
-it can take up a lot of computational resources to solve). Of course, <em>this</em> graph is small and easy
-to color, but that’s just for the sake of this blog post.</p>
-
-<p>Bob, using his trusty Crayola™ 3-crayon set<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, has managed to come up with a valid coloring:</p>
-
-<p><img src="/images/dotgen/graph-colored.dot.png" /></p>
-
-<p>He wishes to prove that he has this to Alice, without revealing it or involving a third party.
-Probably for National Security Reasons. Something something Nicolas Cage.</p>
-
-<p>Bob and Alice meet, and Alice gives him a large piece of paper with the (uncolored) graph drawn on
-it.</p>
-
-<p>Bob goes into a private room, and colors it. He also covers each graph node with a hat. Alice now
-enters the room.</p>
-
-<p>Alice chooses an adjacent pair of nodes. Let’s say she chooses 1 and 2. Bob removes those two hats
-(since Alice is watching him, he has no chance to tamper with the colorings underneath the hats
-before revealing them). Now, Alice knows the colors of nodes 1 and 2:</p>
-
-<p><img src="/images/dotgen/graph-12.dot.png" /></p>
-
-<p>This lets her verify that nodes 1 and 2 had different colorings in the graph Bob drew.</p>
-
-<p>Note that this doesn’t actually <em>tell</em> her anything about Bob’s coloring aside from the increased
-probability of correctness. The colors can always be permuted, so <em>any</em> valid coloring would give
-the same answer here if the colors were permuted so that 1 is red and 2 is blue. This is important;
-we don’t want to leak information about Bob’s solution aside from the fact that it is correct.</p>
-
-<p>Nor is this information enough to verify correctness. Bob could have equally drawn a wrong
-coloring.</p>
-
-<p><img src="/images/dotgen/graph-wrong.dot.png" /></p>
-
-<p>(clearly someone wasn’t paying attention in kindergarten)</p>
-
-<p>Since Alice only looked at nodes 1 and 2, she didn’t see anything wrong with the graph. But if she
-had by chance picked nodes 3 and 4, Bob’s deception would have been revealed.</p>
-
-<p>So she only has 14% (1/7) certainity<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup> that Bob’s graph is correct.</p>
-
-<p>However, we can run this experiment again. Bob can permute the colors, draw on a fresh copy of the
-graph, and ask Alice to choose another pair of adjacent nodes. She can check this, and the
-probability of correctness will increase to around 27% (1 - (6/7)*(6/7)).</p>
-
-<p>Since Bob has permuted the colors, Alice cannot use the information from the previous round to glean
-any information about Bob’s solution in this round. Of course, Bob is free to produce a completely
-different coloring (one that is not a permutation), with a different flaw this time. Regardless of
-where the flaw is, Alice still has a chance of uncovering it each time.</p>
-
-<p>This can continue until Alice is satisfied that there is a very little chance that Bob has cheated.
-For example, after 60 rounds, Alice would be 99.99% certain.</p>
-
-<p>Note that this didn’t actually involve any cryptography; it was an algorithm based on <em>information
-flow</em>. However, if you want this to work securely (in the current solution Alice could push Bob away
-and reveal all the nodes herself) and make it work without requiring Alice and Bob to be in the same
-location, you need to use hashes.</p>
-
-<p>Remember when Bob colored the graph whilst alone in the secret room? Once Alice had entered the
-room, this coloring was <em>committed</em>. There was no way for Bob to tamper with this coloring.</p>
-
-<p>We do the same thing here. After obtaining a valid coloring, Bob <em>commits</em> to this coloring by
-calculating some hashes.</p>
-
-<table>
-<thead>
-<tr><th>Node</th><th>Color(private)</th><th>Nonce(private)</th><th>Hash</th></tr>
-</thead>
-<tr><td>1</td><td>red</td><td>wmdqatobck</td><td>e1f957bedcceeb217305bfa12cbee4abac36eff1</td></tr>
-<tr><td>2</td><td>blue</td><td>fmcbpzkgyp</td><td>87d9d7239909c28ec8d73a3b9a99673cbf870046</td></tr>
-<tr><td>3</td><td>green</td><td>dktuqvrsss</td><td>a40bafb81149937c77ae55589aff1b53d9c043d8</td></tr>
-<tr><td>4</td><td>blue</td><td>auhbyuzkmz</td><td>b3503962937850f7c1b59cf4b827ca40a62b122a</td></tr>
-<tr><td>5</td><td>red</td><td>gfunjcmygk</td><td>d8db52bb36ca595b9231180c1055fe3958c3ea7d</td></tr>
-</table>
-<p><br /></p>
-
-<p>(The hashes here are calculated using SHA-1 for the hashing algorithm. It’s not considered very
-secure anymore, but the secure ones all output huge hashes which spill over the page)</p>
-
-<p>Bob sends the public part of the table (the node-hash mapping) to Alice. Alice asks for nodes 1 and
-2, and Bob reveals the entire table entry for those two nodes (including the nonce).</p>
-
-<p>Note that since Alice now knows the color and nonce for nodes 1 and 2, she can verify that the
-colors shown are indeed the ones Bob committed to. <code class="language-plaintext highlighter-rouge">echo red-wmdqatobck | sha1sum</code> if you want to
-check on a local Unixy shell.</p>
-
-<p>As in the previous case, Alice can repeat this algorithm until she reaches an acceptable level of
-certainty (each time with a permutation of colors and a new set of nonces).</p>
-
-<p>A lot of zero knowledge proofs (but not all!) are inherently probabalistic and interactive. They
-involve multiple rounds where in each round the prover (Bob) commits to something, the verifier
-(Alice) challenges the prover to reveal some information. The process repeats, with the certainity
-on the verifier’s side approaching 100% as more and more rounds happen.</p>
-
-<h2 id="zero-knowledge-proof-for-general-execution">Zero Knowledge Proof for General Execution</h2>
-
-<p>It turns out that you can have a ZKP exchange for the execution of any algorithm that can be
-transcribed into combinatorical logic. In other words, you should be able to write the program
-without loops and recursion, though loops bounded by a constant are allowed<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>. This isn’t as
-restrictive as it seems, usually <em>verification</em> is a straightforward task not involving convoluted
-loops. The examples above (graph coloring<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup>, sudoku, prime factorization<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">7</a></sup>) can all be verified
-without loops.</p>
-
-<p>The algorithm shown here is by Gregory Maxwell, originally published <a href="https://people.xiph.org/~greg/simple_verifyable_execution.txt">here</a>. It’s somewhat
-inefficient, but it demonstrates the idea behind ZKP for general execution. As mentioned there, it
-can be optimized using techniques described in <a href="https://eprint.iacr.org/2013/155.pdf">this paper</a>.</p>
-
-<p>Let’s get started. Any combinatorical program can be decomposed into a bunch of AND and NOT
-gates, taking in a bunch of input values and giving out one or more output values. For simplicity
-let’s assume that the problem statement (i.e. the specific sudoku puzzle, etc) that needs verifying
-is embedded inside the program, and the final output of the program is just a single boolean
-indicating whether or not the input is a solution. This algorithm, however, can work for programs
-with arbitrarily large outputs.</p>
-
-<p>Alice and Bob do this decomposition. The also agree on a numbering of the AND gates. Let’s say
-that there are N AND gates. We’re mostly going to ignore the NOT gates for the purpose of this
-article – they’re there, but they aren’t modified or anything.</p>
-
-<h3 id="creating-encrypted-and-gates">Creating encrypted AND gates</h3>
-
-<p>Now, Bob creates 4*N <em>encrypted AND gates</em>. This is an AND gate, but with the
-inputs and outputs all muddled up.</p>
-
-<p>This is a regular AND gate:</p>
-
-<p><img src="/images/post/and-and.png" width="200" /></p>
-
-<p>This is an encrypted AND gate:</p>
-
-<p><img src="/images/post/and-and.png" width="200" /></p>
-
-<p>(yes, it can be identical to an AND gate)</p>
-
-<p>So is this:</p>
-
-<p><img src="/images/post/and-encr1.png" width="300" /></p>
-
-<p>and this:</p>
-
-<p><img src="/images/post/and-encr2.png" width="300" /></p>
-
-<p>Basically, each input and the output may or may not be inverted. We can model this in a different
-way, there is an <em>encryption key</em> corresponding to each input and output. This key is XORd with the
-input/output (so if the key is 1, the wire is inverted, and if the key is 0, the wire is not
-inverted).</p>
-
-<p><img src="/images/post/and-encr-xor.png" width="500" /></p>
-
-<p>A regular AND gate has a truth table as follows:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>Input 1</th>
-      <th>Input 2</th>
-      <th>Output</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>1</td>
-      <td>1</td>
-    </tr>
-  </tbody>
-</table>
-
-<p><br /></p>
-
-<p>This truth table, encrypted (with the input keys \(e_1 = 1, e_2 = 0\) and output key \(e_o = 1\))
-is:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>Encrypted Input 1</th>
-      <th>Encrypted Input 2</th>
-      <th>Encrypted Output</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>1</td>
-      <td>0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>1</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-  </tbody>
-</table>
-
-<p><br />
-So, if the encrypted gate gets the (encrypted) inputs 1 and 0, its (encrypted) output will be 1.</p>
-
-<p>Since XOR is its own inverse (\(x \oplus y \oplus y\) is just \(x\)), if we wish to encrypt
-an input before piping it through this gate, we just XOR it with the relevant input key. If we wish
-to decrypt the output, we again XOR it with the output key. The XOR gates being applied will just
-cancel out with the internal encryption gates. In other words, encryption and decryption are done
-with the same operation!</p>
-
-<p>To recap, the dotted box below is an encrypted AND gate. An encrypted input enters from the left,
-and is decrypted by the internal XOR gate to obtain the actual input, which is piped through the AND
-gate. To encrypt an input so that it can be passed into this gate, one uses the same key with an XOR
-(not shown in the diagram). Similarly, the actual output of the AND gate exits on the right, and is
-encrypted by the XOR gate at the output to get the “encrypted output” (the wire that extends out of
-the box). To decrypt this, one must apply the same XOR operation to the encrypted output to recover
-the actual output of the gate.</p>
-
-<p><img src="/images/post/and-encr-xor.png" width="500" /></p>
-
-<h3 id="creating-adaptation-keys-and-commitments">Creating adaptation keys and commitments</h3>
-
-<p>Now, unlike regular AND gates, these encrypted AND gates cannot be composed. The output of an
-encrypted AND gate is encrypted, with a potentially different encryption key as to that of the next
-gate’s input. So, we insert an “adaptation key” between the two. For example, if the output of the
-first gate is connected to the first input of the second gate, we need to insert this operation
-between the two gates:</p>
-
-<p><img src="/images/post/and-encr-adapt.png" width="500" /></p>
-
-<p>We XOR by \(e_o\) of the first gate (to decrypt), and then again XOR by \(e_1\) of the second gate (to
-reencrypt). This operation is the same as XORing by \(e_o \oplus e_1\), which is the
-“adaptation key”. Every pair of encrypted gates will have an adaptation key for every configuration
-they can be placed in.</p>
-
-<p>Alright. Bob creates a ton of these “encrypted gates”, and calculates all the adaptation keys for every possible pair of gates. He also mixes up the truth tables of each encrypted gate<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">8</a></sup>.</p>
-
-<p>Now, he commits to these truth tables. A commitment for each entry in each truth table is made, so
-he’ll end up with something like this:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>Encrypted Input 1</th>
-      <th>Encrypted Input 2</th>
-      <th>Encrypted Output</th>
-      <th>nonce</th>
-      <th>commitment</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>0</td>
-      <td>0</td>
-      <td>1</td>
-      <td>..</td>
-      <td>H(001 + nonce)</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>0</td>
-      <td>1</td>
-      <td>..</td>
-      <td>H(101 + nonce)</td>
-    </tr>
-    <tr>
-      <td>0</td>
-      <td>1</td>
-      <td>0</td>
-      <td>..</td>
-      <td>H(010 + nonce)</td>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>1</td>
-      <td>1</td>
-      <td>..</td>
-      <td>H(111 + nonce)</td>
-    </tr>
-  </tbody>
-</table>
-
-<p><br />
-He also commits to each of the adaptation keys and each of the encryption keys.</p>
-
-<p>As usual, all the commitments will be sent to Alice. Alice will then have data like: “Commitment for
-Gate 1 entry 1: .., Commitment for Gate 2 entry 2:.., … Commitment for Gate 2 entry 1: .., ….
-Commitment for adaptation key between Gate 1’s output and Gate 2’s first input: .., Commitment for
-adaptation key between Gate 1’s output and Gate 2’s second input: .., Commitment for encryption key
-for Gate 1’s first input, …”.</p>
-
-<h3 id="shuffling-and-revealing">Shuffling and revealing</h3>
-
-<p>These commitments are taken in some predefined order, and the resultant monster string is hashed
-(without a nonce). This “superhash” is used as the seed to a pseudorandom number generator which is
-used to shuffle the gates. Both Alice and Bob can calculate this shuffling.</p>
-
-<p>This post-shuffle ordering is used after this point. The hash-shuffle is important here because it
-adds a layer of tamper protection. If Bob wishes to tamper with the, say 4th gate post-shuffle, Bob
-would have to create a bad gate before making the commitments; this changes the commitments, and
-thus the shuffle order, and so the tampered gate will not end up being the 4th gate. Basically, it’s
-hard to control where the tampered gate will end up.</p>
-
-<p>Now, out of the 4N  gates, Bob takes the last 2N, and reveals everything about them: Their
-encryption keys, the nonces for their truth table commitments, and all adaptation keys between
-these gates (along with the nonces for the adaptation key commitments).</p>
-
-<p>Alice ensures that everything in this revealed data adds up. All the truth tables, after decryption,
-should actually be AND gate truth tables. All adaptation keys must match up with their relevant
-encryption keys. All commitments must match up.</p>
-
-<h3 id="double-trouble">Double trouble!</h3>
-
-<p>Bob duplicates the AND-and-NOT-gate based circuit. He now has two identical circuits which take
-the same inputs, and have one output each. In itself this is pretty useless; this circuit is
-obviously redundant. However, in the context of encrypted gates, this redundancy becomes useful.</p>
-
-<p>Bob drops in the 2*N encrypted gates into this double-circuit, using the post-shuffle ordering of
-encrypted gates and the predecided numbering<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote" rel="footnote">9</a></sup> of the AND gates in the circuit. He puts the
-necessary adaptation gates (i.e. an XOR operation with the relevant adaptation key) between
-encrypted AND gates to make the circuit work. Note that each “half” of the circuit has a different
-set of encrypted gates, and thus a different encryption key for each input. There are NOT gates here
-too (from the original circuit, which was made of ANDs and NOTs); they stay in place (the adaptation
-gate can go on either side of them) with no modifications or encryption.</p>
-
-<h3 id="execution">Execution</h3>
-
-<p>Let’s recall that Bob is claiming to have the correct input for the original circuit – the input
-that makes that circuit output true.</p>
-
-<p>Since Bob has all the encryption keys, he can encrypt this correct input to get the correct
-encrypted input, which should make the new circuit output true (well, encrypted true) as well.</p>
-
-<p>Bob goes ahead and does this. He encrypts the input (since there are different encryption keys for
-either side of the circuit, he does this twice), and runs it through the circuit. He notes down the
-truth table entry utilized for each gate. He ensures that the output, once decrypted, is true (it
-should be, if everything has been done correctly till now).</p>
-
-<h3 id="verification">Verification</h3>
-
-<p>He now reveals the details of the program execution to Alice. He reveals:</p>
-
-<ul>
-  <li>All adaptation gates involved (and their nonces, to verify the commitments)</li>
-  <li>All truth table <em>entries</em> involved in the execution (and their nonces …).</li>
-  <li>The output encryption key (and its nonce)</li>
-  <li>The encrypted inputs</li>
-</ul>
-
-<p>Alice goes ahead and verifies that the commitments have not been reneged upon. Note that she also
-now has a full execution history. It’s an <em>encrypted</em> history – she can’t calculate the original
-input from it – but she can verify that the execution was faithfully carried out. While she doesn’t
-have the entire truth table for any encrypted gate, she has the entry that was used in the
-execution, which is enough. She just has to ensure that the inputs to a gate match the truth table
-entry, use the entry to see what the output is, apply the relevant adaptation key to get the input
-for the next gate, and repeat.</p>
-
-<p>And there you have it. Alice has verified that Bob faithfully executed her verification circuit, and
-thus he must have the correct answer to her problem.</p>
-
-<h3 id="tampering">Tampering?</h3>
-
-<p>Let’s see if it’s possible for Bob to tamper with any of this. If Bob wishes to tamper with one of
-the gates, he has to tamper with the gates before calculating commitments, which means that the
-shuffling will get mixed up, which will mean that he can’t control where the tampered gate will end
-up in the final circuit. This is compounded by the fact that half the gates are revealed (so the
-tampered gate may end up in the wrong set), and that there are <em>two</em> copies of the circuit (so you
-need to tamper with both sides simultaneously, requiring even more luck on getting the shuffle where
-you want it).</p>
-
-<p>The probability of Bob being able to execute a succesful tamper can be adjusted by increasing the
-number of revealed gates, and increasing the duplication of the circuit. There is also the
-aforementioned fudge factor that can be introduced by having Alice choose where each encrypted gate
-should go after Bob has already provided commitments, and finally the procedure can be repeated as
-many times as necessary with a fresh set of encrypted gates to increase certainty. Unlike the graph
-coloring algorithm (where the uncertainty in a single run was large – if Bob has a couple of wrong
-edges there’s relatively small chance he’ll get caught); here in a single run it is Bob who has a
-massive disadvantage, since he must tamper with <em>exactly</em> the right gates, and there’s very little
-chance that his tampered gates will fall in the right place based on Alice’s chosen ordering.
-Additionally, tampering with the gates in the first place is hard, since you need to avoid having
-them get revealed. I think that with reasonable (e.g., not asking for something like 1000 duplicated
-circuits) choices on the level of duplication and number of revealed gates, it’s possible for Alice
-to get a very high level of certainty without needing to conduct multiple rounds.</p>
-
-<p>How about the opposite question: Can Alice find out anything about the input, aside from the fact
-that it is correct, from the information she has? At first glance it seems like she can, because she
-can see the whole path of execution. In case of a program with non-constant loops, this would be
-damning, since she can figure out how many executions happened (and thus know the decrypted value
-for the number of loop iterations) and backtrack using that in a cleverly-written program. However,
-this program has no loops.</p>
-
-<p>Looking at it closely, any encrypted history of execution can be changed to a different encrypted
-history of execution for the same nonencrypted execution by adding NOT gates wherever they don’t
-match, and then absorbing these NOT gates into the input or output keys (by NOTing them) of the
-adjacent encrypted AND gates. This means that without knowing the details of the encrypted gates,
-all histories of execution are equally possible for a given actual execution<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">10</a></sup>. Therefore,
-knowing only a history of execution does not provide you further information about the actual
-execution, since it could equally have been for some other history of execution.</p>
-
-<h2 id="bonus-fixing-the-escrow-and-bitcoin">Bonus: Fixing the escrow and Bitcoin</h2>
-
-<p>(I’m going to assume basic knowledge of Bitcoin later on in this section)</p>
-
-<p>After all this, we still only have a way of Bob <em>proving</em> he has a solution. There’s no way of
-securely exchanging the solution for money (or whatever) without involving a trusted third party to
-handle the swap. This is known as <em>escrow</em>, where a third party is given both items for swapping;
-and after checking that everything is in order the third party completes the swap.</p>
-
-<p>We can build on this so that the third party is only trusted with the money, and cannot actually
-peek at the answer.</p>
-
-<p>It’s pretty straightforward: Bob and Alice mutually agree on a shared secret “pad” P. Bob takes his
-answer, bitwise-XORs it with the pad (which is of the same length as the answer) to get padded input
-X, and then hashes it to get hash Y.</p>
-
-<p>Now, initially we had a verification program which proves the statement “This input is a solution to
-Alice’s problem”. We modify this program so that it proves the following two statements:</p>
-
-<ul>
-  <li>This input is a solution to Alice’s problem</li>
-  <li>When the input is XORd with P, and subsequently hashed, the hash that comes out is Y</li>
-</ul>
-
-<p>Alice and Bob now go through the ZKP algorithm and the above is proven. Of course, they must keep
-the exchange between themselves, since the value of the pad (which can be extracted from the
-circuit) must remain secret.</p>
-
-<p>Assuming that Bob isn’t able to cause any hash collisions, Alice at this point would be happy with a
-number that, when hashed, gives Y. This is something that escrow can verify, since neither Y nor X
-can be reverse-engineered to get the original answer unless you have P.</p>
-
-<p>Now, Alice puts the money in escrow, and notifies the third party handing escrow of the value of Y
-(the hash). Bob puts the padded input X in escrow as well. The third party verifies that Y is the
-hash of X, and releases the money to Bob and the padded input to Alice. Since Alice knows pad P, she
-can XOR it with X to recover the original real input. Everyone walks away happy!</p>
-
-<p>Well, maybe not. There still is the danger of the third party handling escrow to walk away with the
-money. Why trust any one party?</p>
-
-<p>Turns out that Bitcoin proves to be an alternative to this situation. The technique described in
-<a href="https://bitcoincore.org/en/2016/02/26/zero-knowledge-contingent-payments-announcement/">Greg Maxwell’s article</a> (called Zero-Knowledge Contingent Payment), builds upon
-the above protocol using “scripts” in Bitcoin.</p>
-
-<p>The way a Bitcoin transaction works is that anyone (well, the first person) who can solve the
-embedded challenge is allowed to use the money contained in it. Like a piñata. Except with money
-instead of candy and public-key cryptography instead of a stick.</p>
-
-<p><em>Most</em> Bitcoin transactions pay directly to a person, and they use a standard kind of challenge (the
-actual script is <a href="https://en.bitcoin.it/wiki/Script#Standard_Transaction_to_Bitcoin_address_.28pay-to-pubkey-hash.29">here</a>). If Alice wishes to pay Bob 5 BTC, Alice crafts a
-transaction which says “anyone with the private key behind Bob’s public key (his address) may spend
-this money”. Of course, in practice this means that only Bob can spend the money. Alice created a
-piñata which only Bob can break.</p>
-
-<p>We can build on this to make the Bitcoin network behave as a trustworthy escrow. After having
-stepped through the zero-knowledge protocol and being confident that Y is the hash of the padded
-input, Alice crafts a transaction which says “anyone with a string that results in this hash may
-spend this money”<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote" rel="footnote">11</a></sup>. Bob has this string; it is the padded answer X. He makes a transaction with
-X as part of the input script (so that he can claim the money); and the Bitcoin network accepts it.
-Assuming Alice and Bob are not able to tamper with each others’ local networks, by the time Alice
-sees the transaction containing X, the network should have accepted this transaction already (though
-it may not yet be part of the blockchain), and Bob should be getting his money.</p>
-
-<p>(In case the crucial part is trusting that the escrow doesn’t run off with the money, and you don’t
-care if other people can see the answer, you can skip the padding step and directly hash the input.
-I believe the proof of concept executed in Greg’s post did this, but I’m not sure)</p>
-
-<p><em>Thanks to Shantanu Thakoor, eternaleye, and ebfull for feedback on drafts of this post</em></p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>I have some physics friends who would probably enjoy this too. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2" role="doc-endnote">
-      <p>Actually, you still need a trusted third party to make the money-swap work, but it can be done in a way that the National Secrets Sudoku Solution isn’t actually shared with the third party. The Bitcoin article linked above describes a way to do away with a trusted third party, instead replacing it with the implicitly trusted Bitcoin network. We’ll discuss this further at the end of the post. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3" role="doc-endnote">
-      <p>With free sharpener! <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4" role="doc-endnote">
-      <p>There are seven edges. This is a conservative estimate, assuming that Bob’s graph has one bad edge. More mistakes increase this probability, but it becomes more cumbersome to calculate. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:5" role="doc-endnote">
-      <p>We basically want to be able to write this as a series of sequentially-arranged logic gates. If a loop is bounded by a constant, it can just be unrolled. <code class="language-plaintext highlighter-rouge">break</code> and <code class="language-plaintext highlighter-rouge">continue</code> can be handled here, though <code class="language-plaintext highlighter-rouge">goto</code> cannot. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:6" role="doc-endnote">
-      <p>Remember that the number of nodes and edges is already known, so we can just write a program “Check edge 1”, “Check edge 2”, … without needing to explicitly loop over everything <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:7" role="doc-endnote">
-      <p>Again, since the number being factorized is known beforehand, there are bounds on the sizes of its factors, and a multiplication circuit for a number of bounded size can be designed. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:8" role="doc-endnote">
-      <p>mixing up a truth table doesn’t change how it works, but it makes it impossible to figure out the original entry just by knowing that your entry was the “third” entry or something <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:9" role="doc-endnote">
-      <p>You can actually add another fudge factor here by making Alice decide the gate numbering after having received gate commitments. If N isn’t that large, there’s still a small chance Bob can fake the output by permuting the original gates (and twiddling the nonces) until the tampered gates fall into the right spot. This removes that possibility to a reasonably high level of certainty, which can be strengthened by going through the whole procedure multiple times. <a href="#fnref:9" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:10" role="doc-endnote">
-      <p>We’re ignoring the commitments made by Bob here, which let us make the opposite statement – “this encrypted history of execution is the only one that’s possible given the commitments”. However, the commitments themselves don’t carry any new <em>information</em> per se; they instead lock in information which is revealed to you in the future (information which is not revealed at all cannot be reverse-engineered from the commitments, so that’s safe too). This means that Alice cannot use them to glean anything about the decrypted input, and we can ignore them for the time being. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:11" role="doc-endnote">
-      <p>She should probably also add a clause that requires Bob’s private key to sign something, so that someone else can’t copy the answer from Bob’s transaction and steal the money. Additional work can be done to make it so that if the transaction goes unclaimed, Alice can reclaim the money. <a href="#fnref:11" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2016/01/03/making-your-open-source-project-newcomer-friendly/">Making Your Open Source Project Newcomer-friendly</a></h1>
-      <em>Posted by Manish Goregaokar on January 03, 2016 in <a class='category' href='/blog/categories/programming/'>programming</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>One reason I really like open source is that it offers a lot of great opportunities for newish programmers to get some hands-on experience with real world problems. There’s only so much one can learn from small personal projects; but in open source one often gets to tackle interesting problems on large codebases — problems which wouldn’t occur in small/personal ones. There are also valuable skills related to collaboration to be learnt.</p>
-
-<p>Because of this, I care quite a bit about making projects welcoming to new contributions, and try to improve this experience on projects I’m involved in. I’ve picked up a few tricks along the way. Most of these aren’t my ideas, I’ve gleaned them from watching people like <a href="https://twitter.com/lastontheboat">Josh Matthews</a>, <a href="https://twitter.com/mleibovic">Margaret Leibovic</a>, <a href="https://twitter.com/mike_conley">Mike Conley</a>, and <a href="https://twitter.com/redheadedcuban">Joel Maher</a> do their thing. If you’re interested, <a href="http://blog.margaretleibovic.com/2013/08/06/increasing-volunteer-participation-on-the-firefox.html">here</a> is a post by Margaret, and <a href="http://www.joshmatthews.net/fsoss15/contribution.html">here</a> are some of Josh’s slides from a presentation, both on the same subject.</p>
-
-<p>Before I get started, bear in mind that making a project “newbie-friendly” isn’t something that magically happens. Like most things, it takes effort, but often this effort can come to fruition in the form of motivated contributors helping out on your project and eventually even becoming co-maintainers. It’s really worth it!</p>
-
-<h2 id="the-simple-stuff">The simple stuff</h2>
-
-<p>There’s a lot of really easy stuff you can do to kickstart contributions to your own project. Most of this is obvious:</p>
-
-<h3 id="contributingmd">CONTRIBUTING.md</h3>
-
-<p><strong>Add a <code class="language-plaintext highlighter-rouge">CONTRIBUTING.md</code></strong> file. Keep it up to date. Link to it prominently from the README. The README should also have clear and detailed instructions for building the project. These two files are different – README is for those who want to use your project (perhaps by building from sources), CONTRIBUTING is for people who want to contribute.</p>
-
-<p><strong>Mention steps for getting involved</strong>: how to find something to work on, how to send a patch/make a pull request, a checklist of things to ensure your patch/PR satisfies before submission (e.g. passing tests, commit message guidelines, etc).
-Additionally, include some tips and tricks (like a link to the internal documentation) that can help new contributors, links to communication channels (IRC, Slack, Gitter, whatever) and anything else you may find helpful for someone considering contributing to your project. If you use some form of issue labeling, explanations of the labeling scheme can help folks find stuff they want to work on. An overview of the directory structure can be similarly helpful.</p>
-
-<p>For some examples, check out the CONTRIBUTING.md files for <a href="https://github.com/servo/servo/blob/master/CONTRIBUTING.md">servo</a> and <a href="https://github.com/Manishearth/rust-clippy/blob/master/CONTRIBUTING.md">rust-clippy</a>.</p>
-
-<h3 id="maintain-a-list-of-easy-bugs">Maintain a list of easy bugs</h3>
-
-<p>More on this later, but try to <strong>use some form of tagging to mark easy bugs</strong>. I love <a href="http://www.joshmatthews.net/fsoss15/contribution.html?full#issuetracker">this slide</a> from Josh’s talk.</p>
-
-<blockquote>
-  <p>How to politely say f*** off</p>
-
-  <p>“Choose something to work on from our issue tracker.” <br />
-                                           - every project maintainer</p>
-</blockquote>
-
-<p>Most bugs on issue trackers are nontrivial, steeped with jargon, devoid of actionable information, or otherwise inaccessible to the average new contributor. It’s relatively low effort to recognize bugs which are “easy” for maintainers, but it’s a lot of work for people unfamiliar to this project to figure this out.</p>
-
-<p>A simple label on GitHub is all you need in most cases. Be sure to link to it from your contributing file!</p>
-
-<h3 id="communicate">Communicate!</h3>
-
-<p><strong>Have open channels</strong> for communication. IRC is often the favorite here, though IRC is pretty alien for people getting involved in open source for the first time. If you’re using IRC, see if you can link to a web client (like <a href="https://wiki.mibbit.com/index.php/Widget">Mibbit</a>) with short instructions on how to join. Stuff like Gitter works too.</p>
-
-<p>Mailing lists also work — everyone knows how to email! However, email can be intimidating to newcomers; many have a “omg I can’t ask my silly questions here!” attitude which stops them from progressing.</p>
-
-<p>Explicitly inviting questions in each issue helps here. Clippy doesn’t have a mailing list or IRC channel (too small a project), but I encourage people working on new bugs to ping me on any communication channel they’d like. I’ve mentored people over email, GH issue threads, IRC, even reddit PMs, and it’s worked out fine in each case.</p>
-
-<p>Often folks will PM you for help. Provide help, but <strong>encourage them to ask questions</strong> in the main venue. This has the twofold benefit of showing everyone that the main channel is open to questions, and it also helps people get quicker answers since someone else can answer if you’re not around.</p>
-
-<h3 id="recognition">Recognition</h3>
-
-<p><strong>Celebrate new contributors</strong>. Tweet about them. Mention them in blog posts. Getting a two-line patch accepted in an open source project doesn’t sound like much, but when you’re just getting started, it’s a very awesome feeling. Make it more awesome! Both <a href="http://this-week-in-rust.org/">This Week In Rust</a> and <a href="https://blog.servo.org/">This Week In Servo</a> mention new contributors (sometimes we tweet about it too), and I’ve often got very happy messages from these contributors about the mentions.</p>
-
-<h3 id="add-a-code-of-conduct">Add a code of conduct</h3>
-
-<p>A lot of folks have had bad experiences with people online, often in other open source communities and may be wary about joining others. <strong>A code of conduct</strong> is a statement that unsavory behavior won’t be tolerated, which helps make the project more welcoming and appealing to these people, simultaneously making it a nicer place which is helpful for everyone. Of course, you should be prepared to enforce the code of conduct if the situation requires it.</p>
-
-<p>I use the <a href="https://www.rust-lang.org/conduct.html">Rust code of conduct</a> but the <a href="http://contributor-covenant.org/">Contributor Covenant</a> is good, too. Various language/framework communities often have their own favorite code of conduct. Pick one.</p>
-
-<h3 id="empathize">Empathize!</h3>
-
-<p>We often forget how hard it is to jumpstart in something we’re an active part of. For example, for many of us the process of making a pull request is almost second nature.</p>
-
-<p>However, not everyone is used to these things. I’ve seen contributors who can code well but haven’t used Github in the past having lots of trouble making and updating a pull request. The same applies to other workflow things; like code review, version control<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">1</a></sup>, or build system peculiarities.</p>
-
-<p>Keep this in mind when dealing with new contributors. These are skills which can be picked up relatively quickly, but those without them will have a frustrating experience and end up asking you a lot of questions.</p>
-
-<h2 id="improving-the-newcomer-experience">Improving the newcomer experience</h2>
-
-<p>Alright, now you’ve gotten all the basics done. People now have a vague idea of how to contribute to your project. Let’s make it more concrete.</p>
-
-<h3 id="mentoring">Mentoring</h3>
-
-<p>Don’t just leave an easy bug open. <strong>Offer to mentor it!</strong> This is a very fun and rewarding experience, and of course contributors are more likely to stick around in a project they percieve to be helpful and welcoming.</p>
-
-<p>It’s often better to go one step further and <strong>give tips for fixing the issue before anyone even picks it up</strong> (<a href="https://github.com/rust-lang/rust/issues/10969#issuecomment-158282317">example</a>). Communication in open source has latency — the contributor might be on the other side of the planet, or might otherwise be contributing at a different time of the day than you<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>. Reducing the number of back-and-forth cycles is really helpful here, and giving some info so that a contributor can get started immediately without needing to wait for a response goes a long way in improving the newcomer experience.</p>
-
-<p>Avoid creating a mentored bug where you yourself aren’t certain on how to fix it. Ideally, <strong>you should know the exact steps to take to fix a bug</strong> before marking it as mentored. Don’t divulge all the steps to the mentee, but the exercise of solving the bug yourself (without writing the code) ensures that there aren’t any hidden traps.</p>
-
-<p>Mostly mentorship just involves <strong>answering questions and laying out a path</strong> for the mentee. Be sure to encourage questions in the first place! A lot of people, especially students, are intimidated when joining open source and try to stay as quiet as possible. For a healthy mentorship, you want them to ask questions. A lot. Encourage this.</p>
-
-<p>Remember that in many cases the new contributor may be intimidated by <em>you</em>. For example, I’ve often come across new Firefox contributors (who I introduced to the project) asking me questions instead of their assigned mentor because “the mentor works for Mozilla and is way too awesome for me to bug with questions”. This wasn’t something the mentor told them (Firefox mentors are all very nice and helpful people), it was a conclusion they came to on their own — one which would impede their progress on the bug.</p>
-
-<p>One trick that helps mitigate this is encouraging questions in your main channel. When people PM me with questions on IRC, I answer their questions, but also encourage them to ask in the main IRC channel next time. This is good for everyone — It gives the channel an aura of being “okay to ask questions in” (if other people see that questions are being asked and answered in the channel), and it also lets other maintainers jump in to help the new contributor in case I’m not around.</p>
-
-<p>Once a new contributor has fixed a bug, mentorship isn’t over – it’s just started! See if you can find something more involved for them to work in a related area of the codebase. Get to know the contributor too, a sense of familiarity goes a long way in reducing intimidation and other friction.</p>
-
-<h3 id="tailoring-process-for-newcomers">Tailoring process for newcomers</h3>
-
-<p>Most open source projects have a set of hoops you have to jump through for a pull request to be accepted. These are necessary for the health of the project and pretty straightforward for existing contributors, but can be intimidating for new ones. They also add extra cycles of communication. I’ve often seen people put up almost-working patches, and disappear after a few cycles — even though the bulk of the work was done and there were just process issues (or code nits) left over for merging; which can be quite disheartening. Reducing extra process helps mitigate this.</p>
-
-<p>For example, Servo uses this great tool called <a href="http://reviewable.io/">Reviewable</a> for code review. Regular contributors don’t have much friction whilst using this, so we use it wherever possible. However, for small pull requests from new contributors I avoid using Reviewable and instead opt to review directly from the GitHub interface. For these pull requests I don’t need Reviewable’s features, so I don’t lose much, but now the contributor has to go through one less hoop.</p>
-
-<p>Similarly, for rust-clippy, I often make minor fixes and run <a href="https://github.com/Manishearth/rust-clippy/blob/master/util/update_lints.py">the readme update script</a> on behalf of the contributor instead of asking them to do it themselves. I usually check out the PR locally, run <code class="language-plaintext highlighter-rouge">git merge pr-branch --no-commit --no-ff</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, make edits, commit and push. This way the PR still gets marked as merged (<code class="language-plaintext highlighter-rouge">commit --amend</code> doesn’t do that), and the history stays bisectable.</p>
-
-<p>OpenSSL uses a mailing list for patches, however they allow contributions via GitHub too. Most seasoned contributors probably stick to the mailing list, but new contributors can use the familiar GitHub interface if they want, reducing friction.</p>
-
-<p>Of course, cutting down on (necessary) process should only be done for the first one or two contributions; try to educate the newcomer about your processes as time passes.</p>
-
-<p>An alternate way to tackle this issue is to go the other way around and teach process first. Give newcomers an extremely easy bug that just involves replacing a string or some other simple one-line fix, and help them push it through the process. This way, the next time they work on something, they’ll be familiar with the process and be able to devote more time to the actual code.</p>
-
-<h3 id="creating-easy-bugs">Creating easy bugs</h3>
-
-<p>At some point down this road many projects have a problem where there are people who want to contribute, but not enough suitable easy bugs.</p>
-
-<p>One technique that has helped me create a lot of easy bugs is to just <strong>look out for separable and non-critical subfeatures when working on something</strong>. There often are things like polish or other small features which you don’t need to include in the main pull request, but you do anyway because it’s a few extra seconds of work. If you think it can be split out as an easy bug, go ahead and file it!</p>
-
-<p>For example, whilst working on some <a href="https://github.com/servo/servo/commit/b677f0f4ae718c9c6953134bbed27656a6aeb48d">form issues</a>, instead of completely implementing something, I implemented just what I needed, and <a href="https://github.com/servo/servo/issues/7726">filed an easy bug</a>. <a href="https://github.com/servo/servo/issues/4534">This</a> is another bug with a very similar situation; I’d implemented the framework for form submission, made it work with <code class="language-plaintext highlighter-rouge">&lt;input&gt;</code>, and filed an easy bug for wiring it up to <code class="language-plaintext highlighter-rouge">&lt;button&gt;</code>.</p>
-
-<p>Sometimes you may not find a subfeature that can be split out, but you may notice something else which could be improved. <a href="https://github.com/servo/servo/issues/7517">This</a> is an example of such an issue. I was working on something else, and noticed that this area of the code could be designed better. Whilst I could have fixed it myself with very little effort as part of my other changes, I made it into an easy bug instead.</p>
-
-<p><strong>Simple refactorings</strong> can be a source of easy bugs too. These require familiarity with the language, but not much more, so they’re ideal for people new to the project.</p>
-
-<p>It’s also possible to take a hard bug and make it easier, either by partially implementing it, or giving enough hints (code links, explanations, etc) that the hard part is already taken care of.</p>
-
-<p><strong>Avoid making “critical” (i.e, needs to land in a week or two) features into easy bugs</strong>. Even simple changes can take a while for new contributors (especially due to the nature of asynchronous communication, lack of time, and/or getting bogged down in the process). Easy bugs should be something which you <em>eventually</em> want, but are okay with it taking longer to solve. It’s very disheartening for a new contributor if they are working on something and a maintainer solves it for them because it was needed to land quickly. (Given enough time this will eventually happen for some bug, in such a case see if you can provide a different bug for them to work on and apologize)</p>
-
-<h3 id="discoverability">Discoverability</h3>
-
-<p>Make it super easy for newcomers to <strong>find a bug they <em>want</em> to work on</strong>; not just any easy bug!</p>
-
-<p><a href="http://www.joshmatthews.net/bugsahoy/">Bugs Ahoy</a> and <a href="http://whatcanidoformozilla.org/">What Can I do for Mozilla</a> are both great examples of this. Servo has <a href="http://servo.github.io/servo-starters/">servo-starters</a>.</p>
-
-<p>There are also various sites where you can list your easy bugs, some of which are listed in <a href="http://edunham.net/2015/11/04/beyond_openhatch.html">Emily’s post</a>.</p>
-
-<h3 id="projects-and-more-involved-participation">Projects and more involved participation</h3>
-
-<p>Having easy bugs and mentoring newcomers is just one step. You probably want to have these newcomers working on harder stuff, projects, and perhaps eventually maintianing/reviewing!</p>
-
-<p>For many people these steps may not necessarily require involvement from you; I’ve seen professional software developers move their way to being a maintainer with very little mentorship just because they’re experienced enough to figure out how the project works on their own.</p>
-
-<p>However, many of your contributors may be students or otherwise inexperienced; indeed they may be contributing to your project to <em>gain</em> this experience and become better developers. Such people can become valuable members of the team with some effort.</p>
-
-<p>This mostly involves <strong>nudging people towards harder bugs and/or projects</strong>. It’s also very valuable to maintain a list of “student projects” (noncritical but large bodies of work). These can be picked up by contributors or sometimes students wishing to do a project for course credit.</p>
-
-<p>It’s important to <strong>try and provide a logical series of issues</strong> instead of picking things randomly around the project so that the contributor can focus on one part of the codebase while starting out. If the issues all culminate in a large feature, even better.</p>
-
-<p>Joel Maher and the Mozilla Tools team <a href="https://elvis314.wordpress.com/2015/10/02/hacking-on-a-defined-length-contribution-program/">have started a pretty great program called “Quarter of Contribution”</a> which provides focused mentorship for a particular project. It seems to work out well. Programs like Google Summer of Code and Outreachy also provide ways for new contributors to try out your project at a significant level of involvement.</p>
-
-<p><em>Creating</em> such projects or harder bugs is a nontrivial problem, and I don’t have a clear idea on how this can be done (aside from using similar techniques as listed in the “creating easy bugs” section above). Ideas welcome!</p>
-
-<p>Projects aren’t always necessary here either. Depending on the contributor, sometimes you can present them with a regular (i.e., not “easy” or otherwise earmarked) issue to work on, provide some hints, and tell them to try and figure stuff out without your help (or with less help). Stay involved, and encourage them to ask questions of others or initiate discussions, but try to stick to observing. It’s really fun to watch someone figure stuff out on their own. I did this with a contributor <a href="https://github.com/rust-lang/rust/pull/30377">here</a>, where I only provided the initial hint and the code review; as well as <a href="https://github.com/rust-lang/rust/pull/29989">here</a>, where I encouraged the contributor to initiate and direct the relevant bikeshedding on various channels without my involvement. The contributor is now more in touch with the Rust community and codebase as a result; and for me I enjoyed watching him figure stuff out and direct discussions on his own.</p>
-
-<h2 id="mentor-share">Mentor! Share!</h2>
-
-<p>I’m still exploring these techniques myself. I’ve had great results applying some of these to <a href="https://github.com/Manishearth/rust-clippy/">clippy</a>, and we already apply many of them to Servo. I’m <a href="https://users.rust-lang.org/t/mentoring-newcomers-to-the-rust-ecosystem/3088">slowly working on applying these techniques to Rust</a>.</p>
-
-<p>While some of these projects I’m always open to hearing about more ideas for making it easier for newcomers to contribute, so please let me know if you have any ideas or experiences to share!</p>
-
-<p>Mentoring, while a lot of work, is an insanely rewarding experience, and I hope you try to incorporate it into your open source projects!</p>
-
-<p><em>Thanks to Josh Matthews, James Graham, Emily Dunham, and Joel Maher for feedback on drafts of this post</em></p>
-
-<p><small>discuss: <a href="https://news.ycombinator.com/item?id=10836345">HN</a></small></p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:4" role="doc-endnote">
-      <p>I’ve lost track of the number of times I’ve helped someone through <code class="language-plaintext highlighter-rouge">git rebase</code> and merge conflicts on Servo <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:1" role="doc-endnote">
-      <p>This often happens with open source projects with paid staff – the staff is around during the workday, but the contributors are around during the evenings, so there’s less overlap. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3" role="doc-endnote">
-      <p>There are various reasons why you should <em>not</em> do this, mainly because non-merge-related changes in merge commits are hard to track down. Be aware of the downsides and use this trick judiciously. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/5">&larr; Older</a>
@@ -3336,23 +3027,23 @@ Additionally, include some tips and tricks (like a link to the internal document
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
       <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
   </ul>
@@ -3370,8 +3061,8 @@ Additionally, include some tips and tricks (like a link to the internal document
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
-<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>

@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/drafts/zero2/">
+  <link rel="canonical" href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -100,7 +100,7 @@
 
     
       <h1 class="entry-title">Zero-Copy All the Things! (Zero-Copy #2)</h1>
-      <em>Posted by Manish Goregaokar on April 05, 2021 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
+      <em>Posted by Manish Goregaokar on August 03, 2022 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
       <p class="meta">
@@ -116,7 +116,7 @@
   </header>
 
 
-<div class="entry-content"><p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+<div class="entry-content"><p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found <a href="../zero-copy-1-not-a-yoking-matter/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="../zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -136,11 +136,11 @@
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
-             If you’re unfamiliar with zero-copy deserialization, check out the explanation in the <a href="@@@@">previous article</a>!
+             If you’re unfamiliar with zero-copy deserialization, check out the explanation in the <a href="../zero-copy-1-not-a-yoking-matter/">previous article</a>!
             </div>
         </div>
 
-<p>In the <a href="@@@">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
+<p>In the <a href="../zero-copy-1-not-a-yoking-matter/">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
 
 <p>This article is about expanding our capabilities on <em>what we can make</em> zero-copy data.</p>
 
@@ -409,11 +409,13 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Here, fetching operations are a bit slower since they need to read the indexing array, but there’s still a decent win for zero-copy deserialization. The deserialization wins stack up for more complex data; for <code class="language-plaintext highlighter-rouge">Vec&lt;String&gt;</code> you can get <em>most</em> of the wins by using <code class="language-plaintext highlighter-rouge">Vec&lt;&amp;str&gt;</code>, but that’s not necessarily possible for something more complex. We don’t currently have mutation benchmarks for <code class="language-plaintext highlighter-rouge">VarZeroVec</code>, but mutation can be slow and as mentioned before it’s not intended to be used much in client code.</p>
 
+<p>Some of this is still in flux; for example we are in the process of <a href="https://github.com/unicode-org/icu4x/pull/2306">making <code class="language-plaintext highlighter-rouge">VarZeroVec</code>’s buffer format configurable</a> so that users can pick their precise tradeoffs.</p>
+
 <h2 id="try-it-out">Try it out!</h2>
 
-<p>Similar to [<code class="language-plaintext highlighter-rouge">yoke</code>], I don’t consider the <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> crate “done” yet, but it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
+<p>Similar to <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, I don’t consider the <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">zerovec</code></a> crate “done” yet, but it’s been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!</p>
 
-<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, <a href="https://github.com/sffc">Shane</a>, @@@@ for reviewing drafts of this post</em></p>
+<p><em>Thanks to <a href="https://twitter.com/plaidfinch">Finch</a>, <a href="https://twitter.com/yaahc_">Jane</a>, and <a href="https://github.com/sffc">Shane</a> for reviewing drafts of this post</em></p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -464,7 +466,7 @@ In general we don’t care about serialization performance much, however seriali
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/zero2/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/zero2/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/" >Tweet</a>
   
   
   
@@ -473,6 +475,10 @@ In general we don’t care about serialization performance much, however seriali
     
     <p class="meta">
       
+        <a class="basic-alignment left" href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" title="Previous Post: Not a Yoking Matter (Zero-Copy #1)">&laquo; Not a Yoking Matter (Zero-Copy #1)</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" title="Next Post: So Zero It's ... Negative? (Zero-Copy #3)">So Zero It's ... Negative? (Zero-Copy #3) &raquo;</a>
       
     </p>
   </footer>
@@ -502,23 +508,23 @@ In general we don’t care about serialization performance much, however seriali
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
       <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/03/15/arenas-in-rust/">Arenas in Rust</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">Integrating Rust and C++ in Firefox</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
   </ul>
@@ -536,8 +542,8 @@ In general we don’t care about serialization performance much, however seriali
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
-<li class='category'><a href='/blog/categories/rust/'>rust (27)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
