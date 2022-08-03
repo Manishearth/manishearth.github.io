@@ -272,6 +272,23 @@ The compiler knows these are safe because it knows that the type is covariant, a
 
 Using this trait, `Yoke` then works by storing `Self<'static>` and transforming it to a shorter, more local lifetime before handing it out to any consumers, using the methods on `Yokeable` in various ways. Knowing that the lifetime is covariant is what makes it safe to do such lifetime "squeezing". The `'static` is a lie, but it's safe to do that kind of thing as long as the value isn't actually accessed with the `'static` lifetime, and we take great care to ensure it doesn't leak.
 
+## Better conversions: ZeroFrom
+
+A crate that pairs well with this is [`zerofrom`][zerofrom-crate], primarily designed and written by [Shane]. It comes with the [`ZeroFrom`] trait, that looks like this:
+
+```rust
+pub trait ZeroFrom<'zf, C: ?Sized>: 'zf {
+    fn zero_from(other: &'zf C) -> Self;
+}
+```
+
+The idea of this trait is to be able to work generically with types convertible to (often zero-copy) borrowed types.
+
+For example, `Cow<'zf, str>` implements both `ZeroFrom<'zf, str>` and `ZeroFrom<'zf, String>`, as well as `ZeroFrom<'zf, Cow<'a, str>>`. It's similar to the [`AsRef`] trait but it allows for more flexibility on the kinds of borrowing occuring, and implementors are supposed to minimize the amount of copying during such a conversion. For example, when `ZeroFrom`-constructing a `Cow<'zf, str>` from some other `Cow<'a, str>`, it will _always_ construct a `Cow::Borrowed`, even if the original `Cow<'a, str>` were owned.
+
+`Yoke` has a convenient constructor [`Yoke::attach_to_zero_copy_cart()`][yoke-attach] that can create a `Yoke<Y, C>` out of a cart type `C` if `Y<'zf>` implements `ZeroFrom<'zf, C>` for all lifetimes `'zf`. This is useful for cases where you want to do basic self-referential types but aren't doing any fancy zero-copy deserialization.
+
+
 ## ... make life rue the day it thought it could give you lifetimes
 
 Life with this crate hasn't been all peachy. We've, uh ... [unfortunately][bug-10] [discovered][bug-1] [a][bug-2] [toweringly][bug-3] [large][bug-4] [pile][bug-5] [of][bug-6] [gnarly][bug-7] [compiler][bug-8] [bugs][bug-9]. A lot of this has its root in the fact that `Yokeable<'a>` in most cases is bound via `for<'a> Yokeable<'a>` ("`Yokeable<'a>` for all possible lifetimes `'a`"). The `for<'a>` is a niche feature known as a higher-ranked lifetime or trait bound (often referred to as "HRTB"), and while it's always been necessary in some capacity for Rust's typesystem to be able to reason about function pointers, it's also always been rather buggy and is often discouraged for usages like this.
@@ -288,7 +305,7 @@ As of Rust 1.61, a lot of the major bugs have been fixed, however there are stil
 
 While I don't consider the [`yoke`] crate "done" yet, it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], @@@@ for reviewing drafts of this post_
 
 
 
@@ -298,6 +315,10 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv
  [`yoke`]: https://docs.rs/yoke
+ [zerofrom-crate]: https://docs.rs/zerofrom
+ [`ZeroFrom`]: https://docs.rs/zerofrom/latest/zerofrom/trait.ZeroFrom.html
+ [yoke-attach]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.attach_to_zero_copy_cart
+ [`AsRef`]: https://doc.rust-lang.org/stable/std/convert/trait.AsRef.html
  [`Cow<'a, T>`]: https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html
  [`Rc<T>`]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
  [Shane]: https://github.com/sffc

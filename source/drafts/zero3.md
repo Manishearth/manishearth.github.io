@@ -75,7 +75,7 @@ For a long time only very simple code was allowed in `const`, but over the last 
 
 ## `databake`
 
-_A lot of the design here can also be found in the [design doc]. While I did the bulk of the design for this crate, it was almost completely implemented by [Robert], who also worked on integrating it into ICU4X._
+_A lot of the design here can also be found in the [design doc]. While I did the bulk of the design for this crate, it was almost completely implemented by [Robert], who also worked on integrating it into ICU4X, and cleaned up the design in the process._
 
 Enter [`databake`] (née `crabbake`). `databake` is a crate that provides just this; the ability to serialize your types to `const` code that can then be used in `static`s allowing for truly zero-cost data loading, no deserialization necessary!
 
@@ -182,7 +182,7 @@ This means that for things like `ZeroVec` (see [part 2]), we can't actually just
 
 [`crabbake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
 
-_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], @@@@ for reviewing drafts of this post_
 
 
 
