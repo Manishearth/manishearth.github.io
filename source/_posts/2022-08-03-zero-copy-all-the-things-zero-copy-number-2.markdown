@@ -1,11 +1,10 @@
 ---
 layout: post
 title: "Zero-Copy All The Things! (Zero-Copy #2)"
-date: 2021-04-05 08:32:30 -0700
+date: 2022-08-03 15:54:17 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
-
 
 _This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
 

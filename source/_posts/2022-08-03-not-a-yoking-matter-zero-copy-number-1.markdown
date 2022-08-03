@@ -1,10 +1,11 @@
 ---
 layout: post
 title: "Not a Yoking Matter (Zero-Copy #1)"
-date: 2021-04-05 08:32:30 -0700
+date: 2022-08-03 15:53:33 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
+
 
 _This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization_ is.
 

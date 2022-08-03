@@ -1,11 +1,10 @@
 ---
 layout: post
-title: "So Zero It's ... Negative?  (Zero-Copy #3)"
-date: 2021-04-05 08:32:30 -0700
+title: "So Zero It's ... Negative? (Zero-Copy #3)"
+date: 2022-08-03 15:55:20 -0700
 comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
-
 
 _This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found [here][part 1]; while Part 2 is about making it work for more types and can be found [here][part 2].  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
 
