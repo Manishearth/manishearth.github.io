@@ -9,8 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren’t aware of. Many of these &hellip;">
+  <meta name="description" content="Update: This post got a sequel, Breaking our latin-1 assumptions. I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +17,8 @@ that most folks aren’t aware of. Many of these &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
-that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter &hellip;">
+      <meta property="twitter:description" content="Update: This post got a sequel, Breaking our latin-1 assumptions. I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
+misconception I’ve seen is that code &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -94,6 +93,254 @@ that most folks aren’t aware of. Many of these tidbits are ones which may not 
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/01/14/stop-ascribing-meaning-to-unicode-code-points/">Let's Stop Ascribing Meaning to Code Points</a></h1>
+      <em>Posted by Manish Goregaokar on January 14, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/unicode/'>unicode</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>Update: This post got a sequel, <a href="http://manishearth.github.io/blog/2017/01/15/breaking-our-latin-1-assumptions/">Breaking our latin-1 assumptions</a>.</em></p>
+
+<p>I’ve seen misconceptions about Unicode crop up regularly in posts discussing it. One very common
+misconception I’ve seen is that <em>code points have cross-language intrinsic meaning</em>.</p>
+
+<p>It usually comes up when people are comparing UTF8 and UTF32. Folks start implying that code points
+<em>mean</em> something, and that O(1) indexing or slicing at code point boundaries is a useful operation.
+I’ve also seen this assumption manifest itself in actual programs which make incorrect assumptions
+about the nature of code points and mess things up when fed non-Latin text.</p>
+
+<p>If you like reading about unicode, you might also want to go through <a href="https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/">Eevee’s article</a>
+on the dark corners of unicode. Great read!</p>
+
+<h2 id="encodings">Encodings</h2>
+
+<p>So, anyway, we have some popular encodings for Unicode. UTF8 encodes 7-bit code points as a single
+byte, 11-bit code points as two bytes, 16-bit code points as 3 bytes, and 21-bit code points as four
+bytes. UTF-16 encodes the first three in two bytes, and the last one as four bytes (logically, a
+pair of two-byte code units). UTF-32 encodes all code points as 4-byte code units. UTF-16 is mostly
+a “worst of both worlds” compromise at this point, and the main programming language I can think of
+that uses it (and exposes it in this form) is Javascript, and that too in a broken way.</p>
+
+<p>The nice thing about UTF8 is that it saves space. Of course, that is subjective and dependent on
+the script you use most commonly, for example my first name is 12 bytes in UTF-8 but only 4
+in ISCII (or a hypothetical unicode-based encoding that swapped the Devanagri Unicode block with
+the ASCII block). It also uses more space over the very non-hypothetical UTF-16 encoding if you
+tend to use code points in the U+0800 - U+FFFF range. It always uses less space than UTF-32 however.</p>
+
+<p>A commonly touted disadvantage of UTF-8 is that string indexing is <code class="language-plaintext highlighter-rouge">O(n)</code>. Because code points take
+up a variable number of bytes, you won’t know where the 5th codepoint is until you scan the string
+and look for it. UTF-32 doesn’t have this problem; it’s always <code class="language-plaintext highlighter-rouge">4 * index</code> bytes away.</p>
+
+<p>The problem here is that indexing by code point shouldn’t be an operation you ever need!</p>
+
+<h2 id="indexing-by-code-point">Indexing by code point</h2>
+
+<p>The main time you want to be able to index by code point is if you’re implementing algorithms
+defined in the unicode spec that operate on unicode strings (casefolding, segmentation, NFD/NFC).
+Most if not all of these algorithms operate on whole strings, so implementing them
+as an iteration pass is usually necessary anyway, so you don’t lose anything if you can’t
+do arbitrary code point indexing.</p>
+
+<p>But for application logic, dealing with code points doesn’t really make sense. This is because
+code points have no intrinsic meaning. They are not “characters”. I’m using scare quotes here
+because a “character” isn’t a well-defined concept either, but we’ll get to that later.</p>
+
+<p>For example, “é” is two code points (<code class="language-plaintext highlighter-rouge">e</code> +<code class="language-plaintext highlighter-rouge"> ́</code>), where one of them is a combining accent. My name,
+“मनीष”, visually looks like three “characters”, but is four code points. The “नी” is made up of <code class="language-plaintext highlighter-rouge">न</code> + <code class="language-plaintext highlighter-rouge">ी</code>. My last name contains a “character” made up of three code points (as well as multiple other two-code-point
+“characters”). The flag emoji “🇺🇸” is also made of two code points, <code class="language-plaintext highlighter-rouge">🇺</code> + <code class="language-plaintext highlighter-rouge">🇸</code>.</p>
+
+<p>One false assumption that’s often made is that code points are a single column wide. They’re not.
+They sometimes bunch up to form characters that fit in single “columns”. This is often dependent on
+the font, and if your application relies on this, you should be querying the font. There are even
+code points like U+FDFD (﷽) which are often rendered multiple columns wide. In fact, in my
+<em>monospace</em> font in my text editor, that character is rendered <em>almost</em> 12 columns wide. Yes,
+“almost”, subsequent characters get offset a tiny bit, presumably because the font selection
+picking a non-monospace font for the character.</p>
+
+<p>Another false assumption is that editing actions (selection, backspace, cut, paste) operate on code
+points. In both Chrome and Firefox, selection will often include multiple code points. All the
+multi-code-point examples I gave above fall into this category. An interesting testcase for this is
+the string “ᄀᄀᄀ각ᆨᆨ”, which will rarely if ever render as a single “character” but will be considered
+as one for the purposes of selection, pretty much universally. I’ll get to why this is later.</p>
+
+<p>Backspace can gobble multiple code points at once too, but the heuristics are different. The reason
+behind this is that backspace needs to mirror the act of typing, and while typing sometimes
+constructs multi-codepoint characters, backspace decomposes it piece by piece. In cases where a
+multi-codepoint “character” <em>can</em> be logically decomposed (e.g. “letter + accent”), backspace will
+decompose it, by removing the accent or whatever. But some multi-codepoint characters are not
+“constructions” of general concepts that should be exposed to the user. For example, a user should
+never need to know that the “🇺🇸” flag emoji is made of <code class="language-plaintext highlighter-rouge">🇺</code> + <code class="language-plaintext highlighter-rouge">🇸</code>, and hitting backspace on it should
+delete both codepoints. Similarly, variation selectors and other such code points shouldn’t
+be treated as their own unit when backspacing.</p>
+
+<p>On my Mac most builtin apps (which I presume use the OSX UI toolkits) seem to use the same
+heuristics that Firefox/Chrome use for selection for both selection and backspace. While the
+treatment of code points in editing contexts is not consistent, it seems like applications
+consistently do not consider code points as “editing units”.</p>
+
+<p>Now, it is true that you often need <em>some</em> way to index a string. For example, if you have a large
+document and need to represent a slice of it. This could be a user-selection, or something delimeted
+by markup. Basically, you’ve already gone through the document and have a section you want to be
+able to refer to later without copying it out.</p>
+
+<p>However, you don’t need code point indexing here, byte
+indexing works fine! UTF8 is designed so that you can check if you’re on a code point boundary even
+if you just byte-index directly. It does this by restricting the kinds of bytes allowed. One-byte
+code points never have the high bit set (ASCII). All other code points have the high bit set in each
+byte. The first byte of multibyte codepoints always starts with a sequence that specifies the number
+of bytes in the codepoint, and such sequences can’t be found in the lower-order bytes of any
+multibyte codepoint. You can see this visually in the table <a href="https://en.wikipedia.org/wiki/UTF-8#Description">here</a>. The upshot of all this
+is that you just need to check the current byte if you want to be sure you’re on a codepoint
+boundary, and if you receive an arbitrarily byte-sliced string, you will not mistake it for
+something else. It’s not possible to have a valid code point be a subslice of another, or form a
+valid code point by subslicing a sequence of two different ones by cutting each in half.</p>
+
+<p>So all you need to do is keep track of the byte indices, and use them for slicing it later.</p>
+
+<p>All in all, it’s important to always remember that “code point” doesn’t have intrinsic meaning. If
+you need to do a segmentation operation on a string, find out what <em>exactly</em> you’re looking for, and
+what concept maps closest to that. It’s rare that “code point” is the concept you’re looking for.
+In <em>most</em> cases, what you’re looking for instead is “grapheme cluster”.</p>
+
+<h2 id="grapheme-clusters">Grapheme clusters</h2>
+
+<p>The concept of a “character” is a nebulous one. Is “각” a single character, or
+three? How about “नी”? Or “நி”? Or the “👨‍❤️‍👨” emoji<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>? Or the “👨‍👨‍👧‍👧” family emoji<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>?
+Different scripts have different concepts which may not clearly map to the Latin notion of “letter”
+or our programmery notion of “character”.</p>
+
+<p>Unicode itself gives the term <a href="http://unicode.org/glossary/#character">“character”</a> multiple incompatible meanings, and as
+far as I know doesn’t use the term in any normative text.</p>
+
+<p>Often, you need to deal with what is actually displayed to the user. A lot of terminal emulators do
+this wrong, and end up messing up cursor placement. I used to use irssi-xmpp to keep my Facebook and
+Gchat conversations in my IRC client, but I eventually stopped as I was increasingly chatting in
+Marathi or Hindi and I prefer using the actual script over romanizing<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, and it would just break
+my terminal<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup>. Also, they got rid of the XMPP bridge but I’d already cut down on it by then.</p>
+
+<p>So sometimes, you need an API querying what the font is doing. Generally, when talking about the
+actual rendered image, the term “glyph” or “glyph image” is used.</p>
+
+<p>However, you can’t always query the font. Text itself exists independent of rendering, and sometimes
+you need a rendering-agnostic way of segmenting it into “characters”.</p>
+
+<p>For this, Unicode has a concept of <a href="http://unicode.org/glossary/#grapheme_cluster">“grapheme cluster”</a>. There’s also “extended grapheme
+cluster” (EGC), which is basically an updated version of the concept. In this post, whenever
+I use the term “grapheme cluster”, I am talking about EGCs.</p>
+
+<p>The term is defined and explored in <a href="http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries">UAX #29</a>. It starts by pinning down the still-nebulous
+concept of “user-perceived character” (“a basic unit of a writing system for a language”),
+and then declares the concept of a “grapheme cluster” to be an approximation to this notion
+that we can determine programmatically.</p>
+
+<p>A rough definition of grapheme cluster is a “horizontally segmentable unit of text”.</p>
+
+<p>The spec goes into detail as to the exact algorithm that segments text at grapheme cluster
+boundaries. All of the examples I gave in the first paragraph of this section are single grapheme
+clusters. So is “ᄀᄀᄀ각ᆨᆨ” (or “ᄀᄀᄀ각ᆨᆨ”), which apparently is considered a
+single syllable block in Hangul even though it is not of the typical form of leading consonant +
+vowel + optional tail consonant, but is not something you’d see in modern Korean. The spec
+explicitly talks of this case so it seems to be on purpose. I like this string because nothing I
+know of renders it as a single glyph; so you can easily use it to tell if a particular segmentation-
+aware operation uses grapheme clusters as segmentation. If you try and select it, in most browsers
+you will be forced to select the whole thing, but backspace will delete the jamos one by one. For
+the second string, backspace will decompose the core syllable block too (in the first string the
+syllable block 각 is “precomposed” as a single code point, in the second one I
+built it using combining jamos).</p>
+
+<p>Basically, unless you have very specific requirements or are able to query the font, use an API that
+segments strings into grapheme clusters wherever you need to deal with the notion of “character”.</p>
+
+<h2 id="language-defaults">Language defaults</h2>
+
+<p>Now, a lot of languages by default are now using Unicode-aware encodings. This is great. It gets rid
+of the misconception that characters are one byte long.</p>
+
+<p>But it doesn’t get rid of the misconception that user-perceived characters are one code point long.</p>
+
+<p>There are only two languages I know of which handle this well: Swift and Perl 6. I don’t know much
+about Perl 6’s thing so I can’t really comment on it, but I am really happy with what Swift does:</p>
+
+<p>In Swift, the <code class="language-plaintext highlighter-rouge">Character</code> type is an extended grapheme cluster. This does mean that a
+character itself is basically a string, since EGCs can be arbitrarily many code points long.</p>
+
+<p>All the APIs by default deal with EGCs. The length of a string is the number of EGCs in it. They
+are indexed by EGC. Iteration yields EGCs. The default comparison algorithm uses unicode
+canonical equivalence, which I think is kind of neat. Of course, APIs that work with code
+points are exposed too, you can iterate over the code points using <code class="language-plaintext highlighter-rouge">.unicodeScalars</code>.</p>
+
+<p>The internal encoding itself is … weird (and as far as I can tell not publicly exposed), but as a
+higher level language I think it’s fine to do things like that.</p>
+
+<p>I strongly feel that languages should be moving in this direction, having defaults involving
+grapheme clusters.</p>
+
+<p>Rust, for example, gets a lot of things right – it has UTF-8 strings. It internally uses byte
+indices in slices. Explicit slicing usually uses byte indices too, and will panic if out of bounds.
+The non-O(1) methods are all explicit, since you will use an iterator to perform the operation (E.g.
+<code class="language-plaintext highlighter-rouge">.chars().nth(5)</code>). This encourages people to <em>think</em> about the cost, and it also  encourages people
+to coalesce the cost with nearby iterations – if you are going to do multiple <code class="language-plaintext highlighter-rouge">O(n)</code> things, do
+them in a single iteration! Rust <code class="language-plaintext highlighter-rouge">char</code>s represent code points. <code class="language-plaintext highlighter-rouge">.char_indices()</code> is
+a useful string iteration method that bridges the gap between byte indexing and code points.</p>
+
+<p>However, while the documentation does mention grapheme clusters, the stdlib is not aware of the
+concept of grapheme clusters at all. The default “fundamental” unit of the string in Rust is
+a code point, and the operations revolve around that. If you want grapheme clusters, you
+may use <a href="https://unicode-rs.github.io/unicode-segmentation/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes"><code class="language-plaintext highlighter-rouge">unicode-segmentation</code></a></p>
+
+<p>Now, Rust is a systems programming language and it just wouldn’t do to have expensive grapheme
+segmentation operations all over your string defaults. I’m very happy that the expensive <code class="language-plaintext highlighter-rouge">O(n)</code>
+operations are all only possible with explicit acknowledgement of the cost. So I do think that going
+the Swift route would be counterproductive for Rust. Not that it <em>can</em> anyway, due to backwards
+compatibility :)</p>
+
+<p>But I would prefer if the grapheme segmentation methods were in the stdlib (they used to be).
+This is probably not something that will happen, though I should probably push for the unicode
+crates being move into the nursery at least.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>Emoji may not render as a single glyph depending on the font. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>While writing this paragraph I discovered that wrapping text that contains lots of family emoji hangs Sublime. Neat. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>Part of the reason here is that I just find romanization confusing. There are some standardized ways to romanize which don’t get used much. My friends and I romanize one way, different from the standardizations. My family members romanize things a completely different way and it’s a bit hard to read. Then again, romanization <em>does</em> hide the fact that my spelling in Hindi is atrocious :) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>It’s possible to make work. You need a good terminal emulator, with the right settings, the right settings in your env vars, the right settings in irssi, and the right settings in screen. I think my current setup works well with non-ascii text but I’m not sure what I did to make it happen. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -3057,392 +3304,6 @@ Additionally, include some tips and tricks (like a link to the internal document
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2015/09/01/designing-a-gc-in-rust/">Designing a GC in Rust</a></h1>
-      <em>Posted by Manish Goregaokar on September 01, 2015 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>For a while I’ve been working on a <a href="http://github.com/Manishearth/rust-gc/">garbage collector for Rust</a> with <a href="http://github.com/mystor">Nika
-Layzell</a>. I thought this would be a good time to talk of our design and progress so far.</p>
-
-<h1 id="motivation">Motivation</h1>
-
-<p>“Wait”, you ask, “why does Rust need a garbage collector”? Rust is supposed to work <em>without</em> a GC,
-that’s one of its main selling points!</p>
-
-<p>True. Rust <em>does</em> work pretty well without a GC. It’s managed to do without one so far, and we still
-have all sorts of well-written crates out there (none of which use a GC).</p>
-
-<p>But Rust is not just about low-cost memory safety. It’s also <a href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">about choosing your costs and
-guarantees</a>. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> and stack allocation are not always sufficient, sometimes one needs to
-reach for something like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> (reference counting). But even <code class="language-plaintext highlighter-rouge">Rc</code> is not perfect; it can’t handle
-cycles between pointers. There are solutions to that issue like using <code class="language-plaintext highlighter-rouge">Weak&lt;T&gt;</code>, but that only works
-in limited cases (when you know what the points-to graph looks like at compile time), and isn’t very
-ergonomic.</p>
-
-<p>Cases where one needs to maintain a complicated, dynamic graph are where a GC becomes useful.
-Similarly, if one is writing an interpreter for a GCd language, having a GC in Rust would simplify
-things a lot.</p>
-
-<p>Not to say that one should pervasively use a GC in Rust. Similar to <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>, it’s best to use
-regular ownership-based memory management as much as possible, and sprinkle <code class="language-plaintext highlighter-rouge">Rc</code>/<code class="language-plaintext highlighter-rouge">Gc</code> in places
-where your code needs it.</p>
-
-<h1 id="previous-designs">Previous designs</h1>
-
-<p>This isn’t the first GC in Rust. Automatic memory management has existed before in various forms,
-but all were limited.</p>
-
-<p>Besides the ones listed below, Nick Fitzgerald’s <a href="https://github.com/fitzgen/bacon-rajan-cc">cycle collector</a> based on <a href="https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf">this paper</a>
-exists and is something that you should look into if you’re interested. There’s also <a href="https://github.com/pliniker/mo-gc/blob/master/doc/Project-RFC.md">an RFC</a>
-by Peter Liniker which sketches out a design for an immutable GC.</p>
-
-<h2 id="core-rust-gcs">Core Rust GC(s)</h2>
-
-<p>Rust itself had a garbage collector until a bit more than a year ago. These “managed pointers”
-(<code class="language-plaintext highlighter-rouge">@T</code>) were part of the language. They were removed later with a plan to make GC a library feature.</p>
-
-<p>I believe these were basically reference counted (cycle collected?) pointers with some language
-integration, but I’m not sure.</p>
-
-<p>Nowadays, the only form of automatic memory management in Rust are via <a href="http://doc.rust-lang.org/alloc/rc/struct.Rc.html"><code class="language-plaintext highlighter-rouge">Rc</code></a> and <a href="http://doc.rust-lang.org/std/sync/struct.Arc.html"><code class="language-plaintext highlighter-rouge">Arc</code></a>
-which are nonatomic and atomic reference counted pointers respectively. In other words, they keep
-track of the number of shared references via a reference count (incremented when it is cloned,
-decremented when destructors run). If the reference count reaches zero, the contents are cleaned up.</p>
-
-<p>This is a pretty useful abstraction, however, as mentioned above, it doesn’t let you create cycles
-without leaking them.</p>
-
-<h2 id="spidermonkey">Spidermonkey</h2>
-
-<p><em>You can read more about Servo’s Spidermonkey bindings <a href="https://blog.mozilla.org/research/2014/08/26/javascript-servos-only-garbage-collector/">in this blog post</a> (somewhat
-outdated, but still relevant)</em></p>
-
-<p>In Servo we use <a href="http://github.com/servo/rust-mozjs/">bindings to the Spidermonkey Javascript engine</a>. Since Javascript is a
-garbage collected language, the Rust representations of Javascript objects are also garbage
-collected.</p>
-
-<p>Of course, this sort of GC isn’t really useful for generic use since it comes bundled with a JS
-runtime. However, the Rust side of the GC is of a design that could be used in an independent
-library.</p>
-
-<p>The Rust side of the Spidermonkey GC is done through a bunch of smart pointers, and a trait called
-<code class="language-plaintext highlighter-rouge">JSTraceable</code>. <code class="language-plaintext highlighter-rouge">JSTraceable</code> is a trait which can “trace” recursively down some data, finding and
-marking all GC-managed objects inside it. This is autoderived using Rust’s plugin infrastructure, so
-a simple <code class="language-plaintext highlighter-rouge">#[jstraceable]</code> annotation will generate trace hooks for the struct it is on.</p>
-
-<p>Now, we have various smart pointers. The first is <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code>. This is opaque, but can be held by other
-GC-managed structs. To use this on the stack, this must be explicitly <em>rooted</em>, via <code class="language-plaintext highlighter-rouge">.root()</code>. This
-produces a <code class="language-plaintext highlighter-rouge">Root&lt;T&gt;</code>, which can be dereferenced to get the inner object. When the <code class="language-plaintext highlighter-rouge">Root</code> is created,
-the contained object is listed in a collection of “roots” in a global. A root indicates that the
-value is being used on the stack somewhere, and the GC starts tracing usage from these roots. When
-the <code class="language-plaintext highlighter-rouge">Root&lt;T&gt;</code> is destroyed, the root is removed.</p>
-
-<p>The problem with this is that <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> doesn’t work on the stack. There is no way for the GC to know
-that we are holding on to <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> on the stack. So, if I copy a <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> to the stack, remove all
-references to it from objects in the GC heap, and trigger a collection, the <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> will still be
-around on the stack after collection since the GC can’t trace to it. If I attempt to root it, I may
-get a panic or a segfault depending on the implementation.</p>
-
-<p>To protect against this, we have a bunch of lints. The <a href="https://github.com/servo/servo/blob/master/components/plugins/lints/unrooted_must_root.rs">relevant one</a> here protects
-against <code class="language-plaintext highlighter-rouge">JS&lt;T&gt;</code> from being carried around on the stack; but like most lints, it’s not perfect.</p>
-
-<p>To summarize: Spidermonkey gives us a good GC. However using it for a generic Rust program is ill
-advised. Additionally, Servo’s wrappers around the GC are cheap, but need lints for safety. While it
-would probably be possible to write safer wrappers for general usage, it’s pretty impractical to
-carry around a JS runtime when you don’t need one.</p>
-
-<p>However, Spidermonkey’s GC did inspire me to think more into the matter.</p>
-
-<h1 id="brainstorming-a-design">Brainstorming a design</h1>
-
-<p>For quite a while I’d had various ideas about GCs. Most were simplifications of Servo’s wrappers
-(there’s some complexity brought in there by Spidermonkey that’s not necessary for a general GC).
-Most were tracing/rooting with mark-and-sweep collection. All of them used lints. Being rather busy,
-I didn’t really work on it past that, but planned to work on it if I could find someone to work
-with.</p>
-
-<p>One day, <a href="http://github.com/mystor">Nika</a> pinged me on IRC and asked me about GCs. Lots of people knew that I was
-interested in writing a GC for Rust, and one of them directed her to me when she expressed a similar
-interest.</p>
-
-<p>So we started discussing GCs. We settled on a tracing mark-and-sweep GC. In other words, the GC runs
-regular “sweeps” where it first “traces” the usage of all objects and marks them and their children
-as used, and then sweeps up all unused objects.</p>
-
-<p>This model on its own has a flaw. It doesn’t know about GC pointers held on the stack as local
-variables (“stack roots”). There are multiple methods for solving this. We’ve already seen one above
-in the Spidermonkey design – maintain two types of pointers (one for the stack, one for the heap),
-and try very hard using static analysis to ensure that they don’t cross over.</p>
-
-<p>A common model (used by GCs like Boehm, called “conservative GCs”) is to do something called “stack
-scanning”. In such a system, the GC goes down the stack looking for things which may perhaps be GC
-pointers. Generally the GC allocates objects in known regions of the memory, so a GC pointer is any
-value on the stack which belongs to one of these regions.</p>
-
-<p>Of course, this makes garbage collection rather inefficient, and will miss cases like <code class="language-plaintext highlighter-rouge">Box&lt;Gc&lt;T&gt;&gt;</code>
-where the GCd pointer is accessible, but through a non-GC pointer.</p>
-
-<p>We decided rather early on that we didn’t want a GC based on lints or stack scanning. Both are
-rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. We were also hoping that
-Rust’s type system and ownership semantics could help us in designing a good, safe, API.</p>
-
-<p>So, we needed a way to keep track of roots, and we needed a way to trace objects.</p>
-
-<h2 id="tracing">Tracing</h2>
-
-<p>The latter part was easy. We wrote a compiler plugin (well, we stole <a href="https://github.com/servo/servo/blob/master/components/plugins/jstraceable.rs#L38">Servo’s tracing plugin which
-I’d written earlier</a>) which autoderives an implementation of the <code class="language-plaintext highlighter-rouge">Trace</code> trait on any
-given struct or enum, using the same internal infrastructure that <code class="language-plaintext highlighter-rouge">#[derive(PartialEq)]</code> and the
-rest use. So, with just the following code, it’s easy to make a struct or enum gc-friendly:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Trace)]</span>
-<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="n">y</span><span class="p">:</span> <span class="n">Bar</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="nd">#[derive(Trace)]</span>
-<span class="k">enum</span> <span class="n">Bar</span> <span class="p">{</span>
-    <span class="nf">Baz</span><span class="p">(</span><span class="nb">u8</span><span class="p">),</span> <span class="n">Quux</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>For a <code class="language-plaintext highlighter-rouge">foo</code> of type <code class="language-plaintext highlighter-rouge">Foo</code> <code class="language-plaintext highlighter-rouge">foo.trace()</code>, will expand to a call of <code class="language-plaintext highlighter-rouge">foo.x.trace()</code> and
-<code class="language-plaintext highlighter-rouge">foo.y.trace()</code>. <code class="language-plaintext highlighter-rouge">bar.trace()</code> will check which variant it is and call <code class="language-plaintext highlighter-rouge">trace()</code> on the <code class="language-plaintext highlighter-rouge">u8</code> inside
-if it’s a <code class="language-plaintext highlighter-rouge">Baz</code>. For most structs this turns out to be a no-op and is often optimized away by
-inlining, but if a struct contains a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, the special implementation of <code class="language-plaintext highlighter-rouge">Trace</code> for <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> will
-“mark” the traceability of the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>. Types without <code class="language-plaintext highlighter-rouge">Trace</code> implemented cannot be used in types
-implementing <code class="language-plaintext highlighter-rouge">Trace</code> or in a <code class="language-plaintext highlighter-rouge">Gc</code>, which is enforced with a <code class="language-plaintext highlighter-rouge">T: Trace</code> bound on <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>.</p>
-
-<p>So, we have a way of walking the fields of a given object and finding inner <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s. Splendid. This
-lets us write the mark&amp;sweep phase easily: Take the list of known reachable <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s, walk their
-contents until you find more <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s (marking all you find), and clean up any which aren’t
-reachable.</p>
-
-<h2 id="rooting">Rooting</h2>
-
-<p>Of course, now we have to solve the problem of keeping track of the known reachable <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s, i.e.
-the roots. This is a hard problem to solve without language support, and I hope that eventually we
-might be able to get the language hooks necessary to solve it. LLVM <a href="http://llvm.org/docs/GarbageCollection.html#gcroot">has support for tracking
-GCthings on the stack</a>, and some day we may be able to leverage that in Rust.</p>
-
-<p>As noted above, Spidermonkey’s solution was to have non-rooted (non-dereferencable) heap pointers,
-which can be explicitly converted to rooted pointers and then read.</p>
-
-<p>We went the other way. All <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> pointers, when created, are considered “rooted”. The instance of
-<code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> has a “rooted” bit set to true, and the underlying shared box (<code class="language-plaintext highlighter-rouge">GcBox</code>, though this is not a
-public interface) has its “root count” set to one.</p>
-
-<p>When this <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is cloned, an identical <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> (with rooted bit set to true) is returned, and the
-underlying root count is incremented. Cloning a <code class="language-plaintext highlighter-rouge">Gc</code> does not perform a deep copy.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// a.root = true, (*a.ptr).roots = 1, (*a.ptr).data = 20</span>
-
-<span class="c1">// ptr points to the underlying box, which contains the data as well as</span>
-<span class="c1">// GC metadata like the root count. `Gc::new()` will allocate this box</span>
-
-<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="nf">.clone</span><span class="p">();</span> <span class="c1">// b.root = true, (*a.ptr).roots++, b.ptr = a.ptr</span>
-</code></pre></div></div>
-
-<p>This is rather similar to how <code class="language-plaintext highlighter-rouge">Rc</code> works, however there is no <code class="language-plaintext highlighter-rouge">root</code> field, and the <code class="language-plaintext highlighter-rouge">roots</code> counter
-is called a “reference counter”.</p>
-
-<p>For regular local sharing, it is recommended to just use a borrowed reference to the inner variable
-(borrowing works fine with rust-gc!) since there is no cost to creating this reference.</p>
-
-<p>When a GC thing is put inside another GC thing, the first thing no longer can remain a root. This is
-handled by “unrooting” the first GC thing:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="nb">u32</span><span class="p">,</span>
-    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// why anyone would want to GC an integer I'll never know</span>
-                     <span class="c1">// but I'll stick with this example since it's simple</span>
-
-<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">bar</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">baz</span><span class="p">:</span> <span class="n">a</span><span class="p">});</span>
-<span class="c1">// a.root = false, (*a.ptr).roots--</span>
-<span class="c1">// b initialized similar to previous example</span>
-
-<span class="c1">// `a` was moved into `b`, so now `a` cannot be accessed directly here</span>
-<span class="c1">// other than through `b`, and `a` is no longer a root.</span>
-<span class="c1">// To avoid moving a, passing `a.clone()` to `b` will work</span>
-</code></pre></div></div>
-
-<p>Of course, we need a way to traverse the object passed to the <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>, in this case <code class="language-plaintext highlighter-rouge">Foo</code>, and look
-for any contained <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>s to unroot. Sound familiar? This needs the same mechanism that <code class="language-plaintext highlighter-rouge">trace()</code>
-needed! We add struct-walking <code class="language-plaintext highlighter-rouge">root()</code> and <code class="language-plaintext highlighter-rouge">unroot()</code> methods to the <code class="language-plaintext highlighter-rouge">Trace</code> trait which are auto-
-derived exactly the same way, and continue. (We don’t need <code class="language-plaintext highlighter-rouge">root()</code> right now, but we will need it
-later on).</p>
-
-<p>Now, during collection, we can just traverse the list of <code class="language-plaintext highlighter-rouge">GcBox</code>s and use the ones with a nonzero
-root count as roots for our mark traversal.</p>
-
-<p>So far, so good. We have a pretty sound design for a GC that works … for immutable data.</p>
-
-<h3 id="mutability">Mutability</h3>
-
-<p>Like <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code>, <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> is by default immutable. Rust abhors aliasable mutability, <a href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">even in single
-threaded contexts</a>, and both these smart pointers allow aliasing.</p>
-
-<p>Mutation poses a problem for our GC, beyond the regular problems of aliasable mutability: It’s
-possible to move rooted things into heap objects and vice versa:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
-
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span>
-
-<span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="n">x</span><span class="p">);</span> <span class="c1">// uh oh, x is still considered rooted!</span>
-
-<span class="c1">// and the reverse!</span>
-
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">)));</span>
-
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// x was never rooted!</span>
-<span class="c1">// `take()` moves the `Some(Gc&lt;u32&gt;)` out of `y`, replaces it with `None`       </span>
-</code></pre></div></div>
-
-<p>Since <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> doesn’t implement <code class="language-plaintext highlighter-rouge">DerefMut</code>, none of this is possible — one cannot mutate the
-inner data. This is one of the places where Rust’s ownership/mutability system works out awesomely
-in our favor.</p>
-
-<p>Of course, an immutable GC isn’t very useful. We can’t even create cycles in an immutable GC, so why
-would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>?</p>
-
-<p>So of course, we needed to make it somehow mutable. People using <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> solve this problem by using
-<code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
-mutable. <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code> itself can’t be used by us since it doesn’t guard against the problem
-illustrated above (and hence won’t implement <code class="language-plaintext highlighter-rouge">Trace</code>, but a similar cell type would work).</p>
-
-<p>So we created <code class="language-plaintext highlighter-rouge">GcCell&lt;T&gt;</code>. This behaves just like <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, except that it will <code class="language-plaintext highlighter-rouge">root()</code> before
-beginning a mutable borrow, and <code class="language-plaintext highlighter-rouge">unroot()</code> before ending it (well, only if it itself is not rooted,
-which is tracked by an internal field similar to <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code>). Now, everything is safe:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Trace)]</span>
-<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">a</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="n">b</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
-
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Foo</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">30</span><span class="p">)});</span>
-<span class="p">{</span>
-    <span class="o">*</span><span class="n">y</span><span class="py">.b</span><span class="nf">.borrow_mut</span><span class="p">()</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="c1">// the `Gc(30)` from `y.b` was rooted by this call</span>
-                           <span class="c1">// but since we don't actually use it here,</span>
-                           <span class="c1">// the destructor gets rid of it.</span>
-                           <span class="c1">// We could use swap() to retain access to it.</span>
-    <span class="c1">// ...</span>
-    <span class="c1">// x unrooted</span>
-<span class="p">}</span>
-
-
-<span class="c1">// and the reverse case works too:</span>
-
-<span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">GcCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">))));</span>
-
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">y</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.take</span><span class="p">();</span> <span class="c1">// the inner `Some(Gc(20))` gets rooted by `borrow_mut()`</span>
-                               <span class="c1">// before `x` can access it</span>
-</code></pre></div></div>
-
-<p>So now, mutation works too! We have a working garbage collector!</p>
-
-<h1 id="open-problems">Open problems</h1>
-
-<h2 id="destructors">Destructors</h2>
-
-<p>I believe this can be solved without lints, but it <em>may</em> require some upcoming features of Rust to
-be implemented first (like specialization).</p>
-
-<p>In essence, destructors implemented on a value inside <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> can be unsafe. This will only happen
-if they try to access values within a <code class="language-plaintext highlighter-rouge">Gc&lt;T&gt;</code> — if they do, they may come across a box that
-has already been collected, or they may lengthen the lifetime of a box scheduled to be collected.</p>
-
-<p>The basic solution to this is to use “finalizers” instead of destructors. Finalizers, like in Java,
-are not guaranteed to run. However, we may need further drop hooks or trait specialization to make
-an airtight interface for this. I don’t have a concrete design for this yet, though.</p>
-
-<h2 id="concurrency">Concurrency</h2>
-
-<p>Our model mostly just works in a concurrent situation (with thread safety tweaks, of course); in
-fact it’s possible to make it so that the concurrent GC will not “stop the world” unless someone
-tries to do a write to a <code class="language-plaintext highlighter-rouge">GcCell</code>. We have an experimental concurrent GC in <a href="https://github.com/Manishearth/rust-gc/pull/6">this pull
-request</a>. We still need to figure out how to make interop between both GCs safe, though we may
-just end up making them such that an object using one GC cannot be fed to an object using the other.</p>
-
-<h2 id="performance">Performance</h2>
-
-<p>So far we haven’t really focused on performance, and worked on ensuring safety. Our collection
-triggering algorithm, for example, was horribly inefficient, though we planned on improving it. The
-wonderful Huon <a href="https://github.com/Manishearth/rust-gc/pull/9">fixed this</a>, though.</p>
-
-<p>Similarly, we haven’t yet optimized storage. We have some ideas which we may work on later. (If you
-want to help, contributions welcome!)</p>
-
-<h2 id="cross-crate-deriving">Cross-crate deriving</h2>
-
-<p>Currently, an object deriving <code class="language-plaintext highlighter-rouge">Trace</code> should have <code class="language-plaintext highlighter-rouge">Trace</code>able children. This isn’t always possible
-when members from another crate (which does not depend on rust-gc) are involved. At the moment, we
-allow an <code class="language-plaintext highlighter-rouge">#[unsafe_ignore_trace]</code> annotation on fields which are of this type (which excludes it
-from being traced – if that crate doesn’t transitively depend on rust-gc, its members cannot
-contain GCthings anyway unless generics are involved). It should be possible to detect whether or
-not this is safe, and/or autoderive <code class="language-plaintext highlighter-rouge">Trace</code> using the opt-in builtin traits framework (needs
-specialization to work), but at the moment we don’t do anything other than expose that annotation.</p>
-
-<p>Stdlib support for a global <code class="language-plaintext highlighter-rouge">Trace</code> trait that everyone derives would be awesome.</p>
-
-<h1 id="conclusion">Conclusion</h1>
-
-<p>Designing a GC was a wonderful experience! I didn’t get to write much code (I was busy and Nika
-was able to implement most of it overnight because she’s totally awesome), but the long design
-discussions followed by trying to figure out holes in the GC design in every idle moment of the day
-were quite enjoyable. GCs are very hard to get right, but it’s very satisfying when you come up with
-a design that works! I’m also quite happy at how well Rust helped in making a safe interface.</p>
-
-<p>I encourage everyone to try it out and/or find holes in our design. Contributions of all kind
-welcome, we’d especially love performance improvements and testcases.</p>
-
-<p><small>Discuss: <a href="https://news.ycombinator.com/item?id=10148471">HN</a>, <a href="https://www.reddit.com/r/rust/comments/3j4bx2/designing_a_gc_in_rust/">Reddit</a></small></p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1" role="doc-endnote">
-      <p>I’m very skeptical that it’s possible to make either of these completely sound without writing lints which effectively rewrite a large chunk of the compiler <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3" role="doc-endnote">
-      <p>There is a case to be made for an immutable GC which allows some form of deferred initialization of GC fields, however. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/5">&larr; Older</a>
@@ -3475,6 +3336,10 @@ welcome, we’d especially love performance improvements and testcases.</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
       </li>
     
@@ -3490,10 +3355,6 @@ welcome, we’d especially love performance improvements and testcases.</p>
         <a href="/blog/2019/10/09/on-voting-systems/">On Voting Systems</a>
       </li>
     
-      <li class="post">
-        <a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a>
-      </li>
-    
   </ul>
 </section>
 <section>
@@ -3505,8 +3366,8 @@ welcome, we’d especially love performance improvements and testcases.</p>
 <li class='category'><a href='/blog/categories/elections/'>elections (1)</a></li>
 <li class='category'><a href='/blog/categories/html/'>html (1)</a></li>
 <li class='category'><a href='/blog/categories/js/'>js (1)</a></li>
-<li class='category'><a href='/blog/categories/meta/'>meta (1)</a></li>
-<li class='category'><a href='/blog/categories/physics/'>physics (1)</a></li>
+<li class='category'><a href='/blog/categories/meta/'>meta (2)</a></li>
+<li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
 <li class='category'><a href='/blog/categories/programming/'>programming (43)</a></li>
@@ -3515,7 +3376,7 @@ welcome, we’d especially love performance improvements and testcases.</p>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
 <li class='category'><a href='/blog/categories/web/'>web (2)</a></li>
-<li class='category'><a href='/blog/categories/writing/'>writing (1)</a></li>
+<li class='category'><a href='/blog/categories/writing/'>writing (2)</a></li>
 
   </ul>
 </section>
