@@ -1,10 +1,11 @@
 ---
 layout: post
-title: "Colophon: Waiter, There Are Pions in my Blog Post"
-date: 2021-04-05 08:32:30 -0700
+title: "Colophon: Waiter, There Are Pions in my Blog Post!"
+date: 2022-08-03 09:43:49 -0700
 comments: true
-categories: ["meta"]
+categories: ["meta", "writing", "physics"]
 ---
+
 
 I've added a couple new styling elements to my blog and I make use of them extensively in upcoming posts, I thought I'd talk a bit about them because I expect people will have questions.
 
