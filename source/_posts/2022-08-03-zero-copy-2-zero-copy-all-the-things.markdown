@@ -6,7 +6,7 @@ comments: true
 categories: ["mozilla", "programming", "rust"]
 ---
 
-_This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 2]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
+_This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I've been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found [here][part 1]; while Part 3 is about eliminating the deserialization step entirely and can be found [here][part 3]. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization_ is.
 
 
 ## Background
@@ -26,7 +26,7 @@ Given the focus on data, a _very_ attractive option for us is zero-copy deserial
 
 {% discussion pion-plus%}If you're unfamiliar with zero-copy deserialization, check out the explanation in the [previous article]!
 
- [previous article]: @@@@
+ [previous article]: ../zero-copy-1-not-a-yoking-matter/
 {% enddiscussion %}
 
 
@@ -305,20 +305,23 @@ The strings are randomly generated, picked with sizes between 2 and 20 code poin
 
 Here, fetching operations are a bit slower since they need to read the indexing array, but there's still a decent win for zero-copy deserialization. The deserialization wins stack up for more complex data; for `Vec<String>` you can get _most_ of the wins by using `Vec<&str>`, but that's not necessarily possible for something more complex. We don't currently have mutation benchmarks for `VarZeroVec`, but mutation can be slow and as mentioned before it's not intended to be used much in client code.
 
+Some of this is still in flux; for example we are in the process of [making `VarZeroVec`'s buffer format configurable][vzv-config] so that users can pick their precise tradeoffs.
 
 ## Try it out!
 
 Similar to [`yoke`], I don't consider the [`zerovec`] crate "done" yet, but it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), and [Shane] for reviewing drafts of this post_
 
 
 
 
- [part 1]: @@@
+ [part 1]: ../zero-copy-1-not-a-yoking-matter/
+ [part 3]: ../zero-copy-3-so-zero-its-dot-dot-dot-negative/
  [ICU4X]: https://github.com/unicode-org/icu4x
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv
+ [`yoke`]: https://docs.rs/yoke
  [`postcard`]: https://docs.rs/postcard
  [`litemap`]: https://docs.rs/litemap
  [rkyv-alignedvec]: https://docs.rs/rkyv/latest/rkyv/util/struct.AlignedVec.html
@@ -337,6 +340,7 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
  [bench-run]: https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0
  [bench-hash]: https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec
  [Shane]: https://github.com/sffc
+ [vzv-config]: https://github.com/unicode-org/icu4x/pull/2306
 
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.

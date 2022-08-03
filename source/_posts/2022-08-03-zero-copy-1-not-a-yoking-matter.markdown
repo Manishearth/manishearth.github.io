@@ -72,7 +72,7 @@ You may notice that `rust_files_written` can't be found in this new struct. This
 
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv
- [part 2]: https://@@@@
+ [part 2]: ../zero-copy-2-zero-copy-all-the-things/
 
 {% endaside %}
 
@@ -275,7 +275,7 @@ Using this trait, `Yoke` then works by storing `Self<'static>` and transforming 
 
 ## Better conversions: ZeroFrom
 
-A crate that pairs well with this is [`zerofrom`][zerofrom-crate], primarily designed and written by [Shane]. It comes with the [`ZeroFrom`] trait, that looks like this:
+A crate that pairs well with this is [`zerofrom`][zerofrom-crate], primarily designed and written by [Shane]. It comes with the [`ZeroFrom`] trait:
 
 ```rust
 pub trait ZeroFrom<'zf, C: ?Sized>: 'zf {
@@ -306,7 +306,7 @@ As of Rust 1.61, a lot of the major bugs have been fixed, however there are stil
 
 While I don't consider the [`yoke`] crate "done" yet, it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), and [Shane] for reviewing drafts of this post_
 
 
 
@@ -324,8 +324,8 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
  [`Rc<T>`]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
  [Shane]: https://github.com/sffc
  [Yoke::get]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get
- [part 2]: https://@@@@
- [part 3]: https://@@@@
+ [part 2]: ../zero-copy-2-zero-copy-all-the-things/
+ [part 3]: ../zero-copy-3-so-zero-its-dot-dot-dot-negative/
  [yoke-discussion]: https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099
  [design doc]: https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md
  [`Yokeable`]: https://docs.rs/yoke/latest/yoke/trait.Yokeable.html

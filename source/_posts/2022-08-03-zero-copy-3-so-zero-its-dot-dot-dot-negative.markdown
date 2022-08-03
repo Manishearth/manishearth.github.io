@@ -14,8 +14,6 @@ _This is part 3 of a three-part series on interesting abstractions for zero-copy
 > —Hans Gruber, after designing three increasingly unhinged zero-copy crates
 
 
-@@@ Potentially swap the order of part 1 and part 2.
-
 [Part 1] of this series attempted to answer the question "how can we make zero-copy deserialization _pleasant_", while [part 2] answered "how do we make zero-copy deserialization _more useful_?".
 
 This part goes one step further and asks "what if we could avoid deserialization altogether?".
@@ -31,7 +29,7 @@ Deserialization is a _great_ way to load data since it's in and of itself quite 
 
 But the thing is, there is still a cost. Even with zero-copy deserialization, you have to _validate_ the data you receive. It's often a cost folks are happy to pay, but that's not always the case.
 
-For example, you might be, say, [a web browser interested in ICU4X][firefox], and you _really_ care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.
+For example, you might be, say, [a web browser interested in using ICU4X][firefox], and you _really_ care about startup times. Browsers typically need to set up a lot of stuff when being started up (and when opening a new tab!), and every millisecond counts when it comes to giving the user a smooth experience. Browsers also typically ship with most of the internationalization data they need already. Spending precious time deserializing data that you shipped with is suboptimal.
 
 What would be ideal would be something that works like this:
 
@@ -179,20 +177,20 @@ This means that for things like `ZeroVec` (see [part 2]), we can't actually just
 
 ## Try it out!
 
-[`crabbake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
+[`databake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
 
-_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), [Shane], and [Robert] for reviewing drafts of this post_
 
 
 
- [part 1]: @@@
- [part 2]: @@@
+ [part 1]: ../zero-copy-1-not-a-yoking-matter/
+ [part 2]: ../zero-copy-2-zero-copy-all-the-things/
  [ICU4X]: https://github.com/unicode-org/icu4x
  [firefox]: https://www.mozilla.org/en-US/firefox/
  [`databake`]: https://docs.rs/databake
  [`yoke`]: https://docs.rs/yoke
  [`zerovec`]: https://docs.rs/zerovec
- [`postcard `]: https://docs.rs/postcard
+ [`postcard`]: https://docs.rs/postcard
  [procedural macros]: https://doc.rust-lang.org/reference/procedural-macros.html
  [design doc]: https://docs.google.com/document/d/192l7yr6hVnG11Dr8a7mDLonIb6c8rr6zq-iswrZtlXE/edit
  [bake-derive]: https://docs.rs/databake/0.1.1/databakee/derive.Bake.html
