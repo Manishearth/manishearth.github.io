@@ -3,7 +3,7 @@ layout: post
 title: "Why I enjoy blogging"
 date: 2018-08-26 12:08:46 -0700
 comments: true
-categories: [writing, programming]
+categories: [writing, programming, meta]
 ---
 
 _See also: [Alex's version of this blog post][alex-blogging]_
