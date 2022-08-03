@@ -182,7 +182,7 @@ This means that for things like `ZeroVec` (see [part 2]), we can't actually just
 
 [`crabbake`] is much less mature compared to [`yoke`] and [`zerovec`], but it does seem to work rather well so far. Try it out! Let me know what you think!
 
-_Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
 
 
 
@@ -207,3 +207,4 @@ _Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for
  [^2]: Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well.
  [const-alloc]: https://github.com/rust-lang/const-eval/issues/20
  [Robert]: https://github.com/robertbastian
+ [Shane]: https://github.com/sffc

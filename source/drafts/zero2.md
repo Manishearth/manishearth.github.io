@@ -83,7 +83,7 @@ So how can we address this?
 
 _A lot of the design here can be found explained in the [design doc]_
 
-After [a bunch of discussions][zerovec-discussions] with [Shane], we designed [`zerovec`][zerovec-lib], a crate that attempts to solve this problem, in a way that works with [`serde`].
+After [a bunch of discussions][zerovec-discussions] with [Shane], we designed and wrote [`zerovec`][zerovec-lib], a crate that attempts to solve this problem, in a way that works with [`serde`].
 
 The core abstractions of the crate are the two types, [`ZeroVec`] and [`VarZeroVec`], which are essentially zero-copy enabled versions of `Cow<'a, [T]>`, for fixed-size and variable-size `T` types.
 
@@ -311,7 +311,7 @@ Here, fetching operations are a bit slower since they need to read the indexing 
 
 Similar to [`yoke`], I don't consider the [`zerovec`] crate "done" yet, but it's been in use in ICU4X for a year now and I consider it mature enough to recommend to others. Try it out! Let me know what you think!
 
-_Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
+_Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/yaahc_), @@@@ for reviewing drafts of this post_
 
 
 
@@ -337,6 +337,7 @@ _Thanks to [Finch](twitter.com/plaidfinch), [Jane](twitter.com/yaahc_), @@@@ for
  [rkyv-bench]: https://github.com/djkoloski/rust_serialization_benchmark
  [bench-run]: https://gist.github.com/Manishearth/056a0ec12f9c943d71d214713d448ac0
  [bench-hash]: https://github.com/unicode-org/icu4x/tree/1e072b3248b93a974e21f3d01bc6a165eb272554/utils/zerovec
+ [Shane]: https://github.com/sffc
 
 
  [^1]: A _locale_ is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use.
