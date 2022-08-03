@@ -68,7 +68,7 @@ Okay, okay.
 
 So a [pion] is a type of subatomic particle, and is part of the mechanism holding the nucleus of an atom together. There are three of them, π<sup>0</sup> , π<sup>+</sup> , and π<sup>−</sup>, with the positive and negative ones being antiparticles of each other.
 
-Why I've chosen that particle in particular requires some history first.
+As for _why_ I've chosen that particle in particular, explaining that requires some history first.
 
 Back when we only knew about protons, neutrons, and electrons, physicists were attempting to figure out how atomic nuclei stay together. They're made of protons and neutrons, which means they're just a lot of positively and neutrally changed thingies crammed into a tight space. There's not much reason for that to want to stay together, but there's plenty of reason for it to come apart. This is rather concerning to beings made out of atoms, like physicists.
 
