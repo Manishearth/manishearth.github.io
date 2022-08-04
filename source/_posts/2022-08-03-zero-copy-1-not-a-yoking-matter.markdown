@@ -193,7 +193,7 @@ There's a bunch more you can do with `Yoke`, for example you can "project" a yok
 ```rust
 let person: Yoke<Person<'static>, Rc<[u8]>> = ....;
 
-let person_name: Yoke<Cow<'static, str> = person.project(|p, _| p.name);
+let person_name: Yoke<Cow<'static, str>> = person.project(|p, _| p.name);
 
 ```
 
@@ -202,7 +202,7 @@ This allows one to mix data coming from disparate Yokes.
 `Yoke`s are, perhaps surprisingly, _mutable_ as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no _additional_ borrowed data sneaks in:
 
 ```rust
-let person: Yoke<Person<'static>, Rc<[u8]>> = ....;
+let mut person: Yoke<Person<'static>, Rc<[u8]>> = ....;
 
 // make the name sound fancier
 person.with_mut(|person| {
