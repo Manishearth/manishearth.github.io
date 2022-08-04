@@ -236,7 +236,7 @@ unsafe impl<'a> Yokeable<'a> for Cow<'static, str> {
 }
 ```
 
-An implementation of this trait will be implemented on the `'static` version of a type with a lifetime (which I will call `Self<'static>`[^3] in this post), and maps the type to a version of it with a lifetime (`Self<'a>`). It must only be implemented on types where the lifetime `'a` is _covariant_, i.e., where it's safe to treat `Self<'a>` with `Self<'b>` when `'b` is a shorter lifetime. Most types with lifetimes fall in this category[^4], especially in the space of zero-copy deserialization.
+An implementation of this trait will be implemented on the `'static` version of a type with a lifetime (which I will call `Self<'static>`[^3] in this post), and maps the type to a version of it with a lifetime (`Self<'a>`). It must only be implemented on types where the lifetime `'a` is _covariant_, i.e., where it's safe to treat `Self<'a>` as `Self<'b>` when `'b` is a shorter lifetime. Most types with lifetimes fall in this category[^4], especially in the space of zero-copy deserialization.
 
 {% discussion pion-plus %}You can read more about variance in the [nomicon][nomicon-subtyping]! 
 
