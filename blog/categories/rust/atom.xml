@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2022-08-03T23:39:14+00:00</updated>
+  <updated>2022-08-04T04:27:24+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -744,7 +744,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
 
-<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="n">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">person_name</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Cow</span><span class="o">&lt;</span><span class="k">'static</span><span class="p">,</span> <span class="nb">str</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="n">person</span><span class="nf">.project</span><span class="p">(|</span><span class="n">p</span><span class="p">,</span> <span class="n">_</span><span class="p">|</span> <span class="n">p</span><span class="py">.name</span><span class="p">);</span>
 
 </code></pre></div></div>
 
@@ -752,7 +752,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p><code class="language-plaintext highlighter-rouge">Yoke</code>s are, perhaps surprisingly, <em>mutable</em> as well! They are, after all, primarily intended to be used with copy-on-write data, so there are ways to mutate them provided that no <em>additional</em> borrowed data sneaks in:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">person</span><span class="p">:</span> <span class="n">Yoke</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="p">[</span><span class="nb">u8</span><span class="p">]</span><span class="o">&gt;&gt;</span> <span class="o">=</span> <span class="o">...</span><span class="err">.</span><span class="p">;</span>
 
 <span class="c1">// make the name sound fancier</span>
 <span class="n">person</span><span class="nf">.with_mut</span><span class="p">(|</span><span class="n">person</span><span class="p">|</span> <span class="p">{</span>
