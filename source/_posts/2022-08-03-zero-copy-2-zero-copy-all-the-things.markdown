@@ -26,7 +26,7 @@ Given the focus on data, a _very_ attractive option for us is zero-copy deserial
 
 {% discussion pion-plus%}If you're unfamiliar with zero-copy deserialization, check out the explanation in the [previous article]!
 
- [previous article]: ../zero-copy-1-not-a-yoking-matter/
+ [previous article]: {% post_url 2022-08-03-zero-copy-1-not-a-yoking-matter %}
 {% enddiscussion %}
 
 
@@ -316,8 +316,9 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
 
 
 
- [part 1]: ../zero-copy-1-not-a-yoking-matter/
- [part 3]: ../zero-copy-3-so-zero-its-dot-dot-dot-negative/
+
+ [part 1]: {% post_url 2022-08-03-zero-copy-1-not-a-yoking-matter %}
+ [part 3]: {% post_url 2022-08-03-zero-copy-3-so-zero-its-dot-dot-dot-negative %}
  [ICU4X]: https://github.com/unicode-org/icu4x
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv

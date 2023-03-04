@@ -72,7 +72,7 @@ You may notice that `rust_files_written` can't be found in this new struct. This
 
  [`serde`]: https://docs.rs/serde
  [`rkyv`]: https://docs.rs/rkyv
- [part 2]: ../zero-copy-2-zero-copy-all-the-things/
+ [part 2]: {% post_url 2022-08-03-zero-copy-2-zero-copy-all-the-things %}
 
 {% endaside %}
 
@@ -324,8 +324,8 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
  [`Rc<T>`]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
  [Shane]: https://github.com/sffc
  [Yoke::get]: https://docs.rs/yoke/latest/yoke/struct.Yoke.html#method.get
- [part 2]: ../zero-copy-2-zero-copy-all-the-things/
- [part 3]: ../zero-copy-3-so-zero-its-dot-dot-dot-negative/
+ [part 2]: {% post_url 2022-08-03-zero-copy-2-zero-copy-all-the-things %}
+ [part 3]: {% post_url 2022-08-03-zero-copy-3-so-zero-its-dot-dot-dot-negative %}
  [yoke-discussion]: https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099
  [design doc]: https://github.com/unicode-org/icu4x/blob/main/utils/yoke/design_doc.md
  [`Yokeable`]: https://docs.rs/yoke/latest/yoke/trait.Yokeable.html
