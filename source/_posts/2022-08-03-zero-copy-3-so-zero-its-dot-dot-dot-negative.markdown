@@ -183,8 +183,8 @@ _Thanks to [Finch](https://twitter.com/plaidfinch), [Jane](https://twitter.com/y
 
 
 
- [part 1]: ../zero-copy-1-not-a-yoking-matter/
- [part 2]: ../zero-copy-2-zero-copy-all-the-things/
+ [part 1]: {% post_url 2022-08-03-zero-copy-1-not-a-yoking-matter %}
+ [part 2]: {% post_url 2022-08-03-zero-copy-2-zero-copy-all-the-things %}
  [ICU4X]: https://github.com/unicode-org/icu4x
  [firefox]: https://www.mozilla.org/en-US/firefox/
  [`databake`]: https://docs.rs/databake
