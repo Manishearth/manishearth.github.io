@@ -1,0 +1,407 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Diplomat: Multi-language FFI for Rust Libraries - In Pursuit of Laziness</title>
+  <meta name="author" content="Manish Goregaokar">
+
+  
+  <meta name="description" content="For the past few years, as a part of my work on ICU4X, I’ve been working on Diplomat, a multi-language unidirectional FFI tool for wrapping Rust &hellip;">
+  
+  <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
+  
+      <meta property="twitter:card" content="summary">
+      <meta property="twitter:site" content="Manishearth">
+      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:title" content="Diplomat: Multi-language FFI for Rust libraries">
+      <meta property="twitter:description" content="For the past few years, as a part of my work on ICU4X, I’ve been working on Diplomat, a multi-language unidirectional FFI tool for wrapping Rust libraries. I originally designed by me in 2021 as a &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://manishearth.github.io/drafts/diplomat/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <link href="/atom.xml" rel="alternate" title="In Pursuit of Laziness" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/manish.js" type="text/javascript"></script>
+  <!--- MathJax Configuration -->
+  
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-62537162-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">In Pursuit of Laziness</a></h1>
+  
+    <h2>Manish Goregaokar's blog</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/blog/categories">Categories</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title">Diplomat: Multi-language FFI for Rust Libraries</h1>
+      <em>Posted by Manish Goregaokar on August 20, 2024 in <a class='category' href='/blog/categories/rust/'>rust</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>For the past few years, as a part of my work on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, I’ve been working on <a href="https://github.com/rust-diplomat/diplomat">Diplomat</a>, a multi-language unidirectional FFI tool for wrapping Rust libraries.</p>
+
+<p>I originally <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/design_doc.md">designed</a> by me in 2021 as a response to the question “What is the best way to expose ICU4X (A Rust library) to other programming languages?”. For context, while written in Rust, one of ICU4X’s core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries <a href="https://unicode-org.github.io/icu/userguide/icu4c/">ICU4C</a> and <a href="https://unicode-org.github.io/icu/userguide/icu4j">ICU4J</a>, which serve C/C++ and Java respectively.</p>
+
+<p>In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team on the FFI peculiarities of C++, JS, Dart, the JVM, etc.</p>
+
+<p>When we were getting started, I performed <a href="https://docs.google.com/document/d/1Y1mNFAGbGNvK_I64dd0fRWOxx9xqi12dXeLivnxRWvA/edit?usp=sharing&amp;resourcekey=0-l9QvvqXW7cC-TrfLWt7nZw">an investigation</a> of the available tooling at the time, and arrived a the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my “pie in the sky FFI tool” that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.</p>
+
+<p>One of the core reasons the existing FFI tools didn’t work was that they weren’t “unidirectional”, they were “bidirectional”, or “unidirectional” in the opposite direction.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             What’s “unidirectional” and “bidirectional” in the context of an FFI tool?
+            </div>
+        </div>
+
+<p>So, it’s possible this is terminology I just made up one day<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, but it’s an ontology that I’ve found useful on many, many occasions, so I think it’s worth introducing</p>
+
+<h2 id="unidirectional-vs-bidirectional-ffi-tools">Unidirectional vs bidirectional FFI tools</h2>
+
+<p>In general when doing FFI there are, broadly speaking, two distinct possible goals, with distinct characteristics.</p>
+
+<p>One use case, served by tools like <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a>, <a href="https://github.com/mozilla/cbindgen">cbindgen</a>, <a href="https://github.com/rustwasm/wasm-bindgen">wasm-bindgen</a>, <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, and <a href="https://pyo3.rs/">PyO3</a>, is when you have a library in one language which you wish to use from another language. This is “unidirectional” FFI, since the wrapped library doesn’t need to know anything about the codebase calling into it.</p>
+
+<div class="post-aside post-aside-note">Note that <em>calls</em> in “unidirectional” FFI can still go in both ways; a unidirectional FFI tool may support things like callbacks that allow the calling codebase to pass a closure to the library and have the library invoke it. This is still unidirectional since the API definition is within the wrapped library.</div>
+
+<p>The other use case, served by tools like <a href="https://github.com/dtolnay/cxx">cxx</a>, <a href="https://github.com/google/autocxx">autocxx</a>, <a href="https://github.com/google/crubit">crubit</a>, and <a href="https://github.com/chinedufn/swift-bridge">swift-bridge</a> is where you are working on a combined codebase of two languages and need interop in “both ways”, e.g. you need Rust to be able to access C++ APIs and C++ to be able to access Rust APIs. This is the kind of interop situation I recall when working on <a href="https://bholley.net/blog/2017/stylo.html">Stylo</a>, the project to use <a href="https://github.com/servo/servo/">Servo</a>’s style system in Firefox. Even with Servo being relatively modular, this was not a case of “call Servo like a library”, it was a case of integrating two codebases with a somewhat jagged API boundary. At the time there was not much tooling and we managed to <a href="https://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">convince bindgen to work for this</a>, however this was very much a “bidirectional” use case.</p>
+
+<p>Bidirectional tools can often be used for unidirectional use cases, but they are also usually designed with those two specific languages in mind, which constrains the utility of the underlying bindings for work with other languages.</p>
+
+<h2 id="a-wishlist-for-an-ffi-tool">A wishlist for an FFI tool</h2>
+
+<p>When designing Diplomat, there were a couple things I had in mind that may not necessarily match choices made by other FFI tools:</p>
+
+<h3 id="no-action-at-a-distance">No action-at-a-distance</h3>
+
+<p>I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged “bridge”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> code. In ICU4X, the FFI layer only changes when people update the Diplomat “bridge” code living under <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi"><code class="language-plaintext highlighter-rouge">ffi/capi</code></a>.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why is this a useful property for a tool to have?
+            </div>
+        </div>
+
+<p>For one, it’s just <em>easier</em> to design a tool when it does not need to parse the full range of what Rust supports. Since Diplomat’s “bridge” code is only intended for consumption from Diplomat, we can forbid weird Rust things from being used there.</p>
+
+<p>Secondly, the FFI tool should not overly constrain the API exposed to regular Rust users; it should be possible to tailor that API to Rust user’s needs without having to think about other languages.</p>
+
+<p>Finally, it’s extremely annoying for library developers if every part of their library is being monitored by a tool which may need to be worked around / pacified. ICU4X developers absolutely need to know how to operate Diplomat so that they can write FFI for every ICU4X API they design, however ought not need to <em>constantly</em> think about it when just designing the primary Rust code.</p>
+
+<h3 id="generate-a-ready-to-use-library">Generate a ready-to-use library</h3>
+
+<p>Diplomat should generate a ready-to-use library, not low level bindings. As such it should generate APIs that are idiomatic in the target language, and expose some degree of per-language configurability to allow the developer choices in how precisely to expose various functionality.</p>
+
+<h3 id="no-idls">No IDLs</h3>
+
+<p>Ideally, the interface is smoothly specified in Rust code, rather than using some interface description language. This is an aesthetic choice; IDLs can work really well as well, and this is the option chosen by <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>.</p>
+
+<h3 id="extensible-for-more-languages">Extensible for more languages</h3>
+
+<p>It should not be super hard to extend Diplomat to be able to produce bindings for more languages. The vision was that if we have people asking for a Dart API in ICU4X, we can write a Diplomat “backend” for Dart, and run it on the preexisting ICU4X Diplomat bridge code.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             In fact, that’s exactly what happened, and ICU4X now has <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi/bindings/dart">a Dart API</a>.
+            </div>
+        </div>
+
+<p>This means that Diplomat’s constraints and design should from the get-go take into account the diversity of languages it may end up supporting: if a feature does not make sense for a particular language, it may need to be redesigned or made conditional.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             This also means that third parties can build their own Diplomat backends if they wish, either by using Diplomat as a library, or by contributing upstream.
+            </div>
+        </div>
+
+<h2 id="using-diplomat">Using Diplomat</h2>
+
+<p>The core workflow behind Diplomat is that you write a <em>single</em> “bridge crate” that wraps your Rust API, which, using a proc macro generates a common underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> API. You can then run <code class="language-plaintext highlighter-rouge">diplomat-tool</code> on the bridge crate, invoking individual per-language “backends” to generate idiomatic language bindings that under the hood call the same underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs.</p>
+
+<p>For example, you may write something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[diplomat::bridge]</span>
+<span class="k">mod</span> <span class="n">ffi</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="n">Settings</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="n">something</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+        <span class="k">pub</span> <span class="n">something_else</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">}</span>
+
+    <span class="nd">#[diplomat::opaque]</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="nf">MyObject</span><span class="p">(</span><span class="nn">my_library</span><span class="p">::</span><span class="n">MyObject</span><span class="p">);</span>
+
+    <span class="k">impl</span> <span class="n">MyObject</span> <span class="p">{</span>
+        <span class="nd">#[diplomat::attr(supports</span> <span class="nd">=</span> <span class="nd">constructors,</span> <span class="nd">constructor)]</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">MyObject</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">MyObject</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">))</span>
+        <span class="p">}</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">do_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">self</span><span class="na">.0</span><span class="nf">.do_thing</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This will generate <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs that look something like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyObject</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_do_thing</span><span class="p">(</span><span class="n">this</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">MyObject</span><span class="p">)</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+</code></pre></div></div>
+
+<p>as well as adding a <code class="language-plaintext highlighter-rouge">repr(C)</code> to <code class="language-plaintext highlighter-rouge">Settings</code>.</p>
+
+<p>In C++, this may generate a struct <code class="language-plaintext highlighter-rouge">Settings</code> and a class <code class="language-plaintext highlighter-rouge">MyObject</code> with a constructor and a method <code class="language-plaintext highlighter-rouge">do_thing()</code>. In JS it may do something similar, though potentially <code class="language-plaintext highlighter-rouge">new MyObject()</code> would accept untyped objects with the same fields as <code class="language-plaintext highlighter-rouge">Settings</code> as well, and <code class="language-plaintext highlighter-rouge">do_thing()</code> might be called <code class="language-plaintext highlighter-rouge">doThing()</code> instead. In both cases, the constructor and the method will work by calling <code class="language-plaintext highlighter-rouge">MyObject_new</code> and <code class="language-plaintext highlighter-rouge">MyObject_do_thing</code>.</p>
+
+<p>Diplomat supports three kinds of “custom” user-defined types: C-like enums, structs, and “opaques”. Structs are copied over the FFI boundary, whereas “opaques” wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer.</p>
+
+<p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/book/types.html">the types chapter in the Diplomat book</a>.</p>
+
+<h2 id="uncat">Uncat</h2>
+
+<p>Our intern <a href="https://github.com/shadaj">Shadaj</a> implemented the initial design of the tool, with C, C++, and JavaScript/Typescript APIs getting autogenerated for ICU4X, from a shared API definition.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>I don’t remember! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>The naming of “bridge crates” and “bridge modules” was inspired by cxx. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+<span class="byline author vcard beforesep">Posted by <span class="fn">Manish Goregaokar</span></span>
+
+      
+
+
+
+
+
+      
+
+
+
+<span class="categories aftersep">
+  
+    <a class='category' href='/blog/categories/rust/'>rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/diplomat/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/diplomat/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+<h1> About Me </h1>
+<div id="about">
+    I'm a self-taught programmer with interests in programming languages, human languages, Rust, physics, and online communities to name a few. <br><br>
+
+    I'm heavily involved in the <a href="https://www.rust-lang.org">Rust programming language</a>, leading the <a href="https://www.rust-lang.org/governance/teams/dev-tools">Devtools</a> and <a href="https://www.rust-lang.org/governance/teams/dev-tools#clippy">Clippy</a> teams. I also work at Google on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>.
+</div>
+<div id="doodads">
+ <a href="http://twitter.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none" src="/images/twitter.png" width="30px"></a>
+ <a href="http://github.com/Manishearth" style="white-space:normal">   <img style="border:none;box-shadow:none"  src="/images/github.png" width="30px"></a>
+</div>
+</section>
+<section>
+<!-- <iframe scrolling="no" style="border: 0; height: 58px; width: 208px; overflow: hidden;" src="https://se-flair.appspot.com/751483b5-3bd0-467a-b3aa-f0bb8ac3887d/"></iframe> -->
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">So Zero It's ... Negative? (Zero-Copy #3)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">Zero-Copy All the Things! (Zero-Copy #2)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/">A Tour of Safe Tracing GC Designs in Rust</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Categories</h1>
+  <ul id="sidebar_categories">
+    <li class='category'><a href='/blog/categories/c-/'>c++ (2)</a></li>
+<li class='category'><a href='/blog/categories/cryptography/'>cryptography (5)</a></li>
+<li class='category'><a href='/blog/categories/css/'>css (1)</a></li>
+<li class='category'><a href='/blog/categories/elections/'>elections (1)</a></li>
+<li class='category'><a href='/blog/categories/html/'>html (1)</a></li>
+<li class='category'><a href='/blog/categories/js/'>js (1)</a></li>
+<li class='category'><a href='/blog/categories/meta/'>meta (2)</a></li>
+<li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
+<li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
+<li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/rust/'>rust (30)</a></li>
+<li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
+<li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
+<li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
+<li class='category'><a href='/blog/categories/web/'>web (2)</a></li>
+<li class='category'><a href='/blog/categories/writing/'>writing (2)</a></li>
+
+  </ul>
+</section>
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
