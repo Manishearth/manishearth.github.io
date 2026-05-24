@@ -16,12 +16,12 @@ support for Rust. The plan is to provide a base set of APIs and &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="GC support in Rust: API design">
       <meta property="twitter:description" content="Recently we (Felix, Niko, and I) have been working on getting compiler-level GC
 support for Rust. The plan is to provide a base set of APIs and intrinsics on which GCs can be
 built, without including &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -30,7 +30,7 @@ built, without including &hellip;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/">
+  <link rel="canonical" href="http://localhost:4000/blog/2016/08/18/gc-support-in-rust-api-design/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -79,7 +79,7 @@ built, without including &hellip;">
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -165,7 +165,7 @@ algorithm, and this library is used by an application which uses a GC for some o
 to talk to Node). Interacting GCs are hard to reason about, though. The current design leaves this
 decision up to the GC designer — while it is possible to let your GCd object contain objects
 managed by a different GC, this requires some explicit extra work. Interacting GCs is a <em>very</em> niche
-use case<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
+use case<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>, so if this ability isn’t something we’re adamant on supporting.</p>
 
 <p>We also would like it to be safe to use trait objects with the GC. This raises some concerns which
 I’ll address in depth later in this post.</p>
@@ -179,11 +179,11 @@ without going through other GC objects. In our case they will be cases of <code 
 stack or in non-gc heap boxes which themselves are reachable from the stack. Some examples:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-    <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">inner</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nb">bool</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="c1">// `bar` is a root</span>
@@ -257,11 +257,11 @@ that would bloat the stack maps and make walking the roots a very expensive oper
 
 <span class="c1">// in a gc impl</span>
 
-<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="c1">// ..</span>
 <span class="p">}</span>
 
-<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Root</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
 </code></pre></div></div>
 
 <p>if we detect <code class="language-plaintext highlighter-rouge">Root</code> objects that are directly reachable, we consider them to be roots.</p>
@@ -296,11 +296,11 @@ operation we need to do to find roots.</p>
 <span class="c1">// in gc library</span>
 
 <span class="c1">// only allow trace objects</span>
-<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="c1">// ..</span>
 <span class="p">}</span>
 
-<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
         <span class="c1">// mark `self`</span>
 
@@ -314,7 +314,7 @@ operation we need to do to find roots.</p>
 <span class="c1">// autoderived impl will call `bar.trace()` and `baz.trace()`</span>
 <span class="nd">#[derive(Trace)]</span>
 <span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">baz</span><span class="p">:</span> <span class="n">SomeType</span><span class="p">,</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -359,11 +359,11 @@ GC object.</p>
 <span class="k">impl</span> <span class="n">Tracer</span> <span class="k">for</span> <span class="n">MyTracer</span> <span class="p">{}</span>
 
 
-<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="c1">// ..</span>
 <span class="p">}</span>
 
-<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">Trace</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">trace</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Tracer</span><span class="p">)</span> <span class="p">{</span>
         <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="o">=</span> <span class="n">tracer</span><span class="py">.downcast_mut</span><span class="p">::</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;</span><span class="p">()</span> <span class="p">{</span>
             <span class="c1">// mark self</span>
@@ -398,7 +398,7 @@ by the compiler itself, bounds like <code class="language-plaintext highlighter-
 won’t know what to do with them!</p>
 
 <p>Now, when generating the stack map, we include the stack offset of all <code class="language-plaintext highlighter-rouge">Root</code> objects in scope, as
-well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Walking the
+well as appropriate dynamic dispatch vtable pointers for the <code class="language-plaintext highlighter-rouge">Trace</code> implementation<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. Walking the
 stack involves calling the trace method on each entry in the stack map for each call site.</p>
 
 <h2 id="unresolved-problems">Unresolved problems</h2>
@@ -500,7 +500,7 @@ require code like the following:</p>
 
 <span class="k">struct</span> <span class="n">MyTracer</span> <span class="p">{</span><span class="cm">/* .. */</span><span class="p">}</span>
 
-<span class="k">struct</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+<span class="k">struct</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
     <span class="c1">// ...</span>
 <span class="p">}</span>
 
@@ -509,7 +509,7 @@ require code like the following:</p>
 
 <span class="k">unsafe</span> <span class="k">impl</span> <span class="o">!</span><span class="n">MyRoot</span> <span class="k">for</span> <span class="o">..</span> <span class="p">{}</span>
 
-<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="n">MyRoot</span> <span class="k">for</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
+<span class="k">unsafe</span> <span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span> <span class="n">Trace</span><span class="o">&lt;</span><span class="n">MyTracer</span><span class="o">&gt;&gt;</span> <span class="n">MyRoot</span> <span class="k">for</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{}</span>
 </code></pre></div></div>
 
 <p>This can be further simplified by completely removing the rooting trait requirement and instead
@@ -540,8 +540,8 @@ can very easily cause a GC segfault. I do not consider this to be a major downsi
 <p>The following code is unsafe:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span> <span class="c1">// baz can contain a Bar</span>
 <span class="p">}</span>
 <span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
@@ -585,7 +585,7 @@ which are explicitly <code class="language-plaintext highlighter-rouge">Root</co
 <span class="c1">// in other library</span>
 
 <span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-    <span class="n">inner</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
+    <span class="n">inner</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="n">MyTrait</span> <span class="k">for</span> <span class="n">Bar</span> <span class="p">{</span>
@@ -613,10 +613,10 @@ constraint at runtime.</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Firefox does have a garbage collector and a cycle collector which interact, though, so it’s not something which is unthinkable. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>If there is an active stack drop flag for the value, that will need to be included too. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -654,7 +654,7 @@ constraint at runtime.</p>
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2016/08/18/gc-support-in-rust-api-design/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2016/08/18/gc-support-in-rust-api-design/" >Tweet</a>
   
   
   
@@ -747,7 +747,7 @@ constraint at runtime.</p>
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

@@ -16,11 +16,11 @@ Layzell. I thought this would be a good time to talk of our design and &hellip;"
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Designing a GC in Rust">
       <meta property="twitter:description" content="For a while I’ve been working on a garbage collector for Rust with Nika
 Layzell. I thought this would be a good time to talk of our design and progress so far. Motivation “Wait”, you ask, “why does &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -29,7 +29,7 @@ Layzell. I thought this would be a good time to talk of our design and progress 
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">
+  <link rel="canonical" href="http://localhost:4000/blog/2015/09/01/designing-a-gc-in-rust/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -78,7 +78,7 @@ Layzell. I thought this would be a good time to talk of our design and progress 
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -240,7 +240,7 @@ value on the stack which belongs to one of these regions.</p>
 where the GCd pointer is accessible, but through a non-GC pointer.</p>
 
 <p>We decided rather early on that we didn’t want a GC based on lints or stack scanning. Both are
-rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. We were also hoping that
+rather suboptimal solutions in my opinion, and very hard to make sound<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. We were also hoping that
 Rust’s type system and ownership semantics could help us in designing a good, safe, API.</p>
 
 <p>So, we needed a way to keep track of roots, and we needed a way to trace objects.</p>
@@ -312,7 +312,7 @@ handled by “unrooting” the first GC thing:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">bar</span><span class="p">:</span> <span class="nb">u32</span><span class="p">,</span>
-    <span class="n">baz</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">baz</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nb">u32</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span> <span class="c1">// why anyone would want to GC an integer I'll never know</span>
@@ -365,7 +365,7 @@ inner data. This is one of the places where Rust’s ownership/mutability system
 in our favor.</p>
 
 <p>Of course, an immutable GC isn’t very useful. We can’t even create cycles in an immutable GC, so why
-would anyone need this in the first place<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>?</p>
+would anyone need this in the first place<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>?</p>
 
 <p>So of course, we needed to make it somehow mutable. People using <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> solve this problem by using
 <code class="language-plaintext highlighter-rouge">RefCell&lt;T&gt;</code>, which maintains something similar to the borrow semantics at runtime and is internally
@@ -379,7 +379,7 @@ which is tracked by an internal field similar to <code class="language-plaintext
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Trace)]</span>
 <span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
     <span class="n">a</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="n">b</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+    <span class="n">b</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
@@ -463,10 +463,10 @@ welcome, we’d especially love performance improvements and testcases.</p>
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=10148471">HN</a>, <a href="https://www.reddit.com/r/rust/comments/3j4bx2/designing_a_gc_in_rust/">Reddit</a></small></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>I’m very skeptical that it’s possible to make either of these completely sound without writing lints which effectively rewrite a large chunk of the compiler <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>There is a case to be made for an immutable GC which allows some form of deferred initialization of GC fields, however. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -504,7 +504,7 @@ welcome, we’d especially love performance improvements and testcases.</p>
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2015/09/01/designing-a-gc-in-rust/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2015/09/01/designing-a-gc-in-rust/" >Tweet</a>
   
   
   
@@ -597,7 +597,7 @@ welcome, we’d especially love performance improvements and testcases.</p>
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

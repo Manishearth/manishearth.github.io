@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="So Zero It's ... Negative? (Zero-Copy #3)">
       <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">
+  <link rel="canonical" href="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -286,13 +286,13 @@
 
 <p>ICU4X’s code for generating this is in <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs">this file</a>. It’s complicated primarily because ICU4X’s data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118">calls <code class="language-plaintext highlighter-rouge">tokenize()</code></a>, which is a thin wrapper around <a href="https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136">calling <code class="language-plaintext highlighter-rouge">.bake()</code> on the data and some other stuff</a>. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our “testdata” crate as a module, but there are many possibilities here!</p>
 
-<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
 
 <h2 id="limitations">Limitations</h2>
 
 <p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
-<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
@@ -307,10 +307,10 @@
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>In ICU4X, a “data key” can be used to talk about a specific type of data, for example the decimal symbols data has a <code class="language-plaintext highlighter-rouge">decimal/symbols@1</code> data key. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -348,7 +348,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/" >Tweet</a>
   
   
   
@@ -439,7 +439,7 @@
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

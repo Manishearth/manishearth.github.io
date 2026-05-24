@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Not a Yoking Matter (Zero-Copy #1)">
       <meta property="twitter:description" content="This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">
+  <link rel="canonical" href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -124,7 +124,7 @@
 
 <p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
 
-<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
@@ -355,7 +355,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> as <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> as <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, especially in the space of zero-copy deserialization.</p>
 
 <div class="discussion discussion-note">
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
@@ -431,16 +431,16 @@
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>This isn’t real Rust syntax; since <code class="language-plaintext highlighter-rouge">Self</code> is always just <code class="language-plaintext highlighter-rouge">Self</code>, but we need to be able to refer to <code class="language-plaintext highlighter-rouge">Self</code> as a higher-kinded type in this scenario. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Types that aren’t are ones involving mutability (<code class="language-plaintext highlighter-rouge">&amp;mut</code> or interior mutability) around the lifetime, and ones involving function pointers and trait objects. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -478,7 +478,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/" >Tweet</a>
   
   
   
@@ -571,7 +571,7 @@
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

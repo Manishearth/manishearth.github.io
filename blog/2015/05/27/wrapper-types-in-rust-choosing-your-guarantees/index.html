@@ -16,11 +16,11 @@ accessing data, &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Wrapper types in Rust: Choosing your guarantees">
       <meta property="twitter:description" content="This post is now a part of the official rust book In my previous post I talked a bit about why the RWlock pattern is important for
 accessing data, which is why Rust enforces this pattern either at &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -29,7 +29,7 @@ accessing data, which is why Rust enforces this pattern either at &hellip;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">
+  <link rel="canonical" href="http://localhost:4000/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -78,7 +78,7 @@ accessing data, which is why Rust enforces this pattern either at &hellip;">
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -126,7 +126,7 @@ depending on the abstractions used.</p>
 
 <p>It occurred to me that there are many such abstractions in Rust, each with their unique guarantees.
 The programmer once again has the choice between runtime and compile time enforcement. It occurred
-to me that this plethora of “wrapper types”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> could be daunting to newcomers; in this post I intend
+to me that this plethora of “wrapper types”<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> could be daunting to newcomers; in this post I intend
 to give a thorough explanation of what some prominent ones do and when they should be used.</p>
 
 <p>I’m assuming the reader knows about <a href="http://doc.rust-lang.org/book/ownership.html">ownership</a> and <a href="http://doc.rust-lang.org/book/references-and-borrowing.html">borrowing</a> in Rust.
@@ -162,7 +162,7 @@ the regular borrowing rules, checked at compile time.</p>
 <p>Move/ownership semantics are not special to <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>; it is a feature of all types which are not <code class="language-plaintext highlighter-rouge">Copy</code>.</p>
 
 <p>A <code class="language-plaintext highlighter-rouge">Copy</code> type is one where all the data it logically encompasses (usually, owns) is part of its stack
-representation<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.
+representation<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.
 Most types containing pointers to other data are not <code class="language-plaintext highlighter-rouge">Copy</code>, since there is additional data
 elsewhere, and simply copying the stack representation may accidentally share ownership of that data
 in an unsafe manner.</p>
@@ -398,11 +398,11 @@ the major ones.</p>
 freely between threads.</p>
 
 <p>C++’s <code class="language-plaintext highlighter-rouge">shared_ptr</code> is similar to <code class="language-plaintext highlighter-rouge">Arc</code>, however in C++s case the inner data is always mutable. For semantics
-similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
+similar to that from C++, we should use <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code class="language-plaintext highlighter-rouge">Arc&lt;RwLock&lt;T&gt;&gt;</code>, or <code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code><sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> (<code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code>
 is a cell type that can be used to hold any data and has no runtime cost, but accessing it requires <code class="language-plaintext highlighter-rouge">unsafe</code> blocks).
 The last one should only be used if one is certain that the usage won’t cause any memory unsafety. Remember that
 writing to a struct is not an atomic operation, and many functions like <code class="language-plaintext highlighter-rouge">vec.push()</code> can reallocate internally
-and cause unsafe behavior (so even monotonicity<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
+and cause unsafe behavior (so even monotonicity<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> may not be enough to justify <code class="language-plaintext highlighter-rouge">UnsafeCell</code>)</p>
 
 <h4 id="guarantees-3">Guarantees</h4>
 
@@ -471,7 +471,7 @@ with the borrow checking done at runtime.</p>
 
 <p>With the latter, the borrowing is of individual elements, but the overall vector is immutable.
 Thus, we can independently borrow separate elements, but we cannot push or pop from the vector.
-This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">5</a></sup>, but, again, the borrow checking is at runtime.</p>
+This is similar to an <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>, but, again, the borrow checking is at runtime.</p>
 
 <p>In concurrent programs, we have a similar situation with <code class="language-plaintext highlighter-rouge">Arc&lt;Mutex&lt;T&gt;&gt;</code>, which provides shared
 mutability and ownership.</p>
@@ -486,19 +486,19 @@ we should figure out the tradeoffs as done above and pick one.</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>I’m not sure if this is the technical term for them, but I’ll be calling them that throughout this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>By “stack representation” I mean the data on the stack when a value of this type is held on the stack. For example, a <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code> has a stack representation of a pointer and two integers (length, capacity). While there is more data behind the indirection of the pointer, it is not part of the stack-held portion of the <code class="language-plaintext highlighter-rouge">Vec</code>. Looking at this a different way, a type is <code class="language-plaintext highlighter-rouge">Copy</code> if a <code class="language-plaintext highlighter-rouge">memcopy</code> of the data copies all the data owned by it. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p><code class="language-plaintext highlighter-rouge">Arc&lt;UnsafeCell&lt;T&gt;&gt;</code> actually won’t compile since <code class="language-plaintext highlighter-rouge">UnsafeCell&lt;T&gt;</code> isn’t <code class="language-plaintext highlighter-rouge">Send</code> or <code class="language-plaintext highlighter-rouge">Sync</code>, but we can wrap it in a type and implement <code class="language-plaintext highlighter-rouge">Send</code>/<code class="language-plaintext highlighter-rouge">Sync</code> for it manually to get <code class="language-plaintext highlighter-rouge">Arc&lt;Wrapper&lt;T&gt;&gt;</code> where <code class="language-plaintext highlighter-rouge">Wrapper</code> is <code class="language-plaintext highlighter-rouge">struct Wrapper&lt;T&gt;(UnsafeCell&lt;T&gt;)</code>. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>By this I mean a piece of data that has a monotonic consistency requirement; i.e. a counter or a monotonically growing stack <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p><code class="language-plaintext highlighter-rouge">&amp;[T]</code> and <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> are <em>slices</em>; they consist of a pointer and a length and can refer to a portion of a vector or array. <code class="language-plaintext highlighter-rouge">&amp;mut [T]</code> can have its elements mutated, however its length cannot be touched. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -536,7 +536,7 @@ we should figure out the tradeoffs as done above and pick one.</p>
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/" >Tweet</a>
   
   
   
@@ -629,7 +629,7 @@ we should figure out the tradeoffs as done above and pick one.</p>
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

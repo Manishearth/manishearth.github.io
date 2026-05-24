@@ -16,11 +16,11 @@ project. This is pretty great! But for many in the community who &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="What are Tokio and Async IO all about?">
       <meta property="twitter:description" content="The Rust community lately has been focusing a lot on “async I/O” through the tokio
 project. This is pretty great! But for many in the community who haven’t worked with web servers and related things &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -29,7 +29,7 @@ project. This is pretty great! But for many in the community who haven’t worke
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/">
+  <link rel="canonical" href="http://localhost:4000/blog/2018/01/10/whats-tokio-and-async-io-all-about/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -78,7 +78,7 @@ project. This is pretty great! But for many in the community who haven’t worke
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -156,7 +156,7 @@ thread back when its I/O operation is finished (i.e. it’s “unblocked”). Wi
 this is how you would handle such things in Rust. Spawn a million threads; let the OS deal with
 scheduling based on I/O.</p>
 
-<p>But, as we already discovered, threads don’t scale well for things like this<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
+<p>But, as we already discovered, threads don’t scale well for things like this<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <p>We need “lighter” threads.</p>
 
@@ -187,7 +187,7 @@ a different goroutine.</p>
 <p>So if these aren’t “real” (operating system) threads, what’s going on?</p>
 
 <p>A goroutine is an example of a “lightweight” thread. The operating system doesn’t know about these,
-it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, swapping
+it sees N threads owned by the Go runtime, and the Go runtime maps M goroutines onto them<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, swapping
 goroutines in and out much like the operating system scheduler. It’s able to do this because
 Go code is already interruptible for the GC to be able to run, so the scheduler can always ask goroutines
 to stop. The scheduler is also aware of I/O, so when a goroutine is waiting on I/O it yields to the scheduler.</p>
@@ -279,7 +279,7 @@ very similar to a tiny stack!</p>
 <p>Tokio’s essentially a nice wrapper around mio that uses futures. Tokio has a core
 event loop, and you feed it closures that return futures. What it will do is
 run all the closures you feed it, use mio to efficiently figure out which futures
-are ready to make a step<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
+are ready to make a step<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, and make progress on them (by calling <code class="language-plaintext highlighter-rouge">poll()</code>).</p>
 
 <p>This actually is already pretty similar to what Go was doing, at a conceptual level.
 You have to manually set up the Tokio event loop (the “scheduler”), but once you do
@@ -344,7 +344,7 @@ can also finish executing like regular functions.</p>
 <p>Closures in Rust are
 <a href="http://huonw.github.io/blog/2015/05/finding-closure-in-rust/">sugar for a struct containing captured data, plus an implementation of one of the <code class="language-plaintext highlighter-rouge">Fn</code> traits to make it callable</a>.</p>
 
-<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup>, and usually store an enum representing various states.</p>
+<p>Generators are similar, except they implement the <code class="language-plaintext highlighter-rouge">Generator</code> trait<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, and usually store an enum representing various states.</p>
 
 <p>The <a href="https://doc.rust-lang.org/nightly/unstable-book/language-features/generators.html#generators-as-state-machines">unstable book</a> has some examples on what the generator state machine enum will look like.</p>
 
@@ -423,16 +423,16 @@ and we get to have “fearless concurrency” for programs having a huge quantit
 <p><em>Thanks to Arshia Mufti, Steve Klabnik, Zaki Manian, and Kyle Huey for reviewing drafts of this post</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Note that this isn’t necessarily true for <em>all</em> network server applications. For example, Apache uses OS threads. OS threads are often the best tool for the job. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Lightweight threading is also often called M:N threading (also “green threading”) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>In general future combinators aren’t really aware of tokio or even I/O, so there’s no easy way to ask a combinator “hey, what I/O operation are you waiting for?”. Instead, with Tokio you use special I/O primitives that still provide futures but also register themselves with the scheduler in thread local state. This way when a future is waiting for I/O, Tokio can check what the recentmost I/O operation was, and associate it with that future so that it can wake up that future again when <code class="language-plaintext highlighter-rouge">epoll</code> tells it that that I/O operation is ready. (<em>Edit Dec 2018: This has changed, futures now have a built in <code class="language-plaintext highlighter-rouge">Waker</code> concept that handles passing things up the stack</em>) <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>The <code class="language-plaintext highlighter-rouge">Generator</code> trait has a <code class="language-plaintext highlighter-rouge">resume()</code> function which you can call multiple times, and each time it will return any yielded data or tell you that the generator has finished running. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -470,7 +470,7 @@ and we get to have “fearless concurrency” for programs having a huge quantit
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2018/01/10/whats-tokio-and-async-io-all-about/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2018/01/10/whats-tokio-and-async-io-all-about/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2018/01/10/whats-tokio-and-async-io-all-about/" >Tweet</a>
   
   
   
@@ -563,7 +563,7 @@ and we get to have “fearless concurrency” for programs having a huge quantit
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

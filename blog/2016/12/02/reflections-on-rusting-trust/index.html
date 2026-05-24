@@ -16,12 +16,12 @@ development. This usually means that the process of &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Reflections on Rusting Trust">
       <meta property="twitter:description" content="The Rust compiler is written in Rust. This is overall a pretty common practice in compiler
 development. This usually means that the process of building the compiler involves downloading a
 (typically &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -30,7 +30,7 @@ development. This usually means that the process of building the compiler involv
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust/">
+  <link rel="canonical" href="http://localhost:4000/blog/2016/12/02/reflections-on-rusting-trust/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -79,7 +79,7 @@ development. This usually means that the process of building the compiler involv
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -172,7 +172,7 @@ to that point you can bootstrap a working compiler from scratch and keep compili
 versions till you reach the present. This raises the question of whether or not Y’s compiler is
 backdoored. While it sounds pretty unlikely that such a backdoor could be so robust as to work on
 two different compilers and stay put throughout the history of X, you can of course trace back Y
-back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
+back to other languages and so on till you find a compiler in assembly that you can verify<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <h2 id="backdooring-rust">Backdooring Rust</h2>
 
@@ -182,7 +182,7 @@ syntax tree (AST), transforming it into some intermediate representations (HIR a
 it to LLVM in the form of LLVM IR, after which LLVM does its thing and creates binaries. A backdoor
 can be inserted at any point in this stage. To me, it seems like it’s easier to insert one into the
 AST, because it’s easier to obtain AST from source, and this is important as we’ll see soon. It also
-makes this attack less practically viable<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">2</a></sup>, which is nice since this is just a fun exercise and I
+makes this attack less practically viable<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, which is nice since this is just a fun exercise and I
 don’t actually want to backdoor the compiler.</p>
 
 <p>So the moment the compiler finishes parsing, my code will modify the AST to insert a backdoor.</p>
@@ -193,7 +193,7 @@ with “जगाला नमस्कार”, a rough translation of the sam
 
 <p>Now, in rustc, the <code class="language-plaintext highlighter-rouge">rustc_driver</code> crate is where the whole process of compiling is coordinated. In particular,
 <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L546"><code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code></a> is run right after parsing (which is <a href="https://github.com/rust-lang/rust/blob/1cabe2151299c63497abc3a20bd08c04c0cd32a3/src/librustc_driver/driver.rs#L485">phase 1</a>). Perfect.
-Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, and we need to modify that.</p>
+Within that function, the <code class="language-plaintext highlighter-rouge">krate</code> variable contains the parsed AST for the crate<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, and we need to modify that.</p>
 
 <p>In this case, there’s already machinery in <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/"><code class="language-plaintext highlighter-rouge">syntax::fold</code></a> for mutating ASTs based on patterns. A
 <a href="http://manishearth.github.io/rust-internals-docs/syntax/fold/trait.Folder.html"><code class="language-plaintext highlighter-rouge">Folder</code></a> basically has the ability to walk the AST, producing a mirror AST, with modifications. For
@@ -257,7 +257,7 @@ Most such functions will default to no-op (returning the same node).</p>
 
 <p>I invoke it by calling <code class="language-plaintext highlighter-rouge">let krate = trust::fold_crate(krate);</code> as the first line of <code class="language-plaintext highlighter-rouge">phase_2_configure_and_expand</code>.</p>
 
-<p>I create a stage 1 build<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
+<p>I create a stage 1 build<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> of rustc (<code class="language-plaintext highlighter-rouge">make rustc-stage1</code>). I’ve already set up <code class="language-plaintext highlighter-rouge">rustup</code> to have a “stage1” toolchain
 pointing to this folder (<code class="language-plaintext highlighter-rouge">rustup toolchain link stage1 /path/to/rust/target_triple/stage1</code>), so I can easily test this new compiler:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// test.rs</span>
@@ -519,8 +519,8 @@ but <a href="https://github.com/Manishearth/rust/blob/rusting-trust/src/librustc
 duplicate <code class="language-plaintext highlighter-rouge">trust</code> modules, which makes sense because we’re actually already compiling an already-
 backdoored version of the Rust source code. While we could set up two Rust builds, the easiest way
 to verify if our attack is working is to just use <code class="language-plaintext highlighter-rouge">#[cfg(stage0)]</code> on the trust module and the
-<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
-compiler<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
+<code class="language-plaintext highlighter-rouge">fold_crate</code> call<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>. These will only get included during “stage 0” (when it compiles the stage 1
+compiler<sup id="fnref:7"><a href="#fn:7" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>), and not when it compiles the stage 2 compiler, so if the stage 2 compiler still
 backdoors executables, we’re done.</p>
 
 <p>On building the stage 2 (<code class="language-plaintext highlighter-rouge">make rustc-stage2</code>) compiler,</p>
@@ -592,22 +592,22 @@ about.</p>
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=13091941">HN</a>, <a href="https://www.reddit.com/r/rust/comments/5g5hib/reflections_on_rusting_trust/">Reddit</a></small></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Of course, <em>this</em> raises the question of whether or not your assembler/OS/loader/processor is backdoored. Ultimately, you have to trust <em>someone</em>, which was partly the point of Thompson’s talk. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>The AST turns up in the metadata/debuginfo/error messages, can be inspected from the command line, and in general is very far upstream and affects a number of things (all the other stages in the pipeline). You could write code to strip it out from these during inspection and only have it turn up in the binary, but that is much harder. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>The local variable is called <code class="language-plaintext highlighter-rouge">krate</code> because <code class="language-plaintext highlighter-rouge">crate</code> is a keyword <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>Stage 1 takes the downloaded (older) rust compiler and compiles the sources from it. The stage 2 compiler is build when the stage 1 compiler (which is a “new” compiler) is used to compile the sources again. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Using it on the <code class="language-plaintext highlighter-rouge">fold_crate</code> call requires enabling the “attributes on statements” feature, but that’s no big deal – we’re only using the cfgs to be able to test easily; this feature won’t actually be required if we use our stage1 compiler to compile a clean clone of the sources. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:7" role="doc-endnote">
+    <li id="fn:7">
       <p>The numbering of the stages is a bit confusing. During “stage 0” (<code class="language-plaintext highlighter-rouge">cfg(stage0)</code>), the stage 1 compiler is <em>built</em>. Since you are building the stage 1 compiler, the make invocation is <code class="language-plaintext highlighter-rouge">make rustc-stage1</code>. Similarly, during stage 1, the stage 2 compiler is built, and the invocation is <code class="language-plaintext highlighter-rouge">make rustc-stage2</code> but you use <code class="language-plaintext highlighter-rouge">#[cfg(stage1)]</code> in the code. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -645,7 +645,7 @@ about.</p>
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2016/12/02/reflections-on-rusting-trust/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2016/12/02/reflections-on-rusting-trust/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2016/12/02/reflections-on-rusting-trust/" >Tweet</a>
   
   
   
@@ -738,7 +738,7 @@ about.</p>
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

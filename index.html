@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="In Pursuit of Laziness">
       <meta property="twitter:description" content="This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/">
+  <link rel="canonical" href="http://localhost:4000/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -289,13 +289,13 @@
 
 <p>ICU4X’s code for generating this is in <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs">this file</a>. It’s complicated primarily because ICU4X’s data generation pipeline is super configurable and complicated, The core thing that it does is, for each piece of data, it <a href="https://github.com/unicode-org/icu4x/blob/3f4d841ef0b168031d837433d075308bbebf34b7/provider/datagen/src/databake.rs#L118">calls <code class="language-plaintext highlighter-rouge">tokenize()</code></a>, which is a thin wrapper around <a href="https://github.com/unicode-org/icu4x/blob/882e23403327620e4aafde28a9a407bcc6245a54/provider/core/src/datagen/payload.rs#L131-L136">calling <code class="language-plaintext highlighter-rouge">.bake()</code> on the data and some other stuff</a>. It then takes all of the data and organizes it into files like those linked above, populated with a static for each piece of data. In our case, we include all this generated rust code into our “testdata” crate as a module, but there are many possibilities here!</p>
 
-<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
+<p>For our “test” data, which is currently 2.7 MB in the <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a> format (which is optimized for being lightweight), the same data ends up being 11 MB of JSON, and 18 MB of generated Rust code! That’s … a lot of Rust code, and tools like rust-analyzer struggle to load it. It’s of course much smaller once compiled into the binary, though that’s much harder to measure, because Rust is quite aggressive at optimizing unused data out in the baked version (where it has ample opportunity to). From various unscientific tests, it seems like 2MB of deduplicated postcard data corresponds to roughly 500KB of deduplicated baked data. This makes sense, since one can expect baked data to be near the theoretical limit of how small the data is without applying some heavy compression. Furthermore, while we deduplicate baked data at a per-locale level, it can take advantage of LLVM’s ability to deduplicate statics further, so if, for example, two different locales have <em>mostly</em> the same data for a given data key<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> with some differences, LLVM may be able to use the same statics for sub-data.</p>
 
 <h2 id="limitations">Limitations</h2>
 
 <p><code class="language-plaintext highlighter-rouge">const</code> support in Rust still has a ways to go. For example, it doesn’t yet support creating objects like <code class="language-plaintext highlighter-rouge">String</code>s which are usually on the heap, though <a href="https://github.com/rust-lang/const-eval/issues/20">they are working on allowing this</a>. This isn’t a huge problem for us; all of our data already supports zero-copy deserialization, which means that for every instance of our data types, there is <em>some way</em> to represent it as a borrow from another <code class="language-plaintext highlighter-rouge">static</code>.</p>
 
-<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
+<p>A more pesky limitation is that you can’t interact with traits in <code class="language-plaintext highlighter-rouge">const</code> environments. To some extent, were that possible, the purpose of this crate could also have been fulfilled by making the <code class="language-plaintext highlighter-rouge">serde</code> pipeline <code class="language-plaintext highlighter-rouge">const</code>-friendly<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, and then the code snippet from the beginning of this post would work:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
@@ -310,10 +310,10 @@
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>In ICU4X, a “data key” can be used to talk about a specific type of data, for example the decimal symbols data has a <code class="language-plaintext highlighter-rouge">decimal/symbols@1</code> data key. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Mind you, this would not be an easy task, but it would likely integrate with the ecosystem really well. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -361,7 +361,7 @@
 
 <p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
 
-<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
@@ -429,7 +429,7 @@
 
 <p>The core abstractions of the crate are the two types, <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a>, which are essentially zero-copy enabled versions of <code class="language-plaintext highlighter-rouge">Cow&lt;'a, [T]&gt;</code>, for fixed-size and variable-size <code class="language-plaintext highlighter-rouge">T</code> types.</p>
 
-<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
+<p><a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> can be used with any type implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> (more on what this means later), which is by default all of the integer types and can be extended to <em>most</em> <code class="language-plaintext highlighter-rouge">Copy</code> types. It’s rather similar to <code class="language-plaintext highlighter-rouge">&amp;[T]</code>, however instead of returning <em>references</em> to its elements, it copies them out. While <a href="https://docs.rs/zerovec/latest/zerovec/enum.ZeroVec.html"><code class="language-plaintext highlighter-rouge">ZeroVec</code></a> is a <code class="language-plaintext highlighter-rouge">Cow</code>-like borrowed-or-owned type<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, there is a fully borrowed variant <a href="https://docs.rs/zerovec/latest/zerovec/struct.ZeroSlice.html"><code class="language-plaintext highlighter-rouge">ZeroSlice</code></a> that it derefs to.</p>
 
 <p>Similarly, <a href="https://docs.rs/zerovec/latest/zerovec/enum.VarZeroVec.html"><code class="language-plaintext highlighter-rouge">VarZeroVec</code></a> may be used with types implementing <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> (e.g. <code class="language-plaintext highlighter-rouge">str</code>). It <em>is</em> able to hand out references <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;str&gt;</code> behaves very similarly to how <code class="language-plaintext highlighter-rouge">&amp;[str]</code> would work if such a type were allowed to exist in Rust. You can even nest them, making types like <code class="language-plaintext highlighter-rouge">VarZeroVec&lt;VarZeroSlice&lt;ZeroSlice&lt;u32&gt;&gt;&gt;</code>, the zero-copy equivalent of <code class="language-plaintext highlighter-rouge">Vec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;</code>.</p>
 
@@ -526,7 +526,7 @@
 
 <h2 id="how-it-works">How it works</h2>
 
-<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
+<p>Most of the crate is built on the <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.ULE.html"><code class="language-plaintext highlighter-rouge">ULE</code></a> and <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.VarULE.html"><code class="language-plaintext highlighter-rouge">VarULE</code></a> traits. Both of these traits are <code class="language-plaintext highlighter-rouge">unsafe</code> traits (though as shown above most users need not manually implement them). “ULE” stands for “unaligned little-endian”, and marks types which have no alignment requirements and have the same representation across endiannesses, preferring to be identical to the little-endian representation where relevant<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
 
 <p>There’s also a safe <a href="https://docs.rs/zerovec/latest/zerovec/ule/trait.AsULE.html"><code class="language-plaintext highlighter-rouge">AsULE</code></a> trait that allows one to convert a type between itself and some corresponding <code class="language-plaintext highlighter-rouge">ULE</code> type.</p>
 
@@ -654,16 +654,16 @@ In general we don’t care about serialization performance much, however seriali
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>As mentioned in the previous post, while zero-copy deserializing, it is typical to use borrowed-or-owned types like <code class="language-plaintext highlighter-rouge">Cow</code> over pure borrowed types because it’s not necessary that data in a human-readable format will be able to zero-copy deserialize. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Most modern systems are little endian, so this imposes one fewer potential cost on conversion. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -709,7 +709,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>There’s a lot I can say about ICU4X, but to focus on one core value proposition: we want it to be <em>modular</em> both in data and code. We want ICU4X to be usable on embedded platforms, where memory is at a premium. We want applications constrained by download size to be able to support all languages rather than pick a couple popular ones because they cannot afford to bundle in all that data. As a part of this, we want loading data to be <em>fast</em> and pluggable. Users should be able to design their own data loading strategies for their individual use cases.</p>
 
-<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
+<p>See, a key part of performing correct internationalization is the <em>data</em>. Different locales<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> do things differently, and all of the information on this needs to go somewhere, preferably not code. You need data on how a particular locale formats dates<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, or how plurals work in a particular language, or how to accurately segment languages like Thai which are typically not written with spaces so that you can insert linebreaks in appropriate positions.</p>
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
@@ -940,7 +940,7 @@ In general we don’t care about serialization performance much, however seriali
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> as <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>, especially in the space of zero-copy deserialization.</p>
+<p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> as <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, especially in the space of zero-copy deserialization.</p>
 
 <div class="discussion discussion-note">
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
@@ -1016,16 +1016,16 @@ In general we don’t care about serialization performance much, however seriali
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>A <em>locale</em> is typically a language and location, though it may contain additional information like the writing system or even things like the calendar system in use. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Bear in mind, this isn’t just a matter of picking a format like MM-DD-YYYY! Dates in just US English can look like <code class="language-plaintext highlighter-rouge">4/10/22</code> or <code class="language-plaintext highlighter-rouge">4/10/2022</code> or <code class="language-plaintext highlighter-rouge">April 10, 2022</code>, or <code class="language-plaintext highlighter-rouge">Sunday, April 10, 2022 C.E.</code>, or <code class="language-plaintext highlighter-rouge">Sun, Apr 10, 2022</code>, and that’s not without thinking about week numbers, quarters, or time! This quickly adds up to a decent amount of data for each locale. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>This isn’t real Rust syntax; since <code class="language-plaintext highlighter-rouge">Self</code> is always just <code class="language-plaintext highlighter-rouge">Self</code>, but we need to be able to refer to <code class="language-plaintext highlighter-rouge">Self</code> as a higher-kinded type in this scenario. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Types that aren’t are ones involving mutability (<code class="language-plaintext highlighter-rouge">&amp;mut</code> or interior mutability) around the lifetime, and ones involving function pointers and trait objects. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -1091,7 +1091,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>I’ve also introduced three similarly styled “character discussion” asides that show a discussion with a <a href="https://en.wikipedia.org/wiki/Pion">pion</a>. There’s a “positive” one that’s generally helpful, a “negative” one that’s grumpy, and a “confused” (neutrally charged) one that asks questions.</p>
 
-<p>Having little characters participate in the blog post works really well; it gives a sense of <em>flow</em> to the articles. I’m also hoping it makes them easier to read, breaking up otherwise dense technical content with lighter conversational content<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">1</a></sup>. Asking questions through them give the reader an anchor point for themselves if they’re similarly confused, without me making any assumption that the reader did or didn’t understand a part.</p>
+<p>Having little characters participate in the blog post works really well; it gives a sense of <em>flow</em> to the articles. I’m also hoping it makes them easier to read, breaking up otherwise dense technical content with lighter conversational content<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. Asking questions through them give the reader an anchor point for themselves if they’re similarly confused, without me making any assumption that the reader did or didn’t understand a part.</p>
 
 <p>They’re also <em>yet another</em> way for me to write nonlinearly, and I <em>love</em> writing nonlinearly.</p>
 
@@ -1123,7 +1123,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Back when we only knew about protons, neutrons, and electrons, physicists were attempting to figure out how atomic nuclei stay together. They’re made of protons and neutrons, which means they’re just a lot of positively and neutrally changed thingies crammed into a tight space. There’s not much reason for that to want to stay together, but there’s plenty of reason for it to come apart. This is rather concerning to beings made out of atoms, like physicists.</p>
 
-<p>To resolve this, physicists theorized the existence of the pion<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>, a type of particle that is exchanged between protons and neutrons in the nucleus and forms a mechanism for carrying force.</p>
+<p>To resolve this, physicists theorized the existence of the pion<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, a type of particle that is exchanged between protons and neutrons in the nucleus and forms a mechanism for carrying force.</p>
 
 <div class="discussion discussion-note">
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
@@ -1143,7 +1143,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>The physicist I. I. Rabi famously remarked “Who ordered that?” when they figured out what had happened. There was no <em>reason</em> for such a particle to exist, they had this nice consistent model of the atom that needed four kinds of particle and they found this fifth one just floating around, not really <em>doing</em> anything.</p>
 
-<p>This particle was the <a href="https://en.wikipedia.org/wiki/Muon">muon</a>, and this story is why I use a Greek μ as my avatar everywhere<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>. Given this history, the pion feels like a very natural choice as a foil in blog posts I write.</p>
+<p>This particle was the <a href="https://en.wikipedia.org/wiki/Muon">muon</a>, and this story is why I use a Greek μ as my avatar everywhere<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>. Given this history, the pion feels like a very natural choice as a foil in blog posts I write.</p>
 
 <p>Furthermore, there are three of them, which lets me use them for different purposes! One for “positive” commentary, one for “negative” commentary, and a third “confused” one for questions.</p>
 
@@ -1171,13 +1171,13 @@ In general we don’t care about serialization performance much, however seriali
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>I’m reminded of how a lot of people don’t enjoy reading Tolkien because he spends pages describing, like, one tree, as opposed to most fiction which has plenty of conversational content. Nonfiction books (and blog posts) have the wall-of-description property <em>by default</em> so spending time on improving this makes a lot of sense to me. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>At the time, they called them “mesons”, which is currently the name of a general class of particles which pions belong to. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>My name starting with an M and my interest in writing systems is a <em>part</em> of it, but the main reason is that I really like this story and this kind of thing is what got me into physics in the first place. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -1227,7 +1227,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Tracing garbage collection is the kind which keeps track of which heap objects are directly reachable (“roots”), figures out the whole set of reachable heap objects (“tracing”, also, “marking”), and then cleans them up (“sweeping”).</p>
 
-<p>Throughout this blog post I will use the term “GC” to refer to tracing garbage collection/collectors unless otherwise stated<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>.</p>
+<p>Throughout this blog post I will use the term “GC” to refer to tracing garbage collection/collectors unless otherwise stated<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <h2 id="why-write-gcs-for-rust">Why write GCs for Rust?</h2>
 
@@ -1237,11 +1237,11 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>There are really two distinct kinds of use cases. Firstly, sometimes you need to manage memory with cycles and <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> is inadequate for the job since <code class="language-plaintext highlighter-rouge">Rc</code>-cycles get leaked. <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> or an <a href="https://manishearth.github.io/blog/2021/03/15/arenas-in-rust/">arena</a> are often acceptable solutions for this kind of pattern, but not always, especially if your data is super heterogeneous. This kind of thing crops up often when dealing with concurrent datastructures; for example <a href="https://docs.rs/crossbeam/"><code class="language-plaintext highlighter-rouge">crossbeam</code></a> has <a href="https://docs.rs/crossbeam/0.8.0/crossbeam/epoch/index.html">an epoch-based memory management system</a> which, while not a full tracing GC, has a lot of characteristics in common with GCs.</p>
 
-<p>For this use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
+<p>For this use case it’s rarely necessary to design a custom GC, you can look for a reusable crate like <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> <sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.</p>
 
 <p>The second case is far more interesting in my experience, and since it cannot be solved by off-the-shelf solutions tends to crop up more often: integration with (or implementation of) programming languages that <em>do</em> use a garbage collector. <a href="https://github.com/servo/servo">Servo</a> needs to do this for integrating with the Spidermonkey JS engine and <a href="https://github.com/kyren/luster">luster</a> needed to do this for implementing the GC of its Lua VM. <a href="https://github.com/jasonwilliams/boa/">boa</a>, a pure Rust JS runtime, uses the <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate to back its garbage collector.</p>
 
-<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply “rooting” (we’ll cover what that means in a bit) anything that crosses over to the C++ side<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>. This is often fine!</p>
+<p>Sometimes when integrating with a GCd language you can get away with not needing to implement a full garbage collector: JNI does this; while C++ does not have native garbage collection, JNI gets around this by simply “rooting” (we’ll cover what that means in a bit) anything that crosses over to the C++ side<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>. This is often fine!</p>
 
 <p>The downside of this is that every interaction with objects managed by the GC has to go through an API call; you can’t “embed” efficient Rust/C++ objects in the GC with ease. For example, in browsers most DOM types (e.g. <a href="https://doc.servo.org/script/dom/element/struct.Element.html"><code class="language-plaintext highlighter-rouge">Element</code></a>) are implemented in native code; and need to be able to contain references to other native GC’d types (it should be possible to inspect the <a href="https://doc.servo.org/script/dom/node/struct.Node.html#structfield.child_list">children of a <code class="language-plaintext highlighter-rouge">Node</code></a> without needing to call back into the JavaScript engine).</p>
 
@@ -1254,7 +1254,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>Unfortunately, Rust doesn’t really have a concept of “directly on the stack”:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span>
 <span class="p">}</span>
 <span class="c1">// this is a root</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
@@ -1269,20 +1269,20 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Rust’s ownership system actually makes it easier to have fewer roots since it’s relatively easy to state that taking <code class="language-plaintext highlighter-rouge">&amp;T</code> of a GC’d object doesn’t need to create a new root, and let Rust’s ownership system sort it out, but being able to distinguish between “directly owned” and “indirectly owned” is super tricky.</p>
 
-<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
+<p>Another aspect of this is that garbage collection is really a moment of global mutation – the garbage collector reads through the heap and then deletes some of the objects there. This is a moment of the rug being pulled out under your feet. Rust’s entire design is predicated on such rug-pulling being <em>very very bad and not to be allowed</em>, so this can be a bit problematic. This isn’t as bad as it may initially sound because after all the rug-pulling is mostly just cleaning up unreachable objects, but it does crop up a couple times when fitting things together, especially around destructors and finalizers<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>. Rooting would be far easier if, for example, you were able to declare areas of code where “no GC can happen”<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup> so you can tightly scope the rug-pulling and have to worry less about roots.</p>
 
 <h3 id="destructors-and-finalizers">Destructors and finalizers</h3>
 
 <p>It’s worth calling out destructors in particular. A huge problem with custom destructors on GCd types is that the custom destructor totally can stash itself away into a long-lived reference during garbage collection, leading to a dangling reference:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">LongLived</span> <span class="p">{</span>
-    <span class="n">dangle</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">CantKillMe</span><span class="o">&gt;&gt;&gt;</span>
+    <span class="n">dangle</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="n">CantKillMe</span><span class="o">&gt;&gt;&gt;</span>
 <span class="p">}</span>
 
 <span class="k">struct</span> <span class="n">CantKillMe</span> <span class="p">{</span>
     <span class="c1">// set up to point to itself during construction</span>
-    <span class="n">self_ref</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">CantKillMe</span><span class="o">&gt;&gt;&gt;</span>
-    <span class="n">long_lived</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">LongLived</span><span class="o">&gt;</span>
+    <span class="n">self_ref</span><span class="p">:</span> <span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="n">CantKillMe</span><span class="o">&gt;&gt;&gt;</span>
+    <span class="n">long_lived</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">LongLived</span><span class="o">&gt;</span>
 <span class="p">}</span>
 
 <span class="k">impl</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">CantKillMe</span> <span class="p">{</span>
@@ -1335,8 +1335,8 @@ In general we don’t care about serialization performance much, however seriali
 
 <span class="nd">#[derive(Trace)]</span>
 <span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">vec</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-    <span class="n">extra_thing</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">vec</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+    <span class="n">extra_thing</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="n">Baz</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">just_a_string</span><span class="p">:</span> <span class="nb">String</span>
 <span class="p">}</span>
 </code></pre></div></div>
@@ -1364,7 +1364,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>The <a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> crate is one I wrote with <a href="https://twitter.com/kneecaw/">Nika Layzell</a> mostly as a fun exercise, to figure out if a safe GC API is <em>possible</em>. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">written about the design in depth before</a>, but the essence of the design is that it does something similar to reference counting to keep track of roots, and forces all GC mutations go through special <code class="language-plaintext highlighter-rouge">GcCell</code> types so that they can update the root count. Basically, a “root count” is updated whenever something becomes a root or stops being a root:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
+    <span class="n">bar</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;&gt;</span>
 <span class="p">}</span>
 <span class="c1">// this is a root (root count = 1)</span>
 <span class="k">let</span> <span class="n">bar</span> <span class="o">=</span> <span class="nn">Gc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bar</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
@@ -1380,7 +1380,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>The actual garbage collection phase will occur when certain GC operations are performed at a time when the heap is considered to have gotten reasonably large according to some heuristics.</p>
 
-<p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to <em>avoid</em> the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that’s a mix of tracing and reference counting<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">6</a></sup>.</p>
+<p>While this is essentially “free” on reads, this is a fair amount of reference count traffic on any kind of write, which might not be desired; often the goal of using GCs is to <em>avoid</em> the performance characteristics of reference-counting-like patterns. Ultimately this is a hybrid approach that’s a mix of tracing and reference counting<sup id="fnref:10"><a href="#fn:10" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>.</p>
 
 <p><a href="https://docs.rs/gc/"><code class="language-plaintext highlighter-rouge">gc</code></a> is useful as a general-purpose GC if you just want a couple of things to participate in cycles without having to think about it too much. The general design can apply to a specialized GC integrating with another language runtime since it provides a clear way to keep track of roots; but it may not necessarily have the desired performance characteristics.</p>
 
@@ -1517,7 +1517,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>A crucial observation here is that if you <em>only focus on potential garbage</em>, you can shift your definition of “root” a bit, when looking for cycles you don’t need to look for references from the stack, you can be satisfied with references from <em>any part of the heap you know for a fact is reachable from things which are not potential garbage</em>.</p>
 
-<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">7</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
+<p>A neat property of cycle collectors is while mark and sweep tracing GCs have their performance scale by the size of the heap as a whole, cycle collectors scale by the size of <em>the actual garbage you have</em> <sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">7</a></sup>. There are of course other tradeoffs:  deallocation is often cheaper or “free” in tracing GCs (amortizing those costs by doing it during the sweep phase) whereas cycle collectors have the constant allocator traffic involved in cleaning up objects when refcounts reach zero.</p>
 
 <p>The way <a href="https://github.com/fitzgen/bacon-rajan-cc">bacon-rajan-cc</a> works is that every time a reference count is decremented, the object is added to a list of “potential cycle roots”, unless the reference count is decremented to 0 (in which case the object is immediately cleaned up, just like <code class="language-plaintext highlighter-rouge">Rc</code>). It then traces through this list; decrementing refcounts for every reference it follows, and cleaning up any elements that reach refcount 0. It then traverses this list <em>again</em> and reincrements refcounts for each reference it follows, to restore the original refcount. This basically treats any element not reachable from this “potential cycle root” list as “not garbage”, and doesn’t bother to visit it.</p>
 
@@ -1578,14 +1578,14 @@ In general we don’t care about serialization performance much, however seriali
 <p>The basic design is that there’s a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code> type that contains a <code class="language-plaintext highlighter-rouge">Pin&lt;P&gt;</code>, which can be <em>immovably</em> tied to a stack frame using the same idea behind <code class="language-plaintext highlighter-rouge">pin-utils</code>’ <a href="https://docs.rs/pin-utils/0.1.0/pin_utils/macro.pin_mut.html"><code class="language-plaintext highlighter-rouge">pin_mut!()</code> macro</a>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">letroot!</span><span class="p">(</span><span class="n">root</span><span class="p">);</span>
-<span class="k">let</span> <span class="n">gc</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Foo</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
+<span class="k">let</span> <span class="n">gc</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="n">Foo</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="nn">Foo</span><span class="p">::</span><span class="nf">new</span><span class="p">());</span>
 </code></pre></div></div>
 
 <p>The fact that <code class="language-plaintext highlighter-rouge">root</code> is immovable allows for it to be treated as a true marker for the <em>stack frame</em> over anything else. The list of rooted types can be neatly stored in an ordered stack-like vector in the GC implementation, popping when individual roots go out of scope.</p>
 
 <p>If you wish to return a rooted object from a function, the function needs to accept a <code class="language-plaintext highlighter-rouge">Root&lt;'root&gt;</code>:</p>
 
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="k">Self</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">new</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Root</span><span class="o">&lt;</span><span class="nv">'root</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nv">'root</span><span class="p">,</span> <span class="k">Self</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="n">root</span><span class="nf">.gc</span><span class="p">(</span><span class="k">Self</span> <span class="p">{</span>
         <span class="c1">// ...</span>
     <span class="p">}</span>
@@ -1613,8 +1613,8 @@ In general we don’t care about serialization performance much, however seriali
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
 <span class="nd">#[collect(no_drop)]</span>
 <span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">number</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">many_numbers</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+    <span class="n">number</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">many_numbers</span><span class="p">:</span> <span class="n">GcCell</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="nd">make_arena!</span><span class="p">(</span><span class="n">TestArena</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
@@ -1641,7 +1641,7 @@ In general we don’t care about serialization performance much, however seriali
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Collect)]</span>
 <span class="nd">#[collect(no_drop)]</span>
 <span class="k">struct</span> <span class="n">TestRoot</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">test</span><span class="p">:</span> <span class="nb">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">test</span><span class="p">:</span> <span class="n">Gc</span><span class="o">&lt;</span><span class="nv">'gc</span><span class="p">,</span> <span class="nb">i32</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="nd">make_sequencable_arena!</span><span class="p">(</span><span class="n">test_sequencer</span><span class="p">,</span> <span class="n">TestRoot</span><span class="p">);</span>
@@ -1693,25 +1693,25 @@ In general we don’t care about serialization performance much, however seriali
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>I’m also going to completely ignore the field of <em>conservative</em> stack-scanning tracing GCs where you figure out your roots by looking at all the stack memory and considering anything with a remotely heap-object-like bit pattern to be a root. These are interesting, but can’t really be made 100% safe in the way Rust wants them to be unless you scan the heap as well. <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Which currently does not have support for concurrent garbage collection, but it could be added. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Some JNI-using APIs are also forced to have <a href="https://developer.android.com/ndk/reference/group/bitmap#androidbitmap_lockpixels">explicit rooting APIs</a> to give access to things like raw buffers. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>In general, finalizers in GCs are hard to implement soundly in any language, not just Rust, but Rust can sometimes be a bit more annoying about it. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Spolier: This is actually possible in Rust, and we’ll get into it further in this post! <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:10" role="doc-endnote">
+    <li id="fn:10">
       <p>Such hybrid approaches are common in high performance GCs; <em><a href="https://courses.cs.washington.edu/courses/cse590p/05au/p50-bacon.pdf">“A Unified Theory of Garbage Collection”</a></em> by Bacon et al. covers a lot of the breadth of these approaches. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>Firefox’s DOM actually uses a mark &amp; sweep tracing GC <em>mixed with</em> a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there’s a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -1797,7 +1797,7 @@ In general we don’t care about serialization performance much, however seriali
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
@@ -1822,7 +1822,7 @@ In general we don’t care about serialization performance much, however seriali
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
@@ -1972,7 +1972,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -2040,26 +2040,26 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
 
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
 
 <p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
 
 <p><em>Thanks to <a href="https://mpc.sh">Mark Cohen</a> and <a href="https://twitter.com/kneecaw/">Nika Layzell</a> for reviewing drafts of this post.</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>The technical term for this is “contravariant lifetime” <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Because you’re claiming the destructor “can’t see” the type or lifetime, see? <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -2127,7 +2127,7 @@ make a jagged edge of an integration surface.</p>
 
 <p>The style system is more self-contained than other parts, but it’s still quite tightly integrated.</p>
 
-<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>
+<p>The main job of a “style system” is to take the CSS rules and DOM tree, and run them through “the cascade”<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>
 with an output of “computed styles” tagged on each node in the tree. So, for example, it will take a document like
 the following:</p>
 
@@ -2149,7 +2149,7 @@ the following:</p>
 
 <ul>
   <li><code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> has a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code>, everything else is the default</li>
-  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
+  <li>the <code class="language-plaintext highlighter-rouge">div</code> <code class="language-plaintext highlighter-rouge">#foo</code> has a computed <code class="language-plaintext highlighter-rouge">height</code> of <code class="language-plaintext highlighter-rouge">24px</code> <sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, everything else is the default. It “inherits” the <code class="language-plaintext highlighter-rouge">font-size</code> from <code class="language-plaintext highlighter-rouge">&lt;body&gt;</code> as <code class="language-plaintext highlighter-rouge">12px</code></li>
 </ul>
 
 <p>From a code point of view, this means that Stylo takes in Gecko’s C++ DOM tree. It parses all the CSS,
@@ -2306,7 +2306,7 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">MyString_Destroy</code> isn’t necessary with bindgen – bindgen will generate a <code class="language-plaintext highlighter-rouge">MyString::destruct()</code> function for you – but be careful, this will make your generated bindings very platform-specific, so be sure to only do this if running them at build time. In general, when bindgen generates C++ <em>methods</em>, your bindings become platform specific and are best regenerated at build time<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
 
 <p>In Stylo we went down the route of manually defining <code class="language-plaintext highlighter-rouge">_Destroy()</code> functions since we started off with checked-in platform-agnostic bindings, however we could probably switch to using <code class="language-plaintext highlighter-rouge">destruct()</code> if we want to now.</p>
 
@@ -2364,7 +2364,7 @@ We’re forced to null-check it, but once we do we can safely assume that the re
 
 <p>We implement the <code class="language-plaintext highlighter-rouge">RefCounted</code> trait for C++ types that are wrapped in <code class="language-plaintext highlighter-rouge">RefPtr</code> which we wish to access through Rust. We have <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#258-315">some</a> <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/layout/style/GeckoBindings.h#52-60">macros</a> that make this easier to do. We have to have such a trait, because otherwise Rust code wouldn’t know how to manage various C++ types.</p>
 
-<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
+<p>However, <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> here can’t be the type that ends up being used in bindgen. Rust doesnt let us do things like <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> <sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, so we can’t effectively make this work with the bindgen generated type unless we write a <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation for every refcounted type that shows up in the bindgen output at all – which would be a lot of work.</p>
 
 <p>Instead, we let bindgen generate its own <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code>, called <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> (all the structs that bindgen generates for Gecko go in a <code class="language-plaintext highlighter-rouge">structs::</code> module). <code class="language-plaintext highlighter-rouge">structs::RefPtr&lt;T&gt;</code> itself doesn’t have enough semantics to be something we can pass around willy-nilly in Rust code without causing leaks. However, it has <a href="https://searchfox.org/mozilla-central/rev/cfaa5a1d48d6bc6552199e73004ecb05d0a9c921/servo/components/style/gecko_bindings/sugar/refptr.rs#150-234">some methods</a> that allow for conversion into the “safe” mirror <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> (but only if <code class="language-plaintext highlighter-rouge">T: RefCounted</code>). So if you need to manipulate a <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> in a C++ struct somewhere, you immediately use one of the conversion methods to get a safe version of it first, and <em>then</em> do things to it. Refcounted types that don’t have the <code class="language-plaintext highlighter-rouge">RefCounted</code> implementation won’t have conversion methods: they may exist in the data you’re manipulating, however you won’t be able to work with them.</p>
 
@@ -2395,7 +2395,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>Stylo uses a lot of <code class="language-plaintext highlighter-rouge">Arc</code>s. A <em>lot</em> of them. The entire computation of styles makes heavy use of <code class="language-plaintext highlighter-rouge">Arc::make_mut</code>’s copy-on-write semantics so that we can build up the style tree in parallel but not have to make unnecessary copies of duplicated/defaulted styles for each element.</p>
 
-<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>.</p>
+<p>Many of these <code class="language-plaintext highlighter-rouge">Arc</code>s need to be readable from C++. Rust’s <code class="language-plaintext highlighter-rouge">Arc</code>, however, consists of a pointer to an allocation containing a refcount and the data, so if C++ needs to get access to the data it needs to know the layout of the <code class="language-plaintext highlighter-rouge">Arc</code> allocation, which we’d rather not do<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>.</p>
 
 <p>We picked a different route: We created a crate duplicating <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code> which behaves almost exactly the same as <code class="language-plaintext highlighter-rouge">Arc&lt;T&gt;</code>, but it can be converted to <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code> which has its pointer point to the <em>middle</em> of the allocation, where the <code class="language-plaintext highlighter-rouge">T</code> begins. To C++, this just looks like a <code class="language-plaintext highlighter-rouge">*const T</code>! We were then able to make it work with <code class="language-plaintext highlighter-rouge">RefPtr&lt;T&gt;</code> on the C++ side so that C++ can transparently read from the <code class="language-plaintext highlighter-rouge">OffsetArc&lt;T&gt;</code>, and only needs to call into Rust if it wishes to clone or drop it.</p>
 
@@ -2488,19 +2488,19 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 <p><em>Thanks to Adam Perry, Adrian Taylor, katie martin, Nika Layzell, and Tyler Mandry for reviewing drafts of this post</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>The <em>cascade</em> in “Cascading Style Sheets” is the process used to take all the potential rules which could apply to an element and find the “most applicable” one that gets actually used. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>The <code class="language-plaintext highlighter-rouge">em</code> unit is font-size-relative, so <code class="language-plaintext highlighter-rouge">2em</code> with a <code class="language-plaintext highlighter-rouge">font-size</code> of <code class="language-plaintext highlighter-rouge">12px</code> is computed to <code class="language-plaintext highlighter-rouge">2 * 12 = 24px</code>. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>C++ name mangling <a href="https://en.wikipedia.org/wiki/Name_mangling#How_different_compilers_mangle_the_same_functions">is not standardized</a>, so any function with the C++ ABI will generate a <code class="language-plaintext highlighter-rouge">#[link_name = "_Z1foobarbaz"]</code> attribute on the Rust side, and the exact string used here will differ across compiler implementations and platforms. Since GCC and Clang follow the same scheme, most people will encounter this problem when their code doesn’t work on Windows due to MSVC using a different scheme. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p><code class="language-plaintext highlighter-rouge">Drop</code> impls are restricted in a bunch of ways for safety, in particular you cannot write <code class="language-plaintext highlighter-rouge">impl&lt;T: RefCounted&gt; Drop for RefPtr&lt;T&gt;</code> unless <code class="language-plaintext highlighter-rouge">RefPtr</code> is defined as <code class="language-plaintext highlighter-rouge">RefPtr&lt;T: RefCounted&gt;</code>. It’s not possible to have a generic type that has an impl of <code class="language-plaintext highlighter-rouge">Drop</code> for only <em>some</em> possible instantiations of its generics. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>Rust’s standard library does not typically guarantee anything about the layout of its types, and furthermore, Rust does not make many guarantees about the stability of most types without a <code class="language-plaintext highlighter-rouge">#[repr]</code> attribute. This would <em>work</em>, but it would be brittle and prone to breakage. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -2564,13 +2564,13 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
   <li>Provisionally, in person on election day at a polling place</li>
 </ul>
 
-<p>Voting by mail is pretty straightforward: When you register you can choose to vote by mail (or you can choose to do so online after the fact). You get a ballot in the mail, along with a special envelope. You fill in the ballot at your leisure, stick it in the envelope, write your name/address on the envelope, sign it, and mail it back. There are also convenient ballot dropboxes all over the place in case you’re a millenial like me and don’t want to figure out how to buy stamps<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
+<p>Voting by mail is pretty straightforward: When you register you can choose to vote by mail (or you can choose to do so online after the fact). You get a ballot in the mail, along with a special envelope. You fill in the ballot at your leisure, stick it in the envelope, write your name/address on the envelope, sign it, and mail it back. There are also convenient ballot dropboxes all over the place in case you’re a millenial like me and don’t want to figure out how to buy stamps<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <p>If you’re voting by mail you can also show up at any polling place on the day of the election and drop off your ballots in a sealed bin. At the polling place I helped run roughly half of the people coming in were just there to drop off their vote by mail ballots!</p>
 
-<p>Voting by mail is by far the easiest option here. Sadly not all counties support it<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. In some states <a href="https://en.wikipedia.org/wiki/Vote-by-mail_in_Oregon">this is even the <em>default</em> option</a>.</p>
+<p>Voting by mail is by far the easiest option here. Sadly not all counties support it<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. In some states <a href="https://en.wikipedia.org/wiki/Vote-by-mail_in_Oregon">this is even the <em>default</em> option</a>.</p>
 
-<p>As I understand it, voting in person at designated government offices<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> is pretty much the same as voting in person at a polling place, it’s just run by government employees instead of volunteers and open for a few weeks before election day.</p>
+<p>As I understand it, voting in person at designated government offices<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> is pretty much the same as voting in person at a polling place, it’s just run by government employees instead of volunteers and open for a few weeks before election day.</p>
 
 <figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="/images/post/polls/bling.jpeg" width="400" /><figcaption class="caption-text"><p>Poll workers are given some neat bling to wear</p>
 </figcaption></figure>
@@ -2579,7 +2579,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>If you’ve chosen to vote in person, you are supposed to turn up at your assigned polling place (you get your assignment in the mail along with other voter info booklets).</p>
 
-<p>There’s a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
+<p>There’s a copy of the list of people assigned to the polling place posted outside, and another with the poll workers inside. When you tell your name to the poll workers, they cross your name off the list, and you have to sign your name next to it<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
 
 <ul>
   <li>If your name isn’t on the list, the poll workers will try and find your assigned precinct and inform you that you can go there instead, but you can still choose to vote provisionally at the existing precinct.</li>
@@ -2592,7 +2592,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>If it is your first time voting, you need to show some form of ID, but it doesn’t need to be photo ID and <a href="https://en.wikipedia.org/wiki/Help_America_Vote_Act#Voter_identification">even a utility bill is fine</a>.</p>
 
-<p>Once you’re done signing, you’ll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.</p>
+<p>Once you’re done signing, you’ll be given your ballot cards and a privacy sleeve folder so you can carry your filled ballots around. Because this is California and there are tons of local and state measures, we had 4 (!!) ballot cards, six sides to fill in<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>. Usually a poll worker will also detach the ballot stubs in front of you and hand them to you to keep. You can use these to check the status (but not the contents!) of your ballot online.</p>
 
 <p>You take your cards to a voting booth, fill them in, and come back. A poll worker will then help you feed your ballot cards into a scanner machine. This machine will reject cards with any problems — which you can fix, rerequesting new ballot cards if necessary, but you then have to spoil and return the old ballot card.</p>
 
@@ -2607,7 +2607,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <h3 id="using-a-voting-machine">Using a voting machine</h3>
 
-<p>In case you think you will have trouble filling out a ballot card in pen (e.g. if your vision is heavily impared), there’s an alternate way to vote that doesn’t involve a pen. Instead, we have a machine which has a touchscreen and an audio unit, which prompts the voter for their selection for each ballot item on the touchscreen or audio unit. When they’re done, the machine will print out a “receipt” listing their choices inside a sealed box with a glass window, so they can verify that their vote was recorded correctly<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup>. Once they’re done the sealed box will scroll the “receipt” out of view so that the next voter can’t see it.</p>
+<p>In case you think you will have trouble filling out a ballot card in pen (e.g. if your vision is heavily impared), there’s an alternate way to vote that doesn’t involve a pen. Instead, we have a machine which has a touchscreen and an audio unit, which prompts the voter for their selection for each ballot item on the touchscreen or audio unit. When they’re done, the machine will print out a “receipt” listing their choices inside a sealed box with a glass window, so they can verify that their vote was recorded correctly<sup id="fnref:6"><a href="#fn:6" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>. Once they’re done the sealed box will scroll the “receipt” out of view so that the next voter can’t see it.</p>
 
 <p>The sealed box is called a <a href="https://en.wikipedia.org/wiki/Voter-verified_paper_audit_trail">Voter-Verified Paper Trail</a> box: the election runners no longer need to trust the machine’s internal memory, they can trust the paper trail inside the box (which, while produced by a potentially-untrustworthy machine, was verified by the voters), and the machine’s internal memory is simply a way to double-check (and get fast preliminary results).</p>
 
@@ -2617,7 +2617,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>In such a case you can always vote provisionally. The beauty of this system is that it removes most liability from poll workers: we don’t have any reason to turn people away from the polls, all we can do is refuse to let people vote normally (and instead vote provisionally) in the case of any inconsistencies. This is not to say that malicious poll workers <em>can’t</em> turn people away; it’s illegal but it happens. But well-meaning poll workers cannot, by accident, disenfranchise a voter because we are always allowed to give them a provisional ballot, and that’s an easy rule to follow.</p>
 
-<p>With provisional voting, the voters are given the same ballot cards, but they’re also given an envelope with a form on it. This envelope is equivalent to a voter registration form, (re)registering them in their appropriate county/district<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">7</a></sup>. They vote on the ballot cards normally, but instead of submitting the ballots to the scanner, they put them in the envelope, which goes into a sealed bin<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">8</a></sup>. You’re also given a number you can call to check the status of your ballot.</p>
+<p>With provisional voting, the voters are given the same ballot cards, but they’re also given an envelope with a form on it. This envelope is equivalent to a voter registration form, (re)registering them in their appropriate county/district<sup id="fnref:7"><a href="#fn:7" class="footnote" rel="footnote" role="doc-noteref">7</a></sup>. They vote on the ballot cards normally, but instead of submitting the ballots to the scanner, they put them in the envelope, which goes into a sealed bin<sup id="fnref:8"><a href="#fn:8" class="footnote" rel="footnote" role="doc-noteref">8</a></sup>. You’re also given a number you can call to check the status of your ballot.</p>
 
 <p>When you vote provisionally, the registrar of voters will manually process your envelope, remaking your ballot on the right set of cards if necessary, and feeding them into a scanner machine.</p>
 
@@ -2656,7 +2656,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <h3 id="conservation-of-ballots-auditable-paper-trail">Conservation of ballots (Auditable paper trail)</h3>
 
-<p>The total number of ballots in the system is roughly conserved and kept track of. If you’re registered to vote by mail, you cannot request a normal ballot without surrendering your vote by mail ballot and envelope (which we mark as spoiled and put in a separate pouch). If you re-request a ballot card because you made a mistake, the old card needs to be similarly spoiled and put away separately. It’s one set of ballot cards per voter, and almost all potential aberrations in this property result in a provisional vote<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote" rel="footnote">9</a></sup>. Even provisional votes are converted to normal ballot cards in the end.</p>
+<p>The total number of ballots in the system is roughly conserved and kept track of. If you’re registered to vote by mail, you cannot request a normal ballot without surrendering your vote by mail ballot and envelope (which we mark as spoiled and put in a separate pouch). If you re-request a ballot card because you made a mistake, the old card needs to be similarly spoiled and put away separately. It’s one set of ballot cards per voter, and almost all potential aberrations in this property result in a provisional vote<sup id="fnref:9"><a href="#fn:9" class="footnote" rel="footnote" role="doc-noteref">9</a></sup>. Even provisional votes are converted to normal ballot cards in the end.</p>
 
 <p>Eventually, there will be a giant roomful of ballots that cannot be traced back to their individual voters, but it can still be traced back to the <em>entirety</em> of the voters — it’s hard to put a ballot into the system without a corresponding voter. This is perfect — the ballots can be hand-counted, but they can’t be individually corellated with their respective voters.</p>
 
@@ -2740,31 +2740,31 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Last year they required postage, but I they’ve changed that with <a href="https://www.sos.ca.gov/administration/news-releases-and-advisories/2019/no-stamp-no-problem-all-vote-mail-ballots-now-come-prepaid-postage-return-envelopes/">a law</a> this year. Yay! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Ostensibly because of fears of voter fraud, but they’re largely unfounded — in practice this just reduces turnout <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>I think for Alameda county the only such office is the Registrar of Voters in Oakland <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>The crossing-off and signing lists are different, but this isn’t too important. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>I remember one particularly curmudgeonly voter loudly grumbling about all the propositions as they were voting. One doesn’t “vote” in California, one fills out social studies homework. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:6" role="doc-endnote">
+    <li id="fn:6">
       <p>I don’t quite recall how the verifiability works for people using the audio unit, they may be allowed to ask someone else to verify for them? <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:7" role="doc-endnote">
+    <li id="fn:7">
       <p>If you vote in a different precinct, or worse, a different county, the ballot cards may not contain all the same races, so voting provisionally from the wrong district means that you only get to vote for the races common to both ballot cards. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:8" role="doc-endnote">
+    <li id="fn:8">
       <p>It’s imperative that these do not go into the scanner (since that operation cannot be undone), and to prevent this poll workers are instructed to not give provisional voters a secrecy sleeve as the envelope acts as a secrecy sleeve. Whoever is supervising the scanner will only allow people with secrecy sleeves to slip their ballots into the scanner. <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:9" role="doc-endnote">
+    <li id="fn:9">
       <p>The exception is using the touchscreen machine, where you get to vote without using up a ballot card on voting day. However, tallies for the machine are kept separately, and I think these too are eventually turned into normal ballot cards. <a href="#fnref:9" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -2806,7 +2806,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>I’ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
 
-<p>In the interest of brevity<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
+<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
 
 <p>This blog post is probably going to reach the eyes of non-Rust-community members. You’re welcome to read it, but please accept my apologies in advance if it doesn’t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven’t had time to edit it to make it acceptable to a wider audience.</p>
 
@@ -2882,7 +2882,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>The second category – disruptive comments – are the thing we’re currently unable to handle well. They snowball pretty badly too — as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more “parallel universes” it also just becomes <em>easier</em> for a comment to be disruptive.</p>
 
-<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
+<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
 
 <h2 id="participation-guidelines">Participation guidelines</h2>
 
@@ -2941,7 +2941,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <p>It’s important to note that facilitators don’t make decisions — the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
 
-<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
+<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
 
 <p>This is also something the moderation team could do, however it’s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren’t as high: screwups can get noticed, and they don’t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I’d love to hear from people who would like to help).</p>
 
@@ -2969,16 +2969,16 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>I am way too verbose for “brief” to be an accurate description of anything I write, but might as well <em>try</em>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Scaling the moderation team properly is another piece of this puzzle that I’m working on; we’ve made some progress recently. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I’ll explain later it’s suboptimal for the mod team to be dealing with this anyway. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -3105,7 +3105,7 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

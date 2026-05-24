@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Arenas in Rust">
       <meta property="twitter:description" content="There’s been some discussion about arenas in Rust recently, and I thought I’d write about them. Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/">
+  <link rel="canonical" href="http://localhost:4000/blog/2021/03/15/arenas-in-rust/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -164,7 +164,7 @@
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
@@ -189,7 +189,7 @@
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
@@ -339,7 +339,7 @@
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -407,26 +407,26 @@
 
 <p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
 
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
 
 <p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
 
 <p><em>Thanks to <a href="https://mpc.sh">Mark Cohen</a> and <a href="https://twitter.com/kneecaw/">Nika Layzell</a> for reviewing drafts of this post.</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>The technical term for this is “contravariant lifetime” <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Because you’re claiming the destructor “can’t see” the type or lifetime, see? <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -460,7 +460,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2021/03/15/arenas-in-rust/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2021/03/15/arenas-in-rust/" >Tweet</a>
   
   
   
@@ -553,7 +553,7 @@
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

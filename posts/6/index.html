@@ -17,12 +17,12 @@ awesomeness as a language &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="In Pursuit of Laziness">
       <meta property="twitter:description" content="Yesterday I was working on a small feature
 for the Rust compiler, and came across a situation which really showcased Rust’s
 awesomeness as a language. There was a struct which was exposed to an API, &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -31,7 +31,7 @@ awesomeness as a language. There was a struct which was exposed to an API, &hell
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/posts/6/">
+  <link rel="canonical" href="http://localhost:4000/posts/6/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -80,7 +80,7 @@ awesomeness as a language. There was a struct which was exposed to an API, &hell
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -134,7 +134,7 @@ and I wished to give it access to a list of things known as “attributes”, wh
 or use a reference (pointer) to it or its contents.</p>
 
 <p>In a language like C++ there’s only once choice in this situation; that is
-to clone the vector<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
+to clone the vector<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. In a large C++ codebase if I wished to use a pointer I would need to be sure that the vector
 isn’t deallocated by the time I’m done with it, and more importantly, to be sure that no other code pushes to the vector (when a vector overflows its
 capacity it will be reallocated, invalidating any other pointers to its contents).</p>
 
@@ -239,7 +239,7 @@ and <a href="https://github.com/Manishearth/rust/commit/ede7a6dc8ff5455f9d0d39a9
 
 <p>In this case, the code was uncomfortable with taking a slice of attributes out of an arbitrary <code class="language-plaintext highlighter-rouge">StructDef</code> reference and returning it. What if the <code class="language-plaintext highlighter-rouge">StructDef</code> doesn’t live long enough?
 Generally the compiler internally figures out the lifetimes necessary and uses them here, but if you have too many references there’s no single way to make the fix.
-In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. This meant that the returned attribute of the function will
+In this case, the compiler suggested I add a <code class="language-plaintext highlighter-rouge">'a</code> to <code class="language-plaintext highlighter-rouge">&amp;StructDef</code> and the returned <code class="language-plaintext highlighter-rouge">&amp;[Attribute]</code>, and I did so. The <code class="language-plaintext highlighter-rouge">'a</code> lifetime was declared at <a href="https://github.com/Manishearth/rust/blob/ede7a6dc8ff5455f9d0d39a90e6d11e9a374e93b/src/libsyntax/ext/deriving/generic/mod.rs#L379">the top of the impl</a>, so it was the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code><sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. This meant that the returned attribute of the function will
 have a lifetime tied to <code class="language-plaintext highlighter-rouge">self</code> and the input <code class="language-plaintext highlighter-rouge">StructDef</code>, and due to this it cannot outlive the inputs, which is what we wanted in the first place. In essence, I took a bit of code that was doing:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">minicreate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">ast</span><span class="p">::</span><span class="n">Variant</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="p">[</span><span class="nn">ast</span><span class="p">::</span><span class="n">Attribute</span><span class="p">]</span> <span class="p">{</span>
@@ -282,10 +282,10 @@ with much cognitive overhead; I could just follow the compiler and it fixed ever
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Some people have pointed out that a shared pointer to the vector itself would work here too. This is correct, but a shared pointer also has a runtime overhead, and more importantly doesn’t prevent iterator invalidation. I had no idea how the vector was being used elsewhere, so this was a risk I didn’t want to take. Additionally, whilst a shared pointer to the vector itself is immune to the issue of the vector being moved, since this was an API, someone consuming the API might take a reference of an attribute and hold on to it long enough for it to become invalidated. This is something we can’t have either – an API consumer should not have to worry about where the pointers will invalidate. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Note: This is not the lifetime of the reference <code class="language-plaintext highlighter-rouge">&amp;self</code>, which is the lifetime of the pointer (<code class="language-plaintext highlighter-rouge">&amp;'b self</code>), but the lifetime parameter of <code class="language-plaintext highlighter-rouge">self</code>, a <code class="language-plaintext highlighter-rouge">TraitDef&lt;'a&gt;</code>, which has a lifetime parameter for its child fields. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -418,7 +418,7 @@ my cup of tea.</p>
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

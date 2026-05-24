@@ -16,11 +16,11 @@ that most folks aren’t aware of. Many of these &hellip;">
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="Rust tidbits: Box is special">
       <meta property="twitter:description" content="Rust is not a simple language. As with any such language, it has many little tidbits of complexity
 that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -29,7 +29,7 @@ that most folks aren’t aware of. Many of these tidbits are ones which may not 
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/">
+  <link rel="canonical" href="http://localhost:4000/blog/2017/01/10/rust-tidbits-box-is-special/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -78,7 +78,7 @@ that most folks aren’t aware of. Many of these tidbits are ones which may not 
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -128,7 +128,7 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
 <a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
@@ -235,7 +235,7 @@ traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existenc
 though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Then, the
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. Then, the
 <a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
 a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
@@ -261,7 +261,7 @@ three pieces of behavior that could not be replicated in pure Rust at the time:<
   <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
-<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.
+<p>The third one is the one that really gets to us here<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.
 For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
 You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
 <code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
@@ -296,13 +296,13 @@ use of <code class="language-plaintext highlighter-rouge">DerefMove</code> seman
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Seriously though, does anyone use it much? I’ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>It will probably eventually be replaced or made equivalent to the <code class="language-plaintext highlighter-rouge">&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>It’s easier to special case the first two, much like how <code class="language-plaintext highlighter-rouge">for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -340,7 +340,7 @@ use of <code class="language-plaintext highlighter-rouge">DerefMove</code> seman
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2017/01/10/rust-tidbits-box-is-special/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2017/01/10/rust-tidbits-box-is-special/" >Tweet</a>
   
   
   
@@ -433,7 +433,7 @@ use of <code class="language-plaintext highlighter-rouge">DerefMove</code> seman
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

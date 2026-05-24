@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: Systems | In Pursuit of Laziness]]></title>
-  <link href="http://manishearth.github.io/blog/categories/systems/atom.xml" rel="self"/>
-  <link href="http://manishearth.github.io/"/>
-  <updated>2024-08-21T01:01:09+00:00</updated>
-  <id>http://manishearth.github.io/</id>
+  <link href="http://localhost:4000/blog/categories/systems/atom.xml" rel="self"/>
+  <link href="http://localhost:4000/"/>
+  <updated>2026-05-24T21:32:22+00:00</updated>
+  <id>http://localhost:4000/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
     
@@ -15,12 +15,12 @@
   
   <entry>
     <title type="html"><![CDATA[Adventures in Systems Programming: C++ Local Statics]]></title>
-    <link href="http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
+    <link href="http://localhost:4000/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics/"/>
     <updated>2015-06-26T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
+    <id>http://localhost:4000/blog/2015/06/26/adventures-in-systems-programming-c-plus-plus-local-statics</id>
     <content type="html"><![CDATA[<p>For a while now I’ve been quite interested in compilers and systems programming in general; and I
 feel that an important feature of systems programming is that it’s relatively easy to figure out
-what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">1</a></sup>. Conversely, it’s
+what a line of code does (modulo optimizations) at the OS or hardware level<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. Conversely, it’s
 important to know how your tools work more than ever in systems programming. So when I see a
 language feature I’m not familiar with, I’m interested in finding out how it works under the hood.</p>
 
@@ -29,7 +29,7 @@ features and nuances of C++. However, I am pretty good at Rust and understand a 
 the compiler internals. This gives me a great perspective — I’ve not yet internalized most C++
 features to take them for granted, and I’m well equipped to investigate these features.</p>
 
-<p>Today I came across some C++ code similar to the following<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">2</a></sup>:</p>
+<p>Today I came across some C++ code similar to the following<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>:</p>
 
 <div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
     <span class="k">static</span> <span class="n">SomeType</span> <span class="n">bar</span> <span class="o">=</span> <span class="n">Env</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">someMethod</span><span class="p">();</span>
@@ -94,7 +94,7 @@ Symbol "THING" is static storage at address 0x601198.
 THING in section .bss
 </code></pre></div></div>
 
-<p>We can also leave statics uninitialized (<code class="language-plaintext highlighter-rouge">static int THING;</code>) and they will be placed in <code class="language-plaintext highlighter-rouge">.bss</code><sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">3</a></sup>.</p>
+<p>We can also leave statics uninitialized (<code class="language-plaintext highlighter-rouge">static int THING;</code>) and they will be placed in <code class="language-plaintext highlighter-rouge">.bss</code><sup id="fnref:8"><a href="#fn:8" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
 
 <p>So far so good.</p>
 
@@ -113,7 +113,7 @@ identifier.</p>
 
 <p>However, this isn’t the case. What tipped me off was that this called <code class="language-plaintext highlighter-rouge">Env()</code>, and I wasn’t so sure
 that the environment was guaranteed to be properly initialized and available before <code class="language-plaintext highlighter-rouge">main()</code> is
-called <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">4</a></sup>.</p>
+called <sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
 
 <p>Instead, these are statics which are initialized the first time the function is called.</p>
 
@@ -267,7 +267,7 @@ to “initializing”, the mutex is released, the value is initialized, and the 
 <p>I suppose that this implementation would work, though it’s not the one being used. The
 <a href="https://github.com/android/platform_bionic/blob/master/libc/bionic/__cxa_guard.cpp">implementation in bionic</a> (the Android version of the C stdlib) is similar; it
 uses per-static atomics which indicate various states. However, it does not throw an exception when
-we have a recursive initialization, it instead seems to deadlock<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">5</a></sup>. This is okay because the C++
+we have a recursive initialization, it instead seems to deadlock<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>. This is okay because the C++
 spec says (<a href="http://www.open-std.org/jtc1/sc22/open/n2356/stmt.html#stmt.dcl">Section 6.7.4</a>)</p>
 
 <blockquote>
@@ -320,19 +320,19 @@ happening there. One step closer to being a better systems programmer!</p>
 <p><em>Thanks to Rohan Prinja, Eduard Burtescu, and Nishant Sunny for reviewing drafts of this blog post</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>Emphasis on <em>relatively</em>. This article will show that it’s definitely not “easy” all the time. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>This was JNI code which obtained a JNI environment and pulled out method/class IDs from it to be used later <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:8" role="doc-endnote">
+    <li id="fn:8">
       <p>Unless it has a constructor or otherwise isn’t made out of trivially constructible types; in this case it is treated similar to the previous case. <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>I checked later, and it was indeed the case that global statics are initialized before <code class="language-plaintext highlighter-rouge">Env()</code> is ready <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>I later verified this with a modification of the crashing program above stuck inside some JNI Android code. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>

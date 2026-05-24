@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://manishearth.github.io">
+      <meta property="twitter:url" content="http://localhost:4000">
       <meta property="twitter:title" content="The problem with single-threaded shared mutability">
       <meta property="twitter:description" content="Edit (Jan 2017): I re-discovered Niko’s post which touches on this and reaches for the same realization. I suspect I subconsciously got the idea for this from that post, at least in part. This is a &hellip;">
-      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
+      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/">
+  <link rel="canonical" href="http://localhost:4000/blog/2015/05/17/the-problem-with-shared-mutability/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="manishearth.github.io">
+    <input type="hidden" name="sitesearch" value="localhost:4000">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -161,7 +161,7 @@ and immutable <a href="http://doc.rust-lang.org/nightly/book/references-and-borr
 problems that these concepts prevent. It makes sense that having only one “owner” and then multiple “borrowers” who
 are statically guaranteed to not stick around longer than the owner will prevent things like use-after-free.</p>
 
-<p>But what could possibly be wrong with having multiple handles for mutating an object? Why do we need an RWLock pattern? <sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup></p>
+<p>But what could possibly be wrong with having multiple handles for mutating an object? Why do we need an RWLock pattern? <sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup></p>
 
 <h2 id="it-causes-memory-unsafety">It causes memory unsafety</h2>
 
@@ -176,7 +176,7 @@ for example you can have the enum</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>which gives us a type that can either be a variant <code class="language-plaintext highlighter-rouge">Str</code>, with an associated string, or a variant <code class="language-plaintext highlighter-rouge">Int</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>, with an associated integer.</p>
+<p>which gives us a type that can either be a variant <code class="language-plaintext highlighter-rouge">Str</code>, with an associated string, or a variant <code class="language-plaintext highlighter-rouge">Int</code><sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, with an associated integer.</p>
 
 <p>With such an enum, we could cause a segfault like so:</p>
 
@@ -339,7 +339,7 @@ possibility that other locals were modified too. A very simple example is:</p>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>In both cases, when the two references are the same<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup>, instead of swapping, the two variables get set to zero.
+<p>In both cases, when the two references are the same<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, instead of swapping, the two variables get set to zero.
 A user (internal to your library, or an API consumer) would expect <code class="language-plaintext highlighter-rouge">swap()</code> to not change anything when fed equal
 references, but this is doing something totally different. This assumption could get used in a program; for example instead
 of skipping the passes in an array sort where the slot is being compared with itself, one might just go ahead with it
@@ -374,13 +374,13 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
 <p><small>Discuss: <a href="https://news.ycombinator.com/item?id=9560158">HN</a>, <a href="http://www.reddit.com/r/rust/comments/369jnx/the_problem_with_singlethreaded_shared_mutability/">Reddit</a></small></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>Hereafter referred to as “The Question” <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Note: <code class="language-plaintext highlighter-rouge">Str</code> and <code class="language-plaintext highlighter-rouge">Int</code> are variant names which I chose; they are not keywords. Additionally, I’m using “associated foo” loosely here; Rust <em>does</em> have a distinct concept of “associated data” but it’s not relevant to this post. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Note that this isn’t possible in Rust due to the borrow checker. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -418,7 +418,7 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/" data-via="Manishearth" data-counturl="http://manishearth.github.io/blog/2015/05/17/the-problem-with-shared-mutability/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/blog/2015/05/17/the-problem-with-shared-mutability/" data-via="Manishearth" data-counturl="http://localhost:4000/blog/2015/05/17/the-problem-with-shared-mutability/" >Tweet</a>
   
   
   
@@ -511,7 +511,7 @@ also okay to use runtime checks and asserts to maintain your invariants; perform
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2024 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
+  Copyright &copy; 2026 - Manish Goregaokar - Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY SA 4.0</a> - 
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

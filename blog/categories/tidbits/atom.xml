@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: Tidbits | In Pursuit of Laziness]]></title>
-  <link href="http://manishearth.github.io/blog/categories/tidbits/atom.xml" rel="self"/>
-  <link href="http://manishearth.github.io/"/>
-  <updated>2024-08-21T01:01:09+00:00</updated>
-  <id>http://manishearth.github.io/</id>
+  <link href="http://localhost:4000/blog/categories/tidbits/atom.xml" rel="self"/>
+  <link href="http://localhost:4000/"/>
+  <updated>2026-05-24T21:32:22+00:00</updated>
+  <id>http://localhost:4000/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[Arenas in Rust]]></title>
-    <link href="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/"/>
+    <link href="http://localhost:4000/blog/2021/03/15/arenas-in-rust/"/>
     <updated>2021-03-15T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2021/03/15/arenas-in-rust</id>
+    <id>http://localhost:4000/blog/2021/03/15/arenas-in-rust</id>
     <content type="html"><![CDATA[<p>There’s been some discussion about arenas in Rust recently, and I thought I’d write about them.</p>
 
 <p>Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional <code class="language-plaintext highlighter-rouge">unsafe</code>, so there’s no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust from fields where arenas are more common.</p>
@@ -66,7 +66,7 @@
 <span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0" role="doc-noteref"><a href="#fn:0" class="footnote" rel="footnote">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
+<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
 
 <h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
 
@@ -91,7 +91,7 @@
 <span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">2</a></sup>.</p>
+<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.</p>
 
 <h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
 
@@ -241,7 +241,7 @@
 
 <p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
 
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
+<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
 
 <p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
 
@@ -309,26 +309,26 @@
 
 <p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
 
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
+<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
 
 <p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
 
 <p><em>Thanks to <a href="https://mpc.sh">Mark Cohen</a> and <a href="https://twitter.com/kneecaw/">Nika Layzell</a> for reviewing drafts of this post.</em></p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:0" role="doc-endnote">
+    <li id="fn:0">
       <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>The technical term for this is “contravariant lifetime” <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Because you’re claiming the destructor “can’t see” the type or lifetime, see? <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -338,9 +338,9 @@
   
   <entry>
     <title type="html"><![CDATA[Mentally Modelling Modules]]></title>
-    <link href="http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules/"/>
+    <link href="http://localhost:4000/blog/2017/05/14/mentally-modelling-modules/"/>
     <updated>2017-05-14T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/05/14/mentally-modelling-modules</id>
+    <id>http://localhost:4000/blog/2017/05/14/mentally-modelling-modules</id>
     <content type="html"><![CDATA[<p><em>Note: This post was written before the Rust 2018 edition, and does not yet incorporate the <a href="https://doc.rust-lang.org/edition-guide/rust-2018/module-system/index.html">changes made to the module system</a>.</em></p>
 
 <p>The module and import system in Rust is sadly one of the many confusing things you have to deal with whilst
@@ -348,7 +348,7 @@ learning the language. A lot of these confusions stem from a misunderstanding of
 In explaining this I’ve seen that it’s usually a common set of misunderstandings.</p>
 
 <p>In the spirit of <a href="http://manishearth.github.io/blog/2017/04/05/youre-doing-it-wrong/">“You’re doing it wrong”</a>, I want to try and explain one
-“right” way of looking at it. You can go pretty far<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> without knowing this, but it’s useful
+“right” way of looking at it. You can go pretty far<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> without knowing this, but it’s useful
 and helps avoid confusion.</p>
 
 <hr />
@@ -454,7 +454,7 @@ counterintuitive, based on your existing model.</p>
 <p>(<a href="http://play.integer32.com/?gist=e553e52d1cbf0d38fd0b42c09ccafe44&amp;version=undefined">playpen</a>)</p>
 
 <p>These examples remind me of the “point at infinity” in elliptic curve crypto or fake particles in
-physics or fake lattice elements in various fields of CS<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. Sometimes, for something to make sense,
+physics or fake lattice elements in various fields of CS<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. Sometimes, for something to make sense,
 you add in things that don’t normally exist. Similarly, these examples may contain code which
 is not traditional Rust style, but the import system
 still makes more sense when you include them.</p>
@@ -469,7 +469,7 @@ still makes more sense when you include them.</p>
       <li>You can resolve relative to the current module by explicily trying <code class="language-plaintext highlighter-rouge">use self::foo::bar::baz</code></li>
     </ul>
   </li>
-  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
+  <li><code class="language-plaintext highlighter-rouge">foo::bar::baz</code> within your code<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> resolves <code class="language-plaintext highlighter-rouge">foo</code> relative to the current module
     <ul>
       <li>You can resolve relative to the root by explicitly using <code class="language-plaintext highlighter-rouge">::foo::bar::baz</code></li>
     </ul>
@@ -705,7 +705,7 @@ you’ll see in the wild.</p>
 </code></pre></div></div>
 
 <p>It’s important to note that this is all contextual; whether or not a particular
-path works is a function of where you are. For example, this works<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>:</p>
+path works is a function of where you are. For example, this works<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">foo</span> <span class="p">{</span>
     <span class="cm">/* not pub */</span> <span class="k">mod</span> <span class="n">bar</span> <span class="p">{</span>
@@ -728,23 +728,23 @@ path works is a function of where you are. For example, this works<sup id="fnref
 <p><br /></p>
 
 <p>Hopefully this is helpful to some of you. I’m not really sure how this can fit into the official
-docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>!</p>
+docs, but if you have ideas, feel free to adapt it<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>!</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>This is because most of these misunderstandings lead to a model where you think fewer things compile, which is fine as long as it isn’t too restrictive. Having a mental model where you feel more things will compile than actually do is what leads to frustration; the opposite can just be restrictive. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>One example closer to home is how Rust does lifetime resolution. Lifetimes form a lattice with <code class="language-plaintext highlighter-rouge">'static</code> being the bottom element. There is no top element for lifetimes in Rust syntax, but internally <a href="http://manishearth.github.io/rust-internals-docs/rustc/ty/enum.Region.html#variant.ReEmpty">there is the “empty lifetime”</a> which is used during borrow checking. If something resolves to have an empty lifetime, it can’t exist, so we get a lifetime error. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>When I say “within your code”, I mean “anywhere but a <code class="language-plaintext highlighter-rouge">use</code> statement”. I may also term these as “inline paths”. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Example adapted from <a href="https://www.reddit.com/r/rust/comments/5m4w95/the_rust_module_system_is_too_confusing/dc1df2z/">this discussion</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>Contact me if you have licensing issues; I still have to figure out the licensing situation for the blog, but am more than happy to grant exceptions for content being uplifted into official or semi-official docs. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -754,9 +754,9 @@ docs, but if you have ideas, feel free to adapt it<sup id="fnref:5" role="doc-no
   
   <entry>
     <title type="html"><![CDATA[I Never Hear the Phrase 'INHTPAMA' Anymore]]></title>
-    <link href="http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa/"/>
+    <link href="http://localhost:4000/blog/2017/03/18/inhtpinhtpamaa/"/>
     <updated>2017-03-18T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/03/18/inhtpinhtpamaa</id>
+    <id>http://localhost:4000/blog/2017/03/18/inhtpinhtpamaa</id>
     <content type="html"><![CDATA[<p>Imagine never hearing the phrase ‘INHTPAMA’ again.</p>
 
 <p>Oh, that’s already the case? Bummer.</p>
@@ -792,9 +792,9 @@ memory of the Rust community.</p>
   
   <entry>
     <title type="html"><![CDATA[Rust Tidbits: What Is a Lang Item?]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
+    <link href="http://localhost:4000/blog/2017/01/11/rust-tidbits-what-is-a-lang-item/"/>
     <updated>2017-01-11T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
+    <id>http://localhost:4000/blog/2017/01/11/rust-tidbits-what-is-a-lang-item</id>
     <content type="html"><![CDATA[<p><em>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
 that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
 much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
@@ -812,7 +812,7 @@ I write more about lang items, which are basically all of the special snowflakes
 functions, and other items which the compiler needs to know about.</p>
 
 <p>For example, when you write <code class="language-plaintext highlighter-rouge">x + y</code>, the compiler will effectively desugar that into
-<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>. How did it know what trait to call? Did it just insert a call to
+<code class="language-plaintext highlighter-rouge">Add::add(x, y)</code><sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. How did it know what trait to call? Did it just insert a call to
 <code class="language-plaintext highlighter-rouge">::core::Add::add</code> and hope the trait was defined there? This is what C++ does;
 the Itanium ABI spec expects functions of certain names
 to just <em>exist</em>, which the compiler is supposed to call in various cases. The
@@ -843,7 +843,7 @@ libstd and the universe will implode.</p>
 
 <p>What’s less known is that you can do the same thing with libcore, via <code class="language-plaintext highlighter-rouge">#![no_core]</code>. And, of course,
 libcore <a href="https://github.com/rust-lang/rust/blob/2782e8f8fcefdce77c5e0dd0846c15c4c5103d84/src/libcore/lib.rs#L65">uses it</a> to avoid the cyclic dependency. Unlike <code class="language-plaintext highlighter-rouge">#![no_std]</code>, <code class="language-plaintext highlighter-rouge">no_core</code> is
-a nightly-only feature that we may never stabilize<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
+a nightly-only feature that we may never stabilize<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. <code class="language-plaintext highlighter-rouge">#![no_core]</code> is something that’s basically
 only to be used if you <em>are</em> libcore (or you are an alternate Rust stdlib/core implementation
 trying to emulate it).</p>
 
@@ -1150,10 +1150,10 @@ useful outside of the realm of compiler hacking.</p>
 useful!</p>
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Though as we learned in the previous post, when <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code> are known numeric types it will bypass the trait and directly generate an add instruction in LLVM <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>To be clear, I’m not aware of any plans to eventually stabilize this. It’s something that could happen. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
@@ -1163,9 +1163,9 @@ useful!</p>
   
   <entry>
     <title type="html"><![CDATA[Rust Tidbits: Box Is Special]]></title>
-    <link href="http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special/"/>
+    <link href="http://localhost:4000/blog/2017/01/10/rust-tidbits-box-is-special/"/>
     <updated>2017-01-10T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/01/10/rust-tidbits-box-is-special</id>
+    <id>http://localhost:4000/blog/2017/01/10/rust-tidbits-box-is-special</id>
     <content type="html"><![CDATA[<p>Rust is not a simple language. As with any such language, it has many little tidbits of complexity
 that most folks aren’t aware of. Many of these tidbits are ones which may not practically matter
 much for everyday Rust programming, but are interesting to know. Others may be more useful. I’ve
@@ -1176,7 +1176,7 @@ be a thing in a programming community; and trivia is fun!</p>
 
 <hr />
 
-<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>.</p>
+<p>So. <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>. Your favorite heap allocation type that nobody uses<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <p>I was discussing some stuff on the rfcs repo when
 <a href="https://github.com/rust-lang/rfcs/issues/1850#issuecomment-271766300">@burdges realized that <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code> has a funky <code class="language-plaintext highlighter-rouge">Deref</code> impl</a>.</p>
@@ -1283,7 +1283,7 @@ traits <a href="https://github.com/rust-lang/rust/pull/12491">came into existenc
 though it probably should have.</p>
 
 <p>Eventually, there was a move to remove sigils from the language. The box constructor <code class="language-plaintext highlighter-rouge">~foo</code> was
-superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">2</a></sup>. Then, the
+superseded by <a href="https://github.com/rust-lang/rust/pull/11055/">placement <code class="language-plaintext highlighter-rouge">box</code> syntax</a>, which still exists in Rust nightly<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. Then, the
 <a href="https://github.com/rust-lang/rust/pull/13904"><code class="language-plaintext highlighter-rouge">~T</code> type became <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></a>. (<code class="language-plaintext highlighter-rouge">~[T]</code> and <code class="language-plaintext highlighter-rouge">~str</code> would also be removed, though <code class="language-plaintext highlighter-rouge">~str</code> took
 a very confusing detour with <code class="language-plaintext highlighter-rouge">StrBuf</code> first).</p>
 
@@ -1309,7 +1309,7 @@ three pieces of behavior that could not be replicated in pure Rust at the time:<
   <li>You could <em>move out of deref</em> with <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code></li>
 </ul>
 
-<p>The third one is the one that really gets to us here<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">3</a></sup>.
+<p>The third one is the one that really gets to us here<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.
 For a <em>regular</em> type, <code class="language-plaintext highlighter-rouge">*foo</code> will produce a temporary that must be immediately borrowed or copied.
 You cannot do <code class="language-plaintext highlighter-rouge">let x = *y</code> for a non-<code class="language-plaintext highlighter-rouge">Copy</code> type. This dereference operation will call
 <code class="language-plaintext highlighter-rouge">DerefMut::deref_mut</code> or <code class="language-plaintext highlighter-rouge">Deref::deref</code> based on how it gets borrowed. With <code class="language-plaintext highlighter-rouge">Box&lt;T&gt;</code>, you can do
@@ -1344,13 +1344,13 @@ use of <code class="language-plaintext highlighter-rouge">DerefMove</code> seman
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Seriously though, does anyone use it much? I’ve only seen it getting used for boxed DSTs (trait objects and boxed slices), which themselves are pretty rare, for sending heap types over FFI, recursive types (rare), and random special cases. I find this pretty interesting given that other languages are much more liberal with non-refcounted single-element allocation. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>It will probably eventually be replaced or made equivalent to the <code class="language-plaintext highlighter-rouge">&lt;-</code> syntax before stabilizing <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>It’s easier to special case the first two, much like how <code class="language-plaintext highlighter-rouge">for</code> loops are aware of the iterator trait without the iterator trait being extremely special cased <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
