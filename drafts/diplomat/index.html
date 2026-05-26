@@ -15,10 +15,10 @@
   
       <meta property="twitter:card" content="summary">
       <meta property="twitter:site" content="Manishearth">
-      <meta property="twitter:url" content="http://localhost:4000">
+      <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="Diplomat: Multi-language FFI for Rust libraries">
-      <meta property="twitter:description" content="For the past few years, as a part of my work on ICU4X, I’ve been working on Diplomat, a multi-language unidirectional FFI tool for wrapping Rust libraries. I originally designed by me in 2021 as a &hellip;">
-      <meta name="twitter:image" content="http://localhost:4000/images/me.png" />
+      <meta property="twitter:description" content="For the past few years, as a part of my work on ICU4X, I’ve been working on Diplomat, a multi-language unidirectional FFI tool for wrapping Rust libraries. I originally designed Diplomat in 2021 as a &hellip;">
+      <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -27,7 +27,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://localhost:4000/drafts/diplomat/">
+  <link rel="canonical" href="http://manishearth.github.io/drafts/diplomat/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
@@ -76,7 +76,7 @@
   
 <form action="https://www.google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="sitesearch" value="localhost:4000">
+    <input type="hidden" name="sitesearch" value="manishearth.github.io">
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -118,7 +118,7 @@
 
 <div class="entry-content"><p>For the past few years, as a part of my work on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, I’ve been working on <a href="https://github.com/rust-diplomat/diplomat">Diplomat</a>, a multi-language unidirectional FFI tool for wrapping Rust libraries.</p>
 
-<p>I originally <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/design_doc.md">designed</a> by me in 2021 as a response to the question “What is the best way to expose ICU4X (A Rust library) to other programming languages?”. For context, while written in Rust, one of ICU4X’s core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries <a href="https://unicode-org.github.io/icu/userguide/icu4c/">ICU4C</a> and <a href="https://unicode-org.github.io/icu/userguide/icu4j">ICU4J</a>, which serve C/C++ and Java respectively.</p>
+<p>I originally <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/design_doc.md">designed</a> Diplomat in 2021 as a response to the question “What is the best way to expose ICU4X (A Rust library) to other programming languages?”. For context, while written in Rust, one of ICU4X’s core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries <a href="https://unicode-org.github.io/icu/userguide/icu4c/">ICU4C</a> and <a href="https://unicode-org.github.io/icu/userguide/icu4j">ICU4J</a>, which serve C/C++ and Java respectively.</p>
 
 <p>In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team on the FFI peculiarities of C++, JS, Dart, the JVM, etc.</p>
 
@@ -166,6 +166,14 @@
 
 <p>For one, it’s just <em>easier</em> to design a tool when it does not need to parse the full range of what Rust supports. Since Diplomat’s “bridge” code is only intended for consumption from Diplomat, we can forbid weird Rust things from being used there.</p>
 
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             That means <em>you</em>, <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code>.
+            </div>
+        </div>
+
 <p>Secondly, the FFI tool should not overly constrain the API exposed to regular Rust users; it should be possible to tailor that API to Rust user’s needs without having to think about other languages.</p>
 
 <p>Finally, it’s extremely annoying for library developers if every part of their library is being monitored by a tool which may need to be worked around / pacified. ICU4X developers absolutely need to know how to operate Diplomat so that they can write FFI for every ICU4X API they design, however ought not need to <em>constantly</em> think about it when just designing the primary Rust code.</p>
@@ -196,9 +204,13 @@
             <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
-             This also means that third parties can build their own Diplomat backends if they wish, either by using Diplomat as a library, or by contributing upstream.
+             This also means that third parties can build their own Diplomat backends if they wish, either by using Diplomat as a library, or by contributing upstream. This has happened multiple times: the Kotlin and Python backends were not written by the ICU4X team, though ICU4X now uses the Kotlin backend and is considering using the Python one!
             </div>
         </div>
+
+<p>An additional facet of extensibility is that Diplomat <em>features</em> themselves ought not to need support in all backends. If the person developing the Kotlin backend wants callback support, they need not figure out how to add it to all of the other backends, and the other backends also need not worry about callbacks for the most part — they can just mark it as unsupported.</p>
+
+<p>This particular property has led to an explosion of features in Diplomat: at this point we have multiple users each who care about a different subset of backends, and they can each build the features they need without worrying too much about overcomplicating things for other users. Then, when those other users want those features, it’s much easier for them to adopt them.</p>
 
 <h2 id="using-diplomat">Using Diplomat</h2>
 
@@ -217,8 +229,8 @@
     <span class="k">pub</span> <span class="k">struct</span> <span class="nf">MyObject</span><span class="p">(</span><span class="nn">my_library</span><span class="p">::</span><span class="n">MyObject</span><span class="p">);</span>
 
     <span class="k">impl</span> <span class="n">MyObject</span> <span class="p">{</span>
-        <span class="nd">#[diplomat::attr(supports</span> <span class="nd">=</span> <span class="nd">constructors,</span> <span class="nd">constructor)]</span>
-        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">MyObject</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nd">#[diplomat::attr(auto,</span> <span class="nd">constructor)]</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">create</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">MyObject</span><span class="o">&gt;</span> <span class="p">{</span>
             <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">MyObject</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">))</span>
         <span class="p">}</span>
 
@@ -230,7 +242,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>This will generate <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs that look something like:</p>
+<p>This will (via a proc macro) generate <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs that look something like:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyObject</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
 <span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_do_thing</span><span class="p">(</span><span class="n">this</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">MyObject</span><span class="p">)</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
@@ -238,15 +250,95 @@
 
 <p>as well as adding a <code class="language-plaintext highlighter-rouge">repr(C)</code> to <code class="language-plaintext highlighter-rouge">Settings</code>.</p>
 
-<p>In C++, this may generate a struct <code class="language-plaintext highlighter-rouge">Settings</code> and a class <code class="language-plaintext highlighter-rouge">MyObject</code> with a constructor and a method <code class="language-plaintext highlighter-rouge">do_thing()</code>. In JS it may do something similar, though potentially <code class="language-plaintext highlighter-rouge">new MyObject()</code> would accept untyped objects with the same fields as <code class="language-plaintext highlighter-rouge">Settings</code> as well, and <code class="language-plaintext highlighter-rouge">do_thing()</code> might be called <code class="language-plaintext highlighter-rouge">doThing()</code> instead. In both cases, the constructor and the method will work by calling <code class="language-plaintext highlighter-rouge">MyObject_new</code> and <code class="language-plaintext highlighter-rouge">MyObject_do_thing</code>.</p>
+<p>You can then pick a supported language, run <code class="language-plaintext highlighter-rouge">diplomat-tool &lt;language&gt; &lt;path&gt;</code> and generate bindings to that path.</p>
+
+<p>Currently, we have <code class="language-plaintext highlighter-rouge">c</code>, <code class="language-plaintext highlighter-rouge">cpp</code>, <code class="language-plaintext highlighter-rouge">js</code> (includes TypeScript), <code class="language-plaintext highlighter-rouge">dart</code>, <code class="language-plaintext highlighter-rouge">kotlin</code>, and <code class="language-plaintext highlighter-rouge">python-nanobind</code> backends. There’s also a <code class="language-plaintext highlighter-rouge">java</code> backend being developed <a href="https://github.com/rust-diplomat/diplomat-java">in a separate repo</a>. We’re always looking for more!</p>
+
+<p>In C++, this may generate a struct <code class="language-plaintext highlighter-rouge">Settings</code> and a class <code class="language-plaintext highlighter-rouge">MyObject</code> with methods <code class="language-plaintext highlighter-rouge">create()</code> and <code class="language-plaintext highlighter-rouge">do_thing()</code>. In JS it would have a similar class, but <code class="language-plaintext highlighter-rouge">create()</code> would be a constructor, and <code class="language-plaintext highlighter-rouge">do_thing()</code> would be renamed to <code class="language-plaintext highlighter-rouge">doThing()</code>. For a further idiomatic tweak, <code class="language-plaintext highlighter-rouge">new MyObject()</code> would accept untyped objects with the same fields as <code class="language-plaintext highlighter-rouge">Settings</code> as well. In both cases, the constructor/methods will call <code class="language-plaintext highlighter-rouge">MyObject_new</code>/<code class="language-plaintext highlighter-rouge">MyObject_do_thing</code> under the hood.</p>
 
 <p>Diplomat supports three kinds of “custom” user-defined types: C-like enums, structs, and “opaques”. Structs are copied over the FFI boundary, whereas “opaques” wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer.</p>
 
 <p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/book/types.html">the types chapter in the Diplomat book</a>.</p>
 
-<h2 id="uncat">Uncat</h2>
+<h3 id="customization">Customization</h3>
 
-<p>Our intern <a href="https://github.com/shadaj">Shadaj</a> implemented the initial design of the tool, with C, C++, and JavaScript/Typescript APIs getting autogenerated for ICU4X, from a shared API definition.</p>
+<p>Diplomat supports a fair amount of customization. In the example code you can see <code class="language-plaintext highlighter-rouge">#[diplomat::attr(auto, constructor)]</code>, which means that for backends which support constructors, <code class="language-plaintext highlighter-rouge">create()</code> is a constructor. The first argument for <code class="language-plaintext highlighter-rouge">attr</code> is a <code class="language-plaintext highlighter-rouge">cfg</code>-like syntax for selecting backends, and <code class="language-plaintext highlighter-rouge">auto</code> mostly means “select backends where the attribute is supported”. For constructors, Dart, JS, and Kotlin support them, but the C++ and C backends don’t.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why doesn’t the C++ backend support constructors? C++ has constructors, yes?
+            </div>
+        </div>
+
+<p>Opaque types in C++ are behind a <code class="language-plaintext highlighter-rouge">unique_ptr</code>, and C++ doesn’t let you have constructors that return other types. We might still add some way of doing constructory things in C++, but for now having to write <code class="language-plaintext highlighter-rouge">MyObject::create()</code> is fine.</p>
+
+<p>Diplomat <a href="https://rust-diplomat.github.io/diplomat/attrs.html">supports a lot of customization via attributes</a>, and all of these can be conditioned on specific backends or feature availability:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">disable</code>: Disabling APIs. This is useful to do if a backend doesn’t support features needed there, or if the API is a backend-specific optimization. You can also use <code class="language-plaintext highlighter-rouge">#[diplomat::cfg(cpp)]</code> as a shortcut for <code class="language-plaintext highlighter-rouge">#[diplomat::attr(not(cpp), disable)]</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rename</code>: Renaming APIs. Can be used for overloading!</li>
+  <li><code class="language-plaintext highlighter-rouge">namespace</code>: For organizing code into namespaces/submodules</li>
+  <li><code class="language-plaintext highlighter-rouge">constructor</code> and <code class="language-plaintext highlighter-rouge">named_constructor</code>: For marking methods as constructors</li>
+  <li><code class="language-plaintext highlighter-rouge">iterator</code>, <code class="language-plaintext highlighter-rouge">iterable</code>: For hooking in to builtin language iteration stuff, enabling things like <code class="language-plaintext highlighter-rouge">for i in obj</code></li>
+  <li><code class="language-plaintext highlighter-rouge">getter</code>, <code class="language-plaintext highlighter-rouge">setter</code>: For marking a method as an accessor</li>
+  <li><code class="language-plaintext highlighter-rouge">indexer</code>, <code class="language-plaintext highlighter-rouge">add</code>, <code class="language-plaintext highlighter-rouge">sub</code>, <code class="language-plaintext highlighter-rouge">comparison</code>, etc: For overloading most builtin operators</li>
+</ul>
+
+<h3 id="demo-generation">Demo generation</h3>
+
+<p>Often when talking about what a library can do, I want people to be able to play around with its API and give it different numbers. For example, in ICU4X, it’s great to be able to show a progression of “look, it can format a date!” → “here’s that date in a less compact format” → “here’s that date in French” → “here’s that date in French, in the Chinese calendar” → “here’s that date in French, in the Chinese calendar, with Thai numbering”, where at each step you can let people fiddle around with the parameters.</p>
+
+<p>But ICU4X is a Rust libary, and doing this kind of demo in Rust requires whipping out your laptop and having people tweak the code.</p>
+
+<p>A while ago I realized that Diplomat already knows how to generate a JS-Wasm wrapper for your library, and it already has a good understanding of the API at a type level — which means that Diplomat can generate a web-based “demo” for most exposed APIs by chasing down constructors until it finds primitive/enum types it can ask the user for.</p>
+
+<p>You can see this in action on <a href="https://icu4x.unicode.org/2_2/demo">ICU4X’s autogenerated demo page</a> (try playing around with <code class="language-plaintext highlighter-rouge">DateFormatter.formatIso</code> for the date time formatting example above).</p>
+
+<p>Demo generation has proven to be very valuable for us; the demo linked above works on phones and is an easy way to show off ICU4X’s capabilities in an elevator pitch timeframe.</p>
+
+<p>The diplomat book documents <a href="https://rust-diplomat.github.io/diplomat/demo_gen/intro.html">how to set this up</a>.</p>
+
+<h2 id="design-notes">Design notes</h2>
+
+<p>I like compiler design, and Diplomat is basically a compiler. It takes (<code class="language-plaintext highlighter-rouge">syn</code>-parsed) Rust code and transforms it through a series of intermediate representations into bindings.</p>
+
+<p>Diplomat, like <code class="language-plaintext highlighter-rouge">rustc</code>, has a two layers of AST: it has an “AST” (abstract syntax tree) that is basically a simplified version of the AST we get from <code class="language-plaintext highlighter-rouge">syn</code>, and an “HIR” (higher level intermediate representation) which has all of the paths resolved and a bunch of typechecking done. For example, <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.Type.html">this</a> is the <code class="language-plaintext highlighter-rouge">Type</code> type, which contains a bunch of different variants for the different kinds of types supported in Diplomat. The various “Path” types which eventually can all be resolved via their <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.TypeId.html">ids</a>.</p>
+
+<p>TODO</p>
+
+<p>The HIR is very nice to work with, but needs whole-program information. The AST is lower level and finicky but it’s only used by the proc macro (which doesn’t have whole-program information) and to generate a the HIR.</p>
+
+<p>These days the <em>underlying</em> C ABI model for Diplomat doesn’t change often, so the AST and proc macro rarely change. New features are usually added via attributes or minor changes to the HIR, and backends can choose to adopt them when they want.</p>
+
+<p>Most Diplomat backends have been written by a different person: writing them is pretty easy, which was our goal!</p>
+
+<h3 id="lifetimes">Lifetimes</h3>
+
+<p>TODO</p>
+
+<h2 id="other-tools">Other tools</h2>
+
+<p>Since Diplomat has been developed, two other tools have entered the same space. Mozilla developed <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, which uses IDLs and supports Kotlin, Swift, and Python (plus some third party bindings.)</p>
+
+<p>There is also <a href="https://www.boltffi.dev">BoltFFI</a>, which supports Swift, Kotlin, Java, C#, and TypeScript. It also seems to do more work in producing nice packages. I haven’t really looked  closely at it, but it seems neat.</p>
+
+<p>Generally I think that this model for FFI tools — where you write a single “bridge” layer and use a CLI tool to generate bindings — is a good model for libraries and I’m excited to see more of this in that space. When I started working on Diplomat, this felt like a large hole in the ecosystem.</p>
+
+<h2 id="shoutouts">Shoutouts</h2>
+
+<p>The initial idea for Diplomat was mine, but a <em>lot</em> of it was done by others, especially some really skilled interns, and I want to make sure they get credit.</p>
+
+<p>The first version of Diplomat was basically entirely written by our intern <a href="https://github.com/shadaj">Shadaj</a>, who also designed the first C, C++, and JS backends.</p>
+
+<p><a href="https://github.com/QnnOkabayashi">Quinn</a>, another intern, designed and implemented the AST/HIR split as well as lifetime handling. The HIR-based versions of the C++ and JS/TS backends were written by my colleagues <a href="https://github.com/sffc">Shane</a> and <a href="https://github.com/robertbastian">Robert</a> respectively. Robert also implemented the Dart backend.</p>
+
+<p><a href="https://github.com/ambiguousname">Tyler</a>, another intern, implemented the demo backend, and has been continually adding features to Diplomat.</p>
+
+<p><a href="https://github.com/jcrist1">jcrist1</a> wrote the initial Kotlin backend, and <a href="https://github.com/emarteca">Ellen</a> polished it with more features (including callback support) for use in Android.</p>
+
+<p><a href="https://github.com/walter-zeromatter">Walter</a> from ZeroMatter implemented the Python backend, which ZeroMatter makes heavy use of alongside the C++ backend.</p>
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
@@ -254,7 +346,7 @@
       <p>I don’t remember! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
     <li id="fn:2">
-      <p>The naming of “bridge crates” and “bridge modules” was inspired by cxx. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+      <p>The naming of “bridge crates” and “bridge modules” was inspired by <a href="docs.rs/cxx">cxx</a>. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -287,7 +379,7 @@
     
       <div class="sharing">
   
-  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://localhost:4000/drafts/diplomat/" data-via="Manishearth" data-counturl="http://localhost:4000/drafts/diplomat/" >Tweet</a>
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://manishearth.github.io/drafts/diplomat/" data-via="Manishearth" data-counturl="http://manishearth.github.io/drafts/diplomat/" >Tweet</a>
   
   
   

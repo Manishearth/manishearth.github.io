@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: Programming | In Pursuit of Laziness]]></title>
-  <link href="http://localhost:4000/blog/categories/programming/atom.xml" rel="self"/>
-  <link href="http://localhost:4000/"/>
-  <updated>2026-05-24T21:32:22+00:00</updated>
-  <id>http://localhost:4000/</id>
+  <link href="http://manishearth.github.io/blog/categories/programming/atom.xml" rel="self"/>
+  <link href="http://manishearth.github.io/"/>
+  <updated>2026-05-26T07:26:05+00:00</updated>
+  <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
     
@@ -15,10 +15,10 @@
   
   <entry>
     <title type="html"><![CDATA[So Zero It's ... Negative? (Zero-Copy #3)]]></title>
-    <link href="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/"/>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/"/>
     <updated>2022-08-03T00:00:00+00:00</updated>
-    <id>http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative</id>
-    <content type="html"><![CDATA[<p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">here</a>; while Part 2 is about making it work for more types and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative</id>
+    <content type="html"><![CDATA[<p><em>This is part 3 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about eliminating the deserialization step entirely. Part 1 is about making it more pleasant to work with and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">here</a>; while Part 2 is about making it work for more types and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">here</a>.  The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <blockquote>
   <p>And when Alexander saw the breadth of his work, he wept. For there were no more copies left to zero.</p>
@@ -26,12 +26,12 @@
   <p>—Hans Gruber, after designing three increasingly unhinged zero-copy crates</p>
 </blockquote>
 
-<p><a href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
+<p><a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Part 1</a> of this series attempted to answer the question “how can we make zero-copy deserialization <em>pleasant</em>”, while <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a> answered “how do we make zero-copy deserialization <em>more useful</em>?”.</p>
 
 <p>This part goes one step further and asks “what if we could avoid deserialization altogether?”.</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Wait, what?
@@ -58,7 +58,7 @@
 <p>You <em>could</em> write a very unsafe version of <code class="language-plaintext highlighter-rouge">serde::Deserialize</code> that operates on fully trusted data and uses some data format that is easy to zero-copy deserialize whilst avoiding any kind of validation. However, this would still have some cost: you still have to scan the data to reconstruct the full deserialized output. More importantly, it would require a parallel universe of unsafe serde-like traits that everyone has to derive or implement, where even small bugs in manual implementations would likely cause memory corruption.</p>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Sounds like you need some format that needs no validation or scanning to zero-copy deserialize, and can be produced safely. But that doesn’t exist, does it?
@@ -70,7 +70,7 @@
 <p>… but you’re not going to like where I’m going with this.</p>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Oh no.
@@ -84,7 +84,7 @@
 <p>We just have to figure out a way to “serialize to <code class="language-plaintext highlighter-rouge">const</code> Rust code” such that the resultant Rust code could just be compiled in to the binary, and people who need to load trusted data into ICU4X can load it for free!</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              What does “<code class="language-plaintext highlighter-rouge">const</code> code” mean in this context?
@@ -94,7 +94,7 @@
 <p>In Rust, <code class="language-plaintext highlighter-rouge">const</code> code essentially is code that can be proven to be side-effect-free, and it’s the only kind of code allowed in <code class="language-plaintext highlighter-rouge">static</code>s, <code class="language-plaintext highlighter-rouge">const</code>s, and <code class="language-plaintext highlighter-rouge">const fn</code>s.</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              I see! Does this code actually have to be “constant”?
@@ -199,7 +199,7 @@
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">DATA</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">serde_json</span><span class="p">::</span><span class="nd">deserialize!</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"./testdata.json"</span><span class="p">));</span>
 </code></pre></div></div>
 
-<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
+<p>This means that for things like <code class="language-plaintext highlighter-rouge">ZeroVec</code> (see <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a>), we can’t actually just make their safe constructors <code class="language-plaintext highlighter-rouge">const</code> and pass in data to be validated — the validation code is all behind traits — so we have to unsafely construct them. This is somewhat unfortunate, however ultimately if the <code class="language-plaintext highlighter-rouge">zerovec</code> byte representation had trouble roundtripping we would have larger problems, so it’s not an introduction of a new surface of unsafety. We’re still able to validate things when <em>generating</em> the baked data, we just can’t get the compiler to also re-validate before agreeing to compile the <code class="language-plaintext highlighter-rouge">const</code> code.</p>
 
 <h2 id="try-it-out">Try it out!</h2>
 
@@ -222,10 +222,10 @@
   
   <entry>
     <title type="html"><![CDATA[Zero-Copy All the Things! (Zero-Copy #2)]]></title>
-    <link href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/"/>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/"/>
     <updated>2022-08-03T00:00:00+00:00</updated>
-    <id>http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things</id>
-    <content type="html"><![CDATA[<p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things</id>
+    <content type="html"><![CDATA[<p><em>This is part 2 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization work for more types. Part 1 is about making it more pleasant to work with and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though only the first post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -242,14 +242,14 @@
 <h2 id="what-can-you-zero-copy">What can you zero-copy?</h2>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
-             If you’re unfamiliar with zero-copy deserialization, check out the explanation in the <a href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">previous article</a>!
+             If you’re unfamiliar with zero-copy deserialization, check out the explanation in the <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">previous article</a>!
             </div>
         </div>
 
-<p>In the <a href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
+<p>In the <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">previous article</a> we explored how zero-copy deserialization could be made more pleasant to work with by erasing the lifetimes. In essence, we were expanding our capabilities on <em>what you can do with</em> zero-copy data.</p>
 
 <p>This article is about expanding our capabilities on <em>what we can make</em> zero-copy data.</p>
 
@@ -284,7 +284,7 @@
 
 <p>Pointers are hard. What about <code class="language-plaintext highlighter-rouge">Vec&lt;u32&gt;</code>/<code class="language-plaintext highlighter-rouge">[u32]</code>? Surely there’s nothing wrong with a pile of integers?</p>
 
-<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://localhost:4000/images/post/castlevania-data.png" width="400" /><figcaption class="caption-text"><p><small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small></p>
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/castlevania-data.png" width="400" /><figcaption class="caption-text"><p><small>Dracula, dispensing wisdom on the subject of zero-copy deserialization.</small></p>
 </figcaption></figure>
 
 <p>This is where the endianness and alignment come in. Firstly, a <code class="language-plaintext highlighter-rouge">u32</code> doesn’t look exactly the same on all systems, some systems are “big endian”, where the integer <code class="language-plaintext highlighter-rouge">0x00ABCDEF</code> would be represented in memory as <code class="language-plaintext highlighter-rouge">[0x00, 0xAB, 0xCD, 0xEF]</code>, whereas others are “little endian” and would represent it <code class="language-plaintext highlighter-rouge">[0xEF, 0xCD, 0xAB, 0x00]</code>. Most systems these days are little-endian, but not all, so you may need to care about this.</p>
@@ -454,7 +454,7 @@
 <p>So off the bat I’ll mention that <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> maintains <a href="https://github.com/djkoloski/rust_serialization_benchmark">a very good benchmark suite</a> that I really need to get around to integrating with zerovec, but haven’t yet.</p>
 
 <div class="discussion discussion-issue">
-            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://localhost:4000/images/pion-minus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Why not go do that first? It would make your post better!
@@ -464,7 +464,7 @@
 <p>Well, I was delaying working on this post until I had those benchmarks integrated, but that’s not how executive function works, and at this point I’d rather publish with the benchmarks I have rather than delaying further. I might update this post with the Good Benchmarks later!</p>
 
 <div class="discussion discussion-issue">
-            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://localhost:4000/images/pion-minus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Hmph.
@@ -547,10 +547,10 @@ In general we don’t care about serialization performance much, however seriali
   
   <entry>
     <title type="html"><![CDATA[Not a Yoking Matter (Zero-Copy #1)]]></title>
-    <link href="http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/"/>
+    <link href="http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/"/>
     <updated>2022-08-03T00:00:00+00:00</updated>
-    <id>http://localhost:4000/blog/2022/08/03/zero-copy-1-not-a-yoking-matter</id>
-    <content type="html"><![CDATA[<p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="http://localhost:4000/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
+    <id>http://manishearth.github.io/blog/2022/08/03/zero-copy-1-not-a-yoking-matter</id>
+    <content type="html"><![CDATA[<p><em>This is part 1 of a three-part series on interesting abstractions for zero-copy deserialization I’ve been working on over the last year. This part is about making zero-copy deserialization more pleasant to work with. Part 2 is about making it work for more types and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">here</a>; while Part 3 is about eliminating the deserialization step entirely and can be found <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-3-so-zero-its-dot-dot-dot-negative/">here</a>. The posts can be read in any order, though this post contains an explanation of what zero-copy deserialization</em> is.</p>
 
 <h2 id="background">Background</h2>
 
@@ -562,7 +562,7 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>Given the focus on data, a <em>very</em> attractive option for us is zero-copy deserialization. In the process of trying to do zero-copy deserialization well, we’ve built some cool new libraries, this article is about one of them.</p>
 
-<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://localhost:4000/images/post/cow-tools.png" width="400" /><figcaption class="caption-text"><p><small>Gary Larson, <a href="https://en.wikipedia.org/wiki/Cow_Tools">“Cow Tools”</a>, <em>The Far Side</em>. October 1982</small></p>
+<figure class="caption-wrapper center" style="width: 400px"><img class="caption" src="http://manishearth.github.io/images/post/cow-tools.png" width="400" /><figcaption class="caption-text"><p><small>Gary Larson, <a href="https://en.wikipedia.org/wiki/Cow_Tools">“Cow Tools”</a>, <em>The Far Side</em>. October 1982</small></p>
 </figcaption></figure>
 
 <h2 id="zero-copy-deserialization-the-basics">Zero-copy deserialization: the basics</h2>
@@ -603,10 +603,10 @@ In general we don’t care about serialization performance much, however seriali
 
 <p>An <code class="language-plaintext highlighter-rouge">&amp;'a str</code> can also be used instead of the <code class="language-plaintext highlighter-rouge">Cow</code>, however this makes the <code class="language-plaintext highlighter-rouge">Deserialize</code> impl much less general, since formats that do <em>not</em> store strings identically to their in-memory representation (e.g. JSON with strings that include escapes) will not be able to fall back to an owned value. As a result of this, owned-or-borrowed <a href="https://doc.rust-lang.org/stable/std/borrow/struct.Cow.html"><code class="language-plaintext highlighter-rouge">Cow&lt;'a, T&gt;</code></a> is often a cornerstone of good design when writing Rust code partaking in zero-copy deserialization.</p>
 
-<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="http://localhost:4000/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a>.</div>
+<div class="post-aside post-aside-note">You may notice that <code class="language-plaintext highlighter-rouge">rust_files_written</code> can’t be found in this new struct. This is because <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>, out of the box, can’t handle zero-copy deserialization for anything other than <code class="language-plaintext highlighter-rouge">str</code> and <code class="language-plaintext highlighter-rouge">[u8]</code>, for very good reasons. Other frameworks like <a href="https://docs.rs/rkyv"><code class="language-plaintext highlighter-rouge">rkyv</code></a> can, however we’ve also managed to make this possible with <a href="https://docs.rs/serde"><code class="language-plaintext highlighter-rouge">serde</code></a>. I’ll go in more depth about said reasons and our solution in <a href="http://manishearth.github.io/blog/2022/08/03/zero-copy-2-zero-copy-all-the-things/">part 2</a>.</div>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Aren’t there still copies occurring here with the <code class="language-plaintext highlighter-rouge">age</code> field?
@@ -638,7 +638,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>After <a href="https://github.com/unicode-org/icu4x/issues/667#issuecomment-828123099">a bunch of discussion</a> on this, primarily with <a href="https://github.com/sffc">Shane</a>, I designed <a href="https://docs.rs/yoke"><code class="language-plaintext highlighter-rouge">yoke</code></a>, a crate that attempts to provide <em>lifetime erasure</em> in Rust via self-referential types.</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Wait, <em>lifetime</em> erasure?
@@ -648,7 +648,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>Like type erasure! “Type erasure” (in Rust, done using <code class="language-plaintext highlighter-rouge">dyn Trait</code>) lets you take a compile time concept (the type of a value) and move it into something that can be decided at runtime. Analogously, the core value proposition of <code class="language-plaintext highlighter-rouge">yoke</code> is to take types burdened with the compile time concept of lifetimes and allow you to decide they be decided at runtime anyway.</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Doesn’t <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> already let you make lifetimes a runtime decision?
@@ -658,7 +658,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>Kind of, <code class="language-plaintext highlighter-rouge">Rc&lt;T&gt;</code> on its own lets you <em>avoid</em> compile-time lifetimes, whereas <code class="language-plaintext highlighter-rouge">Yoke</code> works with situations where there is already a lifetime (e.g. due to zero copy deserialization) that you want to paper over.</p>
 
 <div class="discussion discussion-example">
-            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://localhost:4000/images/pion-nought.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Cool! What does that look like?
@@ -668,7 +668,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>The general idea is that you can take a zero-copy deserializeable type like a <code class="language-plaintext highlighter-rouge">Cow&lt;'a, str&gt;</code> (or something more complicated) and “yoke” it to the value it was deserialized from, which we call a “cart”.</p>
 
 <div class="discussion discussion-issue">
-            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://localhost:4000/images/pion-minus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              <em>*groan*</em> not another crate named with a pun, Manish.
@@ -702,7 +702,7 @@ In general we don’t care about serialization performance much, however seriali
 <div class="post-aside post-aside-issue">Some of the APIs here may not quite work due to current compiler bugs. In this blog post I’m using the ideal version of these APIs for illustrative purposes, but it’s worth checking with the Yoke docs to see if you may need to use an alternate workaround API. <em>Most</em> of the bugs have been fixed as of Rust 1.61.</div>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              The example above uses <a href="https://docs.rs/postcard"><code class="language-plaintext highlighter-rouge">postcard</code></a>: <code class="language-plaintext highlighter-rouge">postcard</code> is a really neat <code class="language-plaintext highlighter-rouge">serde</code>-compatible binary serialization format, designed for use on resource constrained environments. It’s quite fast and has a low codesize, check it out!
@@ -766,7 +766,7 @@ In general we don’t care about serialization performance much, however seriali
 <h3 id="how-it-works">How it works</h3>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              Manish is about to say the word “covariant” so I’m going to get ahead of him and say: If you have trouble understanding this and the next section, don’t worry! The internal workings of his crate rely on multiple niche concepts that most Rustaceans never need to care about, even those working on otherwise advanced code.
@@ -792,7 +792,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>An implementation of this trait will be implemented on the <code class="language-plaintext highlighter-rouge">'static</code> version of a type with a lifetime (which I will call <code class="language-plaintext highlighter-rouge">Self&lt;'static&gt;</code><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> in this post), and maps the type to a version of it with a lifetime (<code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code>). It must only be implemented on types where the lifetime <code class="language-plaintext highlighter-rouge">'a</code> is <em>covariant</em>, i.e., where it’s safe to treat <code class="language-plaintext highlighter-rouge">Self&lt;'a&gt;</code> as <code class="language-plaintext highlighter-rouge">Self&lt;'b&gt;</code> when <code class="language-plaintext highlighter-rouge">'b</code> is a shorter lifetime. Most types with lifetimes fall in this category<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, especially in the space of zero-copy deserialization.</p>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              You can read more about variance in the <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon</a>!
@@ -823,7 +823,7 @@ In general we don’t care about serialization performance much, however seriali
 <p>The compiler knows these are safe because it knows that the type is covariant, and the <code class="language-plaintext highlighter-rouge">Yokeable</code> trait allows us to talk about types where these operations are safe, <em>generically</em>.</p>
 
 <div class="discussion discussion-note">
-            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://localhost:4000/images/pion-plus.png" />
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
             <div class="discussion-spacer"></div>
             <div class="discussion-text">
              In other words, there’s a certain useful property about lifetime “stretchiness” that the compiler knows about, and we can check that the property applies to a type by generating code that the compiler would refuse to compile if the property did not apply.
@@ -884,9 +884,9 @@ In general we don’t care about serialization performance much, however seriali
   
   <entry>
     <title type="html"><![CDATA[A Tour of Safe Tracing GC Designs in Rust]]></title>
-    <link href="http://localhost:4000/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/"/>
+    <link href="http://manishearth.github.io/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/"/>
     <updated>2021-04-05T00:00:00+00:00</updated>
-    <id>http://localhost:4000/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust</id>
+    <id>http://manishearth.github.io/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust</id>
     <content type="html"><![CDATA[<p>I’ve been thinking about garbage collection in Rust for a long time, ever since I started working on <a href="https://github.com/servo/servo">Servo</a>’s JS layer. I’ve <a href="https://manishearth.github.io/blog/2015/09/01/designing-a-gc-in-rust/">designed a GC library</a>, <a href="https://manishearth.github.io/blog/2016/08/18/gc-support-in-rust-api-design/">worked on GC integration ideas for Rust itself</a>, worked on Servo’s JS GC integration, and helped out with a <a href="https://github.com/asajeffrey/josephine">couple</a> <a href="https://github.com/kyren/gc-arena">other</a> GC projects in Rust.</p>
 
 <p>As a result, I tend to get pulled into GC discussions fairly often. I enjoy talking about GCs – don’t get me wrong – but I often end up going over the same stuff. Being <a href="https://manishearth.github.io/blog/2018/08/26/why-i-enjoy-blogging/#blogging-lets-me-be-lazy">lazy</a> I’d much prefer to be able to refer people to a single place where they can get up to speed on the general space of GC design, after which it’s possible to have more in depth discussions about the specific tradeoffs necessary.</p>
@@ -1393,9 +1393,9 @@ In general we don’t care about serialization performance much, however seriali
   
   <entry>
     <title type="html"><![CDATA[Arenas in Rust]]></title>
-    <link href="http://localhost:4000/blog/2021/03/15/arenas-in-rust/"/>
+    <link href="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/"/>
     <updated>2021-03-15T00:00:00+00:00</updated>
-    <id>http://localhost:4000/blog/2021/03/15/arenas-in-rust</id>
+    <id>http://manishearth.github.io/blog/2021/03/15/arenas-in-rust</id>
     <content type="html"><![CDATA[<p>There’s been some discussion about arenas in Rust recently, and I thought I’d write about them.</p>
 
 <p>Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional <code class="language-plaintext highlighter-rouge">unsafe</code>, so there’s no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust from fields where arenas are more common.</p>
