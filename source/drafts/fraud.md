@@ -17,7 +17,7 @@ A recruiter reaches out on LinkedIn, and it seems to be a *perfect* opportunity,
 
 The company is one you've heard about; it's known to be a great place to work. They also pay pretty well compared to your previous job.
 
-Of course you're quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms: you get the email, and after navigating their SSO system (enterprise software, amirite?) you see what is, yep, a pretty simple NDA, and sign it.
+Of course you're quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms. You get the email, and after navigating their SSO system (enterprise software, amirite?) you see what is, yep, a pretty simple NDA, and sign it.
 
 The interviews go great. The interviewers are warm, welcoming, and you look forward to getting to work with them more. Everything they say about the company sounds amazing.
 
@@ -31,21 +31,21 @@ As you are discovering this, you're still bewildered as to how this happened. Yo
 
 > Henry Gondorff: You can't do it alone, you know. It takes a mob of guys like you and enough money to make them look good.
 
-The point of attack was the login to the signing platform: your Google/iCloud/whatever account got phished while your guard was down when you did what appeared to be a "sign in with &lt;service&gt;" login to their signing platform. The attackers kept silent access to the account and monitored your patterns, looking for interesting ways to take advantage of this access. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name.
+The point of attack was the login to the signing platform: your Google/iCloud/whatever account got phished while your guard was down when you did what appeared to be a "sign in with &lt;service&gt;" login to their NDA platform. The attackers kept silent access to the account and monitored your patterns, looking for interesting ways to take advantage of this access. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name.
 
 This is pretty scary already, but the attack above had an additional facet making it much more scary, while also much harder to carry out: they managed to drain funds.
 
 Modern financial systems have a lot of protection against hijacked accounts: most scams targeting money involve convincing someone to voluntarily transfer a bunch of money in an irreversible or untraceable way, and a tech-savvy professional is less likely to be the target of that. Involuntarily transfering your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regs. Furthermore, banking sites often use 2FA and text the user when there is a login.
 
-But one can work around a lot of this. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransfering to a brokerage account that you don't seem to touch or log in to often (by the dearth of "login detected to foo.com" emails). They might gain access to it by resetting your password (and deleting the notification), add a transfer account, and establish a pattern of usage making small transfers. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!
+But one can work around a lot of this. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransfering to a brokerage account that you don't seem to touch or log in to often (from the dearth of "login detected to foo.com" emails). They might gain access to it by resetting your password (and deleting the notification), add a transfer account, and establish a pattern of usage making small transfers. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!
 
-Tracing can be thwarted by using (unsuspecting) [money mules] are a preexisting way to avoid being traced after a fraudulent transfer. 
+Tracing can be thwarted by using (unsuspecting) [money mules], a well-established tactic in the scam world.
 
 Hopefully, I have convinced you that such an attack is at least plausible. But of course, this is a *lot* of effort, needing multiple people coordinating together and monitoring things, for a payoff that might not happen. This certainly feels *unlikely* as something that might happen.
 
 Well, I left out one part. This entire attack was orchestrated and carried out by an LLM.
 
-An LLM which could research everything about you; craft a tailored attack, put together all the things that would be needed to make this seem plausible (a LinkedIn account, a fake document signing website, a plausible-looking domain to send emails from), and synthesize all text, audio and video interactions. An LLM which, after gaining access to your account, could monitor it and find the best ways to make use of that access, whether it be worming its way into your brokerage, racking up huge cloud spends on AWS, taking all your crypto, or even ransoming your decades of precious data from your now-stolen, likely-wiped account.
+An LLM which could research everything about you; craft a tailored attack, put together all the things that would be needed to make this seem plausible (a LinkedIn account, a fake document signing website, a plausible-looking domain to send emails from), and synthesize all text, audio and video interactions. An LLM which, after gaining access to your account, could monitor it and find the best ways to make use of that access, whether it be worming its way into your brokerage, racking up huge cloud spends on AWS, taking all your crypto, or even ransoming your decades of precious data from your now-stolen, likely-wiped Google account.
 
 
 
@@ -64,19 +64,17 @@ Tech-savvy people are, by and large, not prone to these scams. One can pick up a
 
 However, with respect to more sophisticated scams, most people aren't "worth the trouble", or at least think they aren't. Most people don't have $25M buttons available to them at work.
 
-Sure, many professionals have enough savings that it would make sense to mount a sophisticated scam, but also the likelihood of it happening to them is still slight: A scam that takes that amount of effort takes a lot of setup time and can't just be scaled up; you need people with the sophistication to run this scam willing to become criminals, and that just doesn't parallelize.
+Sure, many professionals have enough savings that it would make sense to mount a sophisticated scam, but also the likelihood of it happening to them is still slight: A scam that takes that amount of effort takes a lot of setup time and can't just be scaled up; you need people with the sophistication to run this scam willing to become criminals, and that just doesn't parallelize. There's the old joke: you don't have to outrun the bear, you just have to outrun the guy running next to you. You don't have to be unscammable, just sufficiently more effort to scam than other marks of equivalent value.
 
-Sophisticated attacks like this against individual wealth [do happen though][the-cut] [^2]. "It can't happen to me" isn't the right framing, but "it's unlikely this will happen to me" is.
+Note that sophisticated scams against an individual's wealth [do happen][the-cut] [^2]. "It can't happen to me" isn't quite the right framing, but "it's unlikely this will happen to me" is a common belief, and not unreasonable for many to hold.
 
 
 Quoting [James Mickens](https://www.usenix.org/system/files/1401_08-12_mickens.pdf):
 
-> Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from ChEaPestPAiNPi11s@virus-basket.biz.ru. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ `https://``. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.
+> Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from ChEaPestPAiNPi11s@virus-basket.biz.ru. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ `https://`. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.
 
 
-
-
-The core idea here is, adversary capability is bimodal, clustered at "untargeted × cheap" and "targeted × expensive". And running targeted attacks *at scale* just doesn't work easily.
+Mickens is talking about state actors which are a whole other level. But the core idea is the same: adversary capability is bimodal, clustered at "untargeted × cheap" and "targeted × expensive". And running targeted attacks *at scale* just doesn't work easily.
 
 Correction, adversary capability *was* bimodal. LLMs fill the middle of the distribution. They're pretty cheap: [A 2024 paper][heiding] found that LLMs tasked with spearphishing cost around 4¢ per email. The interview scam laid out above is more involved and more expensive, but likely still worth it, and 2026 LLMs are leaps and bounds better.
 
@@ -95,28 +93,109 @@ We are now in a world where scams can be run in a `for` loop.
 
 # The Wire
 
-TODO capabilities
+> Eddie Niles: The wire's been out of date for ten years.
+>
+> Henry Gondorff: That's why he won't know it.
 
-this is real, and the ceiling keeps moving
+Here are a bunch of scam-relevant capabilities that LLMs have that would previously require significant skilled human effort per target:
+ 
+ - Researching a mark to find out the best way to go after them
+ - Personally tailoring all communication with a mark in mind, dynamically adjusting based on how they respond to various approaches
+ - Cloning the voice of a person the mark trusts, like a relative
+ - Plausible, real-time deepfaking of a video call.
+ - Building a plausible-looking corroborating fake web presence [^3]
+ - Realtime monitoring of compromised resources, and dynamically building up the scam based on this monitoring
+ - Better triage and discovery of marks
+ - Avoiding signature-detection based spam filters (shown by [Heiding et al][heiding])
+ 
+This is a list of capabilities I can think of that exist today, but these capabilities will only get better over time. We should look at these skills as a floor, not a ceiling.
 
-all of these capabilities exist *today*
+Beyond capabilities, there's a mode shift that deserves special mention here: _Patience_. A scammer team going after an individual may not have the capacity to wait months or years between steps of the process, which limits the types of things they may try. However, a scammer using LLMs to go after many people at once can totally afford to have an operation go dormant for a while, waiting for the right moment to pounce. They can even use the time to layer multiple scams performed significantly far apart.
 
-capabilities + don't-assume-the-gaps-are-permanent + the supply chain
+Furthermore, scams can be compounded across fronts to defeat scam-protection mechanisms: For example, you can run a small, less sophisticated scam to set up a money mule that enables you to extract a large quantity of funds in an untraceable way.
+
+I really like the classic 1973 movie [The Sting][sting]. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various "trusted" institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. The whole movie is bunch of small cons building up to the larger con.
+
+Putting all this together still requires skill: while I know enough to identify some of these capabilities, I'm not good enough at LLMs to deploy them effectively myself without needing to spend a bunch of time testing and building tooling.
+
+But even *that* bar for skill goes away: eventually someone could build reusable tooling for this and sell it to other scammers, effectively giving rise to "[script kiddies][skiddie] but for scams". There are well-established [marketplaces for scammers][genesis], someone just needs to build this tooling and sell it there. This may even have already happened.
+
+This is why I think the ["future is here, it's just not evenly distributed"][future] is a good way of describing this situation: the capabilities are there, people are almost certainly deploying them already, but they're not *ubiquitously* happening, which means that our own heuristics (and potentially, the heuristics of the companies we trust which provide us with critical services), have not yet been recalibrated.
+
+
+ [lorenzo]: https://www.youtube.com/watch?v=0MC55lU_L2E
+ [skiddie]: https://en.wikipedia.org/wiki/Script_kiddie
+ [genesis]: https://en.wikipedia.org/wiki/Genesis_Market
+ [future]: https://www.goodreads.com/quotes/681-the-future-is-already-here-it-s-just-not-evenly
+ [sting]: https://en.wikipedia.org/wiki/The_Sting
+ [^3]: Or as Barney Stinson calls it, the [Lorenzo Von Matterhorn][lorenzo]
 
 # The Shut-Out
 
-TODO 
+> Johnny Hooker: He's not as tough as he thinks.
+>
+> Henry Gondorff: Neither are we.
 
-authenticity signals are dying + the human cost
 
-liar's dividend
+Speaking of heuristics, if you were asked how you'd fare against some particular scam, you'd probably have answers ready. If a family member texts you about something, you'd call or, better, video chat with them to verify. If someone contacts you out of the blue, you look them up. You are on the lookout for inflection points in a conversation with someone you don't know, to see where it switches from just discussion to something impactful. These are great instincts, the instincts of someone who has been paying attention in this internet age.
+
+But we should step back and think about why these heuristics worked.
+
+Some of these heuristics are proxies for cost. Fluent, personalized writing means a real person, and a scammer working thousands of marks may not have the time to spend on that. A strong web presence can be faked, and that takes a ton of work. You didn't think a scammer would be likely to spend that much effort solely on *you*, and that builds these heuristics.
+
+Other heuristics are measures of capability. A scammer wouldn't previously be able to impersonate a family member on a phone call. If you met a person on a video call, they would be real, and likely identifiable to the police if it came to that.
+
+Both of these foundations are crumbling, and this means our heuristics are breaking.
+
+It gets worse: we didn't just need these heuristics to protect ourselves from scams, we needed these heuristics to be able to be certain something is real. Now we're often left not-totally sure, suffering from the [liar's dividend][liar]. What do you do when a family member in a different city appears to need emergency money, but could also plausibly have had their accounts compromised with all communications being intercepted and deepfaked? Fly out to check on them in person? Perhaps ask someone else in their city to check in on them? This is far more effort than before.
+
+
+
+
+ [liar]: https://en.wikipedia.org/wiki/Liar%27s_dividend
 
 
 # The Sting
 
-where to go from here.
+> Johnny Hooker: Then why are you doing it?
+>
+> Henry Gondorff: It seems worthwhile, doesn't it?
 
-Recently I was doing a financial transaction with a person I know, and ended up ....    
+So what do we do here? It's tempting to crank the dial on all of our heuristics to eleven: look even more closely at emails, scrutinize the voice in every phone call, stuff like that. But this won't work; these heuristics were a proxy for detecting something that is now cheap to fake.
+
+I remember when I grew up we were forbidden from using Wikipedia for researching school projects (and generally told that Wikipedia was not useful for any purpose). Teachers believed that because Wikipedia could be easily edited, it could contain incorrect information, and we shouldn't rely on that. People had heuristics for truth that incorporated "published material is probably true to some degree of certainty", based on the fact that printing incorrect information for a jape is hardly cheap. "Don't include Wikipedia in this category and ignore it entirely" is one way to preserve that heuristic, and is what they wanted us to do. This was a correction in the wrong direction. The world was changing so that this heuristic was faltering; we needed to build new heuristics to handle the new world, not cling desperately onto pretending the world hadn't changed. 
+
+Kids are famously good at following rules they disagree with. So my generation still used Wikipedia, and in a broader sense grew up alongside the explosion of information on the Internet. We got pretty okay at building new heuristics: learning to check sources, looking for corroborating evidence, stuff like that. The people who stuck to the old heuristics (often of older generations) have been much more easily targeted by e.g. modern misinformation campaigns.
+
+I'm not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields.
+
+That said, there are a couple things I can say that I think are useful.
+
+One heuristic we can build is detecting the common skeleton of scams. Many scams follow a skeleton where they'll ask for something urgent, in secret, asking you to use unusual channels. This skeleton is usually noticeable because the pitch around it is often clumsy[^4], but that can change with scammers who can do triage and research marks at scale. Still, the rough structure of that skeleton isn't probably going anywhere; an ask is an ask.
+
+Other heuristics can be achieved by verifying things through more channels. For further verification, I *strongly* recommend setting up some spoken passwords with your family members. In cases where you don't have that, you can try to still call back to events in the past that are unlikely to have records out there. For less tech-savvy family members I would recommend just giving them the advice "if you get a call from me talking about something serious, urgent, and/or secret, be very skeptical and maybe hang up and check through another channel".
+
+Somewhat recently I was setting up a financial transaction with a person I know. We had been talking about it over multiple platforms, but before the final step I ended up asking them to hop on a video call, explaining that I was being extra cautious in the age of LLMs. They replied, in effect, "heh, I wondered when I was going to start getting asked this". They opened the video call referencing a specific memorable moment in a call we had many years ago, and we ended up chatting for a while about various things including the subject of this blog post.
+
+It's generally good to understand where our systems do and don't protect us: e.g. you can't be sure an email is actually from what it says on the `from:` address, but you can be reasonably sure that an email sent *to* an address you typed went to that inbox[^5]. Whether or not someone else has access to that inbox is a different question. Similarly, with phones, you cannot be sure that the caller ID is accurate, but you can be a bit more sure that outgoing phone calls are routed correctly. Not nearly as sure as email, though, phone infrastructure has a lot more holes of varying utility to scammers[^6].
+
+All of these are imperfect heuristics, but they're better than what we're used to, and will make you more expensive and tricky to target. It's not practical to be 100% completely unscammable ([the optimal amount of fraud is nonzero][fraud]), but you can at least be more expensive.
+
+The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions will themselves eventually adapt to many of these things and come up with better protections. That's going to take time, though, and in the meantime I expect scams to skyrocket. All of the capabilities described in this document exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
+
+The future of the con is already here. It's just not evenly distributed yet.
+
+
+_Thanks to ....... for reviewing drafts of this blog post._
+
+_While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
+
+
+ [zellyn]: https://zellyn.com/2025/03/ai_security_nightmare/
+ [fraud]: https://www.bitsaboutmoney.com/archive/optimal-amount-of-fraud/
+ [^4]: Hi, I am your CEO, I need $1000 in starbucks gift cards urgently for a client meeting. It needs to be gift cards because uhhhh ....
+ [^5]: Though this depends on the actual mail servers in use. It is almost completely not a problem in the modern era.
+ [^6]: See "SS7 attacks". Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway.
 
 # TODOS
 
@@ -130,3 +209,28 @@ Sting quote
  The Wire
  The Shut-Out
  The Sting
+
+
+
+> 
+> 
+> 
+Johnny Hooker: He's not as tough as he thinks.
+Henry Gondorff: Neither are we.
+
+Doyle Lonnegan: Your boss is quite a card player, Mr. Kelly; how does he do it?
+Johnny Hooker: He cheats.
+
+Floyd: Doyle, I KNOW I gave him four THREES! He had to make a SWITCH! We can't let him get away with that.
+Doyle Lonnegan: What was I supposed to do, call him for cheating better than me in front of the others?
+
+Henry Gondorff: Always drink gin with a mark, kid. He can't tell if you cut it.
+
+Johnny Hooker: Here's your wallet. He hired a dame to take it from you. Shaw's been planning to beat your game for months. He's just been waiting for you to cheat him so he could clip you.
+Doyle Lonnegan: [pushing him up against the wall] Who do you think you're talking to, errand boy? Nobody sets me up! Take him back to the baggage room! Put one in his ear!
+
+Johnny Hooker: You're right, Henry. It's not enough. But
+[laughs]
+Johnny Hooker: it's close!
+
+Henry Gondorff: You gotta keep his con even after you take his money. He can't know you took him.
