@@ -185,7 +185,7 @@ All of these are imperfect heuristics, but they're better than what we're used t
 
 Beyond improving heuristics, following security best practices like using hardware 2FA[^fido] (rather than SMS or an authenticator app) can protect you against many tools in the scammer toolbox.
 
-The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions will themselves eventually adapt to many of these things and come up with better protections. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
+The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions and systems will themselves eventually adapt to many of these things and come up with better protections[^android]. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
 
 The future of the con is already here. It's just not evenly distributed yet.
 
@@ -203,6 +203,7 @@ _While researching parts of this post, I stumbled upon [a post with a similar th
  [^ss7]: Less likely than email: see "SS7 attacks". Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway.
  [^not-an-expert]: I'm not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields.
  [^fido]: FIDO2/WebAuthn, *where offered*, include the website's domain in the cryptographic exchange, so a phishing website cannot simply pass the signature through.
+ [^android]: Just last week, Android introduced [impersonated call detection](https://blog.google/security/android-fake-call-detection/).
 
 
 <details><summary>📝📝📝Cutting room floor</summary>
