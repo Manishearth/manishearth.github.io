@@ -17,7 +17,7 @@ A recruiter reaches out on LinkedIn, and it seems to be a *perfect* opportunity,
 
 The company is one you've heard about; it's known to be a great place to work. They also pay pretty well compared to your previous job.
 
-Of course you're quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms. You get the email, and after navigating their SSO system (enterprise software, amirite?) you see what is, yep, a pretty simple NDA, and sign it.
+Of course you're quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms. You get the email, and after signing in to their enterprise SSO, you see what is, yep, a pretty simple NDA, and sign it.
 
 The interviews go great. The interviewers are warm, welcoming, and you look forward to getting to work with them more. Everything they say about the company sounds amazing.
 
@@ -31,7 +31,9 @@ As you are discovering this, you're still bewildered as to how this happened. Yo
 
 > Henry Gondorff: You can't do it alone, you know. It takes a mob of guys like you and enough money to make them look good.
 
-The point of attack was the login to the signing platform: your Google/iCloud/whatever account got phished while your guard was down when you did what appeared to be a "sign in with &lt;service&gt;" login to their NDA platform. The attackers kept silent access to the account and monitored your patterns, looking for interesting ways to take advantage of this access. They disabled your smoke detectors before setting off any fires: they made sure to add preemptive filters for any notifications from related accounts they plan to compromise. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name. The interview and rejection *after* the compromise were theater with the goal of keeping you from getting suspicious so that they could hold on to your credentials for a longer period of time.
+The point of attack was the login to the NDA signing platform. You chose to use a "sign in with &lt;service&gt;" login when you had to create an account, and it sent you through a realistic-looking login flow: a real Google/iCloud page, perhaps with your email already filled in.
+
+The attackers held on to this undetected access to your account and monitored your patterns, looking for interesting ways to take advantage of this access. They disabled your smoke detectors before setting off any fires: they made sure to add preemptive filters for any notifications from related accounts they plan to compromise. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name. The interview and rejection *after* the compromise were theater with the goal of keeping you from getting suspicious so that they could hold on to your credentials for a longer period of time.
 
 This is pretty scary already, but the attack above had an additional facet making it much more scary, while also much harder to carry out: they managed to drain funds. Modern financial systems have a lot of protection against hijacked accounts[^banking-protections]. Most scams targeting money involve convincing someone to voluntarily transfer a bunch of money in an irreversible or untraceable way, and a tech-savvy professional is less likely to be the target of that.
 
@@ -166,9 +168,8 @@ I remember when I grew up we were forbidden from using Wikipedia for researching
 
 Kids are famously good at following rules they disagree with. So my generation still used Wikipedia, and in a broader sense grew up alongside the explosion of information on the Internet. We got pretty okay at building new heuristics: learning to check sources, looking for corroborating evidence, stuff like that. The people who stuck to the old heuristics (often of older generations) have been much more easily targeted by e.g. modern misinformation campaigns.
 
-I'm not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields.
 
-That said, there are a couple things I can say that I think are useful.
+There are a couple ways to improve our heuristics here[^not-an-expert]:
 
 One heuristic we can build is detecting the common skeleton of scams. Many scams follow a skeleton where they'll ask for something urgent, in secret, asking you to use unusual channels. This skeleton is usually noticeable because the pitch around it is often clumsy[^ceo-starbucks], but that can change with scammers who can do triage and research marks at scale. Still, the rough structure of that skeleton probably isn't going anywhere; an ask is an ask.
 
@@ -185,7 +186,7 @@ The next few years are going to be really interesting in a lot of different ways
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to ....... for reviewing drafts of this blog post._
+_Thanks to [Inanna Malick](recursion.wtf), ...... for reviewing drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
@@ -196,6 +197,7 @@ _While researching parts of this post, I stumbled upon [a post with a similar th
  [^access]: Whether or not someone unauthorized has access to an email inbox or phone is a different question; this is about whether they can pretend to be that email/phone without having gained access.
  [^smtp]: Though this depends on the actual mail servers in use. It is almost completely not a problem in the modern era.
  [^ss7]: Less likely than email: see "SS7 attacks". Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway.
+ [^not-an-expert]: I'm not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields.
 
 
 <details><summary>📝📝📝Cutting room floor</summary>
