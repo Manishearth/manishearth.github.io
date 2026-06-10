@@ -115,7 +115,7 @@ Beyond capabilities, there's a mode shift that deserves special mention here: _P
 
 Furthermore, scams can be compounded across fronts to defeat scam-protection mechanisms: For example, one can run a small, less sophisticated scam to recruit a money mule that enables them to extract a large quantity of funds in an untraceable way.
 
-I really like the classic 1973 movie [The Sting][sting]. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various "trusted" institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. The whole movie is a bunch of small cons building up to the larger con.
+I really like the classic 1973 movie [The Sting][sting]. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various "trusted" institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. The whole movie is a bunch of small cons building up to the larger con. But now, in this current era, what took Henry Gondorff an old pool hall, betting equipment, disguises, a cast of 50 people, and a whole host of other things ... that now takes a handful of tokens to achieve.
 
 Putting all this together still requires skill: while I know enough to identify some of these capabilities, I'm not good enough at LLMs to deploy them effectively myself without needing to spend a bunch of time testing and building tooling.
 
@@ -153,7 +153,7 @@ It gets worse: we didn't just need these heuristics to protect ourselves from sc
 Furthermore, personal heuristics are only a part of the story: institutions have heuristics too. American consumer banking protections[^regulations] draw a strong red line between who authorized a transfer: if someone gained access to your account and did a fraudulent transfer, you'll be made whole by the bank. On the other hand, if you've been convinced to move money, even for illegitimate reasons, you may be able to report a crime but nobody is under any obligation to make you whole. This might make sense in a world where "stolen password" is easier than a targeted, manual "send us money" con, but that's changing[^fraud-cost].
 
  [liar]: https://en.wikipedia.org/wiki/Liar%27s_dividend
- [^regulations]: See Regulation E. Different countries have different regimes, the UK [recently passed a law](https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters) that requires banks to make whole customers who were tricked into transfering money. It's unclear to me if this is in response to LLMs, but it's from 2024 and I do not have a great impression of the UK legislature's understanding of tech, so probably not.
+ [^regulations]: See Regulation E. Different countries have different regimes, the UK [recently passed a law](https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters) that requires banks to make whole customers who were tricked into transferring money. It's unclear to me if this is in response to LLMs, but it's from 2024 and I do not have a great impression of the UK legislature's understanding of tech, so probably not.
  [^fraud-cost]: This isn't to say that Reg E-style "the bank is required to make whole anyone who gets scammed" is the right call here either: too many costs moved onto the banks and they may start choosing to not do business with people who are likely to get scammed. Someone who understands this field more than I could probably suggest workable, concrete, steps that institutions (both banks and regulators) might be smart in taking.
 
 
@@ -182,12 +182,12 @@ It's generally good to understand where our systems do and don't protect us. One
 
 All of these are imperfect heuristics, but they're better than what we're used to, and will make you more expensive and tricky to target. It's not practical to be 100% completely unscammable ([the optimal amount of fraud is nonzero][fraud]), but you can at least be more expensive.
 
-The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions will themselves eventually adapt to many of these things and come up with better protections. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this document exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
+The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions will themselves eventually adapt to many of these things and come up with better protections. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
 
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to [Inanna Malick](recursion.wtf), ...... for reviewing drafts of this blog post._
+_Thanks to [Inanna Malick](https://recursion.wtf), ...... for reviewing drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
