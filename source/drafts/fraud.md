@@ -190,7 +190,7 @@ The next few years are going to be really interesting in a lot of different ways
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to [Inanna Malick](https://recursion.wtf), ...... for reviewing drafts of this blog post._
+_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, ...... for reviewing drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
