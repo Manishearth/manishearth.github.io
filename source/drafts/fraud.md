@@ -8,6 +8,8 @@ categories: []
 
 # The Set-Up
 
+{% img /images/the-sting/the-set-up.png 500 %}
+
 > Johnny Hooker: Sometime after 2:00, a guy's gonna call on that phone there and give you the name of a horse.
 > 
 
@@ -28,6 +30,9 @@ Six months later, you learn this was all a scam. Your identity has been stolen, 
 As you are discovering this, you're still bewildered as to how this happened. You never expected this type of thing to happen to *you*; you're well versed with keeping yourself secure on the internet and not prone to common scams.
 
 # The Hook
+
+
+{% img /images/the-sting/the-hook.png 500 %}
 
 > Henry Gondorff: You can't do it alone, you know. It takes a mob of guys like you and enough money to make them look good.
 
@@ -56,6 +61,9 @@ An LLM which could research everything about you and craft a tailored attack. An
  [^dearth]: From the dearth of "login detected to foo.com" emails in your inbox
 
 # The Tale
+
+
+{% img /images/the-sting/the-tale.png 500 %}
 
 > Henry Gondorff: It's not like playing winos in the street. You can't outrun Lonnegan.
 
@@ -96,6 +104,9 @@ We are now in a world where scams can be run in a `for` loop.
 
 # The Wire
 
+
+{% img /images/the-sting/the-wire.png 500 %}
+
 > Eddie Niles: The wire's been out of date for ten years.
 >
 > Henry Gondorff: That's why he won't know it.
@@ -134,6 +145,9 @@ This is why I think the ["future is here, it's just not evenly distributed"][fut
 
 # The Shut-Out
 
+
+{% img /images/the-sting/the-shut-out.png 500 %}
+
 > Johnny Hooker: He's not as tough as he thinks.
 >
 > Henry Gondorff: Neither are we.
@@ -159,6 +173,9 @@ Furthermore, personal heuristics are only a part of the story: institutions have
 
 
 # The Sting
+
+
+{% img /images/the-sting/the-sting.png 500 %}
 
 > Johnny Hooker: Then why are you doing it?
 >
