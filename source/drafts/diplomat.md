@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Diplomat: Multi-language FFI for Rust libraries"
-date: 2024-08-20 08:32:30 -0700
+date: 2026-01-01 08:32:30 -0700
 comments: true
 categories: ["rust"]
 ---
@@ -16,7 +16,7 @@ In the long run, for such a project, tooling becomes a necessity. If ICU4X was j
 When we were getting started, I performed [an investigation][tooling-investigation] of the available tooling at the time, and arrived at the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my "pie in the sky FFI tool" that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.
 
 
-One of the core reasons the existing FFI tools didn't work was that they weren't "unidirectional", they were "bidirectional", or "unidirectional" in the opposite direction.
+One of the core reasons the existing FFI tools didn't work was that they weren't "unidirectional", they were "bidirectional", or "unidirectional" but going in the opposite direction[^opposite].
 
 {% discussion pion-confused %}
 
@@ -26,6 +26,7 @@ What's "unidirectional" and "bidirectional" in the context of an FFI tool?
 
 So, it's possible this is terminology I just made up one day[^1], but it's an ontology that I've found useful on many, many occasions, so I think it's worth introducing
 
+ [^opposite]: E.g. "wrap a C++ library for Rust", as opposed to the other way around.
 
 ## Unidirectional vs bidirectional FFI tools
 
@@ -262,6 +263,9 @@ The first version of Diplomat was basically entirely written by our intern [Shad
 
 [Walter] from Zeromatter implemented the Python backend, which Zeromatter makes heavy use of alongside the C++ backend.
 
+
+_Thanks to [Tyler], [Quinn], and [Walter] for reviewing drafts of this blog post._
+
  [^1]: I don't remember!
  [^2]: The naming of "bridge crates" and "bridge modules" was inspired by [cxx](https://docs.rs/cxx).
 
@@ -283,7 +287,7 @@ The first version of Diplomat was basically entirely written by our intern [Shad
  [bindgen]: https://github.com/rust-lang/rust-bindgen
  [cbindgen]: https://github.com/mozilla/cbindgen
  [wasm-bindgen]: https://github.com/rustwasm/wasm-bindgen
- [book-types]: https://rust-diplomat.github.io/book/types.html
+ [book-types]: https://rust-diplomat.github.io/diplomat/types.html
  [icu4x-capi]: https://github.com/unicode-org/icu4x/tree/main/ffi/capi
  [uniffi]: https://github.com/mozilla/uniffi-rs
  [BoltFFI]: https://www.boltffi.dev
