@@ -11,9 +11,9 @@ For the past few years, as a part of my work on [ICU4X], I've been working on [D
 
 I originally [designed][design-doc] Diplomat in 2021 as a response to the question "What is the best way to expose ICU4X (A Rust library) to other programming languages?". For context, while written in Rust, one of ICU4X's core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries [ICU4C] and [ICU4J], which serve C/C++ and Java respectively.
 
-In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team on the FFI peculiarities of C++, JS, Dart, the JVM, etc.
+In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team to be experts on the FFI peculiarities of C++, JS, Dart, the JVM, etc.
 
-When we were getting started, I performed [an investigation][tooling-investigation] of the available tooling at the time, and arrived a the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my "pie in the sky FFI tool" that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.
+When we were getting started, I performed [an investigation][tooling-investigation] of the available tooling at the time, and arrived at the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my "pie in the sky FFI tool" that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.
 
 
 One of the core reasons the existing FFI tools didn't work was that they weren't "unidirectional", they were "bidirectional", or "unidirectional" in the opposite direction.
@@ -42,15 +42,16 @@ Note that _calls_ in "unidirectional" FFI can still go in both ways; a unidirect
 
 The other use case, served by tools like [cxx], [autocxx], [crubit], and [swift-bridge] is where you are working on a combined codebase of two languages and need interop in "both ways", e.g. you need Rust to be able to access C++ APIs and C++ to be able to access Rust APIs. This is the kind of interop situation I recall when working on [Stylo], the project to use [Servo]'s style system in Firefox. Even with Servo being relatively modular, this was not a case of "call Servo like a library", it was a case of integrating two codebases with a somewhat jagged API boundary. At the time there was not much tooling and we managed to [convince bindgen to work for this][stylo-ffi], however this was very much a "bidirectional" use case.
 
-Bidirectional tools can often be used for unidirectional use cases, but they are also usually designed with those two specific languages in mind, which constrains the utility of the underlying bindings for work with other languages.
+Bidirectional tools can often be used for unidirectional use cases, but they are also usually designed with those two specific languages in mind, which constrains the utility of the underlying bindings for work with other languages. You can't use the bindings as a neutral "hub" that many languages radiate out from.
 
 ## A wishlist for an FFI tool
 
-When designing Diplomat, there were a couple things I had in mind that may not necessarily match choices made by other FFI tools:
+When designing Diplomat, there were several things I had in mind that may not necessarily match choices made by other FFI tools:
+
 
 ### No action-at-a-distance
 
-I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged "bridge"[^2] code. In ICU4X, the FFI layer only changes when people update the Diplomat "bridge" code living under [`ffi/capi`][icu4x-capi].
+Editing your regular library Rust code should never silently change your FFI layer. I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged "bridge"[^2] code. In ICU4X, the FFI layer only changes when people update the Diplomat "bridge" code living under [`ffi/capi`][icu4x-capi].
 
 {% discussion pion-confused %}
 
@@ -76,7 +77,7 @@ Diplomat should generate a ready-to-use library, not low level bindings. As such
 
 ### No IDLs
 
-Ideally, the interface is smoothly specified in Rust code, rather than using some interface description language. This is an aesthetic choice; IDLs can work really well as well, and this is the option chosen by [uniffi].
+Ideally, the interface is smoothly specified in Rust code, rather than using some interface description language. This is an aesthetic choice; IDLs can work really well as well, and this is an option made available by [uniffi].
 
 ### Extensible for more languages
 
@@ -106,7 +107,7 @@ This particular property has led to an explosion of features in Diplomat: at thi
 
 ## Using Diplomat
 
-The core workflow behind Diplomat is that you write a _single_ "bridge crate" that wraps your Rust API, which, using a proc macro generates a common underlying `extern "C"` API. You can then run `diplomat-tool` on the bridge crate, invoking individual per-language "backends" to generate idiomatic language bindings that under the hood call the same underlying `extern "C"` APIs.
+The core workflow behind Diplomat is that you write a _single_ "bridge crate" that wraps your Rust API, which, using a proc macro generates a common underlying `extern "C"` API. You can then run `diplomat-tool` on the bridge crate, invoking individual per-language "backends" to generate idiomatic language bindings that under the hood call the same underlying `extern "C"` APIs. This hub-and-spoke model means one bridge crate backs every language you target.
 
 For example, you may write something like this:
 
@@ -150,7 +151,9 @@ Currently, we have `c`, `cpp`, `js` (includes TypeScript), `dart`, `kotlin`, and
 
 In C++, this may generate a struct `Settings` and a class `MyObject` with methods `create()` and `do_thing()`. In JS it would have a similar class, but `create()` would be a constructor, and `do_thing()` would be renamed to `doThing()`. For a further idiomatic tweak, `new MyObject()` would accept untyped objects with the same fields as `Settings` as well. In both cases, the constructor/methods will call `MyObject_new`/`MyObject_do_thing` under the hood.
 
-Diplomat supports three kinds of "custom" user-defined types: C-like enums, structs, and "opaques". Structs are copied over the FFI boundary, whereas "opaques" wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer.
+Diplomat supports three kinds of "custom" user-defined types: C-like enums, structs, and "opaques". Structs are copied over the FFI boundary, whereas "opaques" wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer. Some Diplomat backends also support traits as a fourth kind of custom type, letting the user plug in their own implementation of an interface.
+
+Diplomat also supports `Option`s, `Result`s, and slices, mapping them to the target language's idiomatic nullability, error, and list models. For example, a Rust `Result` throws an exception in JS, Dart, and Python, but maps to Kotlin's `Result` type.
 
 For a full list of types Diplomat supports passing across the FFI boundary, see [the types chapter in the Diplomat book][book-types].
 
@@ -183,7 +186,7 @@ Diplomat [supports a lot of customization via attributes](https://rust-diplomat.
 
 Often when talking about what a library can do, I want people to be able to play around with its API and give it different numbers. For example, in ICU4X, it's great to be able to show a progression of "look, it can format a date!" → "here's that date in a less compact format" → "here's that date in French" → "here's that date in French, in the Chinese calendar" → "here's that date in French, in the Chinese calendar, with Thai numbering", where at each step you can let people fiddle around with the parameters.
 
-But ICU4X is a Rust libary, and doing this kind of demo in Rust requires whipping out your laptop and having people tweak the code.
+But ICU4X is a Rust library, and doing this kind of demo in Rust requires whipping out your laptop and having people tweak the code.
 
 A while ago I realized that Diplomat already knows how to generate a JS-Wasm wrapper for your library, and it already has a good understanding of the API at a type level — which means that Diplomat can generate a web-based "demo" for most exposed APIs by chasing down constructors until it finds primitive/enum types it can ask the user for.
 
@@ -200,11 +203,11 @@ The diplomat book documents [how to set this up](https://rust-diplomat.github.io
 
 I like compiler design, and Diplomat is basically a compiler. It takes (`syn`-parsed) Rust code and transforms it through a series of intermediate representations into bindings.
 
-Diplomat, like `rustc`, has a two layers of AST: it has an "AST" (abstract syntax tree) that is basically a simplified version of the AST we get from `syn`, and an "HIR" (higher level intermediate representation) which has all of the paths resolved and a bunch of typechecking done. For example, [this](https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.Type.html) is the `Type` type, which contains a bunch of different variants for the different kinds of types supported in Diplomat. The various "Path" types which eventually can all be resolved via their [ids](https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.TypeId.html). 
+Diplomat, like `rustc`, has a two layers of abstract syntax tree style IRs: it has an "AST" (abstract syntax tree) that is basically a simplified version of the AST we get from `syn`, and an "HIR" (higher level intermediate representation) which has all of the paths resolved and a bunch of typechecking done. For example, [this](https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.Type.html) is the `Type` type, which contains a bunch of different variants for the different kinds of types supported in Diplomat. The various "Path" types can all eventually be resolved via their [ids](https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.TypeId.html). 
 
-TODO
+This originates from a design constraint of the proc macro: The proc macro cannot see the whole program, just the module it is tagged on. The AST is designed to not need whole-program information. As a consequence, it is less pleasant to work with.
 
-The HIR is very nice to work with, but needs whole-program information. The AST is lower level and finicky but it's only used by the proc macro (which doesn't have whole-program information) and to generate a the HIR.
+When doing `diplomat-tool` codegen, however, the AST is transformed into the HIR, which is *much* nicer to work with. Diplomat tries to do most of the pre-work resolving everything in the HIR, so that backends can write relatively simple transformations from the HIR into bindings.
 
 These days the _underlying_ C ABI model for Diplomat doesn't change often, so the AST and proc macro rarely change. New features are usually added via attributes or minor changes to the HIR, and backends can choose to adopt them when they want.
 
@@ -213,13 +216,34 @@ Most Diplomat backends have been written by a different person: writing them is 
 
 ### Lifetimes
 
-TODO
+Diplomat supports APIs like this:
+
+```rust
+impl MyType {
+    fn get_foo(&self) -> &Foo {...}
+}
+```
+
+In Rust, this is fine: lifetimes ensure that the returned `Foo` isn't persisted for too long. In C++, it's pretty normal to manually police lifetime constraints, so we can generate an API that returns a reference there[^cpp-lifetimes].
+
+We can't do that in JS or other GC'd languages, however, that would be unsound: these languages expect all values to be valid as long as you hold on to them, and they do not restrict how long you can hold on to them.
+
+What we do here is that when the JS-side `&Foo` is returned, the JS object internally contains a "lifetime edge", a reference to the `MyType` that originated the borrow. If you hold the `Foo` longer than the parent `MyType`, that's fine, `Foo` will keep its parent alive since the GC will see a reference to it.
+
+This is pretty straightforward for this API, but gets complicated pretty quickly when you start having multiple lifetimes, structs with lifetimes, or strings[^slices-lt].
+
+The [`borrowing_param`] module in Diplomat goes into more detail on how we handle this in Diplomat.
+
+
+ [^cpp-lifetimes]: Though we [have plans](https://github.com/rust-diplomat/diplomat/issues/390) to support Clang lifetime annotations.
+ [^slices-lt]: Strings in JS don't expose their storage to WASM (and they're stored in an engine-specific way anyway), so passing a string to an API requires copying it over into a temporary buffer. If you borrow from the string, you may need to persist that allocation. Slices have similar problems.
+ [`borrowing_param`]: https://docs.rs/diplomat_core/latest/diplomat_core/hir/borrowing_param/index.html
 
 ## Other tools
 
-Since Diplomat has been developed, two other tools have entered the same space. Mozilla developed [uniffi], which uses IDLs and supports Kotlin, Swift, and Python (plus some third party bindings.)
+Since Diplomat has been developed, two other tools have entered the same space. Mozilla developed [uniffi], which gives you a choice of IDLs and bridge modules, and supports Kotlin, Swift, and Python (plus some third party bindings).
 
-There is also [BoltFFI], which supports Swift, Kotlin, Java, C#, and TypeScript. It also seems to do more work in producing nice packages. I haven't really looked  closely at it, but it seems neat.
+There is also [BoltFFI], which supports Swift, Kotlin, Java, C#, and TypeScript. It also seems to do more work in producing nice packages. I haven't really looked closely at it, but it seems neat.
 
 Generally I think that this model for FFI tools — where you write a single "bridge" layer and use a CLI tool to generate bindings — is a good model for libraries and I'm excited to see more of this in that space. When I started working on Diplomat, this felt like a large hole in the ecosystem.
 
@@ -239,7 +263,7 @@ The first version of Diplomat was basically entirely written by our intern [Shad
 [Walter] from ZeroMatter implemented the Python backend, which ZeroMatter makes heavy use of alongside the C++ backend.
 
  [^1]: I don't remember!
- [^2]: The naming of "bridge crates" and "bridge modules" was inspired by [cxx](docs.rs/cxx).
+ [^2]: The naming of "bridge crates" and "bridge modules" was inspired by [cxx](https://docs.rs/cxx).
 
  [ICU4X]: https://github.com/unicode-org/icu4x
  [Diplomat]: https://github.com/rust-diplomat/diplomat
