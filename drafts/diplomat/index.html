@@ -100,7 +100,7 @@
 
     
       <h1 class="entry-title">Diplomat: Multi-language FFI for Rust Libraries</h1>
-      <em>Posted by Manish Goregaokar on August 20, 2024 in <a class='category' href='/blog/categories/rust/'>rust</a></em>
+      <em>Posted by Manish Goregaokar on January 01, 2026 in <a class='category' href='/blog/categories/rust/'>rust</a></em>
     
     
       <p class="meta">
@@ -124,7 +124,7 @@
 
 <p>When we were getting started, I performed <a href="https://docs.google.com/document/d/1Y1mNFAGbGNvK_I64dd0fRWOxx9xqi12dXeLivnxRWvA/edit?usp=sharing&amp;resourcekey=0-l9QvvqXW7cC-TrfLWt7nZw">an investigation</a> of the available tooling at the time, and arrived at the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my “pie in the sky FFI tool” that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.</p>
 
-<p>One of the core reasons the existing FFI tools didn’t work was that they weren’t “unidirectional”, they were “bidirectional”, or “unidirectional” in the opposite direction.</p>
+<p>One of the core reasons the existing FFI tools didn’t work was that they weren’t “unidirectional”, they were “bidirectional”, or “unidirectional” but going in the opposite direction<sup id="fnref:opposite"><a href="#fn:opposite" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -134,7 +134,7 @@
             </div>
         </div>
 
-<p>So, it’s possible this is terminology I just made up one day<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>, but it’s an ontology that I’ve found useful on many, many occasions, so I think it’s worth introducing</p>
+<p>So, it’s possible this is terminology I just made up one day<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, but it’s an ontology that I’ve found useful on many, many occasions, so I think it’s worth introducing</p>
 
 <h2 id="unidirectional-vs-bidirectional-ffi-tools">Unidirectional vs bidirectional FFI tools</h2>
 
@@ -154,7 +154,7 @@
 
 <h3 id="no-action-at-a-distance">No action-at-a-distance</h3>
 
-<p>Editing your regular library Rust code should never silently change your FFI layer. I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged “bridge”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> code. In ICU4X, the FFI layer only changes when people update the Diplomat “bridge” code living under <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi"><code class="language-plaintext highlighter-rouge">ffi/capi</code></a>.</p>
+<p>Editing your regular library Rust code should never silently change your FFI layer. I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged “bridge”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> code. In ICU4X, the FFI layer only changes when people update the Diplomat “bridge” code living under <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi"><code class="language-plaintext highlighter-rouge">ffi/capi</code></a>.</p>
 
 <div class="discussion discussion-example">
             <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="/images/pion-nought.png" />
@@ -260,7 +260,7 @@
 
 <p>Diplomat also supports <code class="language-plaintext highlighter-rouge">Option</code>s, <code class="language-plaintext highlighter-rouge">Result</code>s, and slices, mapping them to the target language’s idiomatic nullability, error, and list models. For example, a Rust <code class="language-plaintext highlighter-rouge">Result</code> throws an exception in JS, Dart, and Python, but maps to Kotlin’s <code class="language-plaintext highlighter-rouge">Result</code> type.</p>
 
-<p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/book/types.html">the types chapter in the Diplomat book</a>.</p>
+<p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/diplomat/types.html">the types chapter in the Diplomat book</a>.</p>
 
 <h3 id="customization">Customization</h3>
 
@@ -325,13 +325,13 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>In Rust, this is fine: lifetimes ensure that the returned <code class="language-plaintext highlighter-rouge">Foo</code> isn’t persisted for too long. In C++, it’s pretty normal to manually police lifetime constraints, so we can generate an API that returns a reference there<sup id="fnref:cpp-lifetimes"><a href="#fn:cpp-lifetimes" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
+<p>In Rust, this is fine: lifetimes ensure that the returned <code class="language-plaintext highlighter-rouge">Foo</code> isn’t persisted for too long. In C++, it’s pretty normal to manually police lifetime constraints, so we can generate an API that returns a reference there<sup id="fnref:cpp-lifetimes"><a href="#fn:cpp-lifetimes" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
 
 <p>We can’t do that in JS or other GC’d languages, however, that would be unsound: these languages expect all values to be valid as long as you hold on to them, and they do not restrict how long you can hold on to them.</p>
 
 <p>What we do here is that when the JS-side <code class="language-plaintext highlighter-rouge">&amp;Foo</code> is returned, the JS object internally contains a “lifetime edge”, a reference to the <code class="language-plaintext highlighter-rouge">MyType</code> that originated the borrow. If you hold the <code class="language-plaintext highlighter-rouge">Foo</code> longer than the parent <code class="language-plaintext highlighter-rouge">MyType</code>, that’s fine, <code class="language-plaintext highlighter-rouge">Foo</code> will keep its parent alive since the GC will see a reference to it.</p>
 
-<p>This is pretty straightforward for this API, but gets complicated pretty quickly when you start having multiple lifetimes, structs with lifetimes, or strings<sup id="fnref:slices-lt"><a href="#fn:slices-lt" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
+<p>This is pretty straightforward for this API, but gets complicated pretty quickly when you start having multiple lifetimes, structs with lifetimes, or strings<sup id="fnref:slices-lt"><a href="#fn:slices-lt" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>.</p>
 
 <p>The <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/borrowing_param/index.html"><code class="language-plaintext highlighter-rouge">borrowing_param</code></a> module in Diplomat goes into more detail on how we handle this in Diplomat.</p>
 
@@ -357,8 +357,13 @@
 
 <p><a href="https://github.com/walter-zeromatter">Walter</a> from Zeromatter implemented the Python backend, which Zeromatter makes heavy use of alongside the C++ backend.</p>
 
+<p><em>Thanks to <a href="https://github.com/ambiguousname">Tyler</a>, <a href="https://github.com/QnnOkabayashi">Quinn</a>, and <a href="https://github.com/walter-zeromatter">Walter</a> for reviewing drafts of this blog post.</em></p>
+
 <div class="footnotes" role="doc-endnotes">
   <ol>
+    <li id="fn:opposite">
+      <p>E.g. “wrap a C++ library for Rust”, as opposed to the other way around. <a href="#fnref:opposite" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
     <li id="fn:1">
       <p>I don’t remember! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
