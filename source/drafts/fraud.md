@@ -82,7 +82,7 @@ Note that sophisticated scams against an individual's wealth [do happen][the-cut
 
 Quoting [James Mickens](https://www.usenix.org/system/files/1401_08-12_mickens.pdf):
 
-> Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from ChEaPestPAiNPi11s@virus-basket.biz.ru. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ `https://`. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.
+> <small>Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from `ChEaPestPAiNPi11s@virus-basket.biz.ru`. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ `https://`. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.</small>
 
 
 Mickens is talking about state actors which are a whole other level. But the core idea is the same: adversary capability is bimodal, clustered at "untargeted × cheap" and "targeted × expensive". And running targeted attacks *at scale* just doesn't work easily.
@@ -121,6 +121,7 @@ Here are a bunch of scam-relevant capabilities that LLMs have that would previou
  - Realtime monitoring of compromised resources, and dynamically building up the scam based on this monitoring
  - Better triage and discovery of marks
  - Avoiding signature-detection based spam filters (shown by [Heiding et al][heiding])
+ - Scanning for and chaining known exploits in unpatched deployed software. Mass scanning isn't new, but cheaply building tooling that can keep tabs on the latest [CVE]s and learn new tricks is[^zerodays].
  
 This is a list of capabilities I can think of that exist today, but these capabilities will only get better over time. We should look at these skills as a floor, not a ceiling.
 
@@ -142,6 +143,8 @@ This is why I think the ["future is here, it's just not evenly distributed"][fut
  [sting]: https://en.wikipedia.org/wiki/The_Sting
  [^skill]: While I know enough to identify some of these capabilities, I'm not good enough at LLMs to deploy them effectively myself without needing to spend a bunch of time testing and building tooling.
  [^fn-lorenzo]: Or as Barney Stinson calls it, the [Lorenzo Von Matterhorn][lorenzo]
+ [^zerodays]: Frontier models are also [getting terrifyingly good](https://www.anthropic.com/news/mozilla-firefox-security) at finding *novel* software vulnerabilities, something that has historically been extremely expensive. But this slots into a different dynamic: zero-days are typically perishable precision weapons to spend on a high-value target, not something to run in a `for` loop against a database of marks. There's a parallel arms race going on here and it's worth knowing about, but it's not the primary concern of this post.
+ [CVE]: https://www.cve.org/
 
 # The Shut-Out
 
@@ -168,7 +171,8 @@ It gets worse: we didn't just need these heuristics to protect ourselves from sc
 Furthermore, personal heuristics are only a part of the story: institutions have heuristics too. American consumer banking protections[^regulations] draw a strong red line between who authorized a transfer: if someone gained access to your account and did a fraudulent transfer, you'll be made whole by the bank. On the other hand, if you've been convinced to move money, even for illegitimate reasons, you may be able to report a crime but nobody is under any obligation to make you whole. This might make sense in a world where "stolen password" is easier than a targeted, manual "send us money" con, but that's changing[^fraud-cost].
 
  [liar]: https://en.wikipedia.org/wiki/Liar%27s_dividend
- [^regulations]: See Regulation E. Different countries have different regimes, the UK [recently passed a law](https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters) that requires banks to make whole customers who were tricked into transferring money. It's unclear to me if this is in response to LLMs, but it's from 2024 and I do not have a great impression of the UK legislature's understanding of tech, so probably not.
+ [^regulations]: See [Regulation E][rege]. Different countries have different regimes, the UK [recently passed a law](https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters) that requires banks to make whole customers who were tricked into transferring money. It's unclear to me if this is in response to LLMs, but it's from 2024 and I do not have a great impression of the UK legislature's understanding of tech, so probably not.
+ [rege]: https://www.bitsaboutmoney.com/archive/regulation-e/
  [^fraud-cost]: This isn't to say that Reg E-style "the bank is required to make whole anyone who gets scammed" is the right call here either: too many costs moved onto the banks and they may start choosing to not do business with people who are likely to get scammed. Someone who understands this field more than I could probably suggest workable, concrete, steps that institutions (both banks and regulators) might be smart in taking.
 
 
@@ -202,12 +206,13 @@ All of these are imperfect heuristics, but they're better than what we're used t
 
 Beyond improving heuristics, following security best practices like using hardware 2FA[^fido] (rather than SMS or an authenticator app) can protect you against many tools in the scammer toolbox.
 
-The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions and systems will themselves eventually adapt to many of these things and come up with better protections[^android]. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
+
+The next few years are going to be really interesting in a lot of different ways. I'm *expecting* that institutions and systems will themselves eventually adapt to many of these things[^redteam] and come up with better protections[^android]. That's going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.
 
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, ...... for reviewing drafts of this blog post._
+_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, [jyn](https://jyn.dev/), [Jane Lusby](github.com/yaahc), ... for reviewing drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
@@ -220,46 +225,7 @@ _While researching parts of this post, I stumbled upon [a post with a similar th
  [^ss7]: Less likely than email: see "SS7 attacks". Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway.
  [^not-an-expert]: I'm not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields.
  [^fido]: FIDO2/WebAuthn, *where offered*, include the website's domain in the cryptographic exchange, so a phishing website cannot simply pass the signature through.
- [^android]: Just last week, Android introduced [impersonated call detection](https://blog.google/security/android-fake-call-detection/).
-
-
-<details><summary>📝📝📝Cutting room floor</summary>
-
- When the marginal cost of a personalized week-long con approaches the cost of a  ??? , the question stops being "am I worth targeting?" and becomes "am I in the for loop's address list?" — and everyone is.<br/><br/>
-
-Johnny Hooker: He's not as tough as he thinks.
-Henry Gondorff: Neither are we.
-
-<br/><br/>
-
-Doyle Lonnegan: Your boss is quite a card player, Mr. Kelly; how does he do it?
-Johnny Hooker: He cheats.
-
-<br/><br/>
-
-
-Floyd: Doyle, I KNOW I gave him four THREES! He had to make a SWITCH! We can't let him get away with that.
-Doyle Lonnegan: What was I supposed to do, call him for cheating better than me in front of the others?
-
-<br/><br/>
-
-Henry Gondorff: Always drink gin with a mark, kid. He can't tell if you cut it.
-
-<br/><br/>
-
-Johnny Hooker: Here's your wallet. He hired a dame to take it from you. Shaw's been planning to beat your game for months. He's just been waiting for you to cheat him so he could clip you.
-Doyle Lonnegan: [pushing him up against the wall] Who do you think you're talking to, errand boy? Nobody sets me up! Take him back to the baggage room! Put one in his ear!
-
-<br/><br/>
-
-
-Johnny Hooker: You're right, Henry. It's not enough. But
-[laughs]
-Johnny Hooker: it's close!
-
-<br/><br/>
-
-
-Henry Gondorff: You gotta keep his con even after you take his money. He can't know you took him.
-
-</details>
+ [^android]: Just recently, Android introduced [impersonated call detection][android-call].
+ [android-call]: https://blog.google/security/android-fake-call-detection/
+ [^redteam]: It's worth highlighting: Defenders get these capabilities too! Mozilla's [conclusion from using Mythos to red-team Firefox][mozilla-bholley] was optimistic: they believe there's a real chance that by running these tools they can actually find *all* of the security vulnerabilities, instead of playing best-effort whack-a-mole.
+ [mozilla-bholley]: https://blog.mozilla.org/en/privacy-security/ai-security-zero-day-vulnerabilities/

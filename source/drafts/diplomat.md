@@ -260,7 +260,7 @@ The first version of Diplomat was basically entirely written by our intern [Shad
 
 [jcrist1] wrote the initial Kotlin backend, and [Ellen] polished it with more features (including callback support) for use in Android.
 
-[Walter] from ZeroMatter implemented the Python backend, which ZeroMatter makes heavy use of alongside the C++ backend.
+[Walter] from Zeromatter implemented the Python backend, which Zeromatter makes heavy use of alongside the C++ backend.
 
  [^1]: I don't remember!
  [^2]: The naming of "bridge crates" and "bridge modules" was inspired by [cxx](https://docs.rs/cxx).
