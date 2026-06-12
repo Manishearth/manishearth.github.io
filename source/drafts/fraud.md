@@ -133,7 +133,7 @@ I really like the classic 1973 movie [The Sting][sting]. One aspect of the con c
 
 Putting all this together still requires skill[^skill] ... for now. Eventually someone will build reusable tooling for this and sell it to other scammers, effectively giving rise to "[script kiddies][skiddie] but for scams". There are well-established [marketplaces for scammers][genesis], someone just needs to build this tooling and sell it there. This may even have already happened.
 
-This is why I think the ["future is here, it's just not evenly distributed"][future] is a good way of describing this situation: the capabilities are there, people are almost certainly deploying them already, but they're not *ubiquitously* happening, which means that our own heuristics (and potentially, the heuristics of the companies we trust which provide us with critical services), have not yet been recalibrated.
+[The future is here, it's just not evenly distributed"][future].: the capabilities are there, and some scammers are almost certainly deploying them already. But since they're not yet *ubiquitous*, our heuristics — and those of companies providing us with critical services — have not yet been recalibrated.
 
 
  [lorenzo]: https://www.youtube.com/watch?v=0MC55lU_L2E
@@ -212,7 +212,7 @@ The next few years are going to be really interesting in a lot of different ways
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, [jyn](https://jyn.dev/), [Jane Lusby](github.com/yaahc), ... for reviewing drafts of this blog post._
+_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, [jyn](https://jyn.dev/), [Jane Lusby](github.com/yaahc), [talia](https://taliatales.substack.com/) ... for providing feedback on drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
