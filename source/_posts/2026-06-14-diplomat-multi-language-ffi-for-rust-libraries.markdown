@@ -1,10 +1,12 @@
 ---
 layout: post
 title: "Diplomat: Multi-language FFI for Rust libraries"
-date: 2026-01-01 08:32:30 -0700
+date: 2026-06-14 12:17:00 -0700
 comments: true
 categories: ["rust"]
 ---
+
+_This is a post I've been meaning to write and publish for years, and only recently got around to doing it. I'm hoping to get back into writing more!_
 
 For the past few years, as a part of my work on [ICU4X], I've been working on [Diplomat], a multi-language unidirectional FFI tool for wrapping Rust libraries.
 
