@@ -257,11 +257,11 @@ The first version of Diplomat was basically entirely written by our intern [Shad
 
 [Quinn], another intern, designed and implemented the AST/HIR split as well as lifetime handling. The HIR-based versions of the C++ and JS/TS backends were written by my colleagues [Shane] and [Robert] respectively. Robert also implemented the Dart backend.
 
-[Tyler], another intern, implemented the demo backend, and has been continually adding features to Diplomat.
+[Tyler], another intern, implemented the demo and JS backends, and has continued to maintain them. In addition, he since joined Zeromatter where he has become the primary maintainer of the Python backend and continues to add features to Python and C++.
 
 [jcrist1] wrote the initial Kotlin backend, and [Ellen] polished it with more features (including callback support) for use in Android.
 
-[Walter] from Zeromatter implemented the Python backend, which Zeromatter makes heavy use of alongside the C++ backend.
+[Walter] from Zeromatter implemented the nanobind-based Python backend, as well as adding several features to the C++ backend including namespacing, arithmetic operators, and extended callback support.
 
 
 _Thanks to [Tyler], [Quinn], and [Walter] for reviewing drafts of this blog post._
