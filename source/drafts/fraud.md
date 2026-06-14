@@ -36,7 +36,7 @@ As you are discovering this, you're still bewildered as to how this happened. Yo
 
 > Henry Gondorff: You can't do it alone, you know. It takes a mob of guys like you and enough money to make them look good.
 
-The point of attack was the login to the NDA signing platform. You chose to use a "sign in with &lt;service&gt;" login when you had to create an account, and it sent you through a realistic-looking login flow: a real Google/iCloud page, perhaps with your email already filled in. When you logged in to this site they used your entered password and subsequent "tap yes on your device" 2FA flow to log in to your account on their end, and made it look like a successful login on your end.
+The point of attack was the login to the NDA signing platform. You chose to use a "sign in with &lt;service&gt;" login when you had to create an account, and it sent you through a realistic-looking login flow: a real Google/iCloud page, perhaps with your email already filled in. When you logged in to this site they used your entered password and subsequent "tap yes on your device" 2FA flow to log in to your account on their end (saving the session cookies), and made it look like a successful login on your end.
 
 The attackers kept this undetected access and monitored your patterns, looking for ways to exploit it. They disabled your smoke detectors before setting off any fires: pre-filtering alert emails from accounts they intended to hit, so warnings never reached you. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name. The interview and rejection *after* the compromise were theater — keeping you from getting suspicious so that they could hold on to your credentials longer.
 
@@ -54,7 +54,7 @@ Well, I left out one part. This entire attack was orchestrated and carried out b
 
 An LLM which could research everything about you and craft a tailored attack. An LLM that could put together all the things that would be needed to make this seem plausible (a LinkedIn account, a fake document signing website, a plausible-looking domain to send emails from), and synthesize all text, audio and video interactions. An LLM which, after gaining access to your account, could monitor it and find the best ways to make use of that access, whether it be worming its way into your brokerage, racking up huge cloud spends on AWS, taking all your crypto, or even ransoming your decades of precious data from your now-stolen, likely-wiped Google account.
 
-
+And the job hunt was incidental. The interview was the scam that fit you; a plausible way to hook you in based on what the scammers knew about you. For someone else, it might be a scary call from the police, a relative asking for help, an email from their bank, or a slow-burn romance. The pretext changes each time, but the machinery behind it is the same.
 
  [money mules]: https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/money-mules
  [^banking-protections]:  Involuntarily transferring your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regs. Furthermore, banking sites often use 2FA and notify the user when there is a login.
