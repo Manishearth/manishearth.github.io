@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2026-06-12T23:55:17+00:00</updated>
+  <updated>2026-06-14T19:19:12+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,278 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Diplomat: Multi-language FFI for Rust Libraries]]></title>
+    <link href="http://manishearth.github.io/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries/"/>
+    <updated>2026-06-14T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries</id>
+    <content type="html"><![CDATA[<p><em>This is a post I’ve been meaning to write and publish for years, and only recently got around to doing it. I’m hoping to get back into writing more!</em></p>
+
+<p>For the past few years, as a part of my work on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, I’ve been working on <a href="https://github.com/rust-diplomat/diplomat">Diplomat</a>, a multi-language unidirectional FFI tool for wrapping Rust libraries.</p>
+
+<p>I originally <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/design_doc.md">designed</a> Diplomat in 2021 as a response to the question “What is the best way to expose ICU4X (A Rust library) to other programming languages?”. For context, while written in Rust, one of ICU4X’s core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries <a href="https://unicode-org.github.io/icu/userguide/icu4c/">ICU4C</a> and <a href="https://unicode-org.github.io/icu/userguide/icu4j">ICU4J</a>, which serve C/C++ and Java respectively.</p>
+
+<p>In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team to be experts on the FFI peculiarities of C++, JS, Dart, the JVM, etc.</p>
+
+<p>When we were getting started, I performed <a href="https://docs.google.com/document/d/1Y1mNFAGbGNvK_I64dd0fRWOxx9xqi12dXeLivnxRWvA/edit?usp=sharing&amp;resourcekey=0-l9QvvqXW7cC-TrfLWt7nZw">an investigation</a> of the available tooling at the time, and arrived at the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my “pie in the sky FFI tool” that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.</p>
+
+<p>One of the core reasons the existing FFI tools didn’t work was that they weren’t “unidirectional”, they were “bidirectional”, or “unidirectional” but going in the opposite direction<sup id="fnref:opposite"><a href="#fn:opposite" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             What’s “unidirectional” and “bidirectional” in the context of an FFI tool?
+            </div>
+        </div>
+
+<p>So, it’s possible this is terminology I just made up one day<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, but it’s an ontology that I’ve found useful on many, many occasions, so I think it’s worth introducing</p>
+
+<h2 id="unidirectional-vs-bidirectional-ffi-tools">Unidirectional vs bidirectional FFI tools</h2>
+
+<p>In general when doing FFI there are, broadly speaking, two distinct possible goals, with distinct characteristics.</p>
+
+<p>One use case, served by tools like <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a>, <a href="https://github.com/mozilla/cbindgen">cbindgen</a>, <a href="https://github.com/rustwasm/wasm-bindgen">wasm-bindgen</a>, <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, and <a href="https://pyo3.rs/">PyO3</a>, is when you have a library in one language which you wish to use from another language. This is “unidirectional” FFI, since the wrapped library doesn’t need to know anything about the codebase calling into it.</p>
+
+<div class="post-aside post-aside-note">Note that <em>calls</em> in “unidirectional” FFI can still go in both ways; a unidirectional FFI tool may support things like callbacks that allow the calling codebase to pass a closure to the library and have the library invoke it. This is still unidirectional since the API definition is within the wrapped library.</div>
+
+<p>The other use case, served by tools like <a href="https://github.com/dtolnay/cxx">cxx</a>, <a href="https://github.com/google/autocxx">autocxx</a>, <a href="https://github.com/google/crubit">crubit</a>, and <a href="https://github.com/chinedufn/swift-bridge">swift-bridge</a> is where you are working on a combined codebase of two languages and need interop in “both ways”, e.g. you need Rust to be able to access C++ APIs and C++ to be able to access Rust APIs. This is the kind of interop situation I recall when working on <a href="https://bholley.net/blog/2017/stylo.html">Stylo</a>, the project to use <a href="https://github.com/servo/servo/">Servo</a>’s style system in Firefox. Even with Servo being relatively modular, this was not a case of “call Servo like a library”, it was a case of integrating two codebases with a somewhat jagged API boundary. At the time there was not much tooling and we managed to <a href="https://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">convince bindgen to work for this</a>, however this was very much a “bidirectional” use case.</p>
+
+<p>Bidirectional tools can often be used for unidirectional use cases, but they are also usually designed with those two specific languages in mind, which constrains the utility of the underlying bindings for work with other languages. You can’t use the bindings as a neutral “hub” that many languages radiate out from.</p>
+
+<h2 id="a-wishlist-for-an-ffi-tool">A wishlist for an FFI tool</h2>
+
+<p>When designing Diplomat, there were several things I had in mind that may not necessarily match choices made by other FFI tools:</p>
+
+<h3 id="no-action-at-a-distance">No action-at-a-distance</h3>
+
+<p>Editing your regular library Rust code should never silently change your FFI layer. I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged “bridge”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> code. In ICU4X, the FFI layer only changes when people update the Diplomat “bridge” code living under <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi"><code class="language-plaintext highlighter-rouge">ffi/capi</code></a>.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why is this a useful property for a tool to have?
+            </div>
+        </div>
+
+<p>For one, it’s just <em>easier</em> to design a tool when it does not need to parse the full range of what Rust supports. Since Diplomat’s “bridge” code is only intended for consumption from Diplomat, we can forbid weird Rust things from being used there.</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             That means <em>you</em>, <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code>.
+            </div>
+        </div>
+
+<p>Secondly, the FFI tool should not overly constrain the API exposed to regular Rust users; it should be possible to tailor that API to Rust user’s needs without having to think about other languages.</p>
+
+<p>Finally, it’s extremely annoying for library developers if every part of their library is being monitored by a tool which may need to be worked around / pacified. ICU4X developers absolutely need to know how to operate Diplomat so that they can write FFI for every ICU4X API they design, however ought not need to <em>constantly</em> think about it when just designing the primary Rust code.</p>
+
+<h3 id="generate-a-ready-to-use-library">Generate a ready-to-use library</h3>
+
+<p>Diplomat should generate a ready-to-use library, not low level bindings. As such it should generate APIs that are idiomatic in the target language, and expose some degree of per-language configurability to allow the developer choices in how precisely to expose various functionality.</p>
+
+<h3 id="no-idls">No IDLs</h3>
+
+<p>Ideally, the interface is smoothly specified in Rust code, rather than using some interface description language. This is an aesthetic choice; IDLs can work really well as well, and this is an option made available by <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>.</p>
+
+<h3 id="extensible-for-more-languages">Extensible for more languages</h3>
+
+<p>It should not be super hard to extend Diplomat to be able to produce bindings for more languages. The vision was that if we have people asking for a Dart API in ICU4X, we can write a Diplomat “backend” for Dart, and run it on the preexisting ICU4X Diplomat bridge code.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             In fact, that’s exactly what happened, and ICU4X now has <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi/bindings/dart">a Dart API</a>.
+            </div>
+        </div>
+
+<p>This means that Diplomat’s constraints and design should from the get-go take into account the diversity of languages it may end up supporting: if a feature does not make sense for a particular language, it may need to be redesigned or made conditional.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             This also means that third parties can build their own Diplomat backends if they wish, either by using Diplomat as a library, or by contributing upstream. This has happened multiple times: the Kotlin and Python backends were not written by the ICU4X team, though ICU4X now uses the Kotlin backend and is considering using the Python one!
+            </div>
+        </div>
+
+<p>An additional facet of extensibility is that Diplomat <em>features</em> themselves ought not to need support in all backends. If the person developing the Kotlin backend wants callback support, they need not figure out how to add it to all of the other backends, and the other backends also need not worry about callbacks for the most part — they can just mark it as unsupported.</p>
+
+<p>This particular property has led to an explosion of features in Diplomat: at this point we have multiple users each who care about a different subset of backends, and they can each build the features they need without worrying too much about overcomplicating things for other users. Then, when those other users want those features, it’s much easier for them to adopt them.</p>
+
+<h2 id="using-diplomat">Using Diplomat</h2>
+
+<p>The core workflow behind Diplomat is that you write a <em>single</em> “bridge crate” that wraps your Rust API, which, using a proc macro generates a common underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> API. You can then run <code class="language-plaintext highlighter-rouge">diplomat-tool</code> on the bridge crate, invoking individual per-language “backends” to generate idiomatic language bindings that under the hood call the same underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs. This hub-and-spoke model means one bridge crate backs every language you target.</p>
+
+<p>For example, you may write something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[diplomat::bridge]</span>
+<span class="k">mod</span> <span class="n">ffi</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="n">Settings</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="n">something</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+        <span class="k">pub</span> <span class="n">something_else</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">}</span>
+
+    <span class="nd">#[diplomat::opaque]</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="nf">MyObject</span><span class="p">(</span><span class="nn">my_library</span><span class="p">::</span><span class="n">MyObject</span><span class="p">);</span>
+
+    <span class="k">impl</span> <span class="n">MyObject</span> <span class="p">{</span>
+        <span class="nd">#[diplomat::attr(auto,</span> <span class="nd">constructor)]</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">create</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">MyObject</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">MyObject</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">))</span>
+        <span class="p">}</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">do_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">self</span><span class="na">.0</span><span class="nf">.do_thing</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This will (via a proc macro) generate <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs that look something like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyObject</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_do_thing</span><span class="p">(</span><span class="n">this</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">MyObject</span><span class="p">)</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+</code></pre></div></div>
+
+<p>as well as adding a <code class="language-plaintext highlighter-rouge">repr(C)</code> to <code class="language-plaintext highlighter-rouge">Settings</code>.</p>
+
+<p>You can then pick a supported language, run <code class="language-plaintext highlighter-rouge">diplomat-tool &lt;language&gt; &lt;path&gt;</code> and generate bindings to that path.</p>
+
+<p>Currently, we have <code class="language-plaintext highlighter-rouge">c</code>, <code class="language-plaintext highlighter-rouge">cpp</code>, <code class="language-plaintext highlighter-rouge">js</code> (includes TypeScript), <code class="language-plaintext highlighter-rouge">dart</code>, <code class="language-plaintext highlighter-rouge">kotlin</code>, and <code class="language-plaintext highlighter-rouge">python-nanobind</code> backends. There’s also a <code class="language-plaintext highlighter-rouge">java</code> backend being developed <a href="https://github.com/rust-diplomat/diplomat-java">in a separate repo</a>. We’re always looking for more!</p>
+
+<p>In C++, this may generate a struct <code class="language-plaintext highlighter-rouge">Settings</code> and a class <code class="language-plaintext highlighter-rouge">MyObject</code> with methods <code class="language-plaintext highlighter-rouge">create()</code> and <code class="language-plaintext highlighter-rouge">do_thing()</code>. In JS it would have a similar class, but <code class="language-plaintext highlighter-rouge">create()</code> would be a constructor, and <code class="language-plaintext highlighter-rouge">do_thing()</code> would be renamed to <code class="language-plaintext highlighter-rouge">doThing()</code>. For a further idiomatic tweak, <code class="language-plaintext highlighter-rouge">new MyObject()</code> would accept untyped objects with the same fields as <code class="language-plaintext highlighter-rouge">Settings</code> as well. In both cases, the constructor/methods will call <code class="language-plaintext highlighter-rouge">MyObject_new</code>/<code class="language-plaintext highlighter-rouge">MyObject_do_thing</code> under the hood.</p>
+
+<p>Diplomat supports three kinds of “custom” user-defined types: C-like enums, structs, and “opaques”. Structs are copied over the FFI boundary, whereas “opaques” wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer. Some Diplomat backends also support traits as a fourth kind of custom type, letting the user plug in their own implementation of an interface.</p>
+
+<p>Diplomat also supports <code class="language-plaintext highlighter-rouge">Option</code>s, <code class="language-plaintext highlighter-rouge">Result</code>s, and slices, mapping them to the target language’s idiomatic nullability, error, and list models. For example, a Rust <code class="language-plaintext highlighter-rouge">Result</code> throws an exception in JS, Dart, and Python, but maps to Kotlin’s <code class="language-plaintext highlighter-rouge">Result</code> type.</p>
+
+<p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/diplomat/types.html">the types chapter in the Diplomat book</a>.</p>
+
+<h3 id="customization">Customization</h3>
+
+<p>Diplomat supports a fair amount of customization. In the example code you can see <code class="language-plaintext highlighter-rouge">#[diplomat::attr(auto, constructor)]</code>, which means that for backends which support constructors, <code class="language-plaintext highlighter-rouge">create()</code> is a constructor. The first argument for <code class="language-plaintext highlighter-rouge">attr</code> is a <code class="language-plaintext highlighter-rouge">cfg</code>-like syntax for selecting backends, and <code class="language-plaintext highlighter-rouge">auto</code> mostly means “select backends where the attribute is supported”. For constructors, Dart, JS, and Kotlin support them, but the C++ and C backends don’t.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why doesn’t the C++ backend support constructors? C++ has constructors, yes?
+            </div>
+        </div>
+
+<p>Opaque types in C++ are behind a <code class="language-plaintext highlighter-rouge">unique_ptr</code>, and C++ doesn’t let you have constructors that return other types. We might still add some way of doing constructory things in C++, but for now having to write <code class="language-plaintext highlighter-rouge">MyObject::create()</code> is fine.</p>
+
+<p>Diplomat <a href="https://rust-diplomat.github.io/diplomat/attrs.html">supports a lot of customization via attributes</a>, and all of these can be conditioned on specific backends or feature availability:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">disable</code>: Disabling APIs. This is useful to do if a backend doesn’t support features needed there, or if the API is a backend-specific optimization. You can also use <code class="language-plaintext highlighter-rouge">#[diplomat::cfg(cpp)]</code> as a shortcut for <code class="language-plaintext highlighter-rouge">#[diplomat::attr(not(cpp), disable)]</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rename</code>: Renaming APIs. Can be used for overloading!</li>
+  <li><code class="language-plaintext highlighter-rouge">namespace</code>: For organizing code into namespaces/submodules</li>
+  <li><code class="language-plaintext highlighter-rouge">constructor</code> and <code class="language-plaintext highlighter-rouge">named_constructor</code>: For marking methods as constructors</li>
+  <li><code class="language-plaintext highlighter-rouge">iterator</code>, <code class="language-plaintext highlighter-rouge">iterable</code>: For hooking in to builtin language iteration stuff, enabling things like <code class="language-plaintext highlighter-rouge">for i in obj</code></li>
+  <li><code class="language-plaintext highlighter-rouge">getter</code>, <code class="language-plaintext highlighter-rouge">setter</code>: For marking a method as an accessor</li>
+  <li><code class="language-plaintext highlighter-rouge">indexer</code>, <code class="language-plaintext highlighter-rouge">add</code>, <code class="language-plaintext highlighter-rouge">sub</code>, <code class="language-plaintext highlighter-rouge">comparison</code>, etc: For overloading most builtin operators</li>
+</ul>
+
+<h3 id="demo-generation">Demo generation</h3>
+
+<p>Often when talking about what a library can do, I want people to be able to play around with its API and give it different numbers. For example, in ICU4X, it’s great to be able to show a progression of “look, it can format a date!” → “here’s that date in a less compact format” → “here’s that date in French” → “here’s that date in French, in the Chinese calendar” → “here’s that date in French, in the Chinese calendar, with Thai numbering”, where at each step you can let people fiddle around with the parameters.</p>
+
+<p>But ICU4X is a Rust library, and doing this kind of demo in Rust requires whipping out your laptop and having people tweak the code.</p>
+
+<p>A while ago I realized that Diplomat already knows how to generate a JS-Wasm wrapper for your library, and it already has a good understanding of the API at a type level — which means that Diplomat can generate a web-based “demo” for most exposed APIs by chasing down constructors until it finds primitive/enum types it can ask the user for.</p>
+
+<p>You can see this in action on <a href="https://icu4x.unicode.org/2_2/demo">ICU4X’s autogenerated demo page</a> (try playing around with <code class="language-plaintext highlighter-rouge">DateFormatter.formatIso</code> for the date time formatting example above).</p>
+
+<p>Demo generation has proven to be very valuable for us; the demo linked above works on phones and is an easy way to show off ICU4X’s capabilities in an elevator pitch timeframe.</p>
+
+<p>The diplomat book documents <a href="https://rust-diplomat.github.io/diplomat/demo_gen/intro.html">how to set this up</a>.</p>
+
+<h2 id="design-notes">Design notes</h2>
+
+<p>I like compiler design, and Diplomat is basically a compiler. It takes (<code class="language-plaintext highlighter-rouge">syn</code>-parsed) Rust code and transforms it through a series of intermediate representations into bindings.</p>
+
+<p>Diplomat, like <code class="language-plaintext highlighter-rouge">rustc</code>, has a two layers of abstract syntax tree style IRs: it has an “AST” (abstract syntax tree) that is basically a simplified version of the AST we get from <code class="language-plaintext highlighter-rouge">syn</code>, and an “HIR” (higher level intermediate representation) which has all of the paths resolved and a bunch of typechecking done. For example, <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.Type.html">this</a> is the <code class="language-plaintext highlighter-rouge">Type</code> type, which contains a bunch of different variants for the different kinds of types supported in Diplomat. The various “Path” types can all eventually be resolved via their <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.TypeId.html">ids</a>.</p>
+
+<p>This originates from a design constraint of the proc macro: The proc macro cannot see the whole program, just the module it is tagged on. The AST is designed to not need whole-program information. As a consequence, it is less pleasant to work with.</p>
+
+<p>When doing <code class="language-plaintext highlighter-rouge">diplomat-tool</code> codegen, however, the AST is transformed into the HIR, which is <em>much</em> nicer to work with. Diplomat tries to do most of the pre-work resolving everything in the HIR, so that backends can write relatively simple transformations from the HIR into bindings.</p>
+
+<p>These days the <em>underlying</em> C ABI model for Diplomat doesn’t change often, so the AST and proc macro rarely change. New features are usually added via attributes or minor changes to the HIR, and backends can choose to adopt them when they want.</p>
+
+<p>Most Diplomat backends have been written by a different person: writing them is pretty easy, which was our goal!</p>
+
+<h3 id="lifetimes">Lifetimes</h3>
+
+<p>Diplomat supports APIs like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">MyType</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">get_foo</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">Foo</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In Rust, this is fine: lifetimes ensure that the returned <code class="language-plaintext highlighter-rouge">Foo</code> isn’t persisted for too long. In C++, it’s pretty normal to manually police lifetime constraints, so we can generate an API that returns a reference there<sup id="fnref:cpp-lifetimes"><a href="#fn:cpp-lifetimes" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
+
+<p>We can’t do that in JS or other GC’d languages, however, that would be unsound: these languages expect all values to be valid as long as you hold on to them, and they do not restrict how long you can hold on to them.</p>
+
+<p>What we do here is that when the JS-side <code class="language-plaintext highlighter-rouge">&amp;Foo</code> is returned, the JS object internally contains a “lifetime edge”, a reference to the <code class="language-plaintext highlighter-rouge">MyType</code> that originated the borrow. If you hold the <code class="language-plaintext highlighter-rouge">Foo</code> longer than the parent <code class="language-plaintext highlighter-rouge">MyType</code>, that’s fine, <code class="language-plaintext highlighter-rouge">Foo</code> will keep its parent alive since the GC will see a reference to it.</p>
+
+<p>This is pretty straightforward for this API, but gets complicated pretty quickly when you start having multiple lifetimes, structs with lifetimes, or strings<sup id="fnref:slices-lt"><a href="#fn:slices-lt" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>.</p>
+
+<p>The <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/borrowing_param/index.html"><code class="language-plaintext highlighter-rouge">borrowing_param</code></a> module in Diplomat goes into more detail on how we handle this in Diplomat.</p>
+
+<h2 id="other-tools">Other tools</h2>
+
+<p>Since Diplomat has been developed, two other tools have entered the same space. Mozilla developed <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, which gives you a choice of IDLs and bridge modules, and supports Kotlin, Swift, and Python (plus some third party bindings).</p>
+
+<p>There is also <a href="https://www.boltffi.dev">BoltFFI</a>, which supports Swift, Kotlin, Java, C#, and TypeScript. It also seems to do more work in producing nice packages. I haven’t really looked closely at it, but it seems neat.</p>
+
+<p>Generally I think that this model for FFI tools — where you write a single “bridge” layer and use a CLI tool to generate bindings — is a good model for libraries and I’m excited to see more of this in that space. When I started working on Diplomat, this felt like a large hole in the ecosystem.</p>
+
+<h2 id="shoutouts">Shoutouts</h2>
+
+<p>The initial idea for Diplomat was mine, but a <em>lot</em> of it was done by others, especially some really skilled interns, and I want to make sure they get credit.</p>
+
+<p>The first version of Diplomat was basically entirely written by our intern <a href="https://github.com/shadaj">Shadaj</a>, who also designed the first C, C++, and JS backends.</p>
+
+<p><a href="https://github.com/QnnOkabayashi">Quinn</a>, another intern, designed and implemented the AST/HIR split as well as lifetime handling. The HIR-based versions of the C++ and JS/TS backends were written by my colleagues <a href="https://github.com/sffc">Shane</a> and <a href="https://github.com/robertbastian">Robert</a> respectively. Robert also implemented the Dart backend.</p>
+
+<p><a href="https://github.com/ambiguousname">Tyler</a>, another intern, implemented the demo and JS backends, and has continued to maintain them. In addition, he since joined Zeromatter where he has become the primary maintainer of the Python backend and continues to add features to Python and C++.</p>
+
+<p><a href="https://github.com/jcrist1">jcrist1</a> wrote the initial Kotlin backend, and <a href="https://github.com/emarteca">Ellen</a> polished it with more features (including callback support) for use in Android.</p>
+
+<p><a href="https://github.com/walter-zeromatter">Walter</a> from Zeromatter implemented the nanobind-based Python backend, as well as adding several features to the C++ backend including namespacing, arithmetic operators, and extended callback support.</p>
+
+<p><em>Thanks to <a href="https://github.com/ambiguousname">Tyler</a>, <a href="https://github.com/QnnOkabayashi">Quinn</a>, and <a href="https://github.com/walter-zeromatter">Walter</a> for reviewing drafts of this blog post.</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:opposite">
+      <p>E.g. “wrap a C++ library for Rust”, as opposed to the other way around. <a href="#fnref:opposite" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1">
+      <p>I don’t remember! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>The naming of “bridge crates” and “bridge modules” was inspired by <a href="https://docs.rs/cxx">cxx</a>. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:cpp-lifetimes">
+      <p>Though we <a href="https://github.com/rust-diplomat/diplomat/issues/390">have plans</a> to support Clang lifetime annotations. <a href="#fnref:cpp-lifetimes" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:slices-lt">
+      <p>Strings in JS don’t expose their storage to WASM (and they’re stored in an engine-specific way anyway), so passing a string to an API requires copying it over into a temporary buffer. If you borrow from the string, you may need to persist that allocation. Slices have similar problems. <a href="#fnref:slices-lt" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[So Zero It's ... Negative? (Zero-Copy #3)]]></title>
@@ -1385,329 +1657,6 @@ In general we don’t care about serialization performance much, however seriali
     </li>
     <li id="fn:5">
       <p>Firefox’s DOM actually uses a mark &amp; sweep tracing GC <em>mixed with</em> a cycle collector for this reason. The DOM types themselves are cycle collected, but JavaScript objects are managed by the Spidermonkey GC. Since some DOM types may contain references to arbitrary JS types (e.g. ones that store callbacks) there’s a fair amount of work required to break cycles manually in some cases, but it has performance benefits since the vast majority of DOM objects either never become garbage or become garbage by having a couple non-cycle-participating references get released. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Arenas in Rust]]></title>
-    <link href="http://manishearth.github.io/blog/2021/03/15/arenas-in-rust/"/>
-    <updated>2021-03-15T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2021/03/15/arenas-in-rust</id>
-    <content type="html"><![CDATA[<p>There’s been some discussion about arenas in Rust recently, and I thought I’d write about them.</p>
-
-<p>Arenas aren’t something you would typically reach for in Rust so fewer people know about them; you only really see them in applications for various niche use cases. Usually you can use an arena by pulling in a crate and not using additional <code class="language-plaintext highlighter-rouge">unsafe</code>, so there’s no need to be particularly skittish around them in Rust, and it seems like it would be useful knowledge, especially for people coming to Rust from fields where arenas are more common.</p>
-
-<p>Furthermore, there’s a set of <em>really cool</em> lifetime effects involved when implementing self-referential arenas, that I don’t think have been written about before.</p>
-
-<p>I’m mostly writing this to talk about the cool lifetime effects, but I figured it’s worth writing a general introduction that has something for all Rustaceans. If you know what arenas are and just want the cool lifetimes you can skip directly to <a href="#implementing-a-self-referential-arena">the section on implementing self-referential arenas</a>. Otherwise, read on.</p>
-
-<h2 id="whats-an-arena">What’s an arena?</h2>
-
-<p>An arena is essentially a way to group up allocations that are expected to have the same lifetime. Sometimes you need to allocate a bunch of objects for the lifetime of an event, after which they can all be thrown away wholesale. It’s inefficient to call into the system allocator each time, and far more preferable to <em>preallocate</em> a bunch of memory for your objects, cleaning it all up at once once you’re done with them.</p>
-
-<p>Broadly speaking, there are two reasons you might wish to use an arena:</p>
-
-<p>Firstly, your primary goal may be to reduce allocation pressure, as mentioned above. For example, in a game or application, there may be large mishmash of per-frame-tick objects that need to get allocated each frame, and then thrown away. This is <em>extremely</em> common in game development in particular, and allocator pressure is something gamedevs tend to care about. With arenas, it’s easy enough to allocate an arena, fill it up during each frame and clear it out once the frame is over. This has additional benefits of cache locality: you can ensure that most of the per-frame objects (which are likely used more often than other objects) are usually in cache during the frame, since they’ve been allocated adjacently.</p>
-
-<p>Another goal might be that you want to write self referential data, like a complex graph with cycles, that can get cleaned up all at once. For example, when writing compilers, type information will likely need to reference other types and other such data, leading to a complex, potentially cyclic graph of types. Once you’ve computed a type you probably don’t need to throw it away individually, so you can use an arena to store all your computed type information, cleaning the whole thing up at once when you’re at a stage where the types don’t matter anymore. Using this pattern allows your code to not have to worry about whether the self-referential bits get deallocated “early”, it lets you make the assumption that if you have a <code class="language-plaintext highlighter-rouge">Ty</code> it lives as long as all the other <code class="language-plaintext highlighter-rouge">Ty</code>s and can reference them directly.</p>
-
-<p>These two goals are not necessarily disjoint: You may wish to use an arena to achieve both goals simultaneously. But you can also just have an arena that disallows self referential types (but has other nice properties). Later in this post I’m going to implement an arena that allows self-referential types but is not great on allocation pressure, mostly for ease of implementation. <em>Typically</em> if you’re writing an arena for self-referential types you can make it simultaneously reduce allocator pressure, but there can be tradeoffs.</p>
-
-<h2 id="how-can-i-use-an-arena-in-rust">How can I use an arena in Rust?</h2>
-
-<p>Typically to <em>use</em> an arena you can just pull in a crate that implements the right kind of arena. There are two that I know of that I’ll talk about below, though <a href="https://crates.io/search?q=arena">a cursory search of “arena” on crates.io</a> turns up many other promising candidates.</p>
-
-<p>I’ll note that if you just need cyclic graph structures, you don’t <em>have</em> to use an arena, the excellent <a href="https://docs.rs/petgraph/"><code class="language-plaintext highlighter-rouge">petgraph</code></a> crate is often sufficient. <a href="https://docs.rs/slotmap/"><code class="language-plaintext highlighter-rouge">slotmap</code></a> is also useful; it’s a map-like datastructure useful for self-referential data, based on generational indexing.</p>
-
-<h3 id="bumpalo">Bumpalo</h3>
-
-<p><a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">Bumpalo</code></a> is a fast “bump allocator”, which allows heterogenous contents, and only allows cycles if you do not care about destructors getting run.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">bumpalo</span><span class="p">::</span><span class="n">Bump</span><span class="p">;</span>
-
-<span class="c1">// (example slightly modified from `bumpalo` docs)</span>
-
-<span class="c1">// Create a new arena to bump allocate into.</span>
-<span class="k">let</span> <span class="n">bump</span> <span class="o">=</span> <span class="nn">Bump</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-
-<span class="c1">// Allocate values into the arena.</span>
-<span class="k">let</span> <span class="n">scooter</span> <span class="o">=</span> <span class="n">bump</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">Doggo</span> <span class="p">{</span>
-    <span class="n">cuteness</span><span class="p">:</span> <span class="nn">u64</span><span class="p">::</span><span class="nf">max_value</span><span class="p">(),</span>
-    <span class="n">age</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
-    <span class="n">scritches_required</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
-<span class="p">});</span>
-
-<span class="c1">// Happy birthday, Scooter!</span>
-<span class="n">scooter</span><span class="py">.age</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</code></pre></div></div>
-
-<p>Every call to <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/struct.Bump.html#method.alloc"><code class="language-plaintext highlighter-rouge">Bump::alloc()</code></a> returns a mutable reference to the allocated object. You can allocate different objects, and they can even reference each other<sup id="fnref:0"><a href="#fn:0" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. By default it does not call destructors on its contents; however you can use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> (or custom allocators on Nightly) to get this behavior. You can similarly use <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/collections/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::collections</code></a> to get <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>-backed vectors and strings. <a href="https://docs.rs/bumpalo/3.6.1/bumpalo/boxed/index.html"><code class="language-plaintext highlighter-rouge">bumpalo::boxed</code></a> will not be allowed to participate in cycles.</p>
-
-<h3 id="typed-arena"><code class="language-plaintext highlighter-rouge">typed-arena</code></h3>
-
-<p><a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> is an arena allocator that can only store objects of a single type, but it does allow for setting up cyclic references:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Example from typed-arena docs</span>
-
-<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">cell</span><span class="p">::</span><span class="n">Cell</span><span class="p">;</span>
-<span class="k">use</span> <span class="nn">typed_arena</span><span class="p">::</span><span class="n">Arena</span><span class="p">;</span>
-
-<span class="k">struct</span> <span class="n">CycleParticipant</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">other</span><span class="p">:</span> <span class="n">Cell</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="nv">'a</span> <span class="n">CycleParticipant</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-
-<span class="k">let</span> <span class="n">a</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
-<span class="k">let</span> <span class="n">b</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.alloc</span><span class="p">(</span><span class="n">CycleParticipant</span> <span class="p">{</span> <span class="n">other</span><span class="p">:</span> <span class="nn">Cell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nb">None</span><span class="p">)</span> <span class="p">});</span>
-
-<span class="c1">// mutate them after the fact to set up a cycle</span>
-<span class="n">a</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">b</span><span class="p">));</span>
-<span class="n">b</span><span class="py">.other</span><span class="nf">.set</span><span class="p">(</span><span class="nf">Some</span><span class="p">(</span><span class="n">a</span><span class="p">));</span>
-</code></pre></div></div>
-
-<p>Unlike <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a>, <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> will always run destructors on its contents when the arena itself goes out of scope<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.</p>
-
-<h2 id="implementing-a-self-referential-arena">Implementing a self-referential arena</h2>
-
-<p>Self referential arenas are interesting because, typically, Rust is very very wary of self-referential data. But arenas let you clearly separate the step of “I don’t care about this object” and “this object can be deleted” in a way that is sufficient to allow self-referential and cyclic types.</p>
-
-<p>It’s pretty rare to need to implement your own arena – <a href="https://docs.rs/bumpalo"><code class="language-plaintext highlighter-rouge">bumpalo</code></a> and <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> cover most of the use cases, and if they don’t cover yours you probably can find something that does on <a href="https://crates.io/search?q=arena">crates.io</a>. But if you really need to, or if you’re interested in the nitty-gritty lifetime details, this section is for you.</p>
-
-<div class="post-aside post-aside-note">For people less familiar with lifetimes: the lifetimes in the syntaxes <code class="language-plaintext highlighter-rouge">&amp;'a Foo</code> and <code class="language-plaintext highlighter-rouge">Foo&lt;'b&gt;</code> mean different things. <code class="language-plaintext highlighter-rouge">'a</code> in <code class="language-plaintext highlighter-rouge">&amp;'a Foo</code> is the lifetime <em>of</em> <code class="language-plaintext highlighter-rouge">Foo</code>, or, at least the lifetime of <em>this</em> reference to <code class="language-plaintext highlighter-rouge">Foo</code>. <code class="language-plaintext highlighter-rouge">'b</code> in <code class="language-plaintext highlighter-rouge">Foo&lt;'b&gt;</code> is a lifetime <em>parameter</em> of <code class="language-plaintext highlighter-rouge">Foo</code>, and typically means something like “the lifetime of data <code class="language-plaintext highlighter-rouge">Foo</code> is allowed to reference”.</div>
-
-<p>The key to implementing an arena <code class="language-plaintext highlighter-rouge">Arena</code> with entries typed as <code class="language-plaintext highlighter-rouge">Entry</code> is in the following rules:</p>
-
-<ul>
-  <li><code class="language-plaintext highlighter-rouge">Arena</code> and <code class="language-plaintext highlighter-rouge">Entry</code> should both have a lifetime parameter: <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> and <code class="language-plaintext highlighter-rouge">Entry&lt;'arena&gt;</code></li>
-  <li><code class="language-plaintext highlighter-rouge">Arena</code> methods should all receive <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> as <code class="language-plaintext highlighter-rouge">&amp;'arena self</code>, i.e. their <code class="language-plaintext highlighter-rouge">self</code> type is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code></li>
-  <li><code class="language-plaintext highlighter-rouge">Entry</code> should almost always be passed around as <code class="language-plaintext highlighter-rouge">&amp;'arena Entry&lt;'arena&gt;</code> (it’s useful to make an alias for this)</li>
-  <li>Use interior mutability; <code class="language-plaintext highlighter-rouge">&amp;mut self</code> on <code class="language-plaintext highlighter-rouge">Arena</code> will make everything stop compiling. If using <code class="language-plaintext highlighter-rouge">unsafe</code> for mutability, make sure you have a <code class="language-plaintext highlighter-rouge">PhantomData</code> for <code class="language-plaintext highlighter-rouge">RefCell&lt;Entry&lt;'arena&gt;&gt;</code> somewhere.</li>
-</ul>
-
-<p>That’s basically it from the lifetime side, the rest is all in figuring what API you want and implementing the backing storage. Armed with the above rules you should be able to make your custom arena work with the guarantees you need without having to understand what’s going on with the underlying lifetimes.</p>
-
-<p>Let’s go through an implementation example, and then dissect <em>why</em> it works.</p>
-
-<h3 id="implementation">Implementation</h3>
-
-<p>My crate <a href="https://docs.rs/elsa"><code class="language-plaintext highlighter-rouge">elsa</code></a> implements an arena in 100% safe code <a href="https://github.com/Manishearth/elsa/blob/915d26008d8bae069927c551da506dba05d2755b/examples/mutable_arena.rs">in one of its examples</a>. This arena does <em>not</em> save on allocations since <a href="https://docs.rs/elsa/1.4.0/elsa/vec/struct.FrozenVec.html"><code class="language-plaintext highlighter-rouge">elsa::FrozenVec</code></a> requires its contents be behind some indirection, and it’s not generic, but it’s a reasonable way to illustrate how the lifetimes work without getting into the weeds of implementing a <em>really good</em> arena with <code class="language-plaintext highlighter-rouge">unsafe</code>.</p>
-
-<p>The example implements an arena of <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> types, <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code>. The goal is to implement some kind of directed social graph, which may have cycles.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">elsa</span><span class="p">::</span><span class="n">FrozenVec</span><span class="p">;</span>
-
-<span class="k">struct</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="n">people</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p><a href="https://docs.rs/elsa/1.4.0/elsa/vec/struct.FrozenVec.html"><code class="language-plaintext highlighter-rouge">elsa::FrozenVec</code></a> is an append-only <code class="language-plaintext highlighter-rouge">Vec</code>-like abstraction that allows you to call <code class="language-plaintext highlighter-rouge">.push()</code> without needing a mutable reference, and is how we’ll be able to implement this arena in safe code.</p>
-
-<p>Each <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> has a list of people they follow but also keeps track of people who follow them:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">pub</span> <span class="n">follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-    <span class="k">pub</span> <span class="n">reverse_follows</span><span class="p">:</span> <span class="n">FrozenVec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">,</span>
-    <span class="k">pub</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="c1">// following the rule above about references to entry types</span>
-<span class="k">type</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nv">'arena</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span><span class="p">;</span>
-</code></pre></div></div>
-
-<p>The lifetime <code class="language-plaintext highlighter-rouge">'arena</code> is essentially “the lifetime of the arena itself”. This is where it starts getting weird: typically if your type has a lifetime <em>parameter</em>, the caller gets to pick what goes in there. You don’t get to just say “this is the lifetime of the object itself”, the caller would typically be able to instantiate an <code class="language-plaintext highlighter-rouge">Arena&lt;'static&gt;</code> if they wish, or an <code class="language-plaintext highlighter-rouge">Arena&lt;'a&gt;</code> for some <code class="language-plaintext highlighter-rouge">'a</code>. But here we’re declaring that <code class="language-plaintext highlighter-rouge">'arena</code> is the lifetime of the arena itself; clearly something fishy is happening here.</p>
-
-<p>Here’s where we actually implement the arena:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="nf">new</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="n">Arena</span> <span class="p">{</span>
-            <span class="n">people</span><span class="p">:</span> <span class="nn">FrozenVec</span><span class="p">::</span><span class="nf">new</span><span class="p">(),</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-    
-    <span class="k">fn</span> <span class="nf">add_person</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">'static</span> <span class="nb">str</span><span class="p">,</span>
-                  <span class="n">follows</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">PersonRef</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-        <span class="k">let</span> <span class="n">idx</span> <span class="o">=</span> <span class="k">self</span><span class="py">.people</span><span class="nf">.len</span><span class="p">();</span>
-        <span class="k">self</span><span class="py">.people</span><span class="nf">.push</span><span class="p">(</span><span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">Person</span> <span class="p">{</span>
-            <span class="n">name</span><span class="p">,</span>
-            <span class="n">follows</span><span class="p">:</span> <span class="n">follows</span><span class="nf">.into</span><span class="p">(),</span>
-            <span class="n">reverse_follows</span><span class="p">:</span> <span class="nn">Default</span><span class="p">::</span><span class="nf">default</span><span class="p">(),</span>
-        <span class="p">}));</span>
-        <span class="k">let</span> <span class="n">me</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.people</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="n">me</span><span class="py">.follows</span> <span class="p">{</span>
-            <span class="c1">// We're mutating existing arena entries to add references,</span>
-            <span class="c1">// potentially creating cycles!</span>
-            <span class="n">friend</span><span class="py">.reverse_follows</span><span class="nf">.push</span><span class="p">(</span><span class="n">me</span><span class="p">)</span>
-        <span class="p">}</span>
-        <span class="n">me</span>
-    <span class="p">}</span>
-
-    <span class="k">fn</span> <span class="nf">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'arena</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="c1">// code to print out every Person, their followers, and the people who follow them</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Note the <code class="language-plaintext highlighter-rouge">&amp;'arena self</code> in <code class="language-plaintext highlighter-rouge">add_person</code>.</p>
-
-<p>A <em>good</em> implementation here would typically separate out code handling the higher level invariant of “if A <code class="language-plaintext highlighter-rouge">follows</code> B then B <code class="language-plaintext highlighter-rouge">reverse_follows</code> A”, but this is just an example.</p>
-
-<p>And finally, we can use the arena like this:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-    <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-    <span class="k">let</span> <span class="n">best_friend</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"best friend"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">]);</span>
-    <span class="k">let</span> <span class="n">threes_a_crowd</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"threes a crowd"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
-    <span class="k">let</span> <span class="n">rando</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"rando"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-    <span class="k">let</span> <span class="n">_everyone</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"follows everyone"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[</span><span class="n">rando</span><span class="p">,</span> <span class="n">threes_a_crowd</span><span class="p">,</span> <span class="n">lonely</span><span class="p">,</span> <span class="n">best_friend</span><span class="p">]);</span>
-    <span class="n">arena</span><span class="nf">.dump</span><span class="p">();</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>In this case all of the “mutability” happens in the implementation of the arena itself, but it would be possible for this code to add entries directly to the <code class="language-plaintext highlighter-rouge">follows</code>/<code class="language-plaintext highlighter-rouge">reverse_follows</code> lists, or <code class="language-plaintext highlighter-rouge">Person</code> could have <code class="language-plaintext highlighter-rouge">RefCell</code>s for other kinds of links, or whatever.</p>
-
-<h3 id="how-the-lifetimes-work">How the lifetimes work</h3>
-
-<p>So how does this work? As I said earlier, with such abstractions in Rust, the caller typically has freedom to set the lifetime based on what they do with it. For example, if you have a <code class="language-plaintext highlighter-rouge">HashMap&lt;K, &amp;'a str&gt;</code>, the <code class="language-plaintext highlighter-rouge">'a</code> will get set based on the lifetime of what you try to insert.</p>
-
-<p>When you construct the <code class="language-plaintext highlighter-rouge">Arena</code> its lifetime parameter is indeed still unconstrained, and we can test this by checking that the following code, which forcibly constrains the lifetime, still compiles.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-</code></pre></div></div>
-
-<p>But the moment you try to do anything with the arena, this stops working:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span><span class="p">:</span> <span class="n">Arena</span><span class="o">&lt;</span><span class="k">'static</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-</code></pre></div></div>
-
-<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>error[E0597]: `arena` does not live long enough
-  --&gt; examples/mutable_arena.rs:5:18
-   |
-4  |     let arena: Arena&lt;'static&gt; = Arena::new();
-   |                -------------- type annotation requires that `arena` is borrowed for `'static`
-5  |     let lonely = arena.add_person("lonely", vec![]);
-   |                  ^^^^^ borrowed value does not live long enough
-...
-11 | }
-   | - `arena` dropped here while still borrowed
-</code></pre></div></div>
-
-<p>The <code class="language-plaintext highlighter-rouge">add_person</code> method is somehow suddenly forcing the <code class="language-plaintext highlighter-rouge">'arena</code> parameter of <code class="language-plaintext highlighter-rouge">Arena</code> to be set to its <em>own</em> lifetime, constraining it (and making it impossible to force-constrain it to be anything else with type annotations).</p>
-
-<p>What’s going on here is a neat interaction with the <code class="language-plaintext highlighter-rouge">&amp;'arena self</code> signature of <code class="language-plaintext highlighter-rouge">add_person</code> (i.e. <code class="language-plaintext highlighter-rouge">self</code> is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'self&gt;</code>), and the fact that <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is an <a href="https://doc.rust-lang.org/nomicon/subtyping.html#variance"><em>invariant lifetime</em></a>.</p>
-
-<p>Usually in your Rust programs, lifetimes are a little bit stretchy-squeezy. The following code compiles just fine:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// ask for two strings *with the same lifetime*</span>
-<span class="k">fn</span> <span class="n">take_strings</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span><span class="p">)</span> <span class="p">{}</span>
-
-<span class="c1">// string literal with lifetime 'static</span>
-<span class="k">let</span> <span class="n">lives_forever</span> <span class="o">=</span> <span class="s">"foo"</span><span class="p">;</span>
-<span class="c1">// owned string with shorter, local lifetime</span>
-<span class="k">let</span> <span class="n">short_lived</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"bar"</span><span class="p">);</span>
-
-<span class="c1">// still works!</span>
-<span class="nf">take_strings</span><span class="p">(</span><span class="n">lives_forever</span><span class="p">,</span> <span class="o">&amp;*</span><span class="n">short_lived</span><span class="p">);</span>
-</code></pre></div></div>
-
-<p>In this code, Rust is happy to notice that while <code class="language-plaintext highlighter-rouge">lives_forever</code> and <code class="language-plaintext highlighter-rouge">&amp;*short_lived</code> have different lifetimes, it’s totally acceptable to <em>pretend</em> <code class="language-plaintext highlighter-rouge">lives_forever</code> has a shorter lifetime for the duration of the <code class="language-plaintext highlighter-rouge">take_strings</code> function. It’s just a reference, a reference valid for a long lifetime is <em>also</em> valid for a shorter lifetime.</p>
-
-<p>The thing is, this stretchy-squeeziness is not the same for all lifetimes! The <a href="https://doc.rust-lang.org/nomicon/subtyping.html">nomicon chapter on subtyping and variance</a> goes into detail on <em>why</em> this is the case, but a general rule of thumb is that most lifetimes are “squeezy”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> like the one in <code class="language-plaintext highlighter-rouge">&amp;'a str</code> above, but if some form of mutability is involved, they are rigid, also known as “invariant”. You can also have “stretchy”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> lifetimes if you’re using function types, but they’re rare.</p>
-
-<p>Our <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> is using interior mutability (via the <code class="language-plaintext highlighter-rouge">FrozenVec</code>) in a way that makes <code class="language-plaintext highlighter-rouge">'arena</code> invariant.</p>
-
-<p>Let’s look at our two lines of code again. When the compiler sees the first line of the code below, it constructs <code class="language-plaintext highlighter-rouge">arena</code>, whose lifetime we’ll call <code class="language-plaintext highlighter-rouge">'a</code>. At this point the type of <code class="language-plaintext highlighter-rouge">arena</code> is <code class="language-plaintext highlighter-rouge">Arena&lt;'?&gt;</code>, where <code class="language-plaintext highlighter-rouge">'?</code> is made up notation for a yet-unconstrained lifetime.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> 
-<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-</code></pre></div></div>
-
-<p>Let’s actually rewrite this to be clearer on what the lifetimes are.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">arena</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span> <span class="c1">// type Arena&lt;'?&gt;, lives for 'a</span>
-
-<span class="c1">// explicitly write the `self` that gets constructed when you call add_person</span>
-<span class="k">let</span> <span class="n">ref_to_arena</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">arena</span><span class="p">;</span> <span class="c1">// type &amp;'a Arena&lt;'?&gt;</span>
-<span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="nn">Arena</span><span class="p">::</span><span class="nf">add_person</span><span class="p">(</span><span class="n">ref_to_arena</span><span class="p">,</span> <span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-
-</code></pre></div></div>
-
-<p>Remember the second rule I listed earlier?</p>
-
-<blockquote>
-  <p><code class="language-plaintext highlighter-rouge">Arena</code> methods should all receive <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> as <code class="language-plaintext highlighter-rouge">&amp;'arena self</code>, i.e. their <code class="language-plaintext highlighter-rouge">self</code> type is <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code></p>
-</blockquote>
-
-<p>We followed this rule; the signature of <code class="language-plaintext highlighter-rouge">add_person</code> is <code class="language-plaintext highlighter-rouge">fn add_person(&amp;'arena self)</code>. This means that <code class="language-plaintext highlighter-rouge">ref_to_arena</code> is <em>forced</em> to have a lifetime that matches the pattern <code class="language-plaintext highlighter-rouge">&amp;'arena Arena&lt;'arena&gt;</code>. Currently its lifetime is <code class="language-plaintext highlighter-rouge">&amp;'a Arena&lt;'?&gt;</code>, which means that <code class="language-plaintext highlighter-rouge">'?</code> is <em>forced</em> to be the same as <code class="language-plaintext highlighter-rouge">'a</code>, i.e. the lifetime of the <code class="language-plaintext highlighter-rouge">arena</code> variable itself. If the lifetime weren’t invariant, the compiler would be able to squeeze other lifetimes to fit, but it is invariant, and the unconstrained lifetime is forced to be exactly one lifetime.</p>
-
-<p>And by this rather subtle sleight of hand we’re able to force the compiler to set the lifetime <em>parameter</em> of <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> to the lifetime of its <em>instance</em>.</p>
-
-<p>After this, the rest is pretty straightforward. <code class="language-plaintext highlighter-rouge">Arena&lt;'arena&gt;</code> holds entries of type <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code>, which is basically a way of saying “a <code class="language-plaintext highlighter-rouge">Person</code> that is allowed to reference items of lifetime <code class="language-plaintext highlighter-rouge">'arena</code>, i.e. items in <code class="language-plaintext highlighter-rouge">Arena</code>”. <code class="language-plaintext highlighter-rouge">type PersonRef&lt;'arena&gt; = &amp;'arena Person&lt;'arena&gt;</code> is a convenient shorthand for “a reference to a <code class="language-plaintext highlighter-rouge">Person</code> that lives in <code class="language-plaintext highlighter-rouge">Arena</code> and is allowed to reference objects from it”.</p>
-
-<h3 id="what-about-destructors">What about destructors?</h3>
-
-<p>So a thing I’ve not covered so far is how this can be safe in the presence of destructors. If your arena is allowed to have cyclic references, and you write a destructor reading from those cyclic references, whichever participant in the cycle that is deleted later on will have dangling references.</p>
-
-<p>This gets to a <em>really</em> obscure part of Rust, even more obscure than variance. You almost never need to really understand this, beyond “explicit destructors subtly change borrow check behavior”. But it’s useful to know to get a better mental model of what’s going on here.</p>
-
-<p>If we add the following code to our arena example:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="nb">Drop</span> <span class="k">for</span> <span class="n">Person</span><span class="o">&lt;</span><span class="nv">'arena</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
-        <span class="nd">println!</span><span class="p">(</span><span class="s">"goodbye {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">);</span>
-        <span class="k">for</span> <span class="n">friend</span> <span class="k">in</span> <span class="o">&amp;</span><span class="k">self</span><span class="py">.reverse_follows</span> <span class="p">{</span>
-            <span class="c1">// potentially dangling!</span>
-            <span class="nd">println!</span><span class="p">(</span><span class="s">"</span><span class="se">\t\t</span><span class="s">{}"</span><span class="p">,</span> <span class="n">friend</span><span class="py">.name</span><span class="p">);</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>we actually get this error:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">error</span><span class="p">[</span><span class="n">E0597</span><span class="p">]:</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">does</span> <span class="n">not</span> <span class="n">live</span> <span class="n">long</span> <span class="n">enough</span>
-  <span class="o">-</span><span class="k">-&gt;</span> <span class="n">examples</span><span class="o">/</span><span class="n">mutable_arena</span><span class="py">.rs</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">18</span>
-   <span class="p">|</span>
-<span class="mi">5</span>  <span class="p">|</span>     <span class="k">let</span> <span class="n">lonely</span> <span class="o">=</span> <span class="n">arena</span><span class="nf">.add_person</span><span class="p">(</span><span class="s">"lonely"</span><span class="p">,</span> <span class="nd">vec!</span><span class="p">[]);</span>
-   <span class="p">|</span>                  <span class="o">^^^^^</span> <span class="n">borrowed</span> <span class="n">value</span> <span class="n">does</span> <span class="n">not</span> <span class="n">live</span> <span class="n">long</span> <span class="n">enough</span>
-<span class="o">...</span>
-<span class="mi">11</span> <span class="p">|</span> <span class="p">}</span>
-   <span class="p">|</span> <span class="o">-</span>
-   <span class="p">|</span> <span class="p">|</span>
-   <span class="p">|</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">dropped</span> <span class="n">here</span> <span class="k">while</span> <span class="n">still</span> <span class="n">borrowed</span>
-   <span class="p">|</span> <span class="n">borrow</span> <span class="n">might</span> <span class="n">be</span> <span class="n">used</span> <span class="n">here</span><span class="p">,</span> <span class="n">when</span> <span class="err">`</span><span class="n">arena</span><span class="err">`</span> <span class="n">is</span> <span class="n">dropped</span> <span class="n">and</span> <span class="n">runs</span> <span class="n">the</span> <span class="n">destructor</span> <span class="k">for</span> <span class="k">type</span> <span class="err">`</span><span class="n">Arena</span><span class="o">&lt;</span><span class="nv">'_</span><span class="o">&gt;</span><span class="err">`</span>
-</code></pre></div></div>
-
-<p>The presence of destructors subtly changes the behavior of the borrow checker around self-referential lifetimes. The exact rules are tricky and <a href="https://doc.rust-lang.org/nomicon/dropck.html">explained in the nomicon</a>, but <em>essentially</em> what happened was that the existence of a custom destructor on <code class="language-plaintext highlighter-rouge">Person&lt;'arena&gt;</code> made <code class="language-plaintext highlighter-rouge">'arena</code> in <code class="language-plaintext highlighter-rouge">Person</code> (and thus <code class="language-plaintext highlighter-rouge">Arena</code>) a lifetime which is “observed during destruction”. This is then taken into account during borrow checking – suddenly the implicit <code class="language-plaintext highlighter-rouge">drop()</code> at the end of the scope is known to be able to read <code class="language-plaintext highlighter-rouge">'arena</code> data, and Rust makes the appropriate conclusion that <code class="language-plaintext highlighter-rouge">drop()</code> will be able to read things after they’ve been cleaned up, since destruction is itself a mutable operation, and <code class="language-plaintext highlighter-rouge">drop()</code> is run interspersed in it.</p>
-
-<p>Of course, a reasonable question to ask is how we can store things like <code class="language-plaintext highlighter-rouge">Box</code> and <code class="language-plaintext highlighter-rouge">FrozenVec</code> in this arena if destructors aren’t allowed to “wrap” types with <code class="language-plaintext highlighter-rouge">'arena</code>. The reason is that Rust knows that <code class="language-plaintext highlighter-rouge">Drop</code> on <code class="language-plaintext highlighter-rouge">Box</code> <em>cannot</em> inspect <code class="language-plaintext highlighter-rouge">person.follows</code> because <code class="language-plaintext highlighter-rouge">Box</code> does not even know what <code class="language-plaintext highlighter-rouge">Person</code> is, and has promised to never try and find out. This wouldn’t necessarily be true if we had a random generic type since the destructor can call trait methods (or specialized blanket methods) which <em>do</em> know how to read the contents of <code class="language-plaintext highlighter-rouge">Person</code>, but in such a case the subtly changed borrow checker rules would kick in again. The stdlib types and other custom datastructures achieve this with an escape hatch, <a href="https://doc.rust-lang.org/nomicon/dropck.html#an-escape-hatch"><code class="language-plaintext highlighter-rouge">#[may_dangle]</code></a> (also known as “the eyepatch”<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>), which allows you to pinky swear that you won’t be reading from a lifetime or generic parameter in a custom destructor.</p>
-
-<p>This applies to crates like <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as well; if you are creating cycles you will not be able to write custom destructors on the types you put in the arena. You <em>can</em> write custom destructors with <a href="https://docs.rs/typed-arena/"><code class="language-plaintext highlighter-rouge">typed-arena</code></a> as long as you refrain from mutating things in ways that can create cycles; so you will not be able to use interior mutability to have one arena entry point to another.</p>
-
-<p><em>Thanks to <a href="https://mpc.sh">Mark Cohen</a> and <a href="https://twitter.com/kneecaw/">Nika Layzell</a> for reviewing drafts of this post.</em></p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:0">
-      <p>But not in a cyclic way; the borrow checker will enforce this! <a href="#fnref:0" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:1">
-      <p>You may wonder how it is safe for destructors to be safely run on cyclic references – after all, the destructor of whichever entry gets destroyed second will be able to read a dangling reference. We’ll cover this later in the post but it has to do with drop check, and specifically that if you attempt to set up cycles, the only explicit destructors allowed on the arena entries themselves will be ones on appropriately marked types. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2">
-      <p>The technical term for this is “covariant lifetime” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3">
-      <p>The technical term for this is “contravariant lifetime” <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4">
-      <p>Because you’re claiming the destructor “can’t see” the type or lifetime, see? <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

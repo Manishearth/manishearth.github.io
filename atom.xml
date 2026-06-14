@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2026-06-12T23:55:17+00:00</updated>
+  <updated>2026-06-14T19:19:12+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,278 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Diplomat: Multi-language FFI for Rust Libraries]]></title>
+    <link href="http://manishearth.github.io/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries/"/>
+    <updated>2026-06-14T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries</id>
+    <content type="html"><![CDATA[<p><em>This is a post I’ve been meaning to write and publish for years, and only recently got around to doing it. I’m hoping to get back into writing more!</em></p>
+
+<p>For the past few years, as a part of my work on <a href="https://github.com/unicode-org/icu4x">ICU4X</a>, I’ve been working on <a href="https://github.com/rust-diplomat/diplomat">Diplomat</a>, a multi-language unidirectional FFI tool for wrapping Rust libraries.</p>
+
+<p>I originally <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/design_doc.md">designed</a> Diplomat in 2021 as a response to the question “What is the best way to expose ICU4X (A Rust library) to other programming languages?”. For context, while written in Rust, one of ICU4X’s core design goals was to be available to any programming language, starting with a core set and expanding over time. This is in contrast to the existing Unicode libraries <a href="https://unicode-org.github.io/icu/userguide/icu4c/">ICU4C</a> and <a href="https://unicode-org.github.io/icu/userguide/icu4j">ICU4J</a>, which serve C/C++ and Java respectively.</p>
+
+<p>In the long run, for such a project, tooling becomes a necessity. If ICU4X was just being exposed to a single language, this could potentially be feasible: someone manually writes FFI for every new API that gets written in Rust, and you need to ramp up at least part of the team on writing FFI for one particular language. However, as the number of languages you wish to support grows, this becomes more and more untenable. It is unreasonable to expect most members of an engineering team to be experts on the FFI peculiarities of C++, JS, Dart, the JVM, etc.</p>
+
+<p>When we were getting started, I performed <a href="https://docs.google.com/document/d/1Y1mNFAGbGNvK_I64dd0fRWOxx9xqi12dXeLivnxRWvA/edit?usp=sharing&amp;resourcekey=0-l9QvvqXW7cC-TrfLWt7nZw">an investigation</a> of the available tooling at the time, and arrived at the conclusion that none of the existing tools served our use case: a library in Rust wishing to expose an API to multiple languages. Some of these tools answered part of the story but would need to be stitched together with other work. I also wrote down a design for my “pie in the sky FFI tool” that I figured would be too much of a yak shave to build, but would fill this gap in the Rust FFI tooling ecosystem I have felt for a long time. In the meantime, we stuck to manually written C bindings as we were still figuring stuff out.</p>
+
+<p>One of the core reasons the existing FFI tools didn’t work was that they weren’t “unidirectional”, they were “bidirectional”, or “unidirectional” but going in the opposite direction<sup id="fnref:opposite"><a href="#fn:opposite" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             What’s “unidirectional” and “bidirectional” in the context of an FFI tool?
+            </div>
+        </div>
+
+<p>So, it’s possible this is terminology I just made up one day<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>, but it’s an ontology that I’ve found useful on many, many occasions, so I think it’s worth introducing</p>
+
+<h2 id="unidirectional-vs-bidirectional-ffi-tools">Unidirectional vs bidirectional FFI tools</h2>
+
+<p>In general when doing FFI there are, broadly speaking, two distinct possible goals, with distinct characteristics.</p>
+
+<p>One use case, served by tools like <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a>, <a href="https://github.com/mozilla/cbindgen">cbindgen</a>, <a href="https://github.com/rustwasm/wasm-bindgen">wasm-bindgen</a>, <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, and <a href="https://pyo3.rs/">PyO3</a>, is when you have a library in one language which you wish to use from another language. This is “unidirectional” FFI, since the wrapped library doesn’t need to know anything about the codebase calling into it.</p>
+
+<div class="post-aside post-aside-note">Note that <em>calls</em> in “unidirectional” FFI can still go in both ways; a unidirectional FFI tool may support things like callbacks that allow the calling codebase to pass a closure to the library and have the library invoke it. This is still unidirectional since the API definition is within the wrapped library.</div>
+
+<p>The other use case, served by tools like <a href="https://github.com/dtolnay/cxx">cxx</a>, <a href="https://github.com/google/autocxx">autocxx</a>, <a href="https://github.com/google/crubit">crubit</a>, and <a href="https://github.com/chinedufn/swift-bridge">swift-bridge</a> is where you are working on a combined codebase of two languages and need interop in “both ways”, e.g. you need Rust to be able to access C++ APIs and C++ to be able to access Rust APIs. This is the kind of interop situation I recall when working on <a href="https://bholley.net/blog/2017/stylo.html">Stylo</a>, the project to use <a href="https://github.com/servo/servo/">Servo</a>’s style system in Firefox. Even with Servo being relatively modular, this was not a case of “call Servo like a library”, it was a case of integrating two codebases with a somewhat jagged API boundary. At the time there was not much tooling and we managed to <a href="https://manishearth.github.io/blog/2021/02/22/integrating-rust-and-c-plus-plus-in-firefox/">convince bindgen to work for this</a>, however this was very much a “bidirectional” use case.</p>
+
+<p>Bidirectional tools can often be used for unidirectional use cases, but they are also usually designed with those two specific languages in mind, which constrains the utility of the underlying bindings for work with other languages. You can’t use the bindings as a neutral “hub” that many languages radiate out from.</p>
+
+<h2 id="a-wishlist-for-an-ffi-tool">A wishlist for an FFI tool</h2>
+
+<p>When designing Diplomat, there were several things I had in mind that may not necessarily match choices made by other FFI tools:</p>
+
+<h3 id="no-action-at-a-distance">No action-at-a-distance</h3>
+
+<p>Editing your regular library Rust code should never silently change your FFI layer. I did not want Diplomat to parse the full dependency graph: it should be abundantly clear when an edit to code is going to change the FFI layer, by restricting what Diplomat consumes to specially-tagged “bridge”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> code. In ICU4X, the FFI layer only changes when people update the Diplomat “bridge” code living under <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi"><code class="language-plaintext highlighter-rouge">ffi/capi</code></a>.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why is this a useful property for a tool to have?
+            </div>
+        </div>
+
+<p>For one, it’s just <em>easier</em> to design a tool when it does not need to parse the full range of what Rust supports. Since Diplomat’s “bridge” code is only intended for consumption from Diplomat, we can forbid weird Rust things from being used there.</p>
+
+<div class="discussion discussion-issue">
+            <img class="bobblehead" width="60px" height="60px" title="Negative pion" alt="Speech bubble for character Negative pion" src="http://manishearth.github.io/images/pion-minus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             That means <em>you</em>, <code class="language-plaintext highlighter-rouge">for&lt;'a&gt;</code>.
+            </div>
+        </div>
+
+<p>Secondly, the FFI tool should not overly constrain the API exposed to regular Rust users; it should be possible to tailor that API to Rust user’s needs without having to think about other languages.</p>
+
+<p>Finally, it’s extremely annoying for library developers if every part of their library is being monitored by a tool which may need to be worked around / pacified. ICU4X developers absolutely need to know how to operate Diplomat so that they can write FFI for every ICU4X API they design, however ought not need to <em>constantly</em> think about it when just designing the primary Rust code.</p>
+
+<h3 id="generate-a-ready-to-use-library">Generate a ready-to-use library</h3>
+
+<p>Diplomat should generate a ready-to-use library, not low level bindings. As such it should generate APIs that are idiomatic in the target language, and expose some degree of per-language configurability to allow the developer choices in how precisely to expose various functionality.</p>
+
+<h3 id="no-idls">No IDLs</h3>
+
+<p>Ideally, the interface is smoothly specified in Rust code, rather than using some interface description language. This is an aesthetic choice; IDLs can work really well as well, and this is an option made available by <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>.</p>
+
+<h3 id="extensible-for-more-languages">Extensible for more languages</h3>
+
+<p>It should not be super hard to extend Diplomat to be able to produce bindings for more languages. The vision was that if we have people asking for a Dart API in ICU4X, we can write a Diplomat “backend” for Dart, and run it on the preexisting ICU4X Diplomat bridge code.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             In fact, that’s exactly what happened, and ICU4X now has <a href="https://github.com/unicode-org/icu4x/tree/main/ffi/capi/bindings/dart">a Dart API</a>.
+            </div>
+        </div>
+
+<p>This means that Diplomat’s constraints and design should from the get-go take into account the diversity of languages it may end up supporting: if a feature does not make sense for a particular language, it may need to be redesigned or made conditional.</p>
+
+<div class="discussion discussion-note">
+            <img class="bobblehead" width="60px" height="60px" title="Positive pion" alt="Speech bubble for character Positive pion" src="http://manishearth.github.io/images/pion-plus.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             This also means that third parties can build their own Diplomat backends if they wish, either by using Diplomat as a library, or by contributing upstream. This has happened multiple times: the Kotlin and Python backends were not written by the ICU4X team, though ICU4X now uses the Kotlin backend and is considering using the Python one!
+            </div>
+        </div>
+
+<p>An additional facet of extensibility is that Diplomat <em>features</em> themselves ought not to need support in all backends. If the person developing the Kotlin backend wants callback support, they need not figure out how to add it to all of the other backends, and the other backends also need not worry about callbacks for the most part — they can just mark it as unsupported.</p>
+
+<p>This particular property has led to an explosion of features in Diplomat: at this point we have multiple users each who care about a different subset of backends, and they can each build the features they need without worrying too much about overcomplicating things for other users. Then, when those other users want those features, it’s much easier for them to adopt them.</p>
+
+<h2 id="using-diplomat">Using Diplomat</h2>
+
+<p>The core workflow behind Diplomat is that you write a <em>single</em> “bridge crate” that wraps your Rust API, which, using a proc macro generates a common underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> API. You can then run <code class="language-plaintext highlighter-rouge">diplomat-tool</code> on the bridge crate, invoking individual per-language “backends” to generate idiomatic language bindings that under the hood call the same underlying <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs. This hub-and-spoke model means one bridge crate backs every language you target.</p>
+
+<p>For example, you may write something like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[diplomat::bridge]</span>
+<span class="k">mod</span> <span class="n">ffi</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="n">Settings</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="n">something</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
+        <span class="k">pub</span> <span class="n">something_else</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">}</span>
+
+    <span class="nd">#[diplomat::opaque]</span>
+    <span class="k">pub</span> <span class="k">struct</span> <span class="nf">MyObject</span><span class="p">(</span><span class="nn">my_library</span><span class="p">::</span><span class="n">MyObject</span><span class="p">);</span>
+
+    <span class="k">impl</span> <span class="n">MyObject</span> <span class="p">{</span>
+        <span class="nd">#[diplomat::attr(auto,</span> <span class="nd">constructor)]</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">create</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">MyObject</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">MyObject</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="p">))</span>
+        <span class="p">}</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">do_thing</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">self</span><span class="na">.0</span><span class="nf">.do_thing</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This will (via a proc macro) generate <code class="language-plaintext highlighter-rouge">extern "C"</code> APIs that look something like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_new</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">*</span><span class="k">mut</span> <span class="n">MyObject</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="k">extern</span> <span class="s">"C"</span> <span class="k">fn</span> <span class="nf">MyObject_do_thing</span><span class="p">(</span><span class="n">this</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">MyObject</span><span class="p">)</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+</code></pre></div></div>
+
+<p>as well as adding a <code class="language-plaintext highlighter-rouge">repr(C)</code> to <code class="language-plaintext highlighter-rouge">Settings</code>.</p>
+
+<p>You can then pick a supported language, run <code class="language-plaintext highlighter-rouge">diplomat-tool &lt;language&gt; &lt;path&gt;</code> and generate bindings to that path.</p>
+
+<p>Currently, we have <code class="language-plaintext highlighter-rouge">c</code>, <code class="language-plaintext highlighter-rouge">cpp</code>, <code class="language-plaintext highlighter-rouge">js</code> (includes TypeScript), <code class="language-plaintext highlighter-rouge">dart</code>, <code class="language-plaintext highlighter-rouge">kotlin</code>, and <code class="language-plaintext highlighter-rouge">python-nanobind</code> backends. There’s also a <code class="language-plaintext highlighter-rouge">java</code> backend being developed <a href="https://github.com/rust-diplomat/diplomat-java">in a separate repo</a>. We’re always looking for more!</p>
+
+<p>In C++, this may generate a struct <code class="language-plaintext highlighter-rouge">Settings</code> and a class <code class="language-plaintext highlighter-rouge">MyObject</code> with methods <code class="language-plaintext highlighter-rouge">create()</code> and <code class="language-plaintext highlighter-rouge">do_thing()</code>. In JS it would have a similar class, but <code class="language-plaintext highlighter-rouge">create()</code> would be a constructor, and <code class="language-plaintext highlighter-rouge">do_thing()</code> would be renamed to <code class="language-plaintext highlighter-rouge">doThing()</code>. For a further idiomatic tweak, <code class="language-plaintext highlighter-rouge">new MyObject()</code> would accept untyped objects with the same fields as <code class="language-plaintext highlighter-rouge">Settings</code> as well. In both cases, the constructor/methods will call <code class="language-plaintext highlighter-rouge">MyObject_new</code>/<code class="language-plaintext highlighter-rouge">MyObject_do_thing</code> under the hood.</p>
+
+<p>Diplomat supports three kinds of “custom” user-defined types: C-like enums, structs, and “opaques”. Structs are copied over the FFI boundary, whereas “opaques” wrap an underlying, opaque-to-foreign-languages Rust object that is behind an allocation and only ever passed around behind an owned or borrowed pointer. Some Diplomat backends also support traits as a fourth kind of custom type, letting the user plug in their own implementation of an interface.</p>
+
+<p>Diplomat also supports <code class="language-plaintext highlighter-rouge">Option</code>s, <code class="language-plaintext highlighter-rouge">Result</code>s, and slices, mapping them to the target language’s idiomatic nullability, error, and list models. For example, a Rust <code class="language-plaintext highlighter-rouge">Result</code> throws an exception in JS, Dart, and Python, but maps to Kotlin’s <code class="language-plaintext highlighter-rouge">Result</code> type.</p>
+
+<p>For a full list of types Diplomat supports passing across the FFI boundary, see <a href="https://rust-diplomat.github.io/diplomat/types.html">the types chapter in the Diplomat book</a>.</p>
+
+<h3 id="customization">Customization</h3>
+
+<p>Diplomat supports a fair amount of customization. In the example code you can see <code class="language-plaintext highlighter-rouge">#[diplomat::attr(auto, constructor)]</code>, which means that for backends which support constructors, <code class="language-plaintext highlighter-rouge">create()</code> is a constructor. The first argument for <code class="language-plaintext highlighter-rouge">attr</code> is a <code class="language-plaintext highlighter-rouge">cfg</code>-like syntax for selecting backends, and <code class="language-plaintext highlighter-rouge">auto</code> mostly means “select backends where the attribute is supported”. For constructors, Dart, JS, and Kotlin support them, but the C++ and C backends don’t.</p>
+
+<div class="discussion discussion-example">
+            <img class="bobblehead" width="60px" height="60px" title="Confused pion" alt="Speech bubble for character Confused pion" src="http://manishearth.github.io/images/pion-nought.png" />
+            <div class="discussion-spacer"></div>
+            <div class="discussion-text">
+             Why doesn’t the C++ backend support constructors? C++ has constructors, yes?
+            </div>
+        </div>
+
+<p>Opaque types in C++ are behind a <code class="language-plaintext highlighter-rouge">unique_ptr</code>, and C++ doesn’t let you have constructors that return other types. We might still add some way of doing constructory things in C++, but for now having to write <code class="language-plaintext highlighter-rouge">MyObject::create()</code> is fine.</p>
+
+<p>Diplomat <a href="https://rust-diplomat.github.io/diplomat/attrs.html">supports a lot of customization via attributes</a>, and all of these can be conditioned on specific backends or feature availability:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">disable</code>: Disabling APIs. This is useful to do if a backend doesn’t support features needed there, or if the API is a backend-specific optimization. You can also use <code class="language-plaintext highlighter-rouge">#[diplomat::cfg(cpp)]</code> as a shortcut for <code class="language-plaintext highlighter-rouge">#[diplomat::attr(not(cpp), disable)]</code></li>
+  <li><code class="language-plaintext highlighter-rouge">rename</code>: Renaming APIs. Can be used for overloading!</li>
+  <li><code class="language-plaintext highlighter-rouge">namespace</code>: For organizing code into namespaces/submodules</li>
+  <li><code class="language-plaintext highlighter-rouge">constructor</code> and <code class="language-plaintext highlighter-rouge">named_constructor</code>: For marking methods as constructors</li>
+  <li><code class="language-plaintext highlighter-rouge">iterator</code>, <code class="language-plaintext highlighter-rouge">iterable</code>: For hooking in to builtin language iteration stuff, enabling things like <code class="language-plaintext highlighter-rouge">for i in obj</code></li>
+  <li><code class="language-plaintext highlighter-rouge">getter</code>, <code class="language-plaintext highlighter-rouge">setter</code>: For marking a method as an accessor</li>
+  <li><code class="language-plaintext highlighter-rouge">indexer</code>, <code class="language-plaintext highlighter-rouge">add</code>, <code class="language-plaintext highlighter-rouge">sub</code>, <code class="language-plaintext highlighter-rouge">comparison</code>, etc: For overloading most builtin operators</li>
+</ul>
+
+<h3 id="demo-generation">Demo generation</h3>
+
+<p>Often when talking about what a library can do, I want people to be able to play around with its API and give it different numbers. For example, in ICU4X, it’s great to be able to show a progression of “look, it can format a date!” → “here’s that date in a less compact format” → “here’s that date in French” → “here’s that date in French, in the Chinese calendar” → “here’s that date in French, in the Chinese calendar, with Thai numbering”, where at each step you can let people fiddle around with the parameters.</p>
+
+<p>But ICU4X is a Rust library, and doing this kind of demo in Rust requires whipping out your laptop and having people tweak the code.</p>
+
+<p>A while ago I realized that Diplomat already knows how to generate a JS-Wasm wrapper for your library, and it already has a good understanding of the API at a type level — which means that Diplomat can generate a web-based “demo” for most exposed APIs by chasing down constructors until it finds primitive/enum types it can ask the user for.</p>
+
+<p>You can see this in action on <a href="https://icu4x.unicode.org/2_2/demo">ICU4X’s autogenerated demo page</a> (try playing around with <code class="language-plaintext highlighter-rouge">DateFormatter.formatIso</code> for the date time formatting example above).</p>
+
+<p>Demo generation has proven to be very valuable for us; the demo linked above works on phones and is an easy way to show off ICU4X’s capabilities in an elevator pitch timeframe.</p>
+
+<p>The diplomat book documents <a href="https://rust-diplomat.github.io/diplomat/demo_gen/intro.html">how to set this up</a>.</p>
+
+<h2 id="design-notes">Design notes</h2>
+
+<p>I like compiler design, and Diplomat is basically a compiler. It takes (<code class="language-plaintext highlighter-rouge">syn</code>-parsed) Rust code and transforms it through a series of intermediate representations into bindings.</p>
+
+<p>Diplomat, like <code class="language-plaintext highlighter-rouge">rustc</code>, has a two layers of abstract syntax tree style IRs: it has an “AST” (abstract syntax tree) that is basically a simplified version of the AST we get from <code class="language-plaintext highlighter-rouge">syn</code>, and an “HIR” (higher level intermediate representation) which has all of the paths resolved and a bunch of typechecking done. For example, <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.Type.html">this</a> is the <code class="language-plaintext highlighter-rouge">Type</code> type, which contains a bunch of different variants for the different kinds of types supported in Diplomat. The various “Path” types can all eventually be resolved via their <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/enum.TypeId.html">ids</a>.</p>
+
+<p>This originates from a design constraint of the proc macro: The proc macro cannot see the whole program, just the module it is tagged on. The AST is designed to not need whole-program information. As a consequence, it is less pleasant to work with.</p>
+
+<p>When doing <code class="language-plaintext highlighter-rouge">diplomat-tool</code> codegen, however, the AST is transformed into the HIR, which is <em>much</em> nicer to work with. Diplomat tries to do most of the pre-work resolving everything in the HIR, so that backends can write relatively simple transformations from the HIR into bindings.</p>
+
+<p>These days the <em>underlying</em> C ABI model for Diplomat doesn’t change often, so the AST and proc macro rarely change. New features are usually added via attributes or minor changes to the HIR, and backends can choose to adopt them when they want.</p>
+
+<p>Most Diplomat backends have been written by a different person: writing them is pretty easy, which was our goal!</p>
+
+<h3 id="lifetimes">Lifetimes</h3>
+
+<p>Diplomat supports APIs like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">MyType</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">get_foo</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">Foo</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In Rust, this is fine: lifetimes ensure that the returned <code class="language-plaintext highlighter-rouge">Foo</code> isn’t persisted for too long. In C++, it’s pretty normal to manually police lifetime constraints, so we can generate an API that returns a reference there<sup id="fnref:cpp-lifetimes"><a href="#fn:cpp-lifetimes" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
+
+<p>We can’t do that in JS or other GC’d languages, however, that would be unsound: these languages expect all values to be valid as long as you hold on to them, and they do not restrict how long you can hold on to them.</p>
+
+<p>What we do here is that when the JS-side <code class="language-plaintext highlighter-rouge">&amp;Foo</code> is returned, the JS object internally contains a “lifetime edge”, a reference to the <code class="language-plaintext highlighter-rouge">MyType</code> that originated the borrow. If you hold the <code class="language-plaintext highlighter-rouge">Foo</code> longer than the parent <code class="language-plaintext highlighter-rouge">MyType</code>, that’s fine, <code class="language-plaintext highlighter-rouge">Foo</code> will keep its parent alive since the GC will see a reference to it.</p>
+
+<p>This is pretty straightforward for this API, but gets complicated pretty quickly when you start having multiple lifetimes, structs with lifetimes, or strings<sup id="fnref:slices-lt"><a href="#fn:slices-lt" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>.</p>
+
+<p>The <a href="https://docs.rs/diplomat_core/latest/diplomat_core/hir/borrowing_param/index.html"><code class="language-plaintext highlighter-rouge">borrowing_param</code></a> module in Diplomat goes into more detail on how we handle this in Diplomat.</p>
+
+<h2 id="other-tools">Other tools</h2>
+
+<p>Since Diplomat has been developed, two other tools have entered the same space. Mozilla developed <a href="https://github.com/mozilla/uniffi-rs">uniffi</a>, which gives you a choice of IDLs and bridge modules, and supports Kotlin, Swift, and Python (plus some third party bindings).</p>
+
+<p>There is also <a href="https://www.boltffi.dev">BoltFFI</a>, which supports Swift, Kotlin, Java, C#, and TypeScript. It also seems to do more work in producing nice packages. I haven’t really looked closely at it, but it seems neat.</p>
+
+<p>Generally I think that this model for FFI tools — where you write a single “bridge” layer and use a CLI tool to generate bindings — is a good model for libraries and I’m excited to see more of this in that space. When I started working on Diplomat, this felt like a large hole in the ecosystem.</p>
+
+<h2 id="shoutouts">Shoutouts</h2>
+
+<p>The initial idea for Diplomat was mine, but a <em>lot</em> of it was done by others, especially some really skilled interns, and I want to make sure they get credit.</p>
+
+<p>The first version of Diplomat was basically entirely written by our intern <a href="https://github.com/shadaj">Shadaj</a>, who also designed the first C, C++, and JS backends.</p>
+
+<p><a href="https://github.com/QnnOkabayashi">Quinn</a>, another intern, designed and implemented the AST/HIR split as well as lifetime handling. The HIR-based versions of the C++ and JS/TS backends were written by my colleagues <a href="https://github.com/sffc">Shane</a> and <a href="https://github.com/robertbastian">Robert</a> respectively. Robert also implemented the Dart backend.</p>
+
+<p><a href="https://github.com/ambiguousname">Tyler</a>, another intern, implemented the demo and JS backends, and has continued to maintain them. In addition, he since joined Zeromatter where he has become the primary maintainer of the Python backend and continues to add features to Python and C++.</p>
+
+<p><a href="https://github.com/jcrist1">jcrist1</a> wrote the initial Kotlin backend, and <a href="https://github.com/emarteca">Ellen</a> polished it with more features (including callback support) for use in Android.</p>
+
+<p><a href="https://github.com/walter-zeromatter">Walter</a> from Zeromatter implemented the nanobind-based Python backend, as well as adding several features to the C++ backend including namespacing, arithmetic operators, and extended callback support.</p>
+
+<p><em>Thanks to <a href="https://github.com/ambiguousname">Tyler</a>, <a href="https://github.com/QnnOkabayashi">Quinn</a>, and <a href="https://github.com/walter-zeromatter">Walter</a> for reviewing drafts of this blog post.</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:opposite">
+      <p>E.g. “wrap a C++ library for Rust”, as opposed to the other way around. <a href="#fnref:opposite" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1">
+      <p>I don’t remember! <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>The naming of “bridge crates” and “bridge modules” was inspired by <a href="https://docs.rs/cxx">cxx</a>. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:cpp-lifetimes">
+      <p>Though we <a href="https://github.com/rust-diplomat/diplomat/issues/390">have plans</a> to support Clang lifetime annotations. <a href="#fnref:cpp-lifetimes" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:slices-lt">
+      <p>Strings in JS don’t expose their storage to WASM (and they’re stored in an engine-specific way anyway), so passing a string to an API requires copying it over into a temporary buffer. If you borrow from the string, you may need to persist that allocation. Slices have similar problems. <a href="#fnref:slices-lt" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[So Zero It's ... Negative? (Zero-Copy #3)]]></title>
@@ -4591,195 +4863,6 @@ some code in the functions near it.</p>
     </li>
     <li id="fn:3">
       <p>This won’t handle <code class="language-plaintext highlighter-rouge">calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Teaching Programming: Proactive vs Reactive]]></title>
-    <link href="http://manishearth.github.io/blog/2017/05/19/teaching-programming-proactive-vs-reactive/"/>
-    <updated>2017-05-19T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/05/19/teaching-programming-proactive-vs-reactive</id>
-    <content type="html"><![CDATA[<p>I’ve been thinking about this a lot these days. In part because of <a href="https://github.com/Manishearth/rust-clippy/issues/1737">an idea I had</a>
-but also due to <a href="https://twitter.com/sehurlburt/status/863829482645340160">this twitter discussion</a>.</p>
-
-<p>When teaching most things, there are two non-mutually-exclusive ways of approaching the problem. One
-is “proactive”<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>, which is where the teacher decides a learning path beforehand, and executes it. The
-other is “reactive”, where the teacher reacts to the student trying things out and dynamically
-tailors the teaching experience.</p>
-
-<p>Most in-person teaching experiences are a mix of both. Planning beforehand is very important whilst teaching,
-but tailoring the experience to the student’s reception of the things being taught is important too.</p>
-
-<p>In person, you <em>can</em> mix these two, and in doing so you get a “best of both worlds” situation. Yay!</p>
-
-<p>But … we don’t really learn much programming in a classroom setup.
-Sure, some folks learn the basics in college for a few years, but everything
-they learn after that isn’t in a classroom situation where this can work<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>.
-I’m an autodidact,
-and while I have taken a few programming courses for random interesting things, I’ve taught myself most of what I know
-using various sources. I care a lot about improving the situation here.</p>
-
-<p>With self-driven learning we have a similar divide. The “proactive” model corresponds to reading books
-and docs. Various people have proactively put forward a path for learning in the form of a book
-or tutorial. It’s up to you to pick one, and follow it.</p>
-
-<p>The “reactive” model is not so well-developed. In the context of self-driven learning in programming,
-it’s basically “do things, make mistakes, hope that Google/Stackoverflow help”. It’s how
-a lot of people learn programming; and it’s how I prefer to learn programming.</p>
-
-<p>It’s very nice to be able to “learn along the way”. While this is a long and arduous process,
-involving many false starts and a lack of a sense of progress, it can be worth it in terms of
-the kind of experience this gets you.</p>
-
-<p>But as I mentioned, this isn’t as well-developed. With the proactive approach, there still
-is a teacher – the author of the book! That teacher may not be able to respond in real time,
-but they’re able to set forth a path for you to work through.</p>
-
-<p>On the other hand, with the “reactive” approach, there is no teacher. Sure, there are
-Random Answers on the Internet, which are great, but they don’t form a coherent story.
-Neither can you really be your own teacher for a topic you do not understand.</p>
-
-<p>Yet plenty of folks do this. Plenty of folks approach things like learning a new language by reading
-at most two pages of docs and then just diving straight in and trying stuff out. The only language I
-have not done this for is the first language I learned<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> <sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>.</p>
-
-<p>I think it’s unfortunate that folks who prefer this approach don’t get the benefit of a teacher.
-In the reactive approach, teachers can still tell you what you’re doing wrong and steer you away from
-tarpits of misunderstanding. They can get you immediate answers and guidance. When we look
-for answers on stackoverflow, we get some of this, but it also involves a lot of pattern-matching
-on the part of the student, and we end up with a bad facsimile of what a teacher can do for you.</p>
-
-<p>But it’s possible to construct a better teacher for this!</p>
-
-<p>In fact, examples of this exist in the wild already!</p>
-
-<p>The Elm compiler is my favorite example of this. <a href="http://elm-lang.org/blog/compilers-as-assistants">It has amazing error messages</a></p>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/elm-error.png" />
-<img class="center" src="http://manishearth.github.io/images/post/elm-error2.png" /></p>
-
-<p>The error messages tell you what you did wrong, sometimes suggest fixes, and help
-correct potential misunderstandings.</p>
-
-<p>Rust does this too. Many compilers do. (Elm is exceptionally good at it)</p>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/rust-error.png" width="700" /></p>
-
-<p>One thing I particularly like about Rust is that from that error you can
-try <code class="language-plaintext highlighter-rouge">rustc --explain E0373</code> and get a terminal-friendly version
-of <a href="https://doc.rust-lang.org/nightly/error-index.html#E0373">this help text</a>.</p>
-
-<p>Anyway, diagnostics basically provide a reactive component to learning programming. I’ve cared about
-diagnostics in Rust for a long time, and I often remind folks that many things taught through the
-docs can/should be taught through diagnostics too. Especially because diagnostics are a kind of soapbox
-for compiler writers — you can’t guarantee that your docs will be read, but you can guarantee
-that your error messages will. These days, while I don’t have much time to work on stuff myself I’m
-very happy to mentor others working on improving diagnostics in Rust.</p>
-
-<p>Only recently did I realize <em>why</em> I care about them so much – they cater exactly to my approach
-to learning programming languages! If I’m not going to read the docs when I get started and try the
-reactive approach, having help from the compiler is invaluable.</p>
-
-<p>I think this space is relatively unexplored. Elm might have the best diagnostics out there,
-and as diagnostics (helping all users of a language – new and experienced), they’re great,
-but as a teaching tool for newcomers; they still have a long way to go. Of course, compilers
-like Rust are even further behind.</p>
-
-<p>One thing I’d like to experiment with is a first-class tool for reactive teaching. In a sense,
-<a href="https://github.com/Manishearth/rust-clippy">clippy</a> is already something like this. Clippy looks out for antipatterns, and tries to help
-teach. But it also does many other things, and not all are teaching moments are antipatterns.</p>
-
-<p>For example, in C, this isn’t necessarily an antipattern:</p>
-
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">thingy</span> <span class="o">*</span><span class="n">result</span><span class="p">;</span>
-<span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">=</span> <span class="n">do_the_thing</span><span class="p">())</span> <span class="p">{</span>
-    <span class="n">frob</span><span class="p">(</span><span class="o">*</span><span class="n">result</span><span class="p">)</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Many C codebases use <code class="language-plaintext highlighter-rouge">if (foo = bar())</code>. It is a potential footgun if you confuse it with <code class="language-plaintext highlighter-rouge">==</code>,
-but there’s no way to be sure. Many compilers now have a warning for this that you can silence by
-doubling the parentheses, though.</p>
-
-<p>In Rust, this isn’t an antipattern either:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">add_one</span><span class="p">(</span><span class="k">mut</span> <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">)</span> <span class="p">{</span>
-    <span class="n">x</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">num</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-<span class="nf">add_one</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
-<span class="c1">// num is still 0</span>
-</code></pre></div></div>
-
-<p>For someone new to Rust, they may feel that the way to have a function mutate arguments (like <code class="language-plaintext highlighter-rouge">num</code>) passed to it
-is to use something like <code class="language-plaintext highlighter-rouge">mut x: u8</code>. What this actually does is copies <code class="language-plaintext highlighter-rouge">num</code> (because <code class="language-plaintext highlighter-rouge">u8</code> is a <code class="language-plaintext highlighter-rouge">Copy</code> type),
-and allows you to mutate the copy within the scope of the function. The right way to make a function that
-mutates arguments passed to it by-reference would be to do something like <code class="language-plaintext highlighter-rouge">fn add_one(x: &amp;mut u8)</code>.
-If you try the <code class="language-plaintext highlighter-rouge">mut x</code> thing for non-Copy values, you’d get a “reading out of moved value” error
-when you try to access <code class="language-plaintext highlighter-rouge">num</code> after calling <code class="language-plaintext highlighter-rouge">add_one</code>. This would help you figure out what you did wrong,
-and potentially that error could detect this situation and provide more specific help.</p>
-
-<p>But for <code class="language-plaintext highlighter-rouge">Copy</code> types, this will just compile. And it’s not an antipattern – the way this works
-makes complete sense in the context of how Rust variables work, and is something that you do need
-to use at times.</p>
-
-<p>So we can’t even warn on this. Perhaps in “pedantic clippy” mode, but really, it’s not
-a pattern we want to discourage. (At least in the C example that pattern is one
-that many people prefer to forbid from their codebase)</p>
-
-<p>But it would be nice if we could tell a learning programmer “hey, btw, this is what this syntax
-means, are you sure you want to do this?”. With explanations and the ability to dismiss the error.</p>
-
-<p>In fact, you don’t even need to restrict this to potential footguns!</p>
-
-<p>You can detect various things the learner is trying to do. Are they probably mixing up <code class="language-plaintext highlighter-rouge">String</code>
-and <code class="language-plaintext highlighter-rouge">&amp;str</code>? Help them! Are they writing a trait? Give a little tooltip explaining the feature.</p>
-
-<p>This is beginning to remind me of the original “office assistant” <a href="https://en.wikipedia.org/wiki/Office_Assistant">Clippy</a>, which was super annoying.
-But an opt-in tool or IDE feature which gives helpful suggestions could still be nice, especially
-if you can strike a balance between being so dense it is annoying and so sparse it is useless.</p>
-
-<p>It also reminds me of well-designed tutorial modes in games. Some games have a tutorial mode that guides you
-through a set path of doing things. Other games, however, have a tutorial mode that will give you hints even
-if you stray off the beaten path. <a href="https://twitter.com/mgattozzi">Michael</a> tells me that <a href="http://store.steampowered.com/app/480490/Prey/">Prey</a> is
-a recent example of such a game.</p>
-
-<p>This really feels like it fits the “reactive” model I prefer. The student gets to mold their own
-journey, but gets enough helpful hints and nudges from the “teacher” (the tool) so that they
-don’t end up wasting too much time and can make informed decisions on how to proceed learning.</p>
-
-<p>Now, rust-clippy isn’t exactly the place for this kind of tool. This tool needs the ability to globally
-“silence” a hint once you’ve learned it. rust-clippy is a linter, and while you can silence lints in
-your code, you can’t silence them globally for the current user. Nor does that really make sense.</p>
-
-<p>But rust-clippy does have the infrastructure for writing stuff like this, so it’s an ideal prototyping
-point. I’ve filed <a href="https://github.com/Manishearth/rust-clippy/issues/1737">this issue</a> to discuss this topic.</p>
-
-<p>Ultimately, I’d love to see this as an IDE feature.</p>
-
-<p>I’d also like to see more experimentation in the department of “reactive” teaching — not just tools like this.</p>
-
-<p>Thoughts? Ideas? Let me know!</p>
-
-<p><em>thanks to Andre (llogiq) and Michael Gattozzi for reviewing this</em></p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1">
-      <p>This is how I’m using these terms. There seems to be precedent in pedagogy for the proactive/reactive classification, but it might not be exactly the same as the way I’m using it. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2">
-      <p>This is true for everything, but I’m focusing on programming (in particular programming <em>languages</em>) here. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3">
-      <p>And when I learned Rust, it only <em>had</em> two pages of docs, aka “The Tutorial”. Good times. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4">
-      <p>I do eventually get around to doing a full read of the docs or a book but this is after I’m already able to write nontrivial things in the language, and it takes a lot of time to get there. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
