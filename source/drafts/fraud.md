@@ -126,11 +126,15 @@ Here's a partial list of scam-relevant capabilities that LLMs have that would pr
  
 These are capabilities that exist *today*, and they'll only improve from here. We should look at these skills as a floor, not a ceiling.
 
-Beyond capabilities, there's a mode shift that deserves special mention here: _Patience_. A scammer team going after an individual may not have the capacity to wait months or years between steps of the process, which limits the types of things they may try. However, a scammer using LLMs to go after many people at once can totally afford to have an operation go dormant for a while, waiting for the right moment to pounce. They can even use the time to layer multiple scams performed significantly far apart.
+Each of these is dangerous on its own, but they're also *cheap*. A con with a cost measured in tokens can be run many times over -- "scams in a `for` loop" -- and scaling unlocks some moves that aren't available in an individual scam.
 
-Furthermore, scams can be compounded across fronts to defeat scam-protection mechanisms: For example, one can run a small, less sophisticated scam to recruit a money mule that enables them to extract a large quantity of funds in an untraceable way.
+First off, scaling unlocks _patience_. A scammer team going after an individual may not have the capacity to wait months or years between steps of the process, which limits the types of things they may try. However, a scammer using LLMs to go after many people at once can totally afford to have an operation go dormant for a while, waiting for the right moment to pounce. They can even use the time to layer multiple scams performed significantly far apart.
 
-I really like the classic 1973 movie [The Sting][sting]. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various "trusted" institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. But now, in this current era, what took Henry Gondorff an old pool hall, betting equipment, disguises, a cast of 50 people, and a whole host of other things ... that now takes a handful of tokens to achieve.
+Secondly, scaling unlocks _composition_. Scams can be compounded across fronts to defeat scam-protection mechanisms: For example, one can run a small, less sophisticated scam to recruit a money mule that enables them to extract a large quantity of funds in an untraceable way.
+
+(I really like the classic 1973 movie [The Sting][sting]. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various "trusted" institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. But now, in this current era, what took Henry Gondorff an old pool hall, betting equipment, disguises, a cast of 50 people, and a whole host of other things ... that now takes a handful of tokens to achieve.)
+
+Scaling unlocks one last thing: it unlocks _new targets_. These are still ultimately scams against people, but a thousand compromised marks is also a thousand authenticated positions[^suborn] inside the platforms they use, and that's a very different kind of asset. Plenty of systems have apparent seams where attempts to exploit them will *eventually* be caught and reversed[^glitch]. ["The optimal amount of fraud is nonzero"][fraud]: these seams usually have benefits that outweigh the costs of the occasional fraudster. A thousand accounts working in concert to simultaneously exploit one of these seams, however, changes that calculation entirely. A seam a platform has made a calculated choice to live with is now a gaping hole it needs to scramble to close[^viral].
 
 Putting this together still requires skill[^skill] ... for now. Eventually someone will build reusable tooling for this and sell it to other scammers, giving rise to "[script kiddies][skiddie] but for scams". There are well-established [marketplaces for scammers][genesis], someone just needs to build this tooling and sell it there. This may even have already happened.
 
@@ -143,6 +147,12 @@ Putting this together still requires skill[^skill] ... for now. Eventually someo
  [future]: https://www.goodreads.com/quotes/681-the-future-is-already-here-it-s-just-not-evenly
  [sting]: https://en.wikipedia.org/wiki/The_Sting
  [^skill]: While I know enough to identify some of these capabilities, I'm not good enough at LLMs to deploy them effectively myself without needing to spend time testing and building tooling.
+ [^suborn]: Note that credential/identity theft is not the only way to get an authenticated position; a scammer may simply *convince* a more-credulous mark to carry out the steps they suggest.
+ [^glitch]: If you think you found a cool new free money glitch, no you didn't, [that's fraud][xkcd-fraud].
+ [^viral]: Large-scale coordinated exploits of seams in the system already happen when coordinated by human behaviors rather than LLMs: in 2024 a check-fraud "[free money glitch][chase-glitch]" went viral on TikTok, and enough people fell for it that Chase ended up filing [a couple lawsuits][chase-lawsuit]. But a scammer with access to your accounts doesn't need to engineer a viral trend first.
+ [chase-glitch]: https://www.cnn.com/2024/09/03/business/chase-tiktok-trend/index.html
+ [chase-lawsuit]: https://www.theguardian.com/business/2024/oct/29/jpmorgan-sues-customers-glitch-tiktok-bank-atm-checks
+ [xkcd-fraud]: https://xkcd.com/1494/
  [^fn-lorenzo]: Or as Barney Stinson calls it, the [Lorenzo Von Matterhorn][lorenzo]
  [^zerodays]: Frontier models are also [getting terrifyingly good](https://www.anthropic.com/news/mozilla-firefox-security) at finding *novel* software vulnerabilities, something that has historically been extremely expensive. But this slots into a different dynamic: zero-days are typically perishable precision weapons to spend on a high-value target, not something to run in a `for` loop against a database of marks. There's a parallel arms race going on here and it's worth knowing about, but it's not the primary concern of this post.
  [CVE]: https://www.cve.org/
@@ -213,7 +223,7 @@ The next few years are going to be really interesting in a lot of different ways
 The future of the con is already here. It's just not evenly distributed yet.
 
 
-_Thanks to [Inanna Malick](https://recursion.wtf), Alice Fares, Tilia Bell, [jyn](https://jyn.dev/), [Jane Lusby](https://github.com/yaahc), [talia](https://taliatales.substack.com) ... for providing feedback on drafts of this blog post._
+_Thanks to [Patrick McKenzie](www.bitsaboutmoney.com), [talia](https://taliatales.substack.com), [Inanna Malick](https://recursion.wtf), Alice Fares, Tilia Bell, [jyn](https://jyn.dev/) and [Jane Lusby](https://github.com/yaahc) for providing feedback on drafts of this blog post._
 
 _While researching parts of this post, I stumbled upon [a post with a similar thesis from a year ago][zellyn], which even uses the same Mickens quote. It's a good read as well._
 
