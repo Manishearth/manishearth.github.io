@@ -9,7 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="This is a post I’ve been meaning to write and publish for years, and only recently got around to doing it. I’m hoping to get back into writing more! &hellip;">
+  <meta name="description" content="The Set-Up Johnny Hooker: Sometime after 2:00, a guy’s gonna call on that phone there and give you the name of a horse. Imagine yourself, perhaps a &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -17,7 +17,7 @@
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="This is a post I’ve been meaning to write and publish for years, and only recently got around to doing it. I’m hoping to get back into writing more! For the past few years, as a part of my work on &hellip;">
+      <meta property="twitter:description" content="The Set-Up Johnny Hooker: Sometime after 2:00, a guy’s gonna call on that phone there and give you the name of a horse. Imagine yourself, perhaps a typically-well-paid, tech-savvy professional, on &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -92,6 +92,295 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2026/06/17/the-future-of-the-con-is-already-here/">The Future of the Con Is Already Here, It's Just Not Evenly Distributed</a></h1>
+      <em>Posted by Manish Goregaokar on June 17, 2026 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/security/'>security</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h1 id="the-set-up">The Set-Up</h1>
+
+<p><img src="/images/the-sting/the-set-up.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: Sometime after 2:00, a guy’s gonna call on that phone there and give you the name of a horse.</p>
+
+</blockquote>
+
+<p>Imagine yourself, perhaps a typically-well-paid, tech-savvy professional, on the job hunt. You’ve been looking for a while with no luck; the market just sucks right now.</p>
+
+<p>A recruiter reaches out on LinkedIn, and it seems to be a <em>perfect</em> opportunity, tailored exactly to your best skills.</p>
+
+<p>The company is one you’ve heard about; it’s known to be a great place to work. They also pay pretty well compared to your previous job.</p>
+
+<p>Of course you’re quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms. You get the email, and after signing in to their enterprise SSO, you see what is, yep, a pretty simple NDA, and sign it.</p>
+
+<p>The interviews go great. The interviewers are warm, welcoming, and you look forward to getting to work with them more. Everything they say about the company sounds amazing.</p>
+
+<p>And then you get the bad news: someone else got the job. Oh well. They did, however, enjoy talking to you and might reach out for future similar opportunities. Anyway, back to the grind.</p>
+
+<p>Six months later, you learn this was all a scam. Your identity has been stolen, and thousands have been spent on credit cards opened in your name. Your brokerage account has been partially drained. It’s going to take months to disentangle this, and you’re likely not going to get everything back. To top it all off, you have lost access to your email and many other online accounts.</p>
+
+<p>As you are discovering this, you’re still bewildered as to how this happened. You never expected this type of thing to happen to <em>you</em>; you’re well versed with keeping yourself secure on the internet and not prone to common scams.</p>
+
+<h1 id="the-hook">The Hook</h1>
+
+<p><img src="/images/the-sting/the-hook.png" width="500" /></p>
+
+<blockquote>
+  <p>Henry Gondorff: You can’t do it alone, you know. It takes a mob of guys like you and enough money to make them look good.</p>
+</blockquote>
+
+<p>The point of attack was the login to the NDA signing platform. You chose to use a “sign in with &lt;service&gt;” login when you had to create an account, and it sent you through a realistic-looking login flow: a real Google/iCloud page, perhaps with your email already filled in. When you logged in to this site they used your entered password and subsequent “tap yes on your device” 2FA flow to log in to your account on their end (saving the session cookies), and made it look like a successful login on your end.</p>
+
+<p>The attackers kept this undetected access and monitored your patterns, looking for ways to exploit it. They disabled your smoke detectors before setting off any fires: pre-filtering alert emails from accounts they intended to hit, so warnings never reached you. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name. The interview and rejection <em>after</em> the compromise were theater — keeping you from getting suspicious so that they could hold on to your credentials longer.</p>
+
+<p>This is pretty scary already, but it gets worse: they managed to drain funds. This is hard: modern financial systems have a lot of protection against hijacked accounts<sup id="fnref:banking-protections"><a href="#fn:banking-protections" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. Most scams targeting money involve convincing someone to voluntarily transfer money in an irreversible or untraceable way, and a tech-savvy professional is less likely to be the target of that.</p>
+
+<p>But it’s still possible for a scammer to take money from you with their level of access in a way that lets them keep that money and avoid detection until it’s too late. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransferring to a brokerage account that you don’t seem to touch or log in to often<sup id="fnref:dearth"><a href="#fn:dearth" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. They might gain access to it by resetting your password, and then add a transfer account, maybe establishing a pattern of usage making small transfers. Eventually, they transfer the funds out, timed so you won’t notice for a while, in a way that’s hard to trace<sup id="fnref:mules"><a href="#fn:mules" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!</p>
+
+<p>After they’re all done and think the scam will be detected soon anyway, they lock you out of your accounts to make it harder for you to piece together what happened.</p>
+
+<p>Yeah … all of that sounds possible.</p>
+
+<p>It’s also a <em>lot</em> of effort, needing multiple people coordinating and monitoring things, for a payoff that might not happen. Feels unlikely, right?</p>
+
+<p>Well, I left out one part. This entire attack was orchestrated and carried out by an LLM.</p>
+
+<p>An LLM which could research everything about you and craft a tailored attack. An LLM that could put together all the things that would be needed to make this seem plausible (a LinkedIn account, a fake document signing website, a plausible-looking domain to send emails from), and synthesize all text, audio and video interactions. An LLM which, after gaining access to your account, could monitor it and find the best ways to make use of that access, whether it be worming its way into your brokerage, racking up huge cloud spends on AWS, taking all your crypto, or even ransoming your decades of precious data from your now-stolen, likely-wiped Google account.</p>
+
+<p>And the job hunt was incidental. The interview was the scam that fit you; a plausible way to hook you in based on what the scammers knew about you. For someone else, it might be a scary call from the police, a relative asking for help, an email from their bank, or a slow-burn romance. The pretext changes each time, but the machinery behind it is the same.</p>
+
+<h1 id="the-tale">The Tale</h1>
+
+<p><img src="/images/the-sting/the-tale.png" width="500" /></p>
+
+<blockquote>
+  <p>Henry Gondorff: It’s not like playing winos in the street. You can’t outrun Lonnegan.</p>
+</blockquote>
+
+<p>For quite a while now, you could broadly categorize scams into two buckets: cheap, easy-to-run spray-and-pray scams hoping to ensnare the less savvy; and expensive, <em>targeted</em> scams, aimed at people worth the trouble. And usually “people worth the trouble” is more about <em>organizational</em> power someone holds rather than going after personal savings, like <a href="https://www.cnn.com/2024/02/04/asia/deepfake-cfo-scam-hong-kong-intl-hnk/index.html">this $25M scam in Hong Kong</a> where an employee of a company was convinced to transfer company funds.</p>
+
+<p>Spray-and-pray scams are cheap because they often spend no effort in convincing you. In fact, the “Nigerian Scammer” trope exists because <a href="https://web.archive.org/web/20120622161722/http://research.microsoft.com/pubs/167719/WhyFromNigeria.pdf">for scammers running scams against less-savvy individuals, it is highly desirable that the more-savvy individuals self-select out of their pipeline as early as possible</a>. Emails are free, but the subsequent work to correspond with and scam a mark is not.</p>
+
+<p>Tech-savvy people are, by and large, not prone to these scams: A handful of computer security best practices, paired with a rough understanding of the system’s capabilities<sup id="fnref:caller-id"><a href="#fn:caller-id" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> keeps you reasonably secure.</p>
+
+<p>However, with respect to more sophisticated scams, most people aren’t “worth the trouble”, or at least think they aren’t. Most people don’t have $25M buttons available to them at work.</p>
+
+<p>Sure, many professionals have enough savings that it would make sense to mount a sophisticated scam, but also the likelihood of it happening to them is still slight: a scam that takes that amount of effort takes a lot of setup time and can’t just be scaled up; you need people with the sophistication to run this scam willing to become criminals, and that doesn’t parallelize well. There’s the old joke: you don’t have to outrun the bear, you just have to outrun the guy running next to you. You don’t have to be unscammable, just a bigger pain to scam than the next mark.</p>
+
+<p>Note that sophisticated scams against an individual’s wealth <a href="https://www.thecut.com/article/amazon-scam-call-ftc-arrest-warrants.html">do happen</a> <sup id="fnref:patrick-shoebox"><a href="#fn:patrick-shoebox" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>. “It can’t happen to me” isn’t quite the right framing, but “it’s unlikely this will happen to me” is a common belief, and not unreasonable for many to hold.</p>
+
+<p>Quoting <a href="https://www.usenix.org/system/files/1401_08-12_mickens.pdf">James Mickens</a>:</p>
+
+<blockquote>
+  <p><small>Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from <code class="language-plaintext highlighter-rouge">ChEaPestPAiNPi11s@virus-basket.biz.ru</code>. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ <code class="language-plaintext highlighter-rouge">https://</code>. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.</small></p>
+</blockquote>
+
+<p>Mickens is talking about state actors which are a whole other level. But the core idea is the same: adversary capability is bimodal, clustered at “untargeted × cheap” and “targeted × expensive”. And running targeted attacks <em>at scale</em> just doesn’t work.</p>
+
+<p>Correction, adversary capability <em>was</em> bimodal. LLMs fill the middle of the distribution. They’re pretty cheap: <a href="https://arxiv.org/abs/2412.00586">A 2024 paper</a> found that LLMs tasked with spearphishing cost around 4¢ per email. The interview scam laid out above is more involved and more expensive, but likely still worth it, and 2026 LLMs are leaps and bounds better.</p>
+
+<p>Chillingly, <em>this scales</em>: one can be running thousands of these scams at once! A scammer could probably even have LLMs research individuals and serve them up with bespoke scams designed for that individual’s dossier.</p>
+
+<p>We are now in a world where scams can be run in a <code class="language-plaintext highlighter-rouge">for</code> loop.</p>
+
+<h1 id="the-wire">The Wire</h1>
+
+<p><img src="/images/the-sting/the-wire.png" width="500" /></p>
+
+<blockquote>
+  <p>Eddie Niles: The wire’s been out of date for ten years.</p>
+
+  <p>Henry Gondorff: That’s why he won’t know it.</p>
+</blockquote>
+
+<p>Here’s a partial list of scam-relevant capabilities that LLMs have that would previously require significant skilled human effort per target:</p>
+
+<ul>
+  <li>Researching a mark to find out the best way to go after them.</li>
+  <li>Personally tailoring all communication with a mark in mind, dynamically adjusting based on how they respond to various approaches.</li>
+  <li>Cloning the voice of a person the mark trusts, like a relative.</li>
+  <li>Plausible, real-time deepfaking of a video call.</li>
+  <li>Building a plausible-looking corroborating fake web presence <sup id="fnref:fn-lorenzo"><a href="#fn:fn-lorenzo" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>.</li>
+  <li>Realtime monitoring of compromised resources, and dynamically building up the scam based on this monitoring.</li>
+  <li>Better triage and discovery of marks.</li>
+  <li>Avoiding signature-detection based spam filters (shown by <a href="https://arxiv.org/abs/2412.00586">Heiding et al</a>).</li>
+  <li>Scanning for and chaining known exploits in unpatched deployed software. Mass scanning isn’t new, but cheaply building tooling that can keep tabs on the latest <a href="https://www.cve.org/">CVE</a>s and learn new tricks is<sup id="fnref:zerodays"><a href="#fn:zerodays" class="footnote" rel="footnote" role="doc-noteref">7</a></sup>.</li>
+</ul>
+
+<p>These are capabilities that exist <em>today</em>, and they’ll only improve from here. We should look at these skills as a floor, not a ceiling.</p>
+
+<p>Each of these is dangerous on its own, but they’re also <em>cheap</em>. A con with a cost measured in tokens can be run many times over – “scams in a <code class="language-plaintext highlighter-rouge">for</code> loop” – and scaling unlocks moves unavailable in an individual scam.</p>
+
+<p>First off, scaling unlocks <em>patience</em>. A scammer team going after an individual may not have the capacity to wait months or years between steps, which limits what they may try. However, a scammer using LLMs against many people at once can totally afford to have an operation go dormant for a while, waiting for the right moment to pounce. They can even use the time to layer multiple scams performed significantly far apart.</p>
+
+<p>Secondly, scaling unlocks <em>composition</em>. Scams can be compounded across fronts to defeat scam-protection mechanisms: For example, one can run a small, less sophisticated scam to recruit a money mule that enables them to extract a large quantity of funds in an untraceable way.</p>
+
+<p>(I really like the classic 1973 movie <a href="https://en.wikipedia.org/wiki/The_Sting">The Sting</a>. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various “trusted” institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. But in this current era, what took Henry Gondorff an old pool hall, betting equipment, disguises, a cast of 50 people, and a whole host of other things … that now takes a handful of tokens to achieve.)</p>
+
+<p>Scaling unlocks one last thing: <em>new targets</em>. These are still ultimately scams against people, but a thousand compromised marks is also a thousand authenticated positions<sup id="fnref:suborn"><a href="#fn:suborn" class="footnote" rel="footnote" role="doc-noteref">8</a></sup> inside the platforms they use, and that’s a very different kind of asset. Plenty of systems have apparent seams where attempts to exploit them will <em>eventually</em> be caught and reversed<sup id="fnref:glitch"><a href="#fn:glitch" class="footnote" rel="footnote" role="doc-noteref">9</a></sup>. <a href="https://www.bitsaboutmoney.com/archive/optimal-amount-of-fraud/">“The optimal amount of fraud is nonzero”</a>: these seams usually have benefits that outweigh the costs of the occasional fraudster. A thousand accounts working in concert to simultaneously exploit one of these seams, however, changes that calculation entirely. A seam a platform has made a calculated choice to live with is now a gaping hole it needs to scramble to close<sup id="fnref:viral"><a href="#fn:viral" class="footnote" rel="footnote" role="doc-noteref">10</a></sup>.</p>
+
+<p>Putting this together still requires skill<sup id="fnref:skill"><a href="#fn:skill" class="footnote" rel="footnote" role="doc-noteref">11</a></sup> … for now. Eventually someone will build reusable tooling for this and sell it to other scammers, giving rise to “<a href="https://en.wikipedia.org/wiki/Script_kiddie">script kiddies</a> but for scams”. There are well-established <a href="https://en.wikipedia.org/wiki/Genesis_Market">marketplaces for scammers</a>, someone just needs to build this tooling and sell it there. This may even have already happened.</p>
+
+<p><a href="https://www.goodreads.com/quotes/681-the-future-is-already-here-it-s-just-not-evenly">“The future is here, it’s just not evenly distributed”</a>: the capabilities are there, and some scammers are almost certainly deploying them already. But since they’re not yet <em>ubiquitous</em>, our heuristics — and those of companies providing us with critical services — have not yet been recalibrated.</p>
+
+<h1 id="the-shut-out">The Shut-Out</h1>
+
+<p><img src="/images/the-sting/the-shut-out.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: He’s not as tough as he thinks.</p>
+
+  <p>Henry Gondorff: Neither are we.</p>
+</blockquote>
+
+<p>Speaking of heuristics, if you were asked how you’d fare against some particular scam, you’d probably have answers ready. If a family member texts you about something, you’d call or, better, video chat with them to verify. If someone contacts you out of the blue, you look them up. You are on the lookout for inflection points in a conversation with someone you don’t know, to see where it switches from idle discussion to something impactful. These are great instincts, the instincts of someone who has been paying attention in this internet age.</p>
+
+<p>But why did these heuristics work?</p>
+
+<p>Some of these heuristics are proxies for cost. Fluent, personalized writing means a real person, and a scammer working thousands of marks may not have the time to spend on that. A strong web presence can be faked, but that takes a ton of work. You didn’t think a scammer would be likely to spend that much effort solely on <em>you</em>, and that informed your adoption of these heuristics.</p>
+
+<p>Other heuristics are measures of capability. A scammer wouldn’t previously be able to impersonate a family member on a phone call. If you met a person on a video call, they would be real, and likely identifiable to the police if it came to that.</p>
+
+<p>Both of these foundations are crumbling, and this means our heuristics are breaking.</p>
+
+<p>It gets worse: we didn’t just need these heuristics to protect ourselves from scams, we needed them to be certain anything is real. Now we’re often left not-totally sure, suffering from the <a href="https://en.wikipedia.org/wiki/Liar%27s_dividend">liar’s dividend</a>. What do you do when a family member in a different city appears to need emergency money, but could also plausibly have had their accounts compromised with all communications being intercepted and deepfaked? Fly out to check on them in person? Perhaps ask someone else in their city to check in on them? This is far more effort than before.</p>
+
+<p>Furthermore, personal heuristics are only a part of the story: institutions have heuristics too. American consumer banking protections<sup id="fnref:regulations"><a href="#fn:regulations" class="footnote" rel="footnote" role="doc-noteref">12</a></sup> draw a strong red line based on who authorized a transfer: if someone gained access to your account and did a fraudulent transfer, you’ll be made whole by the bank. On the other hand, if you’ve been convinced to move money, even for illegitimate reasons, you may be able to report a crime but nobody is under any obligation to make you whole. This might make sense in a world where “stolen password” is easier than a targeted, manual “send us money” con, but that’s changing<sup id="fnref:fraud-cost"><a href="#fn:fraud-cost" class="footnote" rel="footnote" role="doc-noteref">13</a></sup>.</p>
+
+<h1 id="the-sting">The Sting</h1>
+
+<p><img src="/images/the-sting/the-sting.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: Then why are you doing it?</p>
+
+  <p>Henry Gondorff: It seems worthwhile, doesn’t it?</p>
+</blockquote>
+
+<p>So what do we do? It’s tempting to crank every heuristic to eleven: scrutinize each email, each voice on the phone. But this won’t work; these heuristics were a proxy for detecting something that is now cheap to fake.</p>
+
+<p>I remember when I grew up we were forbidden from using Wikipedia for researching school projects (and occasionally told that Wikipedia was not useful for <em>any</em> purpose). Teachers believed that because Wikipedia could be easily edited, it could contain incorrect information, and we shouldn’t rely on that. People had heuristics for truth that incorporated “published material is probably true to some degree of certainty”, based on the reality that printing incorrect information for a jape is hardly cheap. “Don’t include Wikipedia in this category and ignore it entirely” is one way to preserve that heuristic, and is what they wanted us to do. This was a correction in the wrong direction. The world was changing so that this heuristic was faltering; we needed to build new heuristics to handle the new world, not cling desperately onto pretending the world hadn’t changed.</p>
+
+<p>Kids are <em>famously</em> good at following rules they disagree with. So my generation still used Wikipedia, and in a broader sense grew up alongside the explosion of information on the Internet. We got pretty okay at building new heuristics: learning to check sources, looking for corroborating evidence, stuff like that. The people who stuck to the old heuristics (often of older generations) have been much more easily targeted by e.g. modern misinformation campaigns.</p>
+
+<p>So, we should improve our heuristics again. There are a couple ways to do that<sup id="fnref:not-an-expert"><a href="#fn:not-an-expert" class="footnote" rel="footnote" role="doc-noteref">14</a></sup>:</p>
+
+<p>One heuristic we can build is detecting the common skeleton of scams. Many scams follow a skeleton where they’ll ask for something urgent, in secret, asking you to use unusual channels. This skeleton is usually noticeable because the pitch around it is often clumsy<sup id="fnref:ceo-starbucks"><a href="#fn:ceo-starbucks" class="footnote" rel="footnote" role="doc-noteref">15</a></sup>, but that can change with scammers who can do triage and research marks at scale. Still, the rough structure of that skeleton probably isn’t going anywhere; an ask is an ask.</p>
+
+<p>Other heuristics can be achieved by verifying things through more channels. For further verification, I <em>strongly</em> recommend setting up some spoken passwords with your family members. In cases where you don’t have that, you can try to still call back to events in the past that are unlikely to have records out there. For less tech-savvy family members I would recommend just giving them the advice “if you get a call from me talking about something serious, urgent, and/or secret, be very skeptical and maybe hang up and check through another channel”.</p>
+
+<p>Somewhat recently I was setting up a financial transaction with a person I know. We had been talking about it over multiple platforms, but before the final step I ended up asking them to hop on a video call, explaining that I was being extra cautious in the age of LLMs. They replied, in effect, “heh, I wondered when I was going to start getting asked this”. They opened the video call referencing a specific memorable moment in a call we had many years ago, and we ended up chatting for a while about various things including the subject of this blog post.</p>
+
+<p>It helps to understand where our systems do and don’t protect us. A rough rule: you can’t usually trust the authenticity of communication you <em>receive</em>, but you can mostly trust where you deliberately <em>send</em> something<sup id="fnref:access"><a href="#fn:access" class="footnote" rel="footnote" role="doc-noteref">16</a></sup>. An email composed to some address will likely<sup id="fnref:smtp"><a href="#fn:smtp" class="footnote" rel="footnote" role="doc-noteref">17</a></sup> reach that inbox, and a call you place to a number will likely<sup id="fnref:ss7"><a href="#fn:ss7" class="footnote" rel="footnote" role="doc-noteref">18</a></sup> reach that device. Email <code class="language-plaintext highlighter-rouge">from:</code> headers and caller ID, on the other hand, can be easily forged.</p>
+
+<p>These heuristics are imperfect, but they’re better than what we have now, and will make you more expensive and trickier to target. It’s not practical to be 100% completely unscammable (“<a href="https://www.bitsaboutmoney.com/archive/optimal-amount-of-fraud/">the optimal amount of fraud is nonzero</a>”), but you can at least be more expensive to scam.</p>
+
+<p>Beyond improving heuristics, following security best practices like using <a href="https://www.makeuseof.com/i-set-up-hardware-based-2fa-simpler-than-i-thought/">hardware 2FA</a> <sup id="fnref:fido"><a href="#fn:fido" class="footnote" rel="footnote" role="doc-noteref">19</a></sup> (rather than SMS or an authenticator app) can protect you against many tools in the scammer toolbox.</p>
+
+<p>The next few years are going to be really interesting in a lot of different ways. I’m <em>expecting</em> that institutions and systems will themselves eventually adapt to many of these things<sup id="fnref:redteam"><a href="#fn:redteam" class="footnote" rel="footnote" role="doc-noteref">20</a></sup> and come up with better protections<sup id="fnref:android"><a href="#fn:android" class="footnote" rel="footnote" role="doc-noteref">21</a></sup>. That’s going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.</p>
+
+<p>The future of the con is already here. It’s just not evenly distributed yet.</p>
+
+<p><em>Thanks to <a href="https://www.bitsaboutmoney.com">Patrick McKenzie</a>, <a href="https://taliatales.substack.com">talia</a>, <a href="https://recursion.wtf">Inanna Malick</a>, Alice Fares, Tilia Bell, <a href="https://jyn.dev/">jyn</a>, and <a href="https://github.com/yaahc">Jane Lusby</a> for providing feedback on drafts of this blog post.</em></p>
+
+<p><em>While researching parts of this post, I stumbled upon <a href="https://zellyn.com/2025/03/ai_security_nightmare/">a post with a similar thesis from a year ago</a>, which even uses the same Mickens quote. It’s a good read as well.</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:banking-protections">
+      <p>Involuntarily transferring your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regulations. Furthermore, banking sites often use 2FA and notify the user when there is a login. <a href="#fnref:banking-protections" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:dearth">
+      <p>From the dearth of “login detected to foo.com” emails in your inbox <a href="#fnref:dearth" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:mules">
+      <p>The tracing of the actual outflow can be thwarted by using (unsuspecting) <a href="https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/money-mules">money mules</a>, a well-established tactic in the scam world. Admittedly, this adds more days to the process where you might notice something is wrong, but it does appear to be feasible. <a href="#fnref:mules" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:caller-id">
+      <p>Remember, phone numbers in Caller ID and <code class="language-plaintext highlighter-rouge">from:</code> headers in emails can be spoofed! <a href="#fnref:caller-id" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:patrick-shoebox">
+      <p>Also worth reading Patrick McKenzie’s <a href="https://www.bitsaboutmoney.com/archive/two-americas-one-bank-branch/">excellent followup investigative journalism</a> on that article. <a href="#fnref:patrick-shoebox" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fn-lorenzo">
+      <p>Or as Barney Stinson calls it, the <a href="https://www.youtube.com/watch?v=0MC55lU_L2E">Lorenzo Von Matterhorn</a> <a href="#fnref:fn-lorenzo" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:zerodays">
+      <p>Frontier models are also <a href="https://www.anthropic.com/news/mozilla-firefox-security">getting terrifyingly good</a> at finding <em>novel</em> software vulnerabilities, something that has historically been extremely expensive. But this slots into a different dynamic: zero-days are typically perishable precision weapons to spend on a high-value target, not something to run in a <code class="language-plaintext highlighter-rouge">for</code> loop against a database of marks. There’s a parallel arms race going on here and it’s worth knowing about, but it’s not the primary concern of this post. <a href="#fnref:zerodays" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:suborn">
+      <p>Note that credential/identity theft is not the only way to get an authenticated position; a scammer may simply <em>convince</em> a more-credulous mark to carry out the steps they suggest. <a href="#fnref:suborn" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:glitch">
+      <p>If you think you found a cool new free money glitch, no you didn’t, <a href="https://xkcd.com/1494/">that’s fraud</a>. <a href="#fnref:glitch" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:viral">
+      <p>Large-scale coordinated exploits of seams in the system already happen when coordinated by human behaviors rather than LLMs: in 2024 a check-fraud “<a href="https://www.cnn.com/2024/09/03/business/chase-tiktok-trend/index.html">free money glitch</a>” went viral on TikTok, and enough people tried it that Chase ended up filing <a href="https://www.theguardian.com/business/2024/oct/29/jpmorgan-sues-customers-glitch-tiktok-bank-atm-checks">a couple lawsuits</a>. But a scammer with access to your accounts doesn’t need to engineer a viral trend first. <a href="#fnref:viral" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:skill">
+      <p>While I know enough to identify some of these capabilities, I’m not good enough at LLMs to deploy them effectively myself without needing to spend time testing and building tooling. <a href="#fnref:skill" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:regulations">
+      <p>See <a href="https://www.bitsaboutmoney.com/archive/regulation-e/">Regulation E</a>. Different countries have different regimes, the UK <a href="https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters">recently passed a law</a> that requires banks to make whole customers who were tricked into transferring money. It’s unclear to me if this is in response to LLMs, but it’s from 2024 and I do not have a great impression of the UK legislature’s understanding of tech, so probably not. <a href="#fnref:regulations" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fraud-cost">
+      <p>This isn’t to say that Reg E-style “the bank is required to make whole anyone who gets scammed” is the right call here either: too many costs moved onto the banks and they may start choosing to not do business with people who are likely to get scammed. Someone who understands this field more than I could probably suggest workable, concrete, steps that institutions (both banks and regulators) might be smart in taking. <a href="#fnref:fraud-cost" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:not-an-expert">
+      <p>I’m not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields. <a href="#fnref:not-an-expert" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:ceo-starbucks">
+      <p>Hi, I am your CEO, I need $1000 in starbucks gift cards urgently for a client meeting. It needs to be gift cards because uhhhh …. <a href="#fnref:ceo-starbucks" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:access">
+      <p>Whether or not someone unauthorized has access to an email inbox or phone is a different question; this is about whether they can pretend to be that email/phone without having gained access. <a href="#fnref:access" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:smtp">
+      <p>Though this depends on the actual mail servers in use. It is almost completely not a problem in the modern era. <a href="#fnref:smtp" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:ss7">
+      <p>Less likely than email: see “SS7 attacks”. Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway. <a href="#fnref:ss7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fido">
+      <p>FIDO2/WebAuthn, <em>where offered</em>, include the website’s domain in the cryptographic exchange, so a phishing website cannot simply pass the signature through. <a href="#fnref:fido" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:redteam">
+      <p>Defenders get these capabilities too! Mozilla’s <a href="https://blog.mozilla.org/en/privacy-security/ai-security-zero-day-vulnerabilities/">conclusion from using Mythos to red-team Firefox</a> was optimistic: they believe there’s a real chance that by running these tools they can actually find <em>all</em> of the security vulnerabilities, instead of playing best-effort whack-a-mole. <a href="#fnref:redteam" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:android">
+      <p>Just recently, Android introduced <a href="https://blog.google/security/android-fake-call-detection/">impersonated call detection</a>. <a href="#fnref:android" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -3073,220 +3362,6 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2019/02/04/rust-governance-scaling-empathy/">Rust Governance: Scaling Empathy</a></h1>
-      <em>Posted by Manish Goregaokar on February 04, 2019 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>There’s been a lot of talk about improving Rust’s governance model lately. As we decompress from last year’s hectic edition work, we’re slowly starting to look at all the bits of <a href="https://twitter.com/ManishEarth/status/1073088515041198080">debt</a> we accumulated, and <a href="https://boats.gitlab.io/blog/post/rust-2019/">organizational debt</a> is high on that list.</p>
-
-<p>I’ve been talking in private with people about a bunch of these things for quite a while now, and I felt it worthwhile to write down as much of my thoughts as I can before the Rust All Hands in Berlin this week.</p>
-
-<p>In the interest of brevity<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> I’m going to assume the reader is roughly familiar with most of the stuff that’s happened with the Rust community in the past few years. I’m probably going to omit concrete examples of incidents, both to avoid mischaracterizing individual actions (as with most such analyses, I wish to talk in more general terms about trends), and also just because it would take me forever to write this if I were to supply all the layers of context. If you feel something is inaccurate, please let me know.</p>
-
-<p>This blog post is probably going to reach the eyes of non-Rust-community members. You’re welcome to read it, but please accept my apologies in advance if it doesn’t make any sense. This is something that I initially planned to circulate as a private post (writing for a general audience is <em>hard</em>), but I felt this would be more widely useful. However due to time constraints I haven’t had time to edit it to make it acceptable to a wider audience.</p>
-
-<h2 id="the-symptoms">The symptoms</h2>
-
-<p>Before I actually get into it, I’d like to carefully delineate <em>what</em> the problem is that I’m talking about. Or more accurately, the <em>symptoms</em> I am talking about — as I’ll explain soon I feel like these are not the actual problem but symptoms of a more general problem.</p>
-
-<p>Basically, as time has gone by our decisionmaking process has become more and more arduous, both for community members and the teams. Folks have to deal with:</p>
-
-<ul>
-  <li>The same arguments getting brought up over and over again</li>
-  <li>Accusations of bad faith</li>
-  <li>Derailing</li>
-  <li>Not feeling heard</li>
-  <li>Just getting exhausted by all the stuff that’s going on</li>
-</ul>
-
-<p>The RFC process is the primary exhibitor of these symptoms, but semi-official consensus-building threads on <a href="https://internals.rust-lang.org">internals.rust-lang.org</a> have similar problems.</p>
-
-<p>Aaron <a href="http://aturon.github.io/2018/05/25/listening-part-1/">has written some extremely empathetic blog posts</a> about a bunch of these problems, starting with concrete examples and ending with a takeaway of a bunch of values for us to apply as well as thoughts on what our next steps can be. I highly recommend you read them if you haven’t already.</p>
-
-<p>Fundamentally I consider our problems to be social problems, not technical ones. In my opinion, technical solutions like changing the discussion forum format may be necessary but are not sufficient for fixing this.</p>
-
-<h2 id="the-scaling-problem">The scaling problem</h2>
-
-<p>I contend that all of these issues are symptoms of an underlying <em>scaling issue</em>, but also a failure of how our moderation works.</p>
-
-<p>The scaling issue is somewhat straightforward. Such forum discussions are inherently N-to-N discussions. When you leave a comment, you’re leaving a comment for <em>everyone</em> to read and interpret, and this is hard to get right. It’s <em>much</em> easier to have one-on-one discussions because it’s easy to build a shared vocabulary and avoid misunderstandings; any misunderstandings can often be quickly detected and corrected.</p>
-
-<p>I find that most unpleasant technical arguments stem from an unenumerated mismatch of assumptions, or sometimes what I call a mismatch of axioms (i.e. when there is fundamental conflict between core beliefs). A mismatch of assumptions, if identified, can be resolved, leading to an amicable conclusion. Mismatches of axioms are harder to resolve, however recognizing them can take most of the vitriol out of an argument, because both parties will <em>understand</em> each other, even if they don’t <em>agree</em>. In such situations the end result may leave one or both parties <em>unhappy</em>, but rarely <em>angry</em>. (It’s also not necessary that axiom mismatches leave people unhappy, embracing <a href="http://aturon.github.io/2018/06/02/listening-part-2/#pluralism-and-positive-sums">positive sum thinking</a> helps us come to mutually beneficial conclusions)</p>
-
-<p>All of these mismatches are easy to identify in one-on-one discussions, because it’s easy to switch gears to the meta discussion for a bit.</p>
-
-<p>One-on-one discussions are pleasant. They foster empathy.</p>
-
-<p>N-to-N discussions are <em>not</em>. It’s harder to converge on this shared vocabulary amongst N other people. It’s harder to identify these mismatches, partly because it’s hard to switch into the meta-mode of a discussion at all, but also because there’s a lot going on. It’s harder to build empathy.</p>
-
-<p>As we’ve grown, discussion complexity has grown quadratically, and we’re not really attempting to relinearize them.</p>
-
-<h3 id="hanabi-and-parallel-universes">Hanabi and parallel universes</h3>
-
-<p>I quite enjoy the game of <a href="https://en.wikipedia.org/wiki/Hanabi_(card_game)">Hanabi</a>. It’s a game of information and trust, and I find it extremely fun, especially with the right group.</p>
-
-<p>Hanabi is a cooperative game. You can see everyone’s cards (or tiles) but your own, and information-sharing is severely restricted. The goal is to play the right cards in the right order to collectively win. The gimmick is to share additional information through the side-channel of <em>the choice of move you make</em>.</p>
-
-<p>A very common occurrence in this game is that people start making plans in their mind. You typically have a decent understanding of what information everyone has, and you can use this to make predictions as to what everyone’s moves will be. With this in mind, you can attempt to “set up” situations where the game progresses rapidly in a short period of time. This is somewhat necessary for the game to work, but a common pitfall is for these plans to be <em>extremely</em> elaborate, leading to frustration as the game doesn’t actually play out as planned.</p>
-
-<p>The core issue behind this is forgetting that you actually <em>can’t</em> see the entire game state, since your own cards are hidden. It’s not just <em>you</em> who has plans — everyone does! And each of those plans is incomplete since they’re missing a piece of the picture, just as you are.</p>
-
-<p>In Hanabi it’s very easy to forget that you’re missing a piece of the picture — in competitive card games you mostly can’t see the game state since everyone else’s cards are hidden. But in Hanabi you can see <em>most</em> of the cards and it’s easy to forget that your own four cards are hidden from you.</p>
-
-<p>So what ends up happening is that due to incomplete information, everyone is operating in their own little parallel universe, occasionally getting frustrated when it becomes clear that other players are not operating in the same universe. As long as you recognize the existence of these parallel universes beforehand you’re fine, but if you don’t you will be frustrated.</p>
-
-<p>This is largely true of N-to-N discussions as well. Because most of what’s being said makes sense to an individual in a particular way, it’s very easy for them to forget that other people may not share your assumptions and thus may be on a different page. Every time someone leaves a comment, different people may interpret it differently, “forking” the common understanding of the state of the discussion into multiple parallel universes. Eventually there are enough parallel universes that everyone’s talking past each other.</p>
-
-<p>One thing I often prefer doing in such cases is to have a one on one discussion with people who disagree with me — typically the shared understanding that is the end result of such discussions is super useful and can be brought back to the discussion as something that all participants interpret the same way. I’m not consistent in doing this — in the midst of a heated argument it’s easy to get too wrapped up in the argument to think about getting results and I’ve certainly had my time arguing instead of resolving — but overall whenever I’ve chosen to do this it’s been a useful policy.</p>
-
-<p>This is a good example of how relinearization and communication can help move N-to-N discussions along. Operating in different parallel universes is kind of the <em>point</em> of Hanabi, but it’s not the point of having a technical discussion.</p>
-
-<h2 id="the-moderation-problem">The moderation problem</h2>
-
-<p>In a technical discussion, broadly speaking, I find that there are three kinds of comments disagreeing with you:</p>
-
-<ul>
-  <li>Constructive: Comments which disagree with you constructively. We’re glad these exist, disagreement can hurt but is necessary for us to collaboratively reach the best outcomes.</li>
-  <li>Disruptive: Comments which may be written in good faith but end up being disruptive. For example, this includes people who don’t read enough of the discussion and end up rehashing the same points. It also includes taking discussions off topic. These kinds of things are problematic but not covered by the code of conduct.</li>
-  <li>Abrasive: Comments which are rude/abrasive. These are covered by the code of conduct. The mod team tries to handle these.</li>
-</ul>
-
-<p>(For a long time I and <a href="http://twitter.com/aaron_turon/">Aaron</a> had a shared vocabulary of “Type A, B, C” for these, mostly because I’m often unimaginative when it comes to such things, thanks to <a href="https://github.com/mark-simulacrum">Mark</a> for coming up with, better, descriptive titles)</p>
-
-<p>Note that while I’m talking about “disruptive” comments it’s not a judgement on the <em>intent</em> of the participants, but rather a judgement on the harm it has caused.</p>
-
-<p>The second category – disruptive comments – are the thing we’re currently unable to handle well. They snowball pretty badly too — as more and more of these collect, more and more people get frustrated and in turn leave comments that cause further disruption. As the discussion progresses into more and more “parallel universes” it also just becomes <em>easier</em> for a comment to be disruptive.</p>
-
-<p>The Rust moderation team operates mostly passively, we simply don’t have the scale<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> to watch for and nip these things in the bud. Active moderation requires a degree of involvement we cannot provide. So while the best response would be to work with participants and resolve issues early as we see them crop up, we typically get pulled in at a point where some participants are already causing harm, and our response has to be more severe. It’s a bit of a catch-22: it’s not exactly our job to deal with this stuff<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, but by the time it <em>becomes</em> our job (or even, by the time we <em>notice</em>), most acceptable actions for us to take are extremely suboptimal. The problem with passive moderation is that it’s largely reactive — it’s harder to proactively nudge the discussion in the right direction when you don’t even <em>notice</em> what’s going on until it’s too late. This is largely okay for dealing with bad-faith actors (the main goal of the mod team); it’s hard to <em>prevent</em> someone from deciding to harass someone else. But for dealing with disruptive buildups, we kind of need something different.</p>
-
-<h2 id="participation-guidelines">Participation guidelines</h2>
-
-<p>Part of the solution here is recognizing that spaces for official discussion are <em>different</em> from community hangout spaces. Our code of conduct attempts to handle abrasive behavior, which can disrupt discussions anywhere, but the comments that can disrupt consensus building in official discussions aren’t really covered. Nor are the repercussions of code of conduct violations really <em>appropriate</em> for such disruptive comments anyway.</p>
-
-<p>A proposal I’ve circulated in the past is to have a notion of participation guidelines. Discussions in team spaces (RFCs, pre-RFCs, discord/zulip/IRC channels during team meetings) follow a set of rules set forth by the individual teams. It might be worth having a base set of participation guidelines defined by the core team. Something like the following is a very rough strawman:</p>
-
-<ul>
-  <li>Don’t have irrelevant discussions during team meetings on Discord/IRC/Zulip</li>
-  <li>Don’t take threads off topic</li>
-  <li>Don’t rehash discussions</li>
-</ul>
-
-<p>We ask people to read these before participating, but also breaking these rules isn’t considered serious, it just triggers a conversation (and maybe the hiding/deletion of a comment). If someone repeatedly breaks these rules they may be asked to not participate in a given thread anymore. The primary goal here is to empower team members to better deal with disruptive comments by giving them a formalized framework. Having codified rules helps team members confidently deal with such situations without having to worry as much about drawing direct ire from affected community members.</p>
-
-<p>A base participation guidelines document can also be a value statement, not just a set of rules but also set of values. These values can be things like:</p>
-
-<ul>
-  <li>“We explicitly value high empathy interactions”</li>
-  <li>“How everyone is feeling is everyone’s business”</li>
-</ul>
-
-<p>(h/t <a href="http://twitter.com/adam_n_p/">Adam</a> for the articulate wording here)</p>
-
-<p>Having such words written somewhere — both the high level values we expect people to hold, and the individual behaviors we expect people to exhibit (or not exhibit) — is really valuable in and of itself, even if not enforced. The value of such documents is not that everyone reads them before participating — most don’t — but they serve as a good starting point for people interested in learning how to best conduct themselves, as well as an easy place to point people to where they’re having trouble doing so.</p>
-
-<p>On its own, I find that this is a powerful framework but may not achieve the goal of improving the situation. I recently realized that this actually couples really well with a <em>different</em> idea I’ve been talking about for quite a while now, the idea of having facilitators:</p>
-
-<h2 id="facilitators">Facilitators</h2>
-
-<p>A common conflict I see occurring is that in many cases it’s a team’s job to think about and opine on a technical decision, but it’s also the team’s job to shepherd the discussion for that decision. This often works out great, but it also leads to people just feeling unheard. It kinda hurts when someone who has just strongly disagreed with you goes on to summarize the state of the discussion in a way that you feel you’ve been unfairly represented. The natural response to that for most people isn’t to work with that person and try to be properly represented, it’s to just get angry, leading to less empathy over time.</p>
-
-<p>By design, Rust team members are <em>partisan</em>. The teams exist to build well-informed, carefully crafted opinions, and present them to the community. They also exist to make final decisions based on the results of a consensusbuilding discussion, which can involve picking sides. This is fine, there is always going to be some degree of partisanship amongst decisionmakers, or decisions would not get made.</p>
-
-<p>Having team members also facilitate discussions is somewhat at odds with all of this. Furthermore, I feel like they don’t have enough bandwidth to do this well anyway. Some teams do have a concept of “sheriffs”, but this is more of an onramp to full team membership and the role of a sheriff is largely the same as the role of a team member, just without a binding vote.</p>
-
-<p>I feel like it would be useful to have a group of (per-team?) <em>facilitators</em> to help with this. Facilitators are people who are interested in seeing progress happening, and largely don’t have <em>much</em> of an opinion on a given discussion, or are able to set aside this opinion in the interest of moving a discussion forward. They operate largely at the meta level of the discussion. Actions they may take are:</p>
-
-<ul>
-  <li>Summarizing the discussion every now and then</li>
-  <li>Calling out one sided discussions</li>
-  <li>Encouraging one-on-one tangents to be discussed elsewhere (perhaps creating a space for them, like an issue)</li>
-  <li>Calling out specific people to do a thing that helps move the discussion forward. For example, something like “hey @Manishearth, I noticed you’ve been vocal in <a href="https://github.com/mystor/slag">arguing that Rust should switch to whitespace-sensitive syntax</a>, could you summarize all the arguments made by people on your side?” would help.</li>
-  <li>Reinforcing positive behavior</li>
-  <li>Occasionally pinging participants privately to help them improve their comments</li>
-  <li>Attempting to identify the root cause of a disagreement, or empowering people to work together to identify this. This one is important but tricky. I’ve often enjoyed doing it — noticing the core axiomatic disagreement at play and spelling it out is a great feeling. But I’ve also found that it’s incredibly hard to do when you’re emotionally involved, and I’ve often needed a nudge from someone else to get there.</li>
-</ul>
-
-<p>At a high level, the job of the facilitators is to:</p>
-
-<ul>
-  <li>help foster empathy between participants</li>
-  <li>help linearize complex discussions</li>
-  <li>nudge towards cooperative behavior, away from adversarial behavior. Get people playing not to win, but to win-win.</li>
-</ul>
-
-<p>It’s important to note that facilitators don’t make decisions — the team does. In fact, they almost completely avoid making technical points, they instead keep their comments largely at the meta level, perhaps occasionally making factual corrections.</p>
-
-<p>The teams <em>could</em> do most of this themselves<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, but as I’ve mentioned before it’s harder for others to not perceive all of your actions as partisan when some of them are. Furthermore, it can come off as patronizing at times.</p>
-
-<p>This is also something the moderation team could do, however it’s <em>much</em> harder to scale the moderation team this way. Given that the moderation team deals with harassment and stuff like that, we need to be careful about how we build it up. On the other hand facilitating discussions is largely a public task, and the stakes aren’t as high: screwups can get noticed, and they don’t cause much harm. As a fundamentally <em>proactive</em> moderation effort, most actions taken will be to nudge things in a positive direction; getting this wrong usually just means that the status quo is maintained, not that harm is caused. Also, from talking to people it seems that while very few people want to be involved in moderating Rust, this notion of <em>facilitating</em> sounds much more fun and rewarding (I’d love to hear from people who would like to help).</p>
-
-<p>And to me, this pairs really well with the idea of participation guidelines: teams can write down how they want discussions to take place on their venues, and facilitators can help ensure this works out. It’s good to look at the participation guidelines less as a set of rules and more as an aspiration for how we conduct ourselves, with the facilitators as a means to achieving that goal.</p>
-
-<p>There are a lot of specifics we can twiddle with this proposal. For example, we can have a per-team group of appointed facilitators (with no overlap with the team), and for a given discussion one facilitator is picked (if they don’t have time or feel like they have strong opinions, try someone else). But there’s also no strong need for there to be such a group, facilitators can be picked as a discussion is starting, too. I don’t expect <em>most</em> discussions to need facilitators, so this is mostly reserved for discussions we expect will get heated, or discussions that have started to get heated. I’m not really going to spend time analysing these specifics; I have opinions but I’d rather have us figure out if we want to do something like this and how before getting into the weeds.</p>
-
-<h2 id="prospective-outcomes">Prospective outcomes</h2>
-
-<p>The real goal here is to bootstrap better empathy within the community. In an ideal world we don’t need facilitators, instead everyone is able to facilitate well. The explicitly non-partisan nature of facilitators is <em>useful</em>, but if everyone was able to operate in this manner it would largely be unnecessary. But as with any organization, being able to horizontally scale specific skills is really tricky without specialization.</p>
-
-<p>I suspect that in the process of building up such a team of facilitators, we will also end up building a set of resources that can help others learn to act the same way, and eventually overall improve how empathetic our community is.</p>
-
-<p>The concept of facilitators directly addresses the moderation problem, but it also handles the scaling problem pretty well! Facilitators are key in re-linearizing the n-to-n discussions, bringing the “parallel universes” together again. This should overall help people (especially team members) who are feeling overwhelmed by all the things that are going on.</p>
-
-<p>This also helps with concerns people have that they’re not getting heard, as facilitators are basically posed as allies on all sides of the argument; people whose primary goal is to <em>help communication happen</em>.</p>
-
-<hr />
-
-<p>Overall what I’ve proposed here isn’t a fully-formed idea; but it’s the seed of one. There are a lot of interesting bits to discuss and build upon. I’m hoping through this post we might push forward some of the discussions about governance — both by providing a strawman idea, as well as by providing a perspective on the problem that I hope is useful.</p>
-
-<p>I’m really interested to hear what people think!</p>
-
-<p><em>Thanks to <a href="http://twitter.com/aaron_turon/">Aaron</a>, <a href="https://twitter.com/ag_dubs">Ashley</a>, <a href="http://twitter.com/adam_n_p/">Adam</a>, <a href="https://twitter.com/ember_arlynx">Ember</a>, <a href="http://twitter.com/arshia__">Arshia</a>, <a href="https://twitter.com/mgattozzi">Michael</a>, <a href="https://twitter.com/sunjay03">Sunjay</a>, <a href="http://twitter.com/fitzgen/">Nick</a> and other people I’ve probably forgotten for having been part of these discussions with me over the last few years, helping me refine my thoughts</em></p>
-
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1">
-      <p>I am way too verbose for “brief” to be an accurate description of anything I write, but might as well <em>try</em>. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2">
-      <p>Scaling the moderation team properly is another piece of this puzzle that I’m working on; we’ve made some progress recently. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3">
-      <p>I helped draft <a href="https://www.rust-lang.org/policies/code-of-conduct#moderation">our moderation policy</a>, so this is a somewhat a lack of foresight on my part, but as I’ll explain later it’s suboptimal for the mod team to be dealing with this anyway. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:5">
-      <p>In particular, I feel like Aaron has done an <em>excellent</em> and consistent job of facilitating discussions this way in many cases. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/2">&larr; Older</a>
@@ -3317,6 +3392,10 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2026/06/17/the-future-of-the-con-is-already-here/">The Future of the Con Is Already Here, It's Just Not Evenly Distributed</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries/">Diplomat: Multi-language FFI for Rust Libraries</a>
       </li>
     
@@ -3330,10 +3409,6 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
     
       <li class="post">
         <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
   </ul>
@@ -3351,8 +3426,9 @@ and C++ code don’t share allocators, deallocating memory allocated on the othe
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (47)</a></li>
 <li class='category'><a href='/blog/categories/rust/'>rust (31)</a></li>
+<li class='category'><a href='/blog/categories/security/'>security (1)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>

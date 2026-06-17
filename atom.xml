@@ -4,7 +4,7 @@
   <title><![CDATA[In Pursuit of Laziness]]></title>
   <link href="http://manishearth.github.io/atom.xml" rel="self"/>
   <link href="http://manishearth.github.io/"/>
-  <updated>2026-06-17T01:43:01+00:00</updated>
+  <updated>2026-06-17T21:02:44+00:00</updated>
   <id>http://manishearth.github.io/</id>
   <author>
     <name><![CDATA[Manish Goregaokar]]></name>
@@ -12,6 +12,270 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Future of the Con Is Already Here, It's Just Not Evenly Distributed]]></title>
+    <link href="http://manishearth.github.io/blog/2026/06/17/the-future-of-the-con-is-already-here/"/>
+    <updated>2026-06-17T00:00:00+00:00</updated>
+    <id>http://manishearth.github.io/blog/2026/06/17/the-future-of-the-con-is-already-here</id>
+    <content type="html"><![CDATA[<h1 id="the-set-up">The Set-Up</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-set-up.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: Sometime after 2:00, a guy’s gonna call on that phone there and give you the name of a horse.</p>
+
+</blockquote>
+
+<p>Imagine yourself, perhaps a typically-well-paid, tech-savvy professional, on the job hunt. You’ve been looking for a while with no luck; the market just sucks right now.</p>
+
+<p>A recruiter reaches out on LinkedIn, and it seems to be a <em>perfect</em> opportunity, tailored exactly to your best skills.</p>
+
+<p>The company is one you’ve heard about; it’s known to be a great place to work. They also pay pretty well compared to your previous job.</p>
+
+<p>Of course you’re quite stoked, and agree to some interviews. You have an initial screening call that seems to go well.  They mention that their interviews are under a standard, simple NDA and promise to send it to you over one of those legaltech SaaS startup platforms. You get the email, and after signing in to their enterprise SSO, you see what is, yep, a pretty simple NDA, and sign it.</p>
+
+<p>The interviews go great. The interviewers are warm, welcoming, and you look forward to getting to work with them more. Everything they say about the company sounds amazing.</p>
+
+<p>And then you get the bad news: someone else got the job. Oh well. They did, however, enjoy talking to you and might reach out for future similar opportunities. Anyway, back to the grind.</p>
+
+<p>Six months later, you learn this was all a scam. Your identity has been stolen, and thousands have been spent on credit cards opened in your name. Your brokerage account has been partially drained. It’s going to take months to disentangle this, and you’re likely not going to get everything back. To top it all off, you have lost access to your email and many other online accounts.</p>
+
+<p>As you are discovering this, you’re still bewildered as to how this happened. You never expected this type of thing to happen to <em>you</em>; you’re well versed with keeping yourself secure on the internet and not prone to common scams.</p>
+
+<h1 id="the-hook">The Hook</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-hook.png" width="500" /></p>
+
+<blockquote>
+  <p>Henry Gondorff: You can’t do it alone, you know. It takes a mob of guys like you and enough money to make them look good.</p>
+</blockquote>
+
+<p>The point of attack was the login to the NDA signing platform. You chose to use a “sign in with &lt;service&gt;” login when you had to create an account, and it sent you through a realistic-looking login flow: a real Google/iCloud page, perhaps with your email already filled in. When you logged in to this site they used your entered password and subsequent “tap yes on your device” 2FA flow to log in to your account on their end (saving the session cookies), and made it look like a successful login on your end.</p>
+
+<p>The attackers kept this undetected access and monitored your patterns, looking for ways to exploit it. They disabled your smoke detectors before setting off any fires: pre-filtering alert emails from accounts they intended to hit, so warnings never reached you. They downloaded all of your cloud files and used the account to log in to various other sites. They used everything they knew about you to open credit cards in your name. The interview and rejection <em>after</em> the compromise were theater — keeping you from getting suspicious so that they could hold on to your credentials longer.</p>
+
+<p>This is pretty scary already, but it gets worse: they managed to drain funds. This is hard: modern financial systems have a lot of protection against hijacked accounts<sup id="fnref:banking-protections"><a href="#fn:banking-protections" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>. Most scams targeting money involve convincing someone to voluntarily transfer money in an irreversible or untraceable way, and a tech-savvy professional is less likely to be the target of that.</p>
+
+<p>But it’s still possible for a scammer to take money from you with their level of access in a way that lets them keep that money and avoid detection until it’s too late. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransferring to a brokerage account that you don’t seem to touch or log in to often<sup id="fnref:dearth"><a href="#fn:dearth" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. They might gain access to it by resetting your password, and then add a transfer account, maybe establishing a pattern of usage making small transfers. Eventually, they transfer the funds out, timed so you won’t notice for a while, in a way that’s hard to trace<sup id="fnref:mules"><a href="#fn:mules" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!</p>
+
+<p>After they’re all done and think the scam will be detected soon anyway, they lock you out of your accounts to make it harder for you to piece together what happened.</p>
+
+<p>Yeah … all of that sounds possible.</p>
+
+<p>It’s also a <em>lot</em> of effort, needing multiple people coordinating and monitoring things, for a payoff that might not happen. Feels unlikely, right?</p>
+
+<p>Well, I left out one part. This entire attack was orchestrated and carried out by an LLM.</p>
+
+<p>An LLM which could research everything about you and craft a tailored attack. An LLM that could put together all the things that would be needed to make this seem plausible (a LinkedIn account, a fake document signing website, a plausible-looking domain to send emails from), and synthesize all text, audio and video interactions. An LLM which, after gaining access to your account, could monitor it and find the best ways to make use of that access, whether it be worming its way into your brokerage, racking up huge cloud spends on AWS, taking all your crypto, or even ransoming your decades of precious data from your now-stolen, likely-wiped Google account.</p>
+
+<p>And the job hunt was incidental. The interview was the scam that fit you; a plausible way to hook you in based on what the scammers knew about you. For someone else, it might be a scary call from the police, a relative asking for help, an email from their bank, or a slow-burn romance. The pretext changes each time, but the machinery behind it is the same.</p>
+
+<h1 id="the-tale">The Tale</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-tale.png" width="500" /></p>
+
+<blockquote>
+  <p>Henry Gondorff: It’s not like playing winos in the street. You can’t outrun Lonnegan.</p>
+</blockquote>
+
+<p>For quite a while now, you could broadly categorize scams into two buckets: cheap, easy-to-run spray-and-pray scams hoping to ensnare the less savvy; and expensive, <em>targeted</em> scams, aimed at people worth the trouble. And usually “people worth the trouble” is more about <em>organizational</em> power someone holds rather than going after personal savings, like <a href="https://www.cnn.com/2024/02/04/asia/deepfake-cfo-scam-hong-kong-intl-hnk/index.html">this $25M scam in Hong Kong</a> where an employee of a company was convinced to transfer company funds.</p>
+
+<p>Spray-and-pray scams are cheap because they often spend no effort in convincing you. In fact, the “Nigerian Scammer” trope exists because <a href="https://web.archive.org/web/20120622161722/http://research.microsoft.com/pubs/167719/WhyFromNigeria.pdf">for scammers running scams against less-savvy individuals, it is highly desirable that the more-savvy individuals self-select out of their pipeline as early as possible</a>. Emails are free, but the subsequent work to correspond with and scam a mark is not.</p>
+
+<p>Tech-savvy people are, by and large, not prone to these scams: A handful of computer security best practices, paired with a rough understanding of the system’s capabilities<sup id="fnref:caller-id"><a href="#fn:caller-id" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> keeps you reasonably secure.</p>
+
+<p>However, with respect to more sophisticated scams, most people aren’t “worth the trouble”, or at least think they aren’t. Most people don’t have $25M buttons available to them at work.</p>
+
+<p>Sure, many professionals have enough savings that it would make sense to mount a sophisticated scam, but also the likelihood of it happening to them is still slight: a scam that takes that amount of effort takes a lot of setup time and can’t just be scaled up; you need people with the sophistication to run this scam willing to become criminals, and that doesn’t parallelize well. There’s the old joke: you don’t have to outrun the bear, you just have to outrun the guy running next to you. You don’t have to be unscammable, just a bigger pain to scam than the next mark.</p>
+
+<p>Note that sophisticated scams against an individual’s wealth <a href="https://www.thecut.com/article/amazon-scam-call-ftc-arrest-warrants.html">do happen</a> <sup id="fnref:patrick-shoebox"><a href="#fn:patrick-shoebox" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>. “It can’t happen to me” isn’t quite the right framing, but “it’s unlikely this will happen to me” is a common belief, and not unreasonable for many to hold.</p>
+
+<p>Quoting <a href="https://www.usenix.org/system/files/1401_08-12_mickens.pdf">James Mickens</a>:</p>
+
+<blockquote>
+  <p><small>Basically, you’re either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you’ll probably be fine if you pick a good password and don’t respond to emails from <code class="language-plaintext highlighter-rouge">ChEaPestPAiNPi11s@virus-basket.biz.ru</code>. If your adversary is the Mossad, YOU’RE GONNA DIE AND THERE’S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ <code class="language-plaintext highlighter-rouge">https://</code>. If the Mossad wants your data, they’re going to use a drone to replace your cellphone with a piece of uranium that’s shaped like a cellphone, and when you die of tumors filled with tumors, they’re going to hold a press conference and say “It wasn’t us” as they wear t-shirts that say “IT WAS DEFINITELY US,” and then they’re going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them.</small></p>
+</blockquote>
+
+<p>Mickens is talking about state actors which are a whole other level. But the core idea is the same: adversary capability is bimodal, clustered at “untargeted × cheap” and “targeted × expensive”. And running targeted attacks <em>at scale</em> just doesn’t work.</p>
+
+<p>Correction, adversary capability <em>was</em> bimodal. LLMs fill the middle of the distribution. They’re pretty cheap: <a href="https://arxiv.org/abs/2412.00586">A 2024 paper</a> found that LLMs tasked with spearphishing cost around 4¢ per email. The interview scam laid out above is more involved and more expensive, but likely still worth it, and 2026 LLMs are leaps and bounds better.</p>
+
+<p>Chillingly, <em>this scales</em>: one can be running thousands of these scams at once! A scammer could probably even have LLMs research individuals and serve them up with bespoke scams designed for that individual’s dossier.</p>
+
+<p>We are now in a world where scams can be run in a <code class="language-plaintext highlighter-rouge">for</code> loop.</p>
+
+<h1 id="the-wire">The Wire</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-wire.png" width="500" /></p>
+
+<blockquote>
+  <p>Eddie Niles: The wire’s been out of date for ten years.</p>
+
+  <p>Henry Gondorff: That’s why he won’t know it.</p>
+</blockquote>
+
+<p>Here’s a partial list of scam-relevant capabilities that LLMs have that would previously require significant skilled human effort per target:</p>
+
+<ul>
+  <li>Researching a mark to find out the best way to go after them.</li>
+  <li>Personally tailoring all communication with a mark in mind, dynamically adjusting based on how they respond to various approaches.</li>
+  <li>Cloning the voice of a person the mark trusts, like a relative.</li>
+  <li>Plausible, real-time deepfaking of a video call.</li>
+  <li>Building a plausible-looking corroborating fake web presence <sup id="fnref:fn-lorenzo"><a href="#fn:fn-lorenzo" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>.</li>
+  <li>Realtime monitoring of compromised resources, and dynamically building up the scam based on this monitoring.</li>
+  <li>Better triage and discovery of marks.</li>
+  <li>Avoiding signature-detection based spam filters (shown by <a href="https://arxiv.org/abs/2412.00586">Heiding et al</a>).</li>
+  <li>Scanning for and chaining known exploits in unpatched deployed software. Mass scanning isn’t new, but cheaply building tooling that can keep tabs on the latest <a href="https://www.cve.org/">CVE</a>s and learn new tricks is<sup id="fnref:zerodays"><a href="#fn:zerodays" class="footnote" rel="footnote" role="doc-noteref">7</a></sup>.</li>
+</ul>
+
+<p>These are capabilities that exist <em>today</em>, and they’ll only improve from here. We should look at these skills as a floor, not a ceiling.</p>
+
+<p>Each of these is dangerous on its own, but they’re also <em>cheap</em>. A con with a cost measured in tokens can be run many times over – “scams in a <code class="language-plaintext highlighter-rouge">for</code> loop” – and scaling unlocks moves unavailable in an individual scam.</p>
+
+<p>First off, scaling unlocks <em>patience</em>. A scammer team going after an individual may not have the capacity to wait months or years between steps, which limits what they may try. However, a scammer using LLMs against many people at once can totally afford to have an operation go dormant for a while, waiting for the right moment to pounce. They can even use the time to layer multiple scams performed significantly far apart.</p>
+
+<p>Secondly, scaling unlocks <em>composition</em>. Scams can be compounded across fronts to defeat scam-protection mechanisms: For example, one can run a small, less sophisticated scam to recruit a money mule that enables them to extract a large quantity of funds in an untraceable way.</p>
+
+<p>(I really like the classic 1973 movie <a href="https://en.wikipedia.org/wiki/The_Sting">The Sting</a>. One aspect of the con central to the movie is that the crew uses multiple smaller confidence tricks to suborn/spoof various “trusted” institutions, giving them, for example, the ability to credibly pretend to be working for a major bank. But in this current era, what took Henry Gondorff an old pool hall, betting equipment, disguises, a cast of 50 people, and a whole host of other things … that now takes a handful of tokens to achieve.)</p>
+
+<p>Scaling unlocks one last thing: <em>new targets</em>. These are still ultimately scams against people, but a thousand compromised marks is also a thousand authenticated positions<sup id="fnref:suborn"><a href="#fn:suborn" class="footnote" rel="footnote" role="doc-noteref">8</a></sup> inside the platforms they use, and that’s a very different kind of asset. Plenty of systems have apparent seams where attempts to exploit them will <em>eventually</em> be caught and reversed<sup id="fnref:glitch"><a href="#fn:glitch" class="footnote" rel="footnote" role="doc-noteref">9</a></sup>. <a href="https://www.bitsaboutmoney.com/archive/optimal-amount-of-fraud/">“The optimal amount of fraud is nonzero”</a>: these seams usually have benefits that outweigh the costs of the occasional fraudster. A thousand accounts working in concert to simultaneously exploit one of these seams, however, changes that calculation entirely. A seam a platform has made a calculated choice to live with is now a gaping hole it needs to scramble to close<sup id="fnref:viral"><a href="#fn:viral" class="footnote" rel="footnote" role="doc-noteref">10</a></sup>.</p>
+
+<p>Putting this together still requires skill<sup id="fnref:skill"><a href="#fn:skill" class="footnote" rel="footnote" role="doc-noteref">11</a></sup> … for now. Eventually someone will build reusable tooling for this and sell it to other scammers, giving rise to “<a href="https://en.wikipedia.org/wiki/Script_kiddie">script kiddies</a> but for scams”. There are well-established <a href="https://en.wikipedia.org/wiki/Genesis_Market">marketplaces for scammers</a>, someone just needs to build this tooling and sell it there. This may even have already happened.</p>
+
+<p><a href="https://www.goodreads.com/quotes/681-the-future-is-already-here-it-s-just-not-evenly">“The future is here, it’s just not evenly distributed”</a>: the capabilities are there, and some scammers are almost certainly deploying them already. But since they’re not yet <em>ubiquitous</em>, our heuristics — and those of companies providing us with critical services — have not yet been recalibrated.</p>
+
+<h1 id="the-shut-out">The Shut-Out</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-shut-out.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: He’s not as tough as he thinks.</p>
+
+  <p>Henry Gondorff: Neither are we.</p>
+</blockquote>
+
+<p>Speaking of heuristics, if you were asked how you’d fare against some particular scam, you’d probably have answers ready. If a family member texts you about something, you’d call or, better, video chat with them to verify. If someone contacts you out of the blue, you look them up. You are on the lookout for inflection points in a conversation with someone you don’t know, to see where it switches from idle discussion to something impactful. These are great instincts, the instincts of someone who has been paying attention in this internet age.</p>
+
+<p>But why did these heuristics work?</p>
+
+<p>Some of these heuristics are proxies for cost. Fluent, personalized writing means a real person, and a scammer working thousands of marks may not have the time to spend on that. A strong web presence can be faked, but that takes a ton of work. You didn’t think a scammer would be likely to spend that much effort solely on <em>you</em>, and that informed your adoption of these heuristics.</p>
+
+<p>Other heuristics are measures of capability. A scammer wouldn’t previously be able to impersonate a family member on a phone call. If you met a person on a video call, they would be real, and likely identifiable to the police if it came to that.</p>
+
+<p>Both of these foundations are crumbling, and this means our heuristics are breaking.</p>
+
+<p>It gets worse: we didn’t just need these heuristics to protect ourselves from scams, we needed them to be certain anything is real. Now we’re often left not-totally sure, suffering from the <a href="https://en.wikipedia.org/wiki/Liar%27s_dividend">liar’s dividend</a>. What do you do when a family member in a different city appears to need emergency money, but could also plausibly have had their accounts compromised with all communications being intercepted and deepfaked? Fly out to check on them in person? Perhaps ask someone else in their city to check in on them? This is far more effort than before.</p>
+
+<p>Furthermore, personal heuristics are only a part of the story: institutions have heuristics too. American consumer banking protections<sup id="fnref:regulations"><a href="#fn:regulations" class="footnote" rel="footnote" role="doc-noteref">12</a></sup> draw a strong red line based on who authorized a transfer: if someone gained access to your account and did a fraudulent transfer, you’ll be made whole by the bank. On the other hand, if you’ve been convinced to move money, even for illegitimate reasons, you may be able to report a crime but nobody is under any obligation to make you whole. This might make sense in a world where “stolen password” is easier than a targeted, manual “send us money” con, but that’s changing<sup id="fnref:fraud-cost"><a href="#fn:fraud-cost" class="footnote" rel="footnote" role="doc-noteref">13</a></sup>.</p>
+
+<h1 id="the-sting">The Sting</h1>
+
+<p><img src="http://manishearth.github.io/images/the-sting/the-sting.png" width="500" /></p>
+
+<blockquote>
+  <p>Johnny Hooker: Then why are you doing it?</p>
+
+  <p>Henry Gondorff: It seems worthwhile, doesn’t it?</p>
+</blockquote>
+
+<p>So what do we do? It’s tempting to crank every heuristic to eleven: scrutinize each email, each voice on the phone. But this won’t work; these heuristics were a proxy for detecting something that is now cheap to fake.</p>
+
+<p>I remember when I grew up we were forbidden from using Wikipedia for researching school projects (and occasionally told that Wikipedia was not useful for <em>any</em> purpose). Teachers believed that because Wikipedia could be easily edited, it could contain incorrect information, and we shouldn’t rely on that. People had heuristics for truth that incorporated “published material is probably true to some degree of certainty”, based on the reality that printing incorrect information for a jape is hardly cheap. “Don’t include Wikipedia in this category and ignore it entirely” is one way to preserve that heuristic, and is what they wanted us to do. This was a correction in the wrong direction. The world was changing so that this heuristic was faltering; we needed to build new heuristics to handle the new world, not cling desperately onto pretending the world hadn’t changed.</p>
+
+<p>Kids are <em>famously</em> good at following rules they disagree with. So my generation still used Wikipedia, and in a broader sense grew up alongside the explosion of information on the Internet. We got pretty okay at building new heuristics: learning to check sources, looking for corroborating evidence, stuff like that. The people who stuck to the old heuristics (often of older generations) have been much more easily targeted by e.g. modern misinformation campaigns.</p>
+
+<p>So, we should improve our heuristics again. There are a couple ways to do that<sup id="fnref:not-an-expert"><a href="#fn:not-an-expert" class="footnote" rel="footnote" role="doc-noteref">14</a></sup>:</p>
+
+<p>One heuristic we can build is detecting the common skeleton of scams. Many scams follow a skeleton where they’ll ask for something urgent, in secret, asking you to use unusual channels. This skeleton is usually noticeable because the pitch around it is often clumsy<sup id="fnref:ceo-starbucks"><a href="#fn:ceo-starbucks" class="footnote" rel="footnote" role="doc-noteref">15</a></sup>, but that can change with scammers who can do triage and research marks at scale. Still, the rough structure of that skeleton probably isn’t going anywhere; an ask is an ask.</p>
+
+<p>Other heuristics can be achieved by verifying things through more channels. For further verification, I <em>strongly</em> recommend setting up some spoken passwords with your family members. In cases where you don’t have that, you can try to still call back to events in the past that are unlikely to have records out there. For less tech-savvy family members I would recommend just giving them the advice “if you get a call from me talking about something serious, urgent, and/or secret, be very skeptical and maybe hang up and check through another channel”.</p>
+
+<p>Somewhat recently I was setting up a financial transaction with a person I know. We had been talking about it over multiple platforms, but before the final step I ended up asking them to hop on a video call, explaining that I was being extra cautious in the age of LLMs. They replied, in effect, “heh, I wondered when I was going to start getting asked this”. They opened the video call referencing a specific memorable moment in a call we had many years ago, and we ended up chatting for a while about various things including the subject of this blog post.</p>
+
+<p>It helps to understand where our systems do and don’t protect us. A rough rule: you can’t usually trust the authenticity of communication you <em>receive</em>, but you can mostly trust where you deliberately <em>send</em> something<sup id="fnref:access"><a href="#fn:access" class="footnote" rel="footnote" role="doc-noteref">16</a></sup>. An email composed to some address will likely<sup id="fnref:smtp"><a href="#fn:smtp" class="footnote" rel="footnote" role="doc-noteref">17</a></sup> reach that inbox, and a call you place to a number will likely<sup id="fnref:ss7"><a href="#fn:ss7" class="footnote" rel="footnote" role="doc-noteref">18</a></sup> reach that device. Email <code class="language-plaintext highlighter-rouge">from:</code> headers and caller ID, on the other hand, can be easily forged.</p>
+
+<p>These heuristics are imperfect, but they’re better than what we have now, and will make you more expensive and trickier to target. It’s not practical to be 100% completely unscammable (“<a href="https://www.bitsaboutmoney.com/archive/optimal-amount-of-fraud/">the optimal amount of fraud is nonzero</a>”), but you can at least be more expensive to scam.</p>
+
+<p>Beyond improving heuristics, following security best practices like using <a href="https://www.makeuseof.com/i-set-up-hardware-based-2fa-simpler-than-i-thought/">hardware 2FA</a> <sup id="fnref:fido"><a href="#fn:fido" class="footnote" rel="footnote" role="doc-noteref">19</a></sup> (rather than SMS or an authenticator app) can protect you against many tools in the scammer toolbox.</p>
+
+<p>The next few years are going to be really interesting in a lot of different ways. I’m <em>expecting</em> that institutions and systems will themselves eventually adapt to many of these things<sup id="fnref:redteam"><a href="#fn:redteam" class="footnote" rel="footnote" role="doc-noteref">20</a></sup> and come up with better protections<sup id="fnref:android"><a href="#fn:android" class="footnote" rel="footnote" role="doc-noteref">21</a></sup>. That’s going to take time, though, and potentially be a bit of an arms race. In the meantime I expect scams to skyrocket. All of the capabilities described in this post exist and could be put together in many creative ways. Think about what that means for yourself, your friends, and your family, and see what you can do to help them.</p>
+
+<p>The future of the con is already here. It’s just not evenly distributed yet.</p>
+
+<p><em>Thanks to <a href="https://www.bitsaboutmoney.com">Patrick McKenzie</a>, <a href="https://taliatales.substack.com">talia</a>, <a href="https://recursion.wtf">Inanna Malick</a>, Alice Fares, Tilia Bell, <a href="https://jyn.dev/">jyn</a>, and <a href="https://github.com/yaahc">Jane Lusby</a> for providing feedback on drafts of this blog post.</em></p>
+
+<p><em>While researching parts of this post, I stumbled upon <a href="https://zellyn.com/2025/03/ai_security_nightmare/">a post with a similar thesis from a year ago</a>, which even uses the same Mickens quote. It’s a good read as well.</em></p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:banking-protections">
+      <p>Involuntarily transferring your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regulations. Furthermore, banking sites often use 2FA and notify the user when there is a login. <a href="#fnref:banking-protections" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:dearth">
+      <p>From the dearth of “login detected to foo.com” emails in your inbox <a href="#fnref:dearth" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:mules">
+      <p>The tracing of the actual outflow can be thwarted by using (unsuspecting) <a href="https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/money-mules">money mules</a>, a well-established tactic in the scam world. Admittedly, this adds more days to the process where you might notice something is wrong, but it does appear to be feasible. <a href="#fnref:mules" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:caller-id">
+      <p>Remember, phone numbers in Caller ID and <code class="language-plaintext highlighter-rouge">from:</code> headers in emails can be spoofed! <a href="#fnref:caller-id" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:patrick-shoebox">
+      <p>Also worth reading Patrick McKenzie’s <a href="https://www.bitsaboutmoney.com/archive/two-americas-one-bank-branch/">excellent followup investigative journalism</a> on that article. <a href="#fnref:patrick-shoebox" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fn-lorenzo">
+      <p>Or as Barney Stinson calls it, the <a href="https://www.youtube.com/watch?v=0MC55lU_L2E">Lorenzo Von Matterhorn</a> <a href="#fnref:fn-lorenzo" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:zerodays">
+      <p>Frontier models are also <a href="https://www.anthropic.com/news/mozilla-firefox-security">getting terrifyingly good</a> at finding <em>novel</em> software vulnerabilities, something that has historically been extremely expensive. But this slots into a different dynamic: zero-days are typically perishable precision weapons to spend on a high-value target, not something to run in a <code class="language-plaintext highlighter-rouge">for</code> loop against a database of marks. There’s a parallel arms race going on here and it’s worth knowing about, but it’s not the primary concern of this post. <a href="#fnref:zerodays" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:suborn">
+      <p>Note that credential/identity theft is not the only way to get an authenticated position; a scammer may simply <em>convince</em> a more-credulous mark to carry out the steps they suggest. <a href="#fnref:suborn" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:glitch">
+      <p>If you think you found a cool new free money glitch, no you didn’t, <a href="https://xkcd.com/1494/">that’s fraud</a>. <a href="#fnref:glitch" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:viral">
+      <p>Large-scale coordinated exploits of seams in the system already happen when coordinated by human behaviors rather than LLMs: in 2024 a check-fraud “<a href="https://www.cnn.com/2024/09/03/business/chase-tiktok-trend/index.html">free money glitch</a>” went viral on TikTok, and enough people tried it that Chase ended up filing <a href="https://www.theguardian.com/business/2024/oct/29/jpmorgan-sues-customers-glitch-tiktok-bank-atm-checks">a couple lawsuits</a>. But a scammer with access to your accounts doesn’t need to engineer a viral trend first. <a href="#fnref:viral" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:skill">
+      <p>While I know enough to identify some of these capabilities, I’m not good enough at LLMs to deploy them effectively myself without needing to spend time testing and building tooling. <a href="#fnref:skill" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:regulations">
+      <p>See <a href="https://www.bitsaboutmoney.com/archive/regulation-e/">Regulation E</a>. Different countries have different regimes, the UK <a href="https://www.gov.uk/government/news/new-powers-for-banks-to-combat-fraudsters">recently passed a law</a> that requires banks to make whole customers who were tricked into transferring money. It’s unclear to me if this is in response to LLMs, but it’s from 2024 and I do not have a great impression of the UK legislature’s understanding of tech, so probably not. <a href="#fnref:regulations" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fraud-cost">
+      <p>This isn’t to say that Reg E-style “the bank is required to make whole anyone who gets scammed” is the right call here either: too many costs moved onto the banks and they may start choosing to not do business with people who are likely to get scammed. Someone who understands this field more than I could probably suggest workable, concrete, steps that institutions (both banks and regulators) might be smart in taking. <a href="#fnref:fraud-cost" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:not-an-expert">
+      <p>I’m not an expert at this. I like reading about fraud and scams, and I like thinking about security, but I recommend listening to others who are better experts in these fields. <a href="#fnref:not-an-expert" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:ceo-starbucks">
+      <p>Hi, I am your CEO, I need $1000 in starbucks gift cards urgently for a client meeting. It needs to be gift cards because uhhhh …. <a href="#fnref:ceo-starbucks" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:access">
+      <p>Whether or not someone unauthorized has access to an email inbox or phone is a different question; this is about whether they can pretend to be that email/phone without having gained access. <a href="#fnref:access" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:smtp">
+      <p>Though this depends on the actual mail servers in use. It is almost completely not a problem in the modern era. <a href="#fnref:smtp" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:ss7">
+      <p>Less likely than email: see “SS7 attacks”. Stingrays are also a tool used by law enforcement, though that requires a physical presence, and state-level actors have a lot more tools at their disposal here in general anyway. <a href="#fnref:ss7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:fido">
+      <p>FIDO2/WebAuthn, <em>where offered</em>, include the website’s domain in the cryptographic exchange, so a phishing website cannot simply pass the signature through. <a href="#fnref:fido" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:redteam">
+      <p>Defenders get these capabilities too! Mozilla’s <a href="https://blog.mozilla.org/en/privacy-security/ai-security-zero-day-vulnerabilities/">conclusion from using Mythos to red-team Firefox</a> was optimistic: they believe there’s a real chance that by running these tools they can actually find <em>all</em> of the security vulnerabilities, instead of playing best-effort whack-a-mole. <a href="#fnref:redteam" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:android">
+      <p>Just recently, Android introduced <a href="https://blog.google/security/android-fake-call-detection/">impersonated call detection</a>. <a href="#fnref:android" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Diplomat: Multi-language FFI for Rust Libraries]]></title>
@@ -4389,480 +4653,6 @@ but this compartmentalization gets you most of the way there in having UB-free p
     </li>
     <li id="fn:2">
       <p>This caveat and the confusing dual-usage of the term “safe” lead to the rather tautological-sounding sentence “Safe Rust code is Rust code that cannot cause undefined behavior when used in safe Rust code” <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Font-size: An Unexpectedly Complex CSS Property]]></title>
-    <link href="http://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/"/>
-    <updated>2017-08-10T00:00:00+00:00</updated>
-    <id>http://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property</id>
-    <content type="html"><![CDATA[<p><a href="https://developer.mozilla.org/en/docs/Web/CSS/font-size"><code class="language-plaintext highlighter-rouge">font-size</code></a> is the worst.</p>
-
-<p>It’s a CSS property probably everyone who writes CSS has used at some point. It’s pretty ubiquitous.</p>
-
-<p>And it’s <em>super</em> complicated.</p>
-
-<p>“But it’s just a number”, you say. “How can that be complicated?”</p>
-
-<p>I too felt that way one time. And then I worked on implementing it for <a href="https://wiki.mozilla.org/Quantum/Stylo">stylo</a>.</p>
-
-<p>Stylo is the project to integrate <a href="http://github.com/servo/servo/">Servo</a>’s styling system into Firefox. The styling system handles
-parsing CSS, determining which rules apply to which elements, running this through the cascade,
-and eventually computing and assigning styles to individual elements in the tree. This happens not
-only on page load, but also whenever various kinds of events (including DOM manipulation) occur,
-and is a nontrivial portion of pageload and interaction times.</p>
-
-<p>Servo is in <a href="https://rust-lang.org">Rust</a>, and makes use of Rust’s safe parallelism in many places, one of them being
-styling. Stylo has the potential to bring these speedups into Firefox, along with the added safety
-of the code being in a safer systems language.</p>
-
-<p>Anyway, as far as the styling system is concerned, I believe that font-size is the most complex
-property it has to handle. Some properties may be more complicated when it comes to layout or
-rendering, but font-size is probably the most complex one in the department of styling.</p>
-
-<p>I’m hoping this post can give an idea of how complex the Web can <em>get</em>, and also serve as documentation
-for some of these complexities. I’ll also try to give an idea of how the styling system works throughout this post.</p>
-
-<p>Alright. Let’s see what is so complex about font-size.</p>
-
-<h2 id="the-basics">The basics</h2>
-
-<p>The syntax of the property is pretty straightforward. You can specify it as:</p>
-
-<ul>
-  <li>A length (<code class="language-plaintext highlighter-rouge">12px</code>, <code class="language-plaintext highlighter-rouge">15pt</code>, <code class="language-plaintext highlighter-rouge">13em</code>, <code class="language-plaintext highlighter-rouge">4in</code>, <code class="language-plaintext highlighter-rouge">8rem</code>)</li>
-  <li>A percentage (<code class="language-plaintext highlighter-rouge">50%</code>)</li>
-  <li>A compound of the above, via a calc (<code class="language-plaintext highlighter-rouge">calc(12px + 4em + 20%)</code>)</li>
-  <li>An absolute keyword (<code class="language-plaintext highlighter-rouge">medium</code>, <code class="language-plaintext highlighter-rouge">small</code>, <code class="language-plaintext highlighter-rouge">large</code>, <code class="language-plaintext highlighter-rouge">x-large</code>, etc)</li>
-  <li>A relative keyword (<code class="language-plaintext highlighter-rouge">larger</code>, <code class="language-plaintext highlighter-rouge">smaller</code>)</li>
-</ul>
-
-<p>The first three are common amongst quite a few length-related properties. Nothing abnormal in the syntax.</p>
-
-<p>The next two are interesting. Essentially, the absolute keywords map to various pixel values, and match
-the result of <code class="language-plaintext highlighter-rouge">&lt;font size=foo&gt;</code> (e.g. <code class="language-plaintext highlighter-rouge">size=3</code> is the same as <code class="language-plaintext highlighter-rouge">font-size: medium</code>). The <em>actual</em> value they map to
-is not straightforward, and I’ll get to that later in this post.</p>
-
-<p>The relative keywords basically scale the size up or down. The mechanism of the scaling was also complex, however
-this has changed. I’ll get to that too.</p>
-
-<h2 id="em-and-rem-units">em and rem units</h2>
-
-<p>First up: <code class="language-plaintext highlighter-rouge">em</code> units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code class="language-plaintext highlighter-rouge">em</code> or <code class="language-plaintext highlighter-rouge">rem</code>
-unit.</p>
-
-<p><code class="language-plaintext highlighter-rouge">5em</code> means “5 times the <code class="language-plaintext highlighter-rouge">font-size</code> of the element this is applied to”. <code class="language-plaintext highlighter-rouge">5rem</code> means “5 times the font-size of the root element”</p>
-
-<p>The implications of this are that font-size needs to be computed before all the other properties (well, not quite, but we’ll get to that!)
-so that it is available during that time.</p>
-
-<p>You can also use <code class="language-plaintext highlighter-rouge">em</code> units within <code class="language-plaintext highlighter-rouge">font-size</code> itself. In this case, it computed relative to the font-size of the <em>parent</em> element, since
-you can’t use the font-size of the element to compute itself. (This is identical to using a percentage unit)</p>
-
-<h2 id="minimum-font-size">Minimum font size</h2>
-
-<p>Browsers let you set a “minimum” font size in their preferences, and text will not be scaled below it. It’s useful for those with
-trouble seeing small text.</p>
-
-<p>However, this doesn’t affect properties which depend on font-size via <code class="language-plaintext highlighter-rouge">em</code> units. So if you’re using a minimum font size,
-<code class="language-plaintext highlighter-rouge">&lt;div style="font-size: 1px; height: 1em; background-color: red"&gt;</code> will have a very tiny height (which you’ll notice from the color),
-but the text will be clamped to the minimum size.</p>
-
-<p>What this effectively means is that you need to keep track of <em>two</em> separate computed font size values. There’s one value that
-is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
-know the font-size (e.g. to compute an <code class="language-plaintext highlighter-rouge">em</code> unit.)</p>
-
-<p>This gets slightly more complicated when <a href="https://en.wikipedia.org/wiki/Ruby_character">ruby</a> is involved. In ideographic scripts (usually, Han
-and Han-based scripts like Kanji or Hanja) it’s sometimes useful to have the pronunciation
-of each character above it in a phonetic script, for the aid of readers without proficiency in that
-script, and this is known as “ruby” (“furigana” in Japanese). Because these scripts are ideographic,
-it’s not uncommon for learners to know the pronunciation of a word but have no idea how to write it.
-An example would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 (“nihon”,
-i.e. “Japan”) in Kanji with ruby にほん in the phonetic Hiragana script above it.</p>
-
-<p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
-size of the main text<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
-is supposed to be <code class="language-plaintext highlighter-rouge">50%</code> of the size of the text, the minimum font size for the ruby is <code class="language-plaintext highlighter-rouge">50%</code> of the
-original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
-the same size), which is pretty ugly.</p>
-
-<h2 id="text-zoom">Text zoom</h2>
-
-<p>Firefox additionally lets you zoom text only when zooming. If you have trouble reading small things, it’s great to
-be able to just blow up the text on the page without having the whole page get zoomed (which means you need to scroll
-around a lot).</p>
-
-<p>In this case, <code class="language-plaintext highlighter-rouge">em</code> units of other properties <em>do</em> get zoomed as well. After all, they’re supposed to be relative to the text’s font
-size (and may have some relation to the text), so if that size has changed so should they.</p>
-
-<p>(Of course, that argument could also apply to the min font size stuff. I don’t have an answer for why it doesn’t.)</p>
-
-<p>This is actually pretty straightforward to implement. When computing absolute font sizes (including
-keywords), zoom them if text zoom is on. For everything else continue as normal.</p>
-
-<p>Text zoom is also disabled within <code class="language-plaintext highlighter-rouge">&lt;svg:text&gt;</code> elements, which leads to some trickiness here.</p>
-
-<h2 id="interlude-how-the-style-system-works">Interlude: How the style system works</h2>
-
-<p>Before I go ahead it’s probably worth giving a quick overview of how everything works.</p>
-
-<p>The responsibiltiy of a style system is to take in CSS code and a DOM tree, and assign computed styles to each element.</p>
-
-<p>There’s a distinction between “specified” and “computed” here. “specified” styles are in the format
-you specify in CSS, whereas computed styles are those that get attached to the elements, sent to
-layout, and inherited from. A given specified style may compute to different values when applied to
-different elements.</p>
-
-<p>So while you can <em>specify</em> <code class="language-plaintext highlighter-rouge">width: 5em</code>, it will compute to something like <code class="language-plaintext highlighter-rouge">width: 80px</code>. Computed values are usually a
-cleaned up form of the specified value.</p>
-
-<p>The style system will first parse the CSS, producing a bunch of rules usually containing declarations (a declaration is like <code class="language-plaintext highlighter-rouge">width: 20%;</code>; i.e. a property name and a specified value)</p>
-
-<p>It then goes through the tree in top-down order (this is parallelized in Stylo), figuring out which declarations <em>apply</em> to each element
-and in which order – some declarations have precedence over others. Then it will compute each relevant declaration against the element’s style (and parent style, among other bits of info),
-and store this value in the element’s “computed style”.</p>
-
-<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. There’s a
-bloom filter for quickly checking if deep descendent selectors apply to a subtree. There’s a “rule
-tree” that helps cache effort from determining applicable declarations. Computed styles are
-reference counted and shared very often (since the default state is to inherit from the parent or
-from the default style).</p>
-
-<p>But ultimately, this is the gist of what happens.</p>
-
-<h2 id="keyword-values">Keyword values</h2>
-
-<p>Alright, this is where it gets complicated.</p>
-
-<p>Remember when I said <code class="language-plaintext highlighter-rouge">font-size: medium</code> was a thing that mapped to a value?</p>
-
-<p>So what does it map to?</p>
-
-<p>Well, it turns out, it depends on the font family. For the following HTML:</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium monospace"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
-<span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium sans-serif"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
-</code></pre></div></div>
-
-<p>you get (<a href="https://codepen.io/anon/pen/RZgxjw">codepen</a>)</p>
-
-<div style="border: 1px solid black; display: inline-block; padding: 15px;">
-<span style="font: medium monospace">text</span>
-<span style="font: medium sans-serif">text</span>
-</div>
-
-<p>where the first one computes to a font-size of 13px, and the second one computes to a font-size of
-16px. You can check this in the computed style pane of your devtools, or by using
-<code class="language-plaintext highlighter-rouge">getComputedStyle()</code>.</p>
-
-<p>I <em>think</em> the reason behind this is that monospace fonts tend to be wider, so the default font size (medium)
-is scaled so that they have similar widths, and all other keyword font sizes get shifted as well. The final result is something like this:</p>
-
-<p><img class="center" src="http://manishearth.github.io/images/post/font-size-table.png" width="600" /></p>
-
-<p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute
-font-size keywords based on the “base size” (i.e. the computed of <code class="language-plaintext highlighter-rouge">font-size: medium</code>). Actually,
-Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a> to support some legacy use cases like quirks mode (Servo has
-yet to add support for these tables). We query other parts of the browser for what the “base size”
-is based on the language and font family.</p>
-
-<p>Wait, but what does the language have to do with this anyway? How does the language impact font-size?</p>
-
-<p>It turns out that the base size depends on the font family <em>and</em> the language, and you can configure this.</p>
-
-<p>Both Firefox and Chrome (using an extension) actually let you tweak which fonts get used on a per-language basis,
-<em>as well as the default (base) font-size</em>.</p>
-
-<p>This is not as obscure as one might think. Default system fonts are often really ugly for non-Latin-
-using scripts. I have a separate font installed that produces better-looking Devanagari ligatures.</p>
-
-<p>Similarly, some scripts are just more intricate than Latin. My default font size for Devanagari is
-set to 18 instead of 16. I’ve started learning Mandarin and I’ve set that font size to 18 as well. Hanzi glyphs
-can get pretty complicated and I still struggle to learn (and later recognize) them. A larger font size is great for this.</p>
-
-<p>Anyway, this doesn’t complicate things too much.  This does mean that the font family needs to be
-computed before font-size, which already needs to be computed before most other properties. The
-language, which can be set using a <code class="language-plaintext highlighter-rouge">lang</code> HTML attribute, is internally treated as a CSS property by
-Firefox since it inherits, and it must be computed earlier as well.</p>
-
-<p>Not too bad. So far.</p>
-
-<p>Now here’s the kicker. This <em>dependence</em> on the language and family <em>inherits</em>.</p>
-
-<p>Quick, what’s the font-size of the inner <code class="language-plaintext highlighter-rouge">div</code>?</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
-    font size is 16px
-    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
-        font size is ??
-    <span class="nt">&lt;/div&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</code></pre></div></div>
-
-<p>For a normal inherited CSS property<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, if the parent has a computed value of <code class="language-plaintext highlighter-rouge">16px</code>,
-and the child has no additional values specified, the child will inherit a value of <code class="language-plaintext highlighter-rouge">16px</code>.
-<em>Where</em> the parent got that computed value from doesn’t matter.</p>
-
-<p>Here, <code class="language-plaintext highlighter-rouge">font-size</code> “inherits” a value of <code class="language-plaintext highlighter-rouge">13px</code>. You can see this below (<a href="https://codepen.io/anon/pen/MvorQQ">codepen</a>):</p>
-
-<div style="border: 1px solid black; display: inline-block; padding: 15px;">
-<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
-    font size is 16px
-    <div style="font-family: monospace"> <!-- base size 13 -->
-        font size is ??
-    </div>
-</div>
-</div>
-
-<p>Basically, if the computed value originated from a keyword, whenever the font family or language
-change, font-size is recomputed from the original keyword with the new font family and language.</p>
-
-<p>The reason this exists is because otherwise the differing font sizes wouldn’t work anyway! The default font size
-is <code class="language-plaintext highlighter-rouge">medium</code>, so basically the root element gets a <code class="language-plaintext highlighter-rouge">font-size: medium</code> and all elements inherit from it. If you change
-to monospace or a different language in the document you need the font-size recomputed.</p>
-
-<p>But it doesn’t stop here. This even inherits <em>through relative units</em> (Not in IE).</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
-    font size is 16px
-    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: 0.9em"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- could also be font-size: 50%--&gt;</span>
-        font size is 14.4px (16 * 0.9)
-        <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
-            font size is 11.7px! (13 * 0.9)
-        <span class="nt">&lt;/div&gt;</span>
-    <span class="nt">&lt;/div&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</code></pre></div></div>
-
-<p>(<a href="https://codepen.io/anon/pen/oewpER">codepen</a>)</p>
-
-<div style="border: 1px solid black; display: inline-block; padding: 15px;">
-<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
-    font size is 16px
-    <div style="font-size: 0.9em"> <!-- could also be font-size: 90%-->
-        font size is 14.4px (16 * 0.9)
-        <div style="font-family: monospace"> <!-- base size 13 -->
-            font size is 11.7px! (13 * 0.9)
-        </div>
-    </div>
-</div>
-</div>
-
-<p>So we’re actually inheriting a font-size of <code class="language-plaintext highlighter-rouge">0.9*medium</code> when we inherit from the second div, not <code class="language-plaintext highlighter-rouge">14.4px</code>.</p>
-
-<p>Another way of looking at it is whenever the font family or language changes, you should recompute the font-size as if the language and family <em>were always that way</em> up the tree.</p>
-
-<p>Firefox code uses both of these strategies. The original Gecko style system handles this by actually
-going back to the top of the tree and recalculating the font size as if the language/family were
-different. I suspect this is inefficient, but the rule tree seems to be involved in making this slightly
-more efficient</p>
-
-<p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
-stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code class="language-plaintext highlighter-rouge">medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup></p>
-
-<p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
-
-<p>In Servo, <em>most</em> of this gets handled <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/longhand/font.mako.rs#L964-L1061">via custom cascading functions for font-size</a>.</p>
-
-<h2 id="largersmaller">Larger/smaller</h2>
-
-<p>So I mentioned that <code class="language-plaintext highlighter-rouge">font-size: larger</code> and <code class="language-plaintext highlighter-rouge">smaller</code> scale the size, but didn’t mention by what fraction.</p>
-
-<p>According <a href="https://drafts.csswg.org/css-fonts-3/#relative-size-value">to the spec</a>, if the font-size currently matches the value of an absolute keyword size (medium/large/etc),
-you should pick the value of the next/previous keyword sizes respectively.</p>
-
-<p>If it is <em>between</em> two, find the same point between the next/previous two sizes.</p>
-
-<p>This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In Gecko’s model this isn’t too hard,
-since Gecko recalculates things anyway. In Servo’s model we’d have to store a sequence of applications of <code class="language-plaintext highlighter-rouge">larger</code>/<code class="language-plaintext highlighter-rouge">smaller</code> and relative
-units, instead of storing just a relative unit.</p>
-
-<p>Additionally, when computing this during text-zoom, you have to unzoom before looking it up in the table, and then rezoom.</p>
-
-<p>Overall, a bunch of complexity for not much gain — turns out only Gecko actually followed the spec here! All other browser engines
-used simple ratios here.</p>
-
-<p>So my fix here <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1361550">was simply to remove this behavior from Gecko</a>. That simplified things.</p>
-
-<h2 id="mathml">MathML</h2>
-
-<p>Firefox and Safari support MathML, a markup language for math. It doesn’t get used much on the Web these days, but it exists.</p>
-
-<p>MathML has its own complexities when it comes to font-size. Specifically, <code class="language-plaintext highlighter-rouge">scriptminsize</code>, <code class="language-plaintext highlighter-rouge">scriptlevel</code>, and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>.</p>
-
-<p>For example, in MathML, the text in the numerator or denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
-the default <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> for MathML elements is 0.71, and these specific elements all get a default scriptlevel of <code class="language-plaintext highlighter-rouge">+1</code>.</p>
-
-<p>Basically, <code class="language-plaintext highlighter-rouge">scriptlevel=+1</code> means “multiply the font size by <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>”, and
-<code class="language-plaintext highlighter-rouge">scriptlevel=-1</code> is for dividing. This can be specified via a <code class="language-plaintext highlighter-rouge">scriptlevel</code> HTML attribute on an <code class="language-plaintext highlighter-rouge">mstyle</code> element. You can
-similarly tweak the (inherited) multiplier via the <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> HTML attribute, and the minimum size via <code class="language-plaintext highlighter-rouge">scriptminsize</code>.</p>
-
-<p>So, for example:</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;&lt;msup&gt;</span>
-    <span class="nt">&lt;mi&gt;</span>text<span class="nt">&lt;/mi&gt;</span>
-    <span class="nt">&lt;mn&gt;</span>small superscript<span class="nt">&lt;/mn&gt;</span>
-<span class="nt">&lt;/msup&gt;&lt;/math&gt;&lt;br&gt;</span>
-<span class="nt">&lt;math&gt;</span>
-    text
-    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
-        small
-        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
-            smaller
-            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">-1</span><span class="nt">&gt;</span>
-                small again
-            <span class="nt">&lt;/mstyle&gt;</span>
-        <span class="nt">&lt;/mstyle&gt;</span>
-    <span class="nt">&lt;/mstyle&gt;</span>
-<span class="nt">&lt;/math&gt;</span>
-</code></pre></div></div>
-
-<p>will show as (you will need Firefox to see the rendered version, Safari supports MathML too but the support isn’t as good):</p>
-
-<div style="border: 1px solid black; display: inline-block; padding: 15px;">
-<math><msup><mi>text</mi><mn>small superscript</mn></msup></math><br />
-<math>text&lt;mstyle scriptlevel=+1&gt; small &lt;mstyle scriptlevel=+1&gt; smaller &lt;mstyle scriptlevel=-1&gt; small again &lt;/mstyle&gt;&lt;/mstyle&gt;&lt;/mstyle&gt;</math>
-</div>
-
-<p>(<a href="https://codepen.io/anon/pen/BdZJgR">codepen</a>)</p>
-
-<p>So this isn’t as bad. It’s as if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is a weird <code class="language-plaintext highlighter-rouge">em</code> unit. No biggie, we know how to deal with those already.</p>
-
-<p>Except you also have <code class="language-plaintext highlighter-rouge">scriptminsize</code>. This lets you set the minimum font size <em>for changes caused by <code class="language-plaintext highlighter-rouge">scriptlevel</code></em>.</p>
-
-<p>This means that <code class="language-plaintext highlighter-rouge">scriptminsize</code> will make sure <code class="language-plaintext highlighter-rouge">scriptlevel</code> never causes changes that make the font smaller than the min size,
-but it will ignore cases where you deliberately specify an <code class="language-plaintext highlighter-rouge">em</code> unit or a pixel value.</p>
-
-<p>There’s already a subtle bit of complexity introduced here, <code class="language-plaintext highlighter-rouge">scriptlevel</code> now becomes another thing
-that tweaks how <code class="language-plaintext highlighter-rouge">font-size</code> inherits. Fortunately, in Firefox/Servo internally <code class="language-plaintext highlighter-rouge">scriptlevel</code> (as are
-<code class="language-plaintext highlighter-rouge">scriptminsize</code> and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>) is also handled as a CSS property, which means that we
-can use the same framework we used for font-family and language here – compute the script
-properties before font-size, and if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is set, force-recalculate the font size even if
-font-size itself was not set.</p>
-
-<h3 id="interlude-early-and-late-computed-properties">Interlude: early and late computed properties</h3>
-
-<p>In Servo the way we handle dependencies in properties is to have a set of “early” properties and a
-set of “late” properties (which are allowed to depend on early properties). We iterate the
-declarations twice, once looking for early properties, and once for late. However, now we have a
-pretty intricate set of dependencies, where font-size must be calculated after language, font-family,
-and the script properties, but before everything else that involves lengths. Additionally, font-family
-has to be calculated after all the other early properties due to another font complexity I’m not covering here.</p>
-
-<p>The way we handle this is to <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3195-L3204">pull font-size and font-family</a> out during the early computation,
-but not deal with them until <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3211-L3327">after the early computation is done</a>.</p>
-
-<p>At that stage we first <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3219-L3233">handle the disabling of text-zoom</a>, and then handle <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3235-L3277">the complexities of font-family</a>.</p>
-
-<p>We then <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3280-L3303">compute the font family</a>. If a font size was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3305-L3309">just compute that</a>. If it
-was not, but a font family, lang, or scriptlevel was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3310-L3324">force compute as inherited</a>, which handles all the constraints.</p>
-
-<h3 id="why-scriptminsize-gets-complicated">Why scriptminsize gets complicated</h3>
-
-<p>Unlike with the other “minimum font size”, using an <code class="language-plaintext highlighter-rouge">em</code> unit in any property will calculate the
-length with the clamped value, not the “if nothing had been clamped” value, when the font size has
-been clamped with scriptminsize. So at first glance handling this seems straightforward; only
-consider the script min size when deciding to scale because of scriptlevel.</p>
-
-<p>As always, it’s not that simple 😀:</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
-<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size:20px"</span><span class="nt">&gt;</span>
-    20px
-    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
-        15px
-        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
-            11.25px
-                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
-                    would be 8.4375, but is clamped at 10px
-                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
-                            would be 6.328125, but is clamped at 10px
-                                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
-                                    This is not 10px/0.75=13.3, rather it is still clamped at 10px
-                                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
-                                            This is not 10px/0.75=13.3, rather it is still clamped at 10px
-                                            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
-                                                This is 11.25px again
-                                                    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
-                                                        This is 15px again
-                                                    <span class="nt">&lt;/mstyle&gt;</span>
-                                            <span class="nt">&lt;/mstyle&gt;</span>
-                                        <span class="nt">&lt;/mstyle&gt;</span>
-                                <span class="nt">&lt;/mstyle&gt;</span>
-                        <span class="nt">&lt;/mstyle&gt;</span>
-                <span class="nt">&lt;/mstyle&gt;</span>
-        <span class="nt">&lt;/mstyle&gt;</span>
-    <span class="nt">&lt;/mstyle&gt;</span>
-<span class="nt">&lt;/mstyle&gt;</span>
-<span class="nt">&lt;/math&gt;</span>
-</code></pre></div></div>
-
-<p>(<a href="https://codepen.io/anon/pen/wqepjo">codepen</a>)</p>
-
-<p>Basically, if you increase the level a bunch of times after hitting the min size, decreasing it by one should not immediately
-compute <code class="language-plaintext highlighter-rouge">min size / multiplier</code>. That would make things asymmetric; something with a net script level of <code class="language-plaintext highlighter-rouge">+5</code> should
-have the same size as something with a net script level of <code class="language-plaintext highlighter-rouge">+6 -1</code>, provided the multiplier hasn’t changed.</p>
-
-<p>So what happens is that the script level is calculated against the font size <em>as if scriptminsize had never applied</em>,
-and we only use that size if it is greater than the min size.</p>
-
-<p>It’s not just a matter of keeping track of the script level at which clamping happened – the multiplier could change
-in the process and you need to keep track of that too. So this ends up in creating <em>yet another font-size value to inherit</em>.</p>
-
-<p>To recap, we are now at <em>four</em> different notions of font size being inherited:</p>
-
-<ul>
-  <li>The main font size used by styling</li>
-  <li>The “actual” font size, i.e. the main font size but clamped by the min size</li>
-  <li>(In servo only) The “keyword” size; i.e. the size stored as a keyword and ratio, if it was derived from a keyword</li>
-  <li>The “script unconstrained” size; the font size as if scriptminsize never existed.</li>
-</ul>
-
-<p>Another complexity here is that the following should still work:</p>
-
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
-<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size: 5px"</span><span class="nt">&gt;</span>
-    5px
-    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
-        6.666px
-    <span class="nt">&lt;/mstyle&gt;</span>
-<span class="nt">&lt;/mstyle&gt;</span>
-<span class="nt">&lt;/math&gt;</span>
-</code></pre></div></div>
-
-<p>(<a href="https://codepen.io/anon/pen/prwpVd">codepen</a>)</p>
-
-<p>Basically, if you were already below the scriptminsize, reducing the script level (to increase the font size) should not get clamped, since then you’d get something too large.</p>
-
-<p>This basically means you only apply scriptminsize if you are applying the script level to a value <em>greater than</em> the script min size.</p>
-
-<p>In Servo, all of the MathML handling culminates in <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/gecko.mako.rs#L2304-L2403">this wonderful function that is more comment than code</a>, and
-some code in the functions near it.</p>
-
-<hr />
-
-<p>So there you have it. <code class="language-plaintext highlighter-rouge">font-size</code> is actually pretty complicated. A lot of the web platform has hidden complexities like this, and it’s always fun to encounter more of them.</p>
-
-<p>(Perhaps less fun when I have to implement them 😂)</p>
-
-<p><em>Thanks to mystor, mgattozzi, bstrie, and projektir for reviewing drafts of this post</em></p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:5">
-      <p>Interestingly, in Firefox, this number is 50% for all ruby <em>except</em> for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiragana up to (I think) 5, and the corresponding “no overflow” scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. Additionally, Bopomofo ruby is often set on the side of the glyph instead of on top, and 30% works better there. (h/t @upsuper for pointing this out) <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:1">
-      <p>Other browser engines have other optimizations, I’m just less familiar with them <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2">
-      <p>Some properties are inherited, some are “reset”. For example, <code class="language-plaintext highlighter-rouge">font-family</code> is inherited — child elements inherit font family from the parent unless otherwise specified. However <code class="language-plaintext highlighter-rouge">transform</code> is not, if you transform an element that does not further transform the children. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3">
-      <p>This won’t handle <code class="language-plaintext highlighter-rouge">calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>

@@ -9,8 +9,7 @@
   <meta name="author" content="Manish Goregaokar">
 
   
-  <meta name="description" content="I’ve been thinking about this a lot these days. In part because of an idea I had
-but also due to this twitter discussion. When teaching most things, &hellip;">
+  <meta name="description" content="font-size is the worst. It’s a CSS property probably everyone who writes CSS has used at some point. It’s pretty ubiquitous. And it’s super &hellip;">
   
   <!-- Tweaked https://harimenon.com/blog/2013/02/23/twitter-cards-for-octopress-blogs/ -->
   
@@ -18,8 +17,7 @@ but also due to this twitter discussion. When teaching most things, &hellip;">
       <meta property="twitter:site" content="Manishearth">
       <meta property="twitter:url" content="http://manishearth.github.io">
       <meta property="twitter:title" content="In Pursuit of Laziness">
-      <meta property="twitter:description" content="I’ve been thinking about this a lot these days. In part because of an idea I had
-but also due to this twitter discussion. When teaching most things, there are two non-mutually-exclusive ways of &hellip;">
+      <meta property="twitter:description" content="font-size is the worst. It’s a CSS property probably everyone who writes CSS has used at some point. It’s pretty ubiquitous. And it’s super complicated. “But it’s just a number”, you say. “How can &hellip;">
       <meta name="twitter:image" content="http://manishearth.github.io/images/me.png" />
   
 
@@ -94,6 +92,505 @@ but also due to this twitter discussion. When teaching most things, there are tw
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    
+    
+
+    
+      <h1 class="entry-title"><a href="/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/">Font-size: An Unexpectedly Complex CSS Property</a></h1>
+      <em>Posted by Manish Goregaokar on August 10, 2017 in <a class='category' href='/blog/categories/css/'>css</a>, <a class='category' href='/blog/categories/html/'>html</a>, <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/web/'>web</a></em>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><a href="https://developer.mozilla.org/en/docs/Web/CSS/font-size"><code class="language-plaintext highlighter-rouge">font-size</code></a> is the worst.</p>
+
+<p>It’s a CSS property probably everyone who writes CSS has used at some point. It’s pretty ubiquitous.</p>
+
+<p>And it’s <em>super</em> complicated.</p>
+
+<p>“But it’s just a number”, you say. “How can that be complicated?”</p>
+
+<p>I too felt that way one time. And then I worked on implementing it for <a href="https://wiki.mozilla.org/Quantum/Stylo">stylo</a>.</p>
+
+<p>Stylo is the project to integrate <a href="http://github.com/servo/servo/">Servo</a>’s styling system into Firefox. The styling system handles
+parsing CSS, determining which rules apply to which elements, running this through the cascade,
+and eventually computing and assigning styles to individual elements in the tree. This happens not
+only on page load, but also whenever various kinds of events (including DOM manipulation) occur,
+and is a nontrivial portion of pageload and interaction times.</p>
+
+<p>Servo is in <a href="https://rust-lang.org">Rust</a>, and makes use of Rust’s safe parallelism in many places, one of them being
+styling. Stylo has the potential to bring these speedups into Firefox, along with the added safety
+of the code being in a safer systems language.</p>
+
+<p>Anyway, as far as the styling system is concerned, I believe that font-size is the most complex
+property it has to handle. Some properties may be more complicated when it comes to layout or
+rendering, but font-size is probably the most complex one in the department of styling.</p>
+
+<p>I’m hoping this post can give an idea of how complex the Web can <em>get</em>, and also serve as documentation
+for some of these complexities. I’ll also try to give an idea of how the styling system works throughout this post.</p>
+
+<p>Alright. Let’s see what is so complex about font-size.</p>
+
+<h2 id="the-basics">The basics</h2>
+
+<p>The syntax of the property is pretty straightforward. You can specify it as:</p>
+
+<ul>
+  <li>A length (<code class="language-plaintext highlighter-rouge">12px</code>, <code class="language-plaintext highlighter-rouge">15pt</code>, <code class="language-plaintext highlighter-rouge">13em</code>, <code class="language-plaintext highlighter-rouge">4in</code>, <code class="language-plaintext highlighter-rouge">8rem</code>)</li>
+  <li>A percentage (<code class="language-plaintext highlighter-rouge">50%</code>)</li>
+  <li>A compound of the above, via a calc (<code class="language-plaintext highlighter-rouge">calc(12px + 4em + 20%)</code>)</li>
+  <li>An absolute keyword (<code class="language-plaintext highlighter-rouge">medium</code>, <code class="language-plaintext highlighter-rouge">small</code>, <code class="language-plaintext highlighter-rouge">large</code>, <code class="language-plaintext highlighter-rouge">x-large</code>, etc)</li>
+  <li>A relative keyword (<code class="language-plaintext highlighter-rouge">larger</code>, <code class="language-plaintext highlighter-rouge">smaller</code>)</li>
+</ul>
+
+<p>The first three are common amongst quite a few length-related properties. Nothing abnormal in the syntax.</p>
+
+<p>The next two are interesting. Essentially, the absolute keywords map to various pixel values, and match
+the result of <code class="language-plaintext highlighter-rouge">&lt;font size=foo&gt;</code> (e.g. <code class="language-plaintext highlighter-rouge">size=3</code> is the same as <code class="language-plaintext highlighter-rouge">font-size: medium</code>). The <em>actual</em> value they map to
+is not straightforward, and I’ll get to that later in this post.</p>
+
+<p>The relative keywords basically scale the size up or down. The mechanism of the scaling was also complex, however
+this has changed. I’ll get to that too.</p>
+
+<h2 id="em-and-rem-units">em and rem units</h2>
+
+<p>First up: <code class="language-plaintext highlighter-rouge">em</code> units. One of the things you can specify in <em>any</em> length-based CSS property is a value with an <code class="language-plaintext highlighter-rouge">em</code> or <code class="language-plaintext highlighter-rouge">rem</code>
+unit.</p>
+
+<p><code class="language-plaintext highlighter-rouge">5em</code> means “5 times the <code class="language-plaintext highlighter-rouge">font-size</code> of the element this is applied to”. <code class="language-plaintext highlighter-rouge">5rem</code> means “5 times the font-size of the root element”</p>
+
+<p>The implications of this are that font-size needs to be computed before all the other properties (well, not quite, but we’ll get to that!)
+so that it is available during that time.</p>
+
+<p>You can also use <code class="language-plaintext highlighter-rouge">em</code> units within <code class="language-plaintext highlighter-rouge">font-size</code> itself. In this case, it computed relative to the font-size of the <em>parent</em> element, since
+you can’t use the font-size of the element to compute itself. (This is identical to using a percentage unit)</p>
+
+<h2 id="minimum-font-size">Minimum font size</h2>
+
+<p>Browsers let you set a “minimum” font size in their preferences, and text will not be scaled below it. It’s useful for those with
+trouble seeing small text.</p>
+
+<p>However, this doesn’t affect properties which depend on font-size via <code class="language-plaintext highlighter-rouge">em</code> units. So if you’re using a minimum font size,
+<code class="language-plaintext highlighter-rouge">&lt;div style="font-size: 1px; height: 1em; background-color: red"&gt;</code> will have a very tiny height (which you’ll notice from the color),
+but the text will be clamped to the minimum size.</p>
+
+<p>What this effectively means is that you need to keep track of <em>two</em> separate computed font size values. There’s one value that
+is used to actually determine the font size used for the text, and one value that is used whenever the style system needs to
+know the font-size (e.g. to compute an <code class="language-plaintext highlighter-rouge">em</code> unit.)</p>
+
+<p>This gets slightly more complicated when <a href="https://en.wikipedia.org/wiki/Ruby_character">ruby</a> is involved. In ideographic scripts (usually, Han
+and Han-based scripts like Kanji or Hanja) it’s sometimes useful to have the pronunciation
+of each character above it in a phonetic script, for the aid of readers without proficiency in that
+script, and this is known as “ruby” (“furigana” in Japanese). Because these scripts are ideographic,
+it’s not uncommon for learners to know the pronunciation of a word but have no idea how to write it.
+An example would be <ruby><rb>日</rb><rt>に</rt><rb>本</rb><rt>ほん</rt></ruby>, which is 日本 (“nihon”,
+i.e. “Japan”) in Kanji with ruby にほん in the phonetic Hiragana script above it.</p>
+
+<p>As you can probably see, the phonetic ruby text is in a smaller font size (usually 50% of the font
+size of the main text<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>). The minimum font-size support <em>respects</em> this, and ensures that if the ruby
+is supposed to be <code class="language-plaintext highlighter-rouge">50%</code> of the size of the text, the minimum font size for the ruby is <code class="language-plaintext highlighter-rouge">50%</code> of the
+original minimum font size. This avoids clamped text from looking like <ruby><rb>日</rb><rt style="font-size: 1em">に</rt><rb>本</rb><rt style="font-size: 1em">ほん</rt></ruby> (where both get set to
+the same size), which is pretty ugly.</p>
+
+<h2 id="text-zoom">Text zoom</h2>
+
+<p>Firefox additionally lets you zoom text only when zooming. If you have trouble reading small things, it’s great to
+be able to just blow up the text on the page without having the whole page get zoomed (which means you need to scroll
+around a lot).</p>
+
+<p>In this case, <code class="language-plaintext highlighter-rouge">em</code> units of other properties <em>do</em> get zoomed as well. After all, they’re supposed to be relative to the text’s font
+size (and may have some relation to the text), so if that size has changed so should they.</p>
+
+<p>(Of course, that argument could also apply to the min font size stuff. I don’t have an answer for why it doesn’t.)</p>
+
+<p>This is actually pretty straightforward to implement. When computing absolute font sizes (including
+keywords), zoom them if text zoom is on. For everything else continue as normal.</p>
+
+<p>Text zoom is also disabled within <code class="language-plaintext highlighter-rouge">&lt;svg:text&gt;</code> elements, which leads to some trickiness here.</p>
+
+<h2 id="interlude-how-the-style-system-works">Interlude: How the style system works</h2>
+
+<p>Before I go ahead it’s probably worth giving a quick overview of how everything works.</p>
+
+<p>The responsibiltiy of a style system is to take in CSS code and a DOM tree, and assign computed styles to each element.</p>
+
+<p>There’s a distinction between “specified” and “computed” here. “specified” styles are in the format
+you specify in CSS, whereas computed styles are those that get attached to the elements, sent to
+layout, and inherited from. A given specified style may compute to different values when applied to
+different elements.</p>
+
+<p>So while you can <em>specify</em> <code class="language-plaintext highlighter-rouge">width: 5em</code>, it will compute to something like <code class="language-plaintext highlighter-rouge">width: 80px</code>. Computed values are usually a
+cleaned up form of the specified value.</p>
+
+<p>The style system will first parse the CSS, producing a bunch of rules usually containing declarations (a declaration is like <code class="language-plaintext highlighter-rouge">width: 20%;</code>; i.e. a property name and a specified value)</p>
+
+<p>It then goes through the tree in top-down order (this is parallelized in Stylo), figuring out which declarations <em>apply</em> to each element
+and in which order – some declarations have precedence over others. Then it will compute each relevant declaration against the element’s style (and parent style, among other bits of info),
+and store this value in the element’s “computed style”.</p>
+
+<p>There are a bunch of optimizations that Gecko and Servo do here to avoid duplicated work<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>. There’s a
+bloom filter for quickly checking if deep descendent selectors apply to a subtree. There’s a “rule
+tree” that helps cache effort from determining applicable declarations. Computed styles are
+reference counted and shared very often (since the default state is to inherit from the parent or
+from the default style).</p>
+
+<p>But ultimately, this is the gist of what happens.</p>
+
+<h2 id="keyword-values">Keyword values</h2>
+
+<p>Alright, this is where it gets complicated.</p>
+
+<p>Remember when I said <code class="language-plaintext highlighter-rouge">font-size: medium</code> was a thing that mapped to a value?</p>
+
+<p>So what does it map to?</p>
+
+<p>Well, it turns out, it depends on the font family. For the following HTML:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium monospace"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+<span class="nt">&lt;span</span> <span class="na">style=</span><span class="s">"font: medium sans-serif"</span><span class="nt">&gt;</span>text<span class="nt">&lt;/span&gt;</span>
+</code></pre></div></div>
+
+<p>you get (<a href="https://codepen.io/anon/pen/RZgxjw">codepen</a>)</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<span style="font: medium monospace">text</span>
+<span style="font: medium sans-serif">text</span>
+</div>
+
+<p>where the first one computes to a font-size of 13px, and the second one computes to a font-size of
+16px. You can check this in the computed style pane of your devtools, or by using
+<code class="language-plaintext highlighter-rouge">getComputedStyle()</code>.</p>
+
+<p>I <em>think</em> the reason behind this is that monospace fonts tend to be wider, so the default font size (medium)
+is scaled so that they have similar widths, and all other keyword font sizes get shifted as well. The final result is something like this:</p>
+
+<p><img class="center" src="/images/post/font-size-table.png" width="600" /></p>
+
+<p>Firefox and Servo have <a href="https://github.com/servo/servo/blob/d415617a5bbe65a73bd805808a7ac76f38a1861c/components/style/properties/longhand/font.mako.rs#L763-L774">a matrix</a> that helps derive the values for all the absolute
+font-size keywords based on the “base size” (i.e. the computed of <code class="language-plaintext highlighter-rouge">font-size: medium</code>). Actually,
+Firefox has <a href="http://searchfox.org/mozilla-central/rev/c329d562fb6c6218bdb79290faaf015467ef89e2/layout/style/nsRuleNode.cpp#3272-3341">three tables</a> to support some legacy use cases like quirks mode (Servo has
+yet to add support for these tables). We query other parts of the browser for what the “base size”
+is based on the language and font family.</p>
+
+<p>Wait, but what does the language have to do with this anyway? How does the language impact font-size?</p>
+
+<p>It turns out that the base size depends on the font family <em>and</em> the language, and you can configure this.</p>
+
+<p>Both Firefox and Chrome (using an extension) actually let you tweak which fonts get used on a per-language basis,
+<em>as well as the default (base) font-size</em>.</p>
+
+<p>This is not as obscure as one might think. Default system fonts are often really ugly for non-Latin-
+using scripts. I have a separate font installed that produces better-looking Devanagari ligatures.</p>
+
+<p>Similarly, some scripts are just more intricate than Latin. My default font size for Devanagari is
+set to 18 instead of 16. I’ve started learning Mandarin and I’ve set that font size to 18 as well. Hanzi glyphs
+can get pretty complicated and I still struggle to learn (and later recognize) them. A larger font size is great for this.</p>
+
+<p>Anyway, this doesn’t complicate things too much.  This does mean that the font family needs to be
+computed before font-size, which already needs to be computed before most other properties. The
+language, which can be set using a <code class="language-plaintext highlighter-rouge">lang</code> HTML attribute, is internally treated as a CSS property by
+Firefox since it inherits, and it must be computed earlier as well.</p>
+
+<p>Not too bad. So far.</p>
+
+<p>Now here’s the kicker. This <em>dependence</em> on the language and family <em>inherits</em>.</p>
+
+<p>Quick, what’s the font-size of the inner <code class="language-plaintext highlighter-rouge">div</code>?</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
+    font size is 16px
+    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
+        font size is ??
+    <span class="nt">&lt;/div&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</code></pre></div></div>
+
+<p>For a normal inherited CSS property<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>, if the parent has a computed value of <code class="language-plaintext highlighter-rouge">16px</code>,
+and the child has no additional values specified, the child will inherit a value of <code class="language-plaintext highlighter-rouge">16px</code>.
+<em>Where</em> the parent got that computed value from doesn’t matter.</p>
+
+<p>Here, <code class="language-plaintext highlighter-rouge">font-size</code> “inherits” a value of <code class="language-plaintext highlighter-rouge">13px</code>. You can see this below (<a href="https://codepen.io/anon/pen/MvorQQ">codepen</a>):</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
+    font size is 16px
+    <div style="font-family: monospace"> <!-- base size 13 -->
+        font size is ??
+    </div>
+</div>
+</div>
+
+<p>Basically, if the computed value originated from a keyword, whenever the font family or language
+change, font-size is recomputed from the original keyword with the new font family and language.</p>
+
+<p>The reason this exists is because otherwise the differing font sizes wouldn’t work anyway! The default font size
+is <code class="language-plaintext highlighter-rouge">medium</code>, so basically the root element gets a <code class="language-plaintext highlighter-rouge">font-size: medium</code> and all elements inherit from it. If you change
+to monospace or a different language in the document you need the font-size recomputed.</p>
+
+<p>But it doesn’t stop here. This even inherits <em>through relative units</em> (Not in IE).</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: medium; font-family: sans-serif;"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 16 --&gt;</span>
+    font size is 16px
+    <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-size: 0.9em"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- could also be font-size: 50%--&gt;</span>
+        font size is 14.4px (16 * 0.9)
+        <span class="nt">&lt;div</span> <span class="na">style=</span><span class="s">"font-family: monospace"</span><span class="nt">&gt;</span> <span class="c">&lt;!-- base size 13 --&gt;</span>
+            font size is 11.7px! (13 * 0.9)
+        <span class="nt">&lt;/div&gt;</span>
+    <span class="nt">&lt;/div&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</code></pre></div></div>
+
+<p>(<a href="https://codepen.io/anon/pen/oewpER">codepen</a>)</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<div style="font-size: medium; font-family: sans-serif;"> <!-- base size 16 -->
+    font size is 16px
+    <div style="font-size: 0.9em"> <!-- could also be font-size: 90%-->
+        font size is 14.4px (16 * 0.9)
+        <div style="font-family: monospace"> <!-- base size 13 -->
+            font size is 11.7px! (13 * 0.9)
+        </div>
+    </div>
+</div>
+</div>
+
+<p>So we’re actually inheriting a font-size of <code class="language-plaintext highlighter-rouge">0.9*medium</code> when we inherit from the second div, not <code class="language-plaintext highlighter-rouge">14.4px</code>.</p>
+
+<p>Another way of looking at it is whenever the font family or language changes, you should recompute the font-size as if the language and family <em>were always that way</em> up the tree.</p>
+
+<p>Firefox code uses both of these strategies. The original Gecko style system handles this by actually
+going back to the top of the tree and recalculating the font size as if the language/family were
+different. I suspect this is inefficient, but the rule tree seems to be involved in making this slightly
+more efficient</p>
+
+<p>Servo, on the other hand, stores some extra data on the side when computing stuff, data which gets copied over to the child element. It basically
+stores the equivalent of saying “Yes, this font was computed from a keyword. The keyword was <code class="language-plaintext highlighter-rouge">medium</code>, and after that we applied a factor of 0.9 to it.”<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup></p>
+
+<p>In both cases, this leads to a bunch of complexities in all the <em>other</em> font-size complexities, since they need to be carefully preserved through this.</p>
+
+<p>In Servo, <em>most</em> of this gets handled <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/longhand/font.mako.rs#L964-L1061">via custom cascading functions for font-size</a>.</p>
+
+<h2 id="largersmaller">Larger/smaller</h2>
+
+<p>So I mentioned that <code class="language-plaintext highlighter-rouge">font-size: larger</code> and <code class="language-plaintext highlighter-rouge">smaller</code> scale the size, but didn’t mention by what fraction.</p>
+
+<p>According <a href="https://drafts.csswg.org/css-fonts-3/#relative-size-value">to the spec</a>, if the font-size currently matches the value of an absolute keyword size (medium/large/etc),
+you should pick the value of the next/previous keyword sizes respectively.</p>
+
+<p>If it is <em>between</em> two, find the same point between the next/previous two sizes.</p>
+
+<p>This, of course, must play well with the weird inheritance of keyword font sizes mentioned before. In Gecko’s model this isn’t too hard,
+since Gecko recalculates things anyway. In Servo’s model we’d have to store a sequence of applications of <code class="language-plaintext highlighter-rouge">larger</code>/<code class="language-plaintext highlighter-rouge">smaller</code> and relative
+units, instead of storing just a relative unit.</p>
+
+<p>Additionally, when computing this during text-zoom, you have to unzoom before looking it up in the table, and then rezoom.</p>
+
+<p>Overall, a bunch of complexity for not much gain — turns out only Gecko actually followed the spec here! All other browser engines
+used simple ratios here.</p>
+
+<p>So my fix here <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1361550">was simply to remove this behavior from Gecko</a>. That simplified things.</p>
+
+<h2 id="mathml">MathML</h2>
+
+<p>Firefox and Safari support MathML, a markup language for math. It doesn’t get used much on the Web these days, but it exists.</p>
+
+<p>MathML has its own complexities when it comes to font-size. Specifically, <code class="language-plaintext highlighter-rouge">scriptminsize</code>, <code class="language-plaintext highlighter-rouge">scriptlevel</code>, and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>.</p>
+
+<p>For example, in MathML, the text in the numerator or denominator of a fraction or the text of a superscript is 0.71 times the size of the text outside of it. This is because
+the default <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> for MathML elements is 0.71, and these specific elements all get a default scriptlevel of <code class="language-plaintext highlighter-rouge">+1</code>.</p>
+
+<p>Basically, <code class="language-plaintext highlighter-rouge">scriptlevel=+1</code> means “multiply the font size by <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>”, and
+<code class="language-plaintext highlighter-rouge">scriptlevel=-1</code> is for dividing. This can be specified via a <code class="language-plaintext highlighter-rouge">scriptlevel</code> HTML attribute on an <code class="language-plaintext highlighter-rouge">mstyle</code> element. You can
+similarly tweak the (inherited) multiplier via the <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code> HTML attribute, and the minimum size via <code class="language-plaintext highlighter-rouge">scriptminsize</code>.</p>
+
+<p>So, for example:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;&lt;msup&gt;</span>
+    <span class="nt">&lt;mi&gt;</span>text<span class="nt">&lt;/mi&gt;</span>
+    <span class="nt">&lt;mn&gt;</span>small superscript<span class="nt">&lt;/mn&gt;</span>
+<span class="nt">&lt;/msup&gt;&lt;/math&gt;&lt;br&gt;</span>
+<span class="nt">&lt;math&gt;</span>
+    text
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
+        small
+        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">+1</span><span class="nt">&gt;</span>
+            smaller
+            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">-1</span><span class="nt">&gt;</span>
+                small again
+            <span class="nt">&lt;/mstyle&gt;</span>
+        <span class="nt">&lt;/mstyle&gt;</span>
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
+
+<p>will show as (you will need Firefox to see the rendered version, Safari supports MathML too but the support isn’t as good):</p>
+
+<div style="border: 1px solid black; display: inline-block; padding: 15px;">
+<math><msup><mi>text</mi><mn>small superscript</mn></msup></math><br />
+<math>text&lt;mstyle scriptlevel=+1&gt; small &lt;mstyle scriptlevel=+1&gt; smaller &lt;mstyle scriptlevel=-1&gt; small again &lt;/mstyle&gt;&lt;/mstyle&gt;&lt;/mstyle&gt;</math>
+</div>
+
+<p>(<a href="https://codepen.io/anon/pen/BdZJgR">codepen</a>)</p>
+
+<p>So this isn’t as bad. It’s as if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is a weird <code class="language-plaintext highlighter-rouge">em</code> unit. No biggie, we know how to deal with those already.</p>
+
+<p>Except you also have <code class="language-plaintext highlighter-rouge">scriptminsize</code>. This lets you set the minimum font size <em>for changes caused by <code class="language-plaintext highlighter-rouge">scriptlevel</code></em>.</p>
+
+<p>This means that <code class="language-plaintext highlighter-rouge">scriptminsize</code> will make sure <code class="language-plaintext highlighter-rouge">scriptlevel</code> never causes changes that make the font smaller than the min size,
+but it will ignore cases where you deliberately specify an <code class="language-plaintext highlighter-rouge">em</code> unit or a pixel value.</p>
+
+<p>There’s already a subtle bit of complexity introduced here, <code class="language-plaintext highlighter-rouge">scriptlevel</code> now becomes another thing
+that tweaks how <code class="language-plaintext highlighter-rouge">font-size</code> inherits. Fortunately, in Firefox/Servo internally <code class="language-plaintext highlighter-rouge">scriptlevel</code> (as are
+<code class="language-plaintext highlighter-rouge">scriptminsize</code> and <code class="language-plaintext highlighter-rouge">scriptsizemultiplier</code>) is also handled as a CSS property, which means that we
+can use the same framework we used for font-family and language here – compute the script
+properties before font-size, and if <code class="language-plaintext highlighter-rouge">scriptlevel</code> is set, force-recalculate the font size even if
+font-size itself was not set.</p>
+
+<h3 id="interlude-early-and-late-computed-properties">Interlude: early and late computed properties</h3>
+
+<p>In Servo the way we handle dependencies in properties is to have a set of “early” properties and a
+set of “late” properties (which are allowed to depend on early properties). We iterate the
+declarations twice, once looking for early properties, and once for late. However, now we have a
+pretty intricate set of dependencies, where font-size must be calculated after language, font-family,
+and the script properties, but before everything else that involves lengths. Additionally, font-family
+has to be calculated after all the other early properties due to another font complexity I’m not covering here.</p>
+
+<p>The way we handle this is to <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3195-L3204">pull font-size and font-family</a> out during the early computation,
+but not deal with them until <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3211-L3327">after the early computation is done</a>.</p>
+
+<p>At that stage we first <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3219-L3233">handle the disabling of text-zoom</a>, and then handle <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3235-L3277">the complexities of font-family</a>.</p>
+
+<p>We then <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3280-L3303">compute the font family</a>. If a font size was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3305-L3309">just compute that</a>. If it
+was not, but a font family, lang, or scriptlevel was specified, we <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/properties.mako.rs#L3310-L3324">force compute as inherited</a>, which handles all the constraints.</p>
+
+<h3 id="why-scriptminsize-gets-complicated">Why scriptminsize gets complicated</h3>
+
+<p>Unlike with the other “minimum font size”, using an <code class="language-plaintext highlighter-rouge">em</code> unit in any property will calculate the
+length with the clamped value, not the “if nothing had been clamped” value, when the font size has
+been clamped with scriptminsize. So at first glance handling this seems straightforward; only
+consider the script min size when deciding to scale because of scriptlevel.</p>
+
+<p>As always, it’s not that simple 😀:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
+<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size:20px"</span><span class="nt">&gt;</span>
+    20px
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
+        15px
+        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
+            11.25px
+                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
+                    would be 8.4375, but is clamped at 10px
+                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"+1"</span><span class="nt">&gt;</span>
+                            would be 6.328125, but is clamped at 10px
+                                <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
+                                    This is not 10px/0.75=13.3, rather it is still clamped at 10px
+                                        <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
+                                            This is not 10px/0.75=13.3, rather it is still clamped at 10px
+                                            <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
+                                                This is 11.25px again
+                                                    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
+                                                        This is 15px again
+                                                    <span class="nt">&lt;/mstyle&gt;</span>
+                                            <span class="nt">&lt;/mstyle&gt;</span>
+                                        <span class="nt">&lt;/mstyle&gt;</span>
+                                <span class="nt">&lt;/mstyle&gt;</span>
+                        <span class="nt">&lt;/mstyle&gt;</span>
+                <span class="nt">&lt;/mstyle&gt;</span>
+        <span class="nt">&lt;/mstyle&gt;</span>
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
+
+<p>(<a href="https://codepen.io/anon/pen/wqepjo">codepen</a>)</p>
+
+<p>Basically, if you increase the level a bunch of times after hitting the min size, decreasing it by one should not immediately
+compute <code class="language-plaintext highlighter-rouge">min size / multiplier</code>. That would make things asymmetric; something with a net script level of <code class="language-plaintext highlighter-rouge">+5</code> should
+have the same size as something with a net script level of <code class="language-plaintext highlighter-rouge">+6 -1</code>, provided the multiplier hasn’t changed.</p>
+
+<p>So what happens is that the script level is calculated against the font size <em>as if scriptminsize had never applied</em>,
+and we only use that size if it is greater than the min size.</p>
+
+<p>It’s not just a matter of keeping track of the script level at which clamping happened – the multiplier could change
+in the process and you need to keep track of that too. So this ends up in creating <em>yet another font-size value to inherit</em>.</p>
+
+<p>To recap, we are now at <em>four</em> different notions of font size being inherited:</p>
+
+<ul>
+  <li>The main font size used by styling</li>
+  <li>The “actual” font size, i.e. the main font size but clamped by the min size</li>
+  <li>(In servo only) The “keyword” size; i.e. the size stored as a keyword and ratio, if it was derived from a keyword</li>
+  <li>The “script unconstrained” size; the font size as if scriptminsize never existed.</li>
+</ul>
+
+<p>Another complexity here is that the following should still work:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;math&gt;</span>
+<span class="nt">&lt;mstyle</span> <span class="na">scriptminsize=</span><span class="s">"10px"</span> <span class="na">scriptsizemultiplier=</span><span class="s">"0.75"</span> <span class="na">style=</span><span class="s">"font-size: 5px"</span><span class="nt">&gt;</span>
+    5px
+    <span class="nt">&lt;mstyle</span> <span class="na">scriptlevel=</span><span class="s">"-1"</span><span class="nt">&gt;</span>
+        6.666px
+    <span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/mstyle&gt;</span>
+<span class="nt">&lt;/math&gt;</span>
+</code></pre></div></div>
+
+<p>(<a href="https://codepen.io/anon/pen/prwpVd">codepen</a>)</p>
+
+<p>Basically, if you were already below the scriptminsize, reducing the script level (to increase the font size) should not get clamped, since then you’d get something too large.</p>
+
+<p>This basically means you only apply scriptminsize if you are applying the script level to a value <em>greater than</em> the script min size.</p>
+
+<p>In Servo, all of the MathML handling culminates in <a href="https://github.com/servo/servo/blob/53c6f8ea8bf1002d0c99c067601fe070dcd6bcf1/components/style/properties/gecko.mako.rs#L2304-L2403">this wonderful function that is more comment than code</a>, and
+some code in the functions near it.</p>
+
+<hr />
+
+<p>So there you have it. <code class="language-plaintext highlighter-rouge">font-size</code> is actually pretty complicated. A lot of the web platform has hidden complexities like this, and it’s always fun to encounter more of them.</p>
+
+<p>(Perhaps less fun when I have to implement them 😂)</p>
+
+<p><em>Thanks to mystor, mgattozzi, bstrie, and projektir for reviewing drafts of this post</em></p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:5">
+      <p>Interestingly, in Firefox, this number is 50% for all ruby <em>except</em> for when the language is Taiwanese Mandarin (where it is 30%). This is because Taiwan uses a phonetic script called Bopomofo, and each Han glyph can be represented as a maximum of 3 Bopomofo letters. So it is possible to choose a reasonable minimum size such that the ruby never extends the size of the glyph below it. On the other hand, pinyin can be up to six letters, and Hiragana up to (I think) 5, and the corresponding “no overflow” scaling will be too tiny. So fitting them on top of the glyph is not a consideration and instead we elect to have a larger font size for better readability. Additionally, Bopomofo ruby is often set on the side of the glyph instead of on top, and 30% works better there. (h/t @upsuper for pointing this out) <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:1">
+      <p>Other browser engines have other optimizations, I’m just less familiar with them <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>Some properties are inherited, some are “reset”. For example, <code class="language-plaintext highlighter-rouge">font-family</code> is inherited — child elements inherit font family from the parent unless otherwise specified. However <code class="language-plaintext highlighter-rouge">transform</code> is not, if you transform an element that does not further transform the children. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3">
+      <p>This won’t handle <code class="language-plaintext highlighter-rouge">calc</code>s, which is something I need to fix. Fixing this is trivial, you store an absolute offset in addition to the ratio. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -1834,411 +2331,6 @@ intro to these.</p>
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-    
-    
-
-    
-      <h1 class="entry-title"><a href="/blog/2017/03/04/what-are-sum-product-and-pi-types/">What Are Sum, Product, and Pi Types?</a></h1>
-      <em>Posted by Manish Goregaokar on March 04, 2017 in <a class='category' href='/blog/categories/programming/'>programming</a>, <a class='category' href='/blog/categories/rust/'>rust</a></em>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><em>See also: <a href="https://tonyarcieri.com/a-quick-tour-of-rusts-type-system-part-1-sum-types-a-k-a-tagged-unions">Tony’s post on the same topic</a></em></p>
-
-<p>You often hear people saying “Language X<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> has sum types” or “I wish language X had sum types”<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup>,
-or “Sum types are cool”.</p>
-
-<p>Much like fezzes and bow ties, sum types are indeed cool.</p>
-
-<p><img class="center" src="/images/post/memes/sum-types-are-cool.jpg" width="400" /></p>
-
-<p>These days, I’ve also seen people asking about “Pi types”, because of <a href="https://github.com/ticki/rfcs/blob/pi-types-2/text/0000-pi-types.md">this Rust RFC</a>.</p>
-
-<p>But what does “sum type” mean? And why is it called that? And what, in the name of sanity, is
-a Pi type?</p>
-
-<p>Before I start, I’ll mention that while I will be covering some type theory to explain the names
-“sum” and “product”, you don’t need to understand these names to use these things! Far too often
-do people have trouble understanding relatively straightforward concepts in languages because
-they have confusing names with confusing mathematical backgrounds<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
-
-<h2 id="so-whats-a-sum-type-the-no-type-theory-version">So what’s a sum type? (the no-type-theory version)</h2>
-
-<p>In it’s essence, a sum type is basically an “or” type. Let’s first look at structs.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">x</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">y</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p><code class="language-plaintext highlighter-rouge">Foo</code> is a <code class="language-plaintext highlighter-rouge">bool</code> AND a <code class="language-plaintext highlighter-rouge">String</code>. You need one of each to make one.
-This is an “and” type, or a “product” type (I’ll explain the name later).</p>
-
-<p>So what would an “or” type be? It would be one where the value can be a
-<code class="language-plaintext highlighter-rouge">bool</code> OR a <code class="language-plaintext highlighter-rouge">String</code>. You can achieve this with C++ with a union:</p>
-
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">union</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="n">foo</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span> <span class="c1">// set it to a bool</span>
-<span class="n">foo</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">"blah"</span><span class="p">;</span> <span class="c1">// set it to a string</span>
-</code></pre></div></div>
-
-<p>However, this isn’t <em>exactly</em> right, since the value doesn’t store the information
-of which variant it is. You could store <code class="language-plaintext highlighter-rouge">false</code> and the reader wouldn’t know
-if you had stored an empty <code class="language-plaintext highlighter-rouge">string</code> or a <code class="language-plaintext highlighter-rouge">false</code> <code class="language-plaintext highlighter-rouge">bool</code>.</p>
-
-<p>There’s a pattern called “tagged union” (or “discriminated union”) in C++ which bridges this gap.</p>
-
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">union</span> <span class="n">FooUnion</span> <span class="p">{</span>
-    <span class="kt">bool</span> <span class="n">x</span><span class="p">;</span>
-    <span class="n">string</span> <span class="n">y</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">enum</span> <span class="n">FooTag</span> <span class="p">{</span>
-    <span class="n">BOOL</span><span class="p">,</span> <span class="n">STRING</span>
-<span class="p">}</span>
-
-<span class="k">struct</span> <span class="nc">Foo</span> <span class="p">{</span>
-    <span class="n">FooUnion</span> <span class="n">data</span><span class="p">;</span>
-    <span class="n">FooTag</span> <span class="n">tag</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="c1">// set it to a bool</span>
-<span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
-<span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">BOOL</span><span class="p">;</span>
-
-<span class="c1">// set it to a string</span>
-<span class="n">foo</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="s">"blah"</span><span class="p">;</span>
-<span class="n">foo</span><span class="p">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">STRING</span><span class="p">;</span>
-</code></pre></div></div>
-
-<p>Here, you manually set the tag when setting the value. C++ also has <code class="language-plaintext highlighter-rouge">std::variant</code> (or
-<code class="language-plaintext highlighter-rouge">boost::variant</code>) that encapsulates this pattern with a better API.</p>
-
-<p>While I’m calling these “or” types here, the technical term for such types is “sum” types.
-Other languages have built-in sum types.</p>
-
-<p>Rust has them and calls them “enums”. These are a more generalized version of the
-enums you see in other languages.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="nf">Str</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span>
-    <span class="nf">Bool</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">foo</span> <span class="o">=</span> <span class="nn">Foo</span><span class="p">::</span><span class="nf">Bool</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
-
-<span class="c1">// "pattern matching"</span>
-<span class="k">match</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="nf">Str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="cm">/* do something with string `s` */</span><span class="p">,</span>
-    <span class="nf">Bool</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="cm">/* do something with bool `b` */</span><span class="p">,</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Swift is similar, and also calls them enums</p>
-<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">enum</span> <span class="kt">Foo</span> <span class="p">{</span>
-    <span class="k">case</span> <span class="nf">str</span><span class="p">(</span><span class="kt">String</span><span class="p">)</span>
-    <span class="k">case</span> <span class="nf">boolean</span><span class="p">(</span><span class="n">bool</span><span class="p">)</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="nv">foo</span> <span class="o">=</span> <span class="kt">Foo</span><span class="o">.</span><span class="nf">boolean</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
-<span class="k">switch</span> <span class="n">foo</span> <span class="p">{</span>
-    <span class="k">case</span> <span class="o">.</span><span class="nf">str</span><span class="p">(</span><span class="k">let</span> <span class="nv">s</span><span class="p">):</span>
-        <span class="c1">// do something with string `s`</span>
-    <span class="k">case</span> <span class="o">.</span><span class="nf">boolean</span><span class="p">(</span><span class="k">let</span> <span class="nv">b</span><span class="p">):</span>
-        <span class="c1">// do something with boolean `b`</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>You can fake these in Go using interfaces, as well. Typescript has built-in
-unions which can be typechecked without any special effort, but you need
-to add a tag (like in C++) to pattern match on them.</p>
-
-<p>Of course, Haskell has them:</p>
-
-<div class="language-haskell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kr">data</span> <span class="kt">Foo</span> <span class="o">=</span> <span class="kt">B</span> <span class="kt">Bool</span> <span class="o">|</span> <span class="kt">S</span> <span class="kt">String</span>
-
-<span class="c1">-- define a function</span>
-<span class="n">doThing</span> <span class="o">::</span> <span class="kt">Foo</span> <span class="o">-&gt;</span> <span class="kt">SomeReturnType</span>
-<span class="n">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="n">b</span><span class="p">)</span> <span class="o">=</span> <span class="c1">-- do something with boolean b</span>
-<span class="n">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="c1">-- do something with string s</span>
-
-<span class="c1">-- call it</span>
-<span class="n">doThing</span> <span class="p">(</span><span class="kt">S</span> <span class="s">"blah"</span><span class="p">)</span>
-<span class="n">doThing</span> <span class="p">(</span><span class="kt">B</span> <span class="kt">True</span><span class="p">)</span>
-</code></pre></div></div>
-
-<p>One of the very common things that languages with sum types do is express nullability
-as a sum type;</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// an Option is either "something", containing a type, or "nothing"</span>
-<span class="k">enum</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="nf">Some</span><span class="p">(</span><span class="n">T</span><span class="p">),</span>
-    <span class="nb">None</span>
-<span class="p">}</span>
-
-<span class="k">let</span> <span class="n">x</span> <span class="o">=</span> <span class="nf">Some</span><span class="p">(</span><span class="s">"hello"</span><span class="p">);</span>
-<span class="k">match</span> <span class="n">x</span> <span class="p">{</span>
-    <span class="nf">Some</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span>
-    <span class="nb">None</span> <span class="k">=&gt;</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"no string for you"</span><span class="p">),</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Generally, these languages have “pattern matching”, which is like a <code class="language-plaintext highlighter-rouge">switch</code>
-statement on steroids. It lets you match on and destructure all kinds of things,
-sum types being one of them. Usually, these are “exhaustive”, which means that
-you are forced to handle all possible cases. In Rust, if you remove that <code class="language-plaintext highlighter-rouge">None</code>
-branch, the program won’t compile. So you’re forced to deal with the none case,
-<em>somehow</em>.</p>
-
-<p>In general sum types are a pretty neat and powerful tool. Languages with them built-in
-tend to make heavy use of them, almost as much as they use structs.</p>
-
-<h2 id="why-do-we-call-it-a-sum-type">Why do we call it a sum type?</h2>
-
-<p><em>Here be (type theory) <a href="https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools">dragons</a></em></p>
-
-<p>Let’s step back a bit and figure out what a type is.</p>
-
-<p>It’s really a restriction on the values allowed. It can have things like methods and whatnot
-dangling off it, but that’s not so important here.</p>
-
-<p>In other words, it’s like<sup id="fnref:10"><a href="#fn:10" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> a <a href="https://en.wikipedia.org/wiki/Set_(mathematics)">set</a>. A boolean is the set \(\{\mathtt{true}, \mathtt{false}\}\). An 8-bit unsigned integer
-(<code class="language-plaintext highlighter-rouge">u8</code> in Rust) is the set \(\{0, 1, 2, 3, …. 254, 255\}\). A string is a set with
-infinite elements, containing all possible valid strings<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup>.</p>
-
-<p>What’s a struct? A struct with two fields contains every possible combination of elements from the two sets.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="n">x</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">y</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>The set of possible values of <code class="language-plaintext highlighter-rouge">Foo</code> is</p>
-
-<p>\[\{(\mathtt{x}, \mathtt{y}): \mathtt{x} \in \mathtt{bool}, \mathtt y \in \mathtt{u8}\}\]</p>
-
-<p>(Read as “The set of all \((\mathtt{x}, \mathtt{y})\) where \(\tt x\) is in \(\mathtt{bool}\) and \(\tt y\) is in \(\mathtt{u8}\)”)</p>
-
-<p>This is called a <em>Cartesian product</em>, and is often represented as \(\tt Foo = bool \times u8\).
-An easy way to view this as a product is to count the possible values: The number of possible values
-of <code class="language-plaintext highlighter-rouge">Foo</code> is the number of possible values of <code class="language-plaintext highlighter-rouge">bool</code> (2) <em>times</em> the number of possible values of <code class="language-plaintext highlighter-rouge">u8</code> (256).</p>
-
-<p>A general struct would be a “product” of the types of each field, so something like</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span>
-    <span class="n">x</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">y</span><span class="p">:</span> <span class="nb">u8</span><span class="p">,</span>
-    <span class="n">z</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">w</span><span class="p">:</span> <span class="nb">String</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>is \(\mathtt{Bar = bool \times u8 \times bool \times String}\)</p>
-
-<p>This is why structs are called “product types”<sup id="fnref:7"><a href="#fn:7" class="footnote" rel="footnote" role="doc-noteref">6</a></sup>.</p>
-
-<p>You can probably guess what comes next – Rust/Swift enums are “sum types”, because they are the
-<em>sum</em> of the two sets.</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
-    <span class="nf">Bool</span><span class="p">(</span><span class="nb">bool</span><span class="p">),</span>
-    <span class="nf">Integer</span><span class="p">(</span><span class="nb">u8</span><span class="p">),</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>is a set of all values which are valid booleans, <em>and</em> all values which are valid integers. This
-is a sum of sets, \(\tt Foo = bool + u8\). More accurately, it’s a <em>disjoint union</em>, where if the input
-sets have overlap, the overlap is “discriminated” out.</p>
-
-<p>An example of this being a disjoint union is:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">Bar</span> <span class="p">{</span>
-    <span class="nf">Bool1</span><span class="p">(</span><span class="nb">bool</span><span class="p">),</span>
-    <span class="nf">Bool2</span><span class="p">(</span><span class="nb">bool</span><span class="p">),</span>
-    <span class="nf">Integer</span><span class="p">(</span><span class="nb">u8</span><span class="p">)</span><span class="err">.</span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>This is not \(\tt Bar = bool + bool + u8\), because \(\tt bool + bool = bool\), (regular set addition doesn’t duplicate the overlap).</p>
-
-<p>Instead, it’s something like</p>
-
-<p>\[\tt Bar = bool + otherbool + u8\]</p>
-
-<p>where \(\tt otherbool\) is also a set \(\tt \{true, false\}\),
-except that these elements are <em>different</em> from those in \(\tt bool\). You can look at it as if</p>
-
-<p>\[\tt otherbool = \{true_2, false_2\}\]</p>
-
-<p>so that</p>
-
-<p>\[\mathtt{bool + otherbool} = \{\mathtt{true, false, true_2, false_2}\}\]</p>
-
-<p>For sum types, the number of possible values is the sum of the number of possible values of
-each of its component types.</p>
-
-<p>So, Rust/Swift enums are “sum types”.</p>
-
-<p>You may often notice the terminology “algebraic datatypes” (ADT) being used, usually that’s just
-talking about sum and product types together – a language with ADTs will have both.</p>
-
-<p>In fact, you can even have <em>exponential</em> types! The notation A^B in set theory does mean something,
-it’s the set of all possible mappings from \(B\) to \(A\). The number of elements is \({N_A}^{N_B}\). So
-basically, the type of a function (which is a mapping) is an “exponential” type. You can also view it as
-an iterated product type, a function from type <code class="language-plaintext highlighter-rouge">B</code> to <code class="language-plaintext highlighter-rouge">A</code> is really a struct like this:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// the type</span>
-<span class="k">fn</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">b</span><span class="p">:</span> <span class="n">B</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">A</span><span class="p">;</span>
-
-<span class="c1">// is conceptually (each possible my_func can be written as an instance of)</span>
-
-<span class="k">struct</span> <span class="n">my_func</span> <span class="p">{</span>
-    <span class="n">b1</span><span class="p">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for first element in B</span>
-    <span class="n">b2</span><span class="p">:</span> <span class="n">A</span><span class="p">,</span> <span class="c1">// value for second element in B</span>
-    <span class="n">b3</span><span class="p">:</span> <span class="n">A</span><span class="p">,</span>
-    <span class="c1">// ... </span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>given a value of the input <code class="language-plaintext highlighter-rouge">b</code>, the function will find the right field of <code class="language-plaintext highlighter-rouge">my_func</code> and return
-the mapping. Since a struct is a product type, this is</p>
-
-<p>\[\mathtt{A}^{N_\mathtt{B}} = \tt A \times A \times A \times \dots\]</p>
-
-<p>making it an exponential type.</p>
-
-<p><a href="https://web.archive.org/web/20190706084116/https://strictlypositive.org/diff.pdf">You can even take <em>derivatives</em> of types!</a> (h/t Sam Tobin-Hochstadt for pointing this out to me)</p>
-
-<h2 id="what-in-the-name-of-sanity-is-a-pi-type">What, in the name of sanity, is a Pi type?</h2>
-
-<p><img class="center" src="/images/post/memes/what-in-the-name-of-sanity.jpg" width="400" /></p>
-
-<p>It’s essentially a form of dependent type. A dependent type is when your type
-can depend on a value. An example of this is integer generics, where you
-can do things like <code class="language-plaintext highlighter-rouge">Array&lt;bool, 5&gt;</code>, or <code class="language-plaintext highlighter-rouge">template&lt;unsigned int N, typename T&gt; Array&lt;T, N&gt; ...</code> (in C++).</p>
-
-<p>Note that the type signature contains a <em>type</em> dependent on an integer, being generic over multiple
-different array lengths.</p>
-
-<p>The name comes from how a constructor for these types would look:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// create an array of booleans from a given integer</span>
-<span class="c1">// I made up this syntax, this is _not_ from the Rust Pi type RFC</span>
-<span class="k">fn</span> <span class="nf">make_array</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="c1">// ...</span>
-<span class="p">}</span>
-
-<span class="c1">// or</span>
-<span class="c1">// (the proposed rust syntax)</span>
-<span class="k">fn</span> <span class="n">make_array</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">x</span><span class="p">:</span> <span class="nb">u8</span><span class="o">&gt;</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="n">x</span><span class="o">&gt;</span> <span class="p">{</span>
-   <span class="c1">// ... </span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>What’s the type of <code class="language-plaintext highlighter-rouge">make_array</code> here? It’s a function which can accept any integer
-and return a different type in each case. You can view it as a set of functions,
-where each function corresponds to a different integer input. It’s basically:</p>
-
-<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">make_array</span> <span class="p">{</span>
-    <span class="n">make_array_0</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">0</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">make_array_1</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">make_array_2</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">make_array_3</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">3</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">make_array_4</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="n">make_array_5</span><span class="p">:</span> <span class="k">fn</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="n">Array</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="mi">5</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="c1">// ... </span>
-<span class="p">}</span>
-</code></pre></div></div>
-
-<p>Given an input, the function chooses the right child function here, and calls it.</p>
-
-<p>This is a struct, or a product type! But it’s a product of an infinite number of types<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">7</a></sup>.</p>
-
-<p>We can look at it as</p>
-
-<p>\[\texttt{make_array} = \prod\limits_{x = 0}^\infty\left( \texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)\]</p>
-
-<p>The usage of the \(\Pi\) symbol to denote an iterative product gives this the name “Pi type”.</p>
-
-<p>In languages with lazy evaluation (like Haskell), there is no difference between having a function
-that can give you a value, and actually having the value. So, the type of <code class="language-plaintext highlighter-rouge">make_array</code> is the type
-of <code class="language-plaintext highlighter-rouge">Array&lt;bool, N&gt;</code> itself in languages with lazy evaluation.</p>
-
-<p>There’s also a notion of a “sigma” type, which is basically</p>
-
-<p>\[\sum\limits_{x = 0}^\infty \left(\texttt{fn()} \mathtt\to \texttt{Array&lt;bool, x&gt;}\right)\]</p>
-
-<p>With the Pi type, we had “for all N we can
-construct an array”, with the sigma type we have “there exists some N for which we can construct this array”.
-As you can expect, this type can be expressed with a possibly-infinite enum, and instances of this type
-are basically instances of <code class="language-plaintext highlighter-rouge">Array&lt;bool, N&gt;</code> for some specific <code class="language-plaintext highlighter-rouge">N</code> where the <code class="language-plaintext highlighter-rouge">N</code> is only known at runtime.
-(much like how regular sum types are instances of one amongst multiple types, where the exact type
-is only known at runtime). <code class="language-plaintext highlighter-rouge">Vec&lt;bool&gt;</code> is conceptually similar to the sigma type <code class="language-plaintext highlighter-rouge">Array&lt;bool, ?&gt;</code>,
-as is <code class="language-plaintext highlighter-rouge">&amp;[bool]</code>.</p>
-
-<h2 id="wrapping-up">Wrapping up</h2>
-
-<p>Types are sets, and we can do set-theory things on them to make cooler types.</p>
-
-<p>Let’s try to avoid using confusing terminology, however. If Rust <em>does</em> get “pi types”,
-let’s just call them “dependent types” or “const generics” :)</p>
-
-<p><em>Thanks to Zaki, Avi Weinstock, Corey Richardson, and Peter Atashian for reviewing drafts of this post.</em></p>
-<div class="footnotes" role="doc-endnotes">
-  <ol>
-    <li id="fn:1">
-      <p>Rust, Swift, <em>sort of</em> Typescript, and all the functional languages who had it before it was cool. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:2">
-      <p>Lookin’ at you, Go. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:3">
-      <p>Moooooooooooooooonads <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:10">
-      <p>Types are not exactly sets due to some differences, but for the purposes of this post we can think of them like sets. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:4">
-      <p>Though you can argue that strings often have their length bounded by the pointer size of the platform, so it’s still a finite set. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:7">
-      <p>This even holds for zero-sized types, for more examples, check out <a href="http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/">this blog post</a> <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-    <li id="fn:5">
-      <p>Like with strings, in practice this would probably be bounded by the integer type chosen <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
-    </li>
-  </ol>
-</div>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/posts/4">&larr; Older</a>
@@ -2271,6 +2363,10 @@ let’s just call them “dependent types” or “const generics” :)</p>
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2026/06/17/the-future-of-the-con-is-already-here/">The Future of the Con Is Already Here, It's Just Not Evenly Distributed</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2026/06/14/diplomat-multi-language-ffi-for-rust-libraries/">Diplomat: Multi-language FFI for Rust Libraries</a>
       </li>
     
@@ -2284,10 +2380,6 @@ let’s just call them “dependent types” or “const generics” :)</p>
     
       <li class="post">
         <a href="/blog/2022/08/03/zero-copy-1-not-a-yoking-matter/">Not a Yoking Matter (Zero-Copy #1)</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2022/08/03/colophon-waiter-there-are-pions-in-my-blog-post/">Colophon: Waiter, There Are Pions in My Blog Post!</a>
       </li>
     
   </ul>
@@ -2305,8 +2397,9 @@ let’s just call them “dependent types” or “const generics” :)</p>
 <li class='category'><a href='/blog/categories/physics/'>physics (2)</a></li>
 <li class='category'><a href='/blog/categories/poetry/'>poetry (2)</a></li>
 <li class='category'><a href='/blog/categories/politics/'>politics (1)</a></li>
-<li class='category'><a href='/blog/categories/programming/'>programming (46)</a></li>
+<li class='category'><a href='/blog/categories/programming/'>programming (47)</a></li>
 <li class='category'><a href='/blog/categories/rust/'>rust (31)</a></li>
+<li class='category'><a href='/blog/categories/security/'>security (1)</a></li>
 <li class='category'><a href='/blog/categories/systems/'>systems (1)</a></li>
 <li class='category'><a href='/blog/categories/tidbits/'>tidbits (5)</a></li>
 <li class='category'><a href='/blog/categories/unicode/'>unicode (3)</a></li>
