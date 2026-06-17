@@ -1,9 +1,9 @@
 ---
 layout: post
 title: "The future of the con is already here, it's just not evenly distributed"
-date: 2026-06-01 08:32:30 -0700
+date: 2026-06-17 14:00:43 -0700
 comments: true
-categories: []
+categories:  ["programming", "security"]
 ---
 
 # The Set-Up
@@ -42,7 +42,7 @@ The attackers kept this undetected access and monitored your patterns, looking f
 
 This is pretty scary already, but it gets worse: they managed to drain funds. This is hard: modern financial systems have a lot of protection against hijacked accounts[^banking-protections]. Most scams targeting money involve convincing someone to voluntarily transfer money in an irreversible or untraceable way, and a tech-savvy professional is less likely to be the target of that. 
 
-But it's still possible for a scammer to take money from you with their level of access in a way that lets them keep that money and avoid detection until it's too late. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransferring to a brokerage account that you don't seem to touch or log in to often[^dearth]. They might gain access to it by resetting your password, adding a transfer account, and maybe establishing a pattern of usage making small transfers. Eventually, they transfer the funds out, timed so you won't notice for a while, in a way that's hard to trace[^mules]. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!
+But it's still possible for a scammer to take money from you with their level of access in a way that lets them keep that money and avoid detection until it's too late. Someone with persistent, undetected access to your email and accounts may notice, for example, that you have paycheck money autotransferring to a brokerage account that you don't seem to touch or log in to often[^dearth]. They might gain access to it by resetting your password, and then add a transfer account, maybe establishing a pattern of usage making small transfers. Eventually, they transfer the funds out, timed so you won't notice for a while, in a way that's hard to trace[^mules]. Maybe they can wait for you to be on vacation, because they know when that is: they have your calendar!
 
 After they're all done and think the scam will be detected soon anyway, they lock you out of your accounts to make it harder for you to piece together what happened.
 
@@ -57,7 +57,7 @@ An LLM which could research everything about you and craft a tailored attack. An
 And the job hunt was incidental. The interview was the scam that fit you; a plausible way to hook you in based on what the scammers knew about you. For someone else, it might be a scary call from the police, a relative asking for help, an email from their bank, or a slow-burn romance. The pretext changes each time, but the machinery behind it is the same.
 
  [money mules]: https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/money-mules
- [^banking-protections]:  Involuntarily transferring your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regs. Furthermore, banking sites often use 2FA and notify the user when there is a login.
+ [^banking-protections]:  Involuntarily transferring your money would involve initiating a bank transfer via online banking. This would potentially be noticed, transfers take a few days, and the target account could be traced due to KYC regulations. Furthermore, banking sites often use 2FA and notify the user when there is a login.
  [^mules]: The tracing of the actual outflow can be thwarted by using (unsuspecting) [money mules], a well-established tactic in the scam world. Admittedly, this adds more days to the process where you might notice something is wrong, but it does appear to be feasible.
  [^dearth]: From the dearth of "login detected to foo.com" emails in your inbox
 
@@ -118,7 +118,7 @@ Here's a partial list of scam-relevant capabilities that LLMs have that would pr
  - Personally tailoring all communication with a mark in mind, dynamically adjusting based on how they respond to various approaches.
  - Cloning the voice of a person the mark trusts, like a relative.
  - Plausible, real-time deepfaking of a video call.
- - Building a plausible-looking corroborating fake web presence [^fn-lorenzo]
+ - Building a plausible-looking corroborating fake web presence [^fn-lorenzo].
  - Realtime monitoring of compromised resources, and dynamically building up the scam based on this monitoring.
  - Better triage and discovery of marks.
  - Avoiding signature-detection based spam filters (shown by [Heiding et al][heiding]).
